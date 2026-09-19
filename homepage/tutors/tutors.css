@@ -1,1435 +1,1004 @@
 /* =========================================================
-   URBANTUTORSITE
-   OUR TUTORS COMPONENT
+   OUR TUTORS
    =========================================================
-
-   FILE:
-   homepage/tutors/tutors.css
-
-   PURPOSE:
-   ---------------------------------------------------------
-   Complete visual styling for the Tutors component.
-
-   IMPORTANT DESIGN CHANGES:
-   ---------------------------------------------------------
-   1. "OUR TUTORS" removed.
-   2. Only "Meet our tutors." remains.
-   3. Heading is center aligned.
-   4. Large information boxes removed.
-   5. Dotted separators removed.
-   6. Verification badge redesigned.
-   7. Verification badge appears beside Tutor name.
-   8. Cards are smaller.
-   9. Cards automatically adapt to screen width.
-   10. Loading state is properly hidden.
-   11. Empty state is properly hidden.
-   12. Mobile layout automatically becomes one card.
+   
+   This stylesheet belongs ONLY to:
+   
+   homepage/tutors/tutors.html
+   
+   Do not put Tutor styles inside the global style.css.
 
    ========================================================= */
 
 
-
 /* =========================================================
-   01. GLOBAL HIDDEN CLASS
-   =========================================================
-
-   This is extremely important.
-
-   When JavaScript adds "hidden", the element disappears
-   completely and does not occupy space.
-
-   ========================================================= */
-
-.hidden {
-
-  display:
-    none !important;
-
-}
-
-
-
-/* =========================================================
-   02. TUTORS SECTION
+   SECTION
    ========================================================= */
 
 .tutors-section {
 
-  width:
-    100%;
+  width: 100%;
 
-  padding:
-    55px 0 50px;
+  padding: 82px 0 70px;
 
-  background:
-    #090909;
+  background: #090909;
 
-  border-top:
-    1px solid
-    rgba(
-      255,
-      255,
-      255,
-      0.05
-    );
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 
 }
 
 
-
 /* =========================================================
-   03. MAIN CONTAINER
-   ========================================================= */
-
-.tutors-container {
-
-  /*
-   * Almost the entire screen width is available.
-   *
-   * This allows the grid to fit as many Tutor cards
-   * as possible.
-   */
-
-  width:
-    min(
-      calc(100% - 32px),
-      1450px
-    );
-
-  margin:
-    0 auto;
-
-}
-
-
-
-/* =========================================================
-   04. SECTION HEADING
+   SECTION HEADING
    ========================================================= */
 
 .tutors-heading {
 
-  width:
-    100%;
+  width: 100%;
 
-  margin:
-    0 0 30px;
+  margin-bottom: 42px;
 
-  text-align:
-    center;
+  text-align: center;
+
+}
+
+
+/* Small green heading */
+
+.tutors-kicker {
+
+  margin-bottom: 12px;
+
+  color: #b7ff00;
+
+  font-size: 10px;
+
+  font-weight: 800;
+
+  letter-spacing: 2.5px;
+
+  text-transform: uppercase;
+
+}
+
+
+/* Main heading */
+
+.tutors-heading h2 {
+
+  margin: 0;
+
+  color: #f5f5f5;
+
+  font-size: clamp(38px, 5vw, 58px);
+
+  line-height: 1;
+
+  font-weight: 800;
+
+  letter-spacing: -2.5px;
+
+}
+
+
+/* Green word */
+
+.tutors-heading h2 span {
+
+  color: #b7ff00;
 
 }
 
 
 
-.tutors-heading h2 {
+/* =========================================================
+   CARD AREA
+   ========================================================= */
 
-  margin:
-    0;
+.tutor-card-area {
 
-  color:
-    #f5f5f5;
+  position: relative;
+
+  width: 100%;
+
+  min-height: 520px;
+
+}
+
+
+/* =========================================================
+   TUTOR GRID
+   =========================================================
+   
+   JavaScript decides how many cards should be displayed.
+   The grid then automatically distributes them equally.
+
+   ========================================================= */
+
+.tutor-grid {
+
+  position: relative;
+
+  width: 100%;
+
+  min-height: 480px;
+
+}
+
+
+/* =========================================================
+   CAROUSEL PAGE
+   =========================================================
+   
+   Instead of immediately deleting the previous cards,
+   JavaScript keeps the old page temporarily and fades
+   the new page over it.
+
+   This prevents:
+   
+   - Flicker
+   - Sudden jumps
+   - Distortion
+   - Empty frames during rotation
+
+   ========================================================= */
+
+.tutor-page {
+
+  position: absolute;
+
+  inset: 0;
+
+  display: grid;
+
+  grid-template-columns: repeat(
+    var(--cards-per-page),
+    minmax(0, 1fr)
+  );
+
+  gap: 18px;
+
+  opacity: 0;
+
+  transform: translate3d(18px, 0, 0);
+
+  transition:
+    opacity 420ms ease,
+    transform 420ms cubic-bezier(.22, .7, .25, 1);
+
+  pointer-events: none;
+
+}
+
+
+/* Active page */
+
+.tutor-page.active {
+
+  opacity: 1;
+
+  transform: translate3d(0, 0, 0);
+
+  pointer-events: auto;
+
+}
+
+
+/* Previous page */
+
+.tutor-page.previous {
+
+  opacity: 0;
+
+  transform: translate3d(-18px, 0, 0);
+
+}
+
+
+
+/* =========================================================
+   TUTOR CARD
+   ========================================================= */
+
+.tutor-card {
+
+  min-width: 0;
+
+  height: 100%;
+
+  overflow: hidden;
+
+  display: flex;
+
+  flex-direction: column;
+
+  background:
+    linear-gradient(
+      180deg,
+      #141414 0%,
+      #0e0e0e 100%
+    );
+
+  border: 1px solid rgba(255, 255, 255, 0.10);
+
+  border-radius: 18px;
+
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.32);
+
+}
+
+
+/* =========================================================
+   TUTOR PROFILE / IMAGE AREA
+   ========================================================= */
+
+.tutor-profile-area {
+
+  position: relative;
+
+  width: 100%;
+
+  height: 190px;
+
+  flex-shrink: 0;
+
+  overflow: hidden;
+
+  background: #0d0d0d;
+
+}
+
+
+/* Tutor image */
+
+.tutor-profile-image {
+
+  width: 100%;
+
+  height: 100%;
+
+  display: block;
+
+  object-fit: cover;
+
+}
+
+
+/* Dark gradient at bottom */
+
+.tutor-profile-area::after {
+
+  content: "";
+
+  position: absolute;
+
+  inset: 0;
+
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.05) 25%,
+      rgba(0, 0, 0, 0.88) 100%
+    );
+
+}
+
+
+
+/* =========================================================
+   TUTOR IDENTITY
+   ========================================================= */
+
+.tutor-identity {
+
+  position: absolute;
+
+  z-index: 2;
+
+  left: 12px;
+
+  right: 12px;
+
+  bottom: 15px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  text-align: center;
+
+}
+
+
+/* =========================================================
+   NAME + VERIFIED BADGE
+   ========================================================= */
+
+.tutor-name-row {
+
+  width: 100%;
+
+  min-width: 0;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 6px;
+
+}
+
+
+/* Tutor name */
+
+.tutor-name {
+
+  min-width: 0;
+
+  max-width: calc(100% - 25px);
+
+  overflow: hidden;
+
+  color: #ffffff;
 
   font-family:
     Georgia,
     "Times New Roman",
     serif;
 
-  font-size:
-    clamp(
-      34px,
-      4vw,
-      54px
-    );
+  font-size: 19px;
 
-  line-height:
-    1.05;
+  line-height: 1.15;
 
-  font-weight:
-    700;
+  font-weight: 700;
 
-  letter-spacing:
-    -2px;
+  letter-spacing: -0.4px;
+
+  white-space: nowrap;
+
+  text-overflow: ellipsis;
 
 }
-
-
-
-.tutors-heading h2 span {
-
-  color:
-    #b7ff00;
-
-}
-
 
 
 /* =========================================================
-   05. TUTOR CARD AREA
-   ========================================================= */
-
-.tutor-card-area {
-
-  width:
-    100%;
-
-}
-
-
-
-/* =========================================================
-   06. RESPONSIVE TUTOR GRID
+   VERIFIED BADGE
    =========================================================
-
-   IMPORTANT:
-
-   We do NOT use:
-
-       repeat(3, ...)
-
-   anymore.
-
-   Instead:
-
-       auto-fit + minmax()
-
-   automatically determines how many cards can fit.
-
-   Example:
-
-   Large screen:
-   4 cards / 5 cards / more if space allows
-
-   Tablet:
-   2-3 cards
-
-   Mobile:
-   1 card
-
+   
+   Twitter/X-style visual:
+   
+   - Blue circular badge
+   - White check
+   - Small size
+   - Positioned directly beside the name
+   
+   It is created as an SVG in tutors.js.
    ========================================================= */
 
-.tutor-grid {
+.tutor-verified-badge {
 
-  width:
-    100%;
+  width: 18px;
 
-  display:
-    grid;
+  height: 18px;
 
-  grid-template-columns:
-    repeat(
-      auto-fit,
-      minmax(
-        265px,
-        1fr
-      )
-    );
+  flex: 0 0 18px;
 
-  gap:
-    18px;
+  display: inline-flex;
 
-  align-items:
-    start;
+  align-items: center;
+
+  justify-content: center;
+
+}
+
+
+/* SVG inside verification badge */
+
+.tutor-verified-badge svg {
+
+  width: 18px;
+
+  height: 18px;
+
+  display: block;
 
 }
 
 
 
 /* =========================================================
-   07. TUTOR CARD
-   ========================================================= */
-
-.tutor-card {
-
-  width:
-    100%;
-
-  min-width:
-    0;
-
-  overflow:
-    hidden;
-
-  background:
-    #111111;
-
-  border:
-    1px solid
-    rgba(
-      255,
-      255,
-      255,
-      0.10
-    );
-
-  border-radius:
-    15px;
-
-  box-shadow:
-    0 18px 45px
-    rgba(
-      0,
-      0,
-      0,
-      0.30
-    );
-
-  animation:
-    tutorCardIn
-    .45s
-    ease
-    both;
-
-}
-
-
-
-/* =========================================================
-   08. CARD ENTRANCE ANIMATION
-   ========================================================= */
-
-@keyframes tutorCardIn {
-
-  from {
-
-    opacity:
-      0;
-
-    transform:
-      translateY(10px);
-
-  }
-
-  to {
-
-    opacity:
-      1;
-
-    transform:
-      translateY(0);
-
-  }
-
-}
-
-
-
-/* =========================================================
-   09. PROFILE IMAGE AREA
-   ========================================================= */
-
-.tutor-image-area {
-
-  position:
-    relative;
-
-  width:
-    100%;
-
-  /*
-   * Much smaller than the previous 285px/320px design.
-   */
-
-  height:
-    190px;
-
-  overflow:
-    hidden;
-
-  background:
-    #0c0c0c;
-
-}
-
-
-
-.tutor-image-area img {
-
-  width:
-    100%;
-
-  height:
-    100%;
-
-  display:
-    block;
-
-  object-fit:
-    cover;
-
-}
-
-
-
-/* =========================================================
-   10. IMAGE GRADIENT
-   ========================================================= */
-
-.tutor-image-area::after {
-
-  content:
-    "";
-
-  position:
-    absolute;
-
-  inset:
-    0;
-
-  pointer-events:
-    none;
-
-  background:
-    linear-gradient(
-      to top,
-      rgba(0,0,0,.95),
-      rgba(0,0,0,.30) 60%,
-      transparent
-    );
-
-}
-
-
-
-/* =========================================================
-   11. TUTOR NAME AREA
-   ========================================================= */
-
-.tutor-card-overlay {
-
-  position:
-    absolute;
-
-  z-index:
-    5;
-
-  left:
-    12px;
-
-  right:
-    12px;
-
-  bottom:
-    13px;
-
-  display:
-    flex;
-
-  flex-direction:
-    column;
-
-  align-items:
-    center;
-
-  text-align:
-    center;
-
-}
-
-
-
-/* =========================================================
-   12. NAME + VERIFIED BADGE
-   =========================================================
-
-   Final appearance:
-
-       Rahul Kumar  ✓
-
-   This is similar to the concept of a verified profile
-   on social platforms.
-
-   ========================================================= */
-
-.tutor-name-row {
-
-  width:
-    100%;
-
-  display:
-    flex;
-
-  align-items:
-    center;
-
-  justify-content:
-    center;
-
-  gap:
-    6px;
-
-}
-
-
-
-/* =========================================================
-   13. TUTOR NAME
-   ========================================================= */
-
-.tutor-title {
-
-  min-width:
-    0;
-
-  max-width:
-    calc(
-      100% - 24px
-    );
-
-  overflow:
-    hidden;
-
-  color:
-    #ffffff;
-
-  font-size:
-    20px;
-
-  line-height:
-    1.1;
-
-  font-weight:
-    800;
-
-  letter-spacing:
-    -0.4px;
-
-  white-space:
-    nowrap;
-
-  text-overflow:
-    ellipsis;
-
-}
-
-
-
-/* =========================================================
-   14. VERIFIED BADGE
-   =========================================================
-
-   Old:
-
-       ✓ APPROVED
-
-   New:
-
-       Name  ✓
-
-   Small circular badge inspired by verified profile
-   indicators.
-
-   ========================================================= */
-
-.verified-badge {
-
-  width:
-    17px;
-
-  height:
-    17px;
-
-  flex:
-    0 0 17px;
-
-  display:
-    inline-flex;
-
-  align-items:
-    center;
-
-  justify-content:
-    center;
-
-  border-radius:
-    50%;
-
-  background:
-    #b7ff00;
-
-  color:
-    #050505;
-
-  font-size:
-    10px;
-
-  font-weight:
-    1000;
-
-  line-height:
-    1;
-
-  box-shadow:
-    0 0 0 2px
-    rgba(
-      183,
-      255,
-      0,
-      0.10
-    );
-
-}
-
-
-
-/* =========================================================
-   15. TUTOR TYPE
+   TUTOR ROLE
    ========================================================= */
 
 .tutor-role {
 
-  margin:
-    5px 0 0;
+  margin-top: 5px;
 
-  color:
-    #b7ff00;
+  color: #b7ff00;
 
-  font-size:
-    10px;
+  font-size: 10px;
 
-  line-height:
-    1.1;
+  line-height: 1.2;
 
-  font-weight:
-    800;
+  font-weight: 800;
 
 }
 
 
 
 /* =========================================================
-   16. INFORMATION AREA
+   INFORMATION AREA
    ========================================================= */
 
 .tutor-information {
 
-  width:
-    100%;
+  min-width: 0;
 
-  padding:
-    10px 13px 12px;
+  padding: 13px;
+
+  background: #111111;
 
 }
 
 
-
 /* =========================================================
-   17. DETAIL ROW
+   DETAIL ROW
    =========================================================
+   
+   IMPORTANT:
+   There is deliberately NO "......" separator.
 
-   OLD DESIGN:
-
-   ┌──────────────────────────┐
-   │ EXPERIENCE        3 Years│
-   └──────────────────────────┘
-
-   NEW DESIGN:
-
-   EXPERIENCE          3 Years
-   ----------------------------
-
-   No large box.
-   No dotted line.
-   Much smaller height.
+   Layout:
+   
+   Label        Value
+   
+   Example:
+   EXPERIENCE   3 Years
 
    ========================================================= */
 
-.tutor-grid .detail-line {
+.tutor-detail-row {
 
-  width:
-    100%;
+  width: 100%;
 
-  min-height:
-    29px;
+  min-height: 36px;
 
-  margin:
-    0;
+  margin-bottom: 6px;
 
-  padding:
-    6px 2px;
+  padding: 7px 9px;
 
-  display:
-    grid;
+  display: grid;
 
   grid-template-columns:
-    1fr auto;
+    minmax(0, 1fr)
+    minmax(0, 1.25fr);
 
-  align-items:
-    center;
+  align-items: center;
 
-  column-gap:
-    10px;
+  gap: 8px;
 
-  background:
-    transparent;
+  background: #151515;
 
   border:
-    0;
-
-  border-bottom:
     1px solid
-    rgba(
-      255,
-      255,
-      255,
-      0.065
-    );
+    rgba(255, 255, 255, 0.075);
 
-  border-radius:
-    0;
-
-  box-shadow:
-    none;
+  border-radius: 9px;
 
 }
 
 
+/* Last row */
 
-/* =========================================================
-   18. LAST ROW
-   ========================================================= */
+.tutor-detail-row:last-child {
 
-.tutor-grid .detail-line:last-child {
-
-  border-bottom:
-    none;
+  margin-bottom: 0;
 
 }
 
 
+/* Detail label */
 
-/* =========================================================
-   19. DETAIL LABEL
-   ========================================================= */
+.tutor-detail-label {
 
-.tutor-grid .detail-label {
+  min-width: 0;
 
-  min-width:
-    0;
+  color: #777777;
 
-  color:
-    #7e7e7e;
+  font-size: 8px;
 
-  font-size:
-    8px;
+  line-height: 1.2;
 
-  line-height:
-    1.2;
+  font-weight: 800;
 
-  font-weight:
-    800;
+  letter-spacing: 0.8px;
 
-  letter-spacing:
-    .8px;
-
-  text-transform:
-    uppercase;
+  text-transform: uppercase;
 
 }
 
 
+/* Detail value */
 
-/* =========================================================
-   20. DETAIL VALUE
-   ========================================================= */
+.tutor-detail-value {
 
-.tutor-grid .detail-value {
+  min-width: 0;
 
-  min-width:
-    0;
+  color: #eeeeee;
 
-  color:
-    #eeeeee;
+  font-size: 10px;
 
-  font-size:
-    10px;
+  line-height: 1.25;
 
-  line-height:
-    1.3;
+  font-weight: 700;
 
-  font-weight:
-    700;
+  text-align: right;
 
-  text-align:
-    right;
+  overflow-wrap: anywhere;
 
-  overflow-wrap:
-    anywhere;
+  word-break: break-word;
 
 }
 
 
-
 /* =========================================================
-   21. REMOVE OLD DOTTED SEPARATOR
-   =========================================================
-
-   Even if old markup accidentally exists,
-   the dotted separator will never be displayed.
-
+   QUALIFICATION TITLE
    ========================================================= */
 
-.tutor-grid .detail-dots {
+.tutor-qualification {
 
-  display:
-    none !important;
+  margin-top: 12px;
 
-}
-
-
-
-/* =========================================================
-   22. QUALIFICATION SECTION
-   ========================================================= */
-
-.tutor-grid .qualification-section {
-
-  margin-top:
-    8px;
-
-  padding-top:
-    8px;
+  padding-top: 11px;
 
   border-top:
     1px solid
-    rgba(
-      255,
-      255,
-      255,
-      0.065
-    );
+    rgba(255, 255, 255, 0.07);
+
+}
+
+
+/* Qualification heading */
+
+.tutor-qualification-title {
+
+  margin-bottom: 8px;
+
+  color: #666666;
+
+  font-size: 8px;
+
+  line-height: 1.2;
+
+  font-weight: 800;
+
+  letter-spacing: 1.5px;
+
+  text-align: center;
 
 }
 
 
 
 /* =========================================================
-   23. SECTION LABEL
+   LOCATION
    ========================================================= */
 
-.tutor-grid .block-label {
+.tutor-location {
 
-  display:
-    block;
+  margin-top: 12px;
 
-  margin:
-    0 0 3px;
-
-  color:
-    #707070;
-
-  font-size:
-    7px;
-
-  line-height:
-    1.2;
-
-  font-weight:
-    800;
-
-  letter-spacing:
-    1.1px;
-
-  text-align:
-    center;
-
-}
-
-
-
-/* =========================================================
-   24. PROFESSIONAL INFORMATION
-   ========================================================= */
-
-.tutor-grid .professional-block {
-
-  margin-top:
-    8px;
-
-}
-
-
-
-/* =========================================================
-   25. LOCATION
-   ========================================================= */
-
-.tutor-grid .location-detail {
-
-  margin-top:
-    8px;
-
-  padding-top:
-    8px;
+  padding-top: 11px;
 
   border-top:
     1px solid
-    rgba(
-      255,
-      255,
-      255,
-      0.065
-    );
+    rgba(255, 255, 255, 0.07);
 
 }
 
 
 
 /* =========================================================
-   26. TAG LIST
-   ========================================================= */
-
-.tutor-grid .tag-list {
-
-  display:
-    flex;
-
-  flex-wrap:
-    wrap;
-
-  gap:
-    4px;
-
-}
-
-
-
-.tutor-grid .tag {
-
-  padding:
-    3px 6px;
-
-  background:
-    #181818;
-
-  border:
-    1px solid
-    rgba(
-      255,
-      255,
-      255,
-      0.07
-    );
-
-  border-radius:
-    5px;
-
-  color:
-    #cccccc;
-
-  font-size:
-    8px;
-
-}
-
-
-
-/* =========================================================
-   27. LOADING CARD
-   ========================================================= */
-
-.loading-card {
-
-  width:
-    100%;
-
-  min-height:
-    110px;
-
-  display:
-    flex;
-
-  flex-direction:
-    column;
-
-  align-items:
-    center;
-
-  justify-content:
-    center;
-
-  gap:
-    8px;
-
-  background:
-    #111111;
-
-  border:
-    1px solid
-    rgba(
-      255,
-      255,
-      255,
-      0.08
-    );
-
-  border-radius:
-    12px;
-
-  color:
-    #888888;
-
-}
-
-
-
-.loading-card p {
-
-  margin:
-    0;
-
-  font-size:
-    12px;
-
-}
-
-
-
-/* =========================================================
-   28. LOADING SPINNER
-   ========================================================= */
-
-.loader {
-
-  width:
-    22px;
-
-  height:
-    22px;
-
-  border:
-    2px solid
-    rgba(
-      255,
-      255,
-      255,
-      0.10
-    );
-
-  border-top-color:
-    #b7ff00;
-
-  border-radius:
-    50%;
-
-  animation:
-    tutorLoader
-    .7s
-    linear
-    infinite;
-
-}
-
-
-
-@keyframes tutorLoader {
-
-  to {
-
-    transform:
-      rotate(360deg);
-
-  }
-
-}
-
-
-
-/* =========================================================
-   29. EMPTY / ERROR STATE
-   ========================================================= */
-
-.no-tutors {
-
-  width:
-    min(
-      520px,
-      100%
-    );
-
-  margin:
-    0 auto;
-
-  padding:
-    50px 20px;
-
-  text-align:
-    center;
-
-  border:
-    1px dashed
-    rgba(
-      255,
-      255,
-      255,
-      0.12
-    );
-
-  border-radius:
-    14px;
-
-}
-
-
-
-.no-tutors h3 {
-
-  margin:
-    8px 0 0;
-
-  color:
-    #eeeeee;
-
-  font-size:
-    18px;
-
-}
-
-
-
-.no-tutors p {
-
-  max-width:
-    380px;
-
-  margin:
-    7px auto 0;
-
-  color:
-    #777777;
-
-  font-size:
-    11px;
-
-  line-height:
-    1.4;
-
-}
-
-
-
-.empty-icon {
-
-  color:
-    #555555;
-
-  font-size:
-    20px;
-
-}
-
-
-
-/* =========================================================
-   30. TUTOR CONTROLS
+   CAROUSEL CONTROLS
    ========================================================= */
 
 .tutor-controls {
 
-  margin-top:
-    18px;
+  margin-top: 22px;
 
-  display:
-    flex;
+  display: flex;
 
-  align-items:
-    center;
+  align-items: center;
 
-  justify-content:
-    center;
+  justify-content: center;
 
-  gap:
-    12px;
+  gap: 16px;
 
 }
 
 
+/* Arrow button */
 
-/* =========================================================
-   31. ARROW BUTTON
-   ========================================================= */
+.tutor-arrow {
 
-.arrow-button {
+  width: 38px;
 
-  width:
-    35px;
+  height: 38px;
 
-  height:
-    35px;
+  display: grid;
 
-  display:
-    grid;
-
-  place-items:
-    center;
-
-  padding:
-    0;
-
-  background:
-    #111111;
+  place-items: center;
 
   border:
     1px solid
-    rgba(
-      255,
-      255,
-      255,
-      0.12
-    );
+    rgba(255, 255, 255, 0.12);
 
-  border-radius:
-    50%;
+  border-radius: 50%;
 
-  color:
-    #b7ff00;
+  background: #111111;
 
-  font-size:
-    14px;
+  color: #ffffff;
 
-  cursor:
-    pointer;
+  font-size: 15px;
 
   transition:
-    .2s ease;
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
 
 }
 
 
+.tutor-arrow:hover {
 
-.arrow-button:hover {
+  color: #b7ff00;
 
-  border-color:
-    #b7ff00;
+  border-color: #b7ff00;
 
-  transform:
-    translateY(-1px);
+  background: #151515;
+
+  transform: translateY(-1px);
 
 }
-
 
 
 /* =========================================================
-   32. DOTS
+   PAGINATION DOTS
    ========================================================= */
 
 .tutor-dots {
 
-  display:
-    flex;
+  display: flex;
 
-  align-items:
-    center;
+  align-items: center;
 
-  gap:
-    5px;
+  gap: 5px;
 
 }
 
 
+/* Individual dot */
 
 .tutor-dot {
 
-  width:
-    6px;
+  width: 6px;
 
-  height:
-    6px;
+  height: 6px;
 
-  padding:
-    0;
+  padding: 0;
 
-  border:
-    0;
+  border: 0;
 
-  border-radius:
-    50%;
+  border-radius: 50%;
 
-  background:
-    #555555;
-
-  cursor:
-    pointer;
+  background: #4b4b4b;
 
   transition:
-    .2s ease;
+    width 220ms ease,
+    background 220ms ease;
 
 }
 
 
+/* Active dot */
 
 .tutor-dot.active {
 
-  width:
-    17px;
+  width: 18px;
 
-  border-radius:
-    5px;
+  border-radius: 5px;
 
-  background:
-    #b7ff00;
+  background: #b7ff00;
 
 }
 
 
 
 /* =========================================================
-   33. TABLET
+   LOADING STATE
    ========================================================= */
+
+.tutor-state {
+
+  width: 100%;
+
+  min-height: 420px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  color: #888888;
+
+  text-align: center;
+
+}
+
+
+/* Loading spinner */
+
+.tutor-loader {
+
+  width: 28px;
+
+  height: 28px;
+
+  margin-bottom: 12px;
+
+  border:
+    2px solid
+    rgba(255, 255, 255, 0.12);
+
+  border-top-color: #b7ff00;
+
+  border-radius: 50%;
+
+  animation:
+    tutorSpin 0.8s linear infinite;
+
+}
+
+
+@keyframes tutorSpin {
+
+  to {
+
+    transform: rotate(360deg);
+
+  }
+
+}
+
+
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.tutor-empty {
+
+  min-height: 300px;
+
+  padding: 40px 20px;
+
+  border:
+    1px dashed
+    rgba(255, 255, 255, 0.12);
+
+  border-radius: 18px;
+
+}
+
+
+.tutor-empty-icon {
+
+  width: 42px;
+
+  height: 42px;
+
+  margin-bottom: 12px;
+
+  display: grid;
+
+  place-items: center;
+
+  border-radius: 50%;
+
+  background: #151515;
+
+  color: #b7ff00;
+
+}
+
+
+.tutor-empty h3 {
+
+  margin: 0;
+
+  color: #eeeeee;
+
+  font-size: 18px;
+
+}
+
+
+.tutor-empty p {
+
+  max-width: 350px;
+
+  margin: 7px auto 0;
+
+  color: #777777;
+
+  font-size: 12px;
+
+  line-height: 1.5;
+
+}
+
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+
+/* Large desktop */
+
+@media (min-width: 1200px) {
+
+  .tutor-profile-area {
+
+    height: 180px;
+
+  }
+
+}
+
+
+/* Tablet / smaller laptop */
 
 @media (max-width: 900px) {
 
-  .tutors-container {
+  .tutors-section {
 
-    width:
-      calc(
-        100% - 24px
-      );
+    padding-top: 65px;
 
   }
 
+  .tutor-page {
 
-  .tutor-grid {
-
-    grid-template-columns:
-      repeat(
-        auto-fit,
-        minmax(
-          250px,
-          1fr
-        )
-      );
-
-    gap:
-      14px;
+    gap: 14px;
 
   }
 
+  .tutor-profile-area {
 
-  .tutor-image-area {
+    height: 170px;
 
-    height:
-      180px;
+  }
+
+  .tutor-name {
+
+    font-size: 17px;
 
   }
 
 }
 
 
+/* Mobile */
 
-/* =========================================================
-   34. MOBILE
-   ========================================================= */
-
-@media (max-width: 580px) {
+@media (max-width: 650px) {
 
   .tutors-section {
 
-    padding:
-      45px 0 40px;
+    padding: 55px 0 50px;
 
   }
 
+  .tutors-heading {
 
-  .tutors-container {
-
-    width:
-      calc(
-        100% - 20px
-      );
+    margin-bottom: 30px;
 
   }
 
+  .tutors-heading h2 {
 
-  /*
-   * One card per row on mobile.
-   */
+    font-size: 40px;
+
+    letter-spacing: -1.8px;
+
+  }
+
+  .tutor-card-area {
+
+    min-height: 510px;
+
+  }
 
   .tutor-grid {
 
-    grid-template-columns:
-      minmax(
-        0,
-        1fr
-      );
-
-    gap:
-      14px;
+    min-height: 510px;
 
   }
 
+  .tutor-page {
 
-  .tutor-card {
-
-    width:
-      100%;
+    gap: 14px;
 
   }
 
+  .tutor-profile-area {
 
-  .tutor-image-area {
-
-    height:
-      185px;
-
-  }
-
-
-  .tutors-heading h2 {
-
-    font-size:
-      34px;
+    height: 185px;
 
   }
 
 }
 
 
+/* Small mobile */
 
-/* =========================================================
-   35. VERY SMALL MOBILE
-   ========================================================= */
+@media (max-width: 400px) {
 
-@media (max-width: 360px) {
+  .tutor-profile-area {
 
-  .tutors-heading h2 {
-
-    font-size:
-      30px;
+    height: 175px;
 
   }
-
-
-  .tutor-title {
-
-    font-size:
-      18px;
-
-  }
-
 
   .tutor-information {
 
-    padding:
-      9px 10px 10px;
+    padding: 11px;
+
+  }
+
+  .tutor-detail-row {
+
+    min-height: 35px;
+
+    padding: 7px 8px;
 
   }
 
 }
 
 
-
 /* =========================================================
-   36. REDUCED MOTION
+   ACCESSIBILITY
    ========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
 
-  .tutor-card,
-  .loader {
+  .tutor-page {
 
-    animation:
-      none !important;
+    transition: none;
+
+  }
+
+  .tutor-arrow,
+  .tutor-dot {
+
+    transition: none;
+
+  }
+
+  .tutor-loader {
+
+    animation: none;
 
   }
 
