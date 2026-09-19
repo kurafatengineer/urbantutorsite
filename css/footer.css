@@ -1,1 +1,481 @@
+/* =========================================================
+   URBAN TUTOR SITE
+   GLOBAL FOOTER
+   ========================================================= */
 
+:root {
+  --footer-bg: #050505;
+  --footer-text: #f5f5f5;
+  --footer-muted: #999999;
+
+  /* Existing site accent */
+  --footer-green: #b7ff00;
+
+  --footer-border:
+    rgba(255, 255, 255, 0.08);
+}
+
+
+/* =========================================================
+   FOOTER
+   ========================================================= */
+
+.site-footer {
+  width: 100%;
+
+  background: var(--footer-bg);
+
+  color: var(--footer-text);
+
+  border-top:
+    1px solid var(--footer-border);
+}
+
+
+/* =========================================================
+   MAIN FOOTER
+   ========================================================= */
+
+.footer-main {
+
+  width: min(
+    1120px,
+    calc(100% - 40px)
+  );
+
+  min-height: 230px;
+
+  margin: 0 auto;
+
+  padding: 55px 0 40px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+}
+
+
+/* =========================================================
+   CENTER
+   ========================================================= */
+
+.footer-center {
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  text-align: center;
+}
+
+
+/* =========================================================
+   BRAND
+   ========================================================= */
+
+.footer-brand {
+
+  display: inline-block;
+
+  font-size: 28px;
+
+  font-weight: 850;
+
+  line-height: 1;
+
+  letter-spacing: -1px;
+
+  text-decoration: none;
+
+  transition:
+    transform 0.2s ease;
+}
+
+
+/*
+   Two-colour UrbanTutorSite
+*/
+
+.brand-urban {
+  color: #ffffff;
+}
+
+
+.brand-tutorsite {
+  color: var(--footer-green);
+}
+
+
+.footer-brand:hover {
+  transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   TAGLINE
+   ========================================================= */
+
+.footer-tagline {
+
+  margin: 13px 0 0;
+
+  color: var(--footer-muted);
+
+  font-size: 13px;
+
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   SOCIAL MEDIA
+   ========================================================= */
+
+.footer-socials {
+
+  margin-top: 27px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 13px;
+}
+
+
+/* =========================================================
+   SOCIAL ICON
+   ========================================================= */
+
+.social-link {
+
+  width: 38px;
+  height: 38px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  color: #999999;
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.08);
+
+  border-radius: 10px;
+
+  background: #0d0d0d;
+
+  text-decoration: none;
+
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+
+.social-link svg {
+
+  width: 18px;
+  height: 18px;
+
+  fill: currentColor;
+
+  display: block;
+}
+
+
+/*
+   Hover
+*/
+
+.social-link:hover {
+
+  color: var(--footer-green);
+
+  border-color:
+    rgba(183, 255, 0, 0.35);
+
+  background:
+    rgba(183, 255, 0, 0.06);
+
+  transform:
+    translateY(-2px);
+}
+
+
+/* =========================================================
+   COPYRIGHT
+   ========================================================= */
+
+.footer-bottom {
+
+  width: min(
+    1120px,
+    calc(100% - 40px)
+  );
+
+  margin: 0 auto;
+
+  padding: 18px 0 22px;
+
+  border-top:
+    1px solid
+    rgba(255, 255, 255, 0.06);
+
+  color: #555555;
+
+  font-size: 10px;
+
+  font-weight: 600;
+
+  text-align: center;
+}
+
+
+/* =========================================================
+   FLOATING CONTACT BUTTONS
+   ========================================================= */
+
+.floating-contact {
+
+  position: fixed;
+
+  bottom: 22px;
+
+  width: 52px;
+  height: 52px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  z-index: 9999;
+
+  border-radius: 50%;
+
+  color: var(--footer-green);
+
+  background:
+    #101010;
+
+  border:
+    1px solid
+    rgba(183, 255, 0, 0.45);
+
+  box-shadow:
+    0 8px 25px
+    rgba(0, 0, 0, 0.45);
+
+  text-decoration: none;
+
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+
+/* =========================================================
+   LEFT — WHATSAPP
+   ========================================================= */
+
+.floating-whatsapp {
+
+  left: 22px;
+}
+
+
+/* =========================================================
+   RIGHT — CALL
+   ========================================================= */
+
+.floating-call {
+
+  right: 22px;
+}
+
+
+/* =========================================================
+   FLOATING ICON
+   ========================================================= */
+
+.floating-contact svg {
+
+  width: 25px;
+  height: 25px;
+
+  fill: currentColor;
+
+  display: block;
+}
+
+
+/* =========================================================
+   FLOATING HOVER
+   ========================================================= */
+
+.floating-contact:hover {
+
+  color: #050505;
+
+  background:
+    var(--footer-green);
+
+  border-color:
+    var(--footer-green);
+
+  transform:
+    translateY(-3px);
+
+  box-shadow:
+    0 10px 30px
+    rgba(183, 255, 0, 0.18);
+}
+
+
+.floating-contact:active {
+
+  transform:
+    translateY(0);
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 699px) {
+
+  .footer-main {
+
+    width: calc(100% - 28px);
+
+    min-height: 220px;
+
+    padding: 45px 0 35px;
+  }
+
+
+  .footer-brand {
+
+    font-size: 24px;
+  }
+
+
+  .footer-tagline {
+
+    max-width: 290px;
+
+    font-size: 12px;
+  }
+
+
+  .footer-socials {
+
+    gap: 9px;
+  }
+
+
+  .social-link {
+
+    width: 35px;
+    height: 35px;
+
+    border-radius: 9px;
+  }
+
+
+  .social-link svg {
+
+    width: 16px;
+    height: 16px;
+  }
+
+
+  /*
+     Smaller floating buttons on phones
+  */
+
+  .floating-contact {
+
+    bottom: 16px;
+
+    width: 47px;
+    height: 47px;
+  }
+
+
+  .floating-whatsapp {
+
+    left: 14px;
+  }
+
+
+  .floating-call {
+
+    right: 14px;
+  }
+
+
+  .floating-contact svg {
+
+    width: 22px;
+    height: 22px;
+  }
+
+
+  .footer-bottom {
+
+    width: calc(100% - 28px);
+
+    padding:
+      16px 0 20px;
+  }
+
+}
+
+
+/* =========================================================
+   ACCESSIBILITY
+   ========================================================= */
+
+.floating-contact:focus-visible,
+.social-link:focus-visible,
+.footer-brand:focus-visible {
+
+  outline:
+    2px solid var(--footer-green);
+
+  outline-offset: 4px;
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+  .floating-contact,
+  .social-link,
+  .footer-brand {
+
+    transition: none;
+  }
+
+}
