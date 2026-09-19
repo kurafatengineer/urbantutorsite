@@ -5,25 +5,17 @@
      File:
      homepage/tutors/tutors.html
 
-     Purpose:
-     - Contains ONLY the HTML structure of the Tutors section.
-     - No Tutor styling is written here.
-     - No API logic is written here.
-     - Tutor data is inserted dynamically by tutors.js.
+     PURPOSE:
+     ---------------------------------------------------------
+     This file contains ONLY the HTML structure of the
+     Tutors section.
 
-     Structure:
+     Design  → tutors.css
+     API     → tutors.js
+     Carousel → tutors.js
 
-     Tutors Section
-         │
-         ├── Section Heading
-         │     └── Meet our tutors.
-         │
-         ├── Tutor Card Area
-         │     ├── Loading State
-         │     ├── Tutor Grid
-         │     └── Empty State
-         │
-         └── Carousel Controls
+     The Tutor cards themselves are created dynamically
+     by tutors.js.
 
      ========================================================= -->
 
@@ -36,10 +28,10 @@
 
 
   <!-- =======================================================
-       TUTORS SECTION CONTAINER
+       MAIN TUTORS CONTAINER
        ======================================================= -->
 
-  <div class="container">
+  <div class="tutors-container">
 
 
     <!-- =====================================================
@@ -48,23 +40,31 @@
 
          "OUR TUTORS" has been removed.
 
-         The description has also been removed.
+         The supporting paragraph has also been removed.
 
-         Only the main heading remains and is centered.
+         Only the main heading remains.
          ===================================================== -->
 
-    <div class="section-heading">
+    <header class="tutors-heading">
 
       <h2 id="tutorsTitle">
         Meet our <span>tutors.</span>
       </h2>
 
-    </div>
+    </header>
 
 
 
     <!-- =====================================================
-         02. TUTOR CARD AREA
+         02. TUTOR CONTENT AREA
+         =====================================================
+
+         IMPORTANT:
+
+         The loading and empty states are hidden by default
+         using the .hidden class.
+
+         tutors.js controls which state is visible.
          ===================================================== -->
 
     <div
@@ -79,7 +79,7 @@
 
       <div
         id="loadingCard"
-        class="loading-card"
+        class="loading-card hidden"
       >
 
         <span
@@ -87,7 +87,9 @@
           aria-hidden="true"
         ></span>
 
-        <p>Loading tutors...</p>
+        <p>
+          Loading tutors...
+        </p>
 
       </div>
 
@@ -97,8 +99,10 @@
            TUTOR GRID
            ===================================================
 
-           tutors.js dynamically creates Tutor cards
-           inside this container.
+           tutors.js inserts all Tutor cards here.
+
+           The CSS automatically determines how many cards
+           can fit on the current screen.
            =================================================== -->
 
       <div
@@ -110,7 +114,11 @@
 
 
       <!-- ===================================================
-           EMPTY STATE
+           NO TUTORS / EMPTY STATE
+           ===================================================
+
+           This remains hidden unless the API returns
+           zero Tutors or an error occurs.
            =================================================== -->
 
       <div
@@ -142,17 +150,18 @@
 
 
     <!-- =====================================================
-         03. TUTOR CAROUSEL CONTROLS
+         03. CAROUSEL CONTROLS
          =====================================================
 
-         The controls are automatically hidden when there
-         is only one Tutor.
+         These controls are only displayed when required.
          ===================================================== -->
 
     <div
       id="tutorControls"
       class="tutor-controls hidden"
     >
+
+      <!-- Previous Tutor -->
 
       <button
         id="previousTutor"
@@ -164,12 +173,18 @@
       </button>
 
 
+
+      <!-- Position Indicators -->
+
       <div
         id="tutorDots"
         class="tutor-dots"
         aria-label="Tutor carousel position"
       ></div>
 
+
+
+      <!-- Next Tutor -->
 
       <button
         id="nextTutor"
