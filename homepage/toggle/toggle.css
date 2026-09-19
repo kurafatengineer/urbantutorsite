@@ -1,1 +1,76 @@
+/* =========================================================
+   TOGGLE COMPONENT
+   ========================================================= */
 
+.user-toggle-section {
+  width: 100%;
+  padding: 22px 0 0;
+  overflow: hidden;
+}
+
+.user-toggle {
+  width: min(360px, 100%);
+  margin: auto;
+  padding: 4px;
+
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+
+  background: #111;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.10));
+  border-radius: 10px;
+}
+
+.toggle-option {
+  min-height: 38px;
+
+  border: 0;
+  border-radius: 7px;
+
+  background: transparent;
+  color: #888;
+
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.toggle-option:hover {
+  color: #fff;
+}
+
+.toggle-option.active {
+  background: var(--green, #b7ff00);
+  color: #050505;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 699px) {
+
+  .user-toggle-section {
+    padding-top: 16px;
+  }
+
+  .user-toggle {
+    width: calc(100% - 28px);
+    min-width: 0;
+  }
+
+  .toggle-option {
+    min-height: 42px;
+    font-size: 12px;
+  }
+
+}
