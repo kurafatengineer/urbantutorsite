@@ -1,74 +1,211 @@
 /* =========================================================
    HERO COMPONENT
+   =========================================================
+   
+   File:
+   homepage/hero/hero.css
+
+   Purpose:
+   - Controls the visual appearance of the Hero section
+   - Keeps Hero styling independent from other homepage sections
+   - Includes responsive styling for smaller screens
+   ========================================================= */
+
+
+/* =========================================================
+   01. HERO SECTION
    ========================================================= */
 
 .hero {
+  /*
+   * Full-width black background.
+   * This makes the Hero independent of the
+   * background color of the page/body.
+   */
+  background: #000;
+
+  /*
+   * Vertical spacing around the Hero content.
+   */
   padding: 42px 0 26px;
+
+  /*
+   * Prevent content from overflowing horizontally.
+   */
+  overflow: hidden;
 }
 
+
+/* =========================================================
+   02. HERO CONTENT CONTAINER
+   ========================================================= */
+
 .hero-content {
+  /*
+   * Limit the maximum width of the Hero content
+   * so that text remains easy to read on large screens.
+   */
   max-width: 920px;
+
+  /*
+   * Center the Hero content horizontally.
+   */
   margin: 0 auto;
+
+  /*
+   * Center-align the text.
+   */
   text-align: center;
 }
 
-.kicker {
+
+/* =========================================================
+   03. HERO KICKER
+   ========================================================= */
+
+.hero .kicker {
+  /*
+   * Space between the kicker and the main heading.
+   */
   margin-bottom: 14px;
 
+  /*
+   * Green brand color.
+   */
   color: var(--green, #b7ff00);
 
+  /*
+   * Small uppercase label.
+   */
   font-size: 11px;
   font-weight: 900;
+
+  /*
+   * Adds spacing between letters.
+   */
   letter-spacing: 0.18em;
+
+  /*
+   * Makes the text uppercase.
+   */
   text-transform: uppercase;
 }
 
+
+/* =========================================================
+   04. HERO MAIN HEADING
+   ========================================================= */
+
 .hero h1 {
+  /*
+   * Remove browser default margin.
+   */
   margin: 0;
 
+  /*
+   * Main heading color.
+   */
   color: var(--text, #f5f5f5);
 
+  /*
+   * Responsive heading size.
+   */
   font-size: clamp(38px, 7vw, 72px);
+
+  /*
+   * Compact line height for the large heading.
+   */
   line-height: 0.98;
+
+  /*
+   * Slightly tighter letter spacing.
+   */
   letter-spacing: -0.045em;
+
+  /*
+   * Strong heading weight.
+   */
   font-weight: 900;
 }
 
+
+/* =========================================================
+   05. HERO HIGHLIGHT TEXT
+   ========================================================= */
+
 .hero h1 span {
+  /*
+   * Highlighted part of the heading uses
+   * the website's green accent color.
+   */
   color: var(--green, #b7ff00);
 }
 
+
+/* =========================================================
+   06. HERO DESCRIPTION
+   ========================================================= */
+
 .hero p {
+  /*
+   * Limit paragraph width for readability.
+   */
   max-width: 680px;
+
+  /*
+   * Center the paragraph.
+   */
   margin: 18px auto 0;
 
+  /*
+   * Secondary/muted text color.
+   */
   color: var(--muted, #9a9a9a);
 
+  /*
+   * Paragraph typography.
+   */
   font-size: 15px;
   line-height: 1.7;
 }
 
 
 /* =========================================================
-   MOBILE
+   07. MOBILE RESPONSIVE STYLES
    ========================================================= */
 
 @media (max-width: 699px) {
 
+  /*
+   * Reduce Hero vertical spacing on mobile.
+   */
   .hero {
     padding: 34px 0 22px;
   }
 
+
+  /*
+   * Add horizontal breathing room on small screens.
+   */
   .hero-content {
     padding: 0 14px;
   }
 
+
+  /*
+   * Smaller heading for mobile screens.
+   */
   .hero h1 {
     font-size: clamp(38px, 12vw, 52px);
   }
 
+
+  /*
+   * Slightly smaller paragraph on mobile.
+   */
   .hero p {
     margin-top: 15px;
+
     font-size: 14px;
     line-height: 1.6;
   }
