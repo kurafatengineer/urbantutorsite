@@ -7,6 +7,7 @@
 
   <title>Urbantutorsite</title>
 
+
   <!-- =====================================================
        GLOBAL COMPONENT STYLES
        ===================================================== -->
@@ -35,7 +36,7 @@
 
 
   <!-- =====================================================
-       HEADER
+       GLOBAL HEADER
        ===================================================== -->
 
   <div id="site-header"></div>
@@ -50,10 +51,18 @@
 
 
     <!-- ===================================================
-         TOGGLE
+         01. TOGGLE
          =================================================== -->
 
     <div id="home-toggle"></div>
+
+
+
+    <!-- ===================================================
+         02. HERO
+         =================================================== -->
+
+    <div id="home-hero"></div>
 
 
   </main>
@@ -61,7 +70,7 @@
 
 
   <!-- =====================================================
-       FOOTER
+       GLOBAL FOOTER
        ===================================================== -->
 
   <div id="site-footer"></div>
@@ -76,6 +85,7 @@
   <script src="js/footer.js"></script>
 
 
+
   <!-- =====================================================
        TOGGLE JAVASCRIPT
        ===================================================== -->
@@ -83,64 +93,145 @@
   <script src="homepage/toggle/toggle.js"></script>
 
 
+
   <!-- =====================================================
-       TEMPORARY TOGGLE LOADER
+       HERO JAVASCRIPT
+       ===================================================== -->
+
+  <script src="homepage/hero/hero.js"></script>
+
+
+
+  <!-- =====================================================
+       HOMEPAGE COMPONENT LOADER
        ===================================================== -->
 
   <script>
 
-    document.addEventListener("DOMContentLoaded", async function () {
-
-      const toggleContainer =
-        document.getElementById("home-toggle");
-
-
-      if (!toggleContainer) {
-        return;
-      }
+    document.addEventListener(
+      "DOMContentLoaded",
+      async function () {
 
 
-      try {
+        /* =================================================
+           01. LOAD TOGGLE
+           ================================================= */
 
-        const response =
-          await fetch("homepage/toggle/toggle.html");
+        const toggleContainer =
+          document.getElementById("home-toggle");
 
 
-        if (!response.ok) {
-          throw new Error(
-            "Could not load toggle.html"
-          );
+        if (toggleContainer) {
+
+          try {
+
+            const response =
+              await fetch(
+                "homepage/toggle/toggle.html"
+              );
+
+
+            if (!response.ok) {
+
+              throw new Error(
+                "Could not load toggle.html"
+              );
+
+            }
+
+
+            toggleContainer.innerHTML =
+              await response.text();
+
+
+            /*
+             * Initialize Toggle after
+             * its HTML has been loaded.
+             */
+
+            if (
+              window.ToggleComponent &&
+              typeof window.ToggleComponent.init ===
+                "function"
+            ) {
+
+              window.ToggleComponent.init();
+
+            }
+
+          } catch (error) {
+
+            console.error(
+              "Toggle component failed to load:",
+              error
+            );
+
+          }
+
         }
 
 
-        toggleContainer.innerHTML =
-          await response.text();
+
+        /* =================================================
+           02. LOAD HERO
+           ================================================= */
+
+        const heroContainer =
+          document.getElementById("home-hero");
 
 
-        /*
-         * Initialize Toggle after its HTML
-         * has been loaded.
-         */
+        if (heroContainer) {
 
-        if (
-          window.ToggleComponent &&
-          typeof window.ToggleComponent.init === "function"
-        ) {
+          try {
 
-          window.ToggleComponent.init();
+            const response =
+              await fetch(
+                "homepage/hero/hero.html"
+              );
+
+
+            if (!response.ok) {
+
+              throw new Error(
+                "Could not load hero.html"
+              );
+
+            }
+
+
+            heroContainer.innerHTML =
+              await response.text();
+
+
+            /*
+             * Initialize Hero after
+             * its HTML has been loaded.
+             */
+
+            if (
+              window.HeroComponent &&
+              typeof window.HeroComponent.init ===
+                "function"
+            ) {
+
+              window.HeroComponent.init();
+
+            }
+
+          } catch (error) {
+
+            console.error(
+              "Hero component failed to load:",
+              error
+            );
+
+          }
 
         }
 
-      } catch (error) {
-
-        console.error(
-          "Toggle component failed to load:",
-          error
-        );
 
       }
-
-    });
+    );
 
   </script>
 
