@@ -1,260 +1,375 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
   <!-- =====================================================
        BASIC PAGE INFORMATION
        ===================================================== -->
+
   <meta charset="UTF-8">
+
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
   >
+
   <title>Urbantutorsite</title>
+
+
+
   <!-- =====================================================
        GLOBAL COMPONENT STYLES
        =====================================================
-       These files are shared across the website.
-       Header and Footer should remain global because
-       they are used on multiple pages.
+       These styles are shared across the website.
+
+       DO NOT move Header/Footer CSS into individual
+       homepage components because Header and Footer
+       are global components.
        ===================================================== -->
+
   <link rel="stylesheet" href="css/header.css">
   <link rel="stylesheet" href="css/footer.css">
+
+
+
   <!-- =====================================================
        HOMEPAGE COMPONENT STYLES
        ===================================================== -->
+
+
   <!-- -----------------------------------------------------
        01. TOGGLE
        ----------------------------------------------------- -->
+
   <link
     rel="stylesheet"
     href="homepage/toggle/toggle.css"
   >
+
+
   <!-- -----------------------------------------------------
        02. HERO
        ----------------------------------------------------- -->
+
   <link
     rel="stylesheet"
     href="homepage/hero/hero.css"
   >
+
+
   <!-- -----------------------------------------------------
        03. TUTORS
        ----------------------------------------------------- -->
+
   <link
     rel="stylesheet"
     href="homepage/tutors/tutors.css"
   >
+
 </head>
+
+
+
 <body data-page="home">
+
+
   <!-- =====================================================
        GLOBAL HEADER
        =====================================================
-       Header is loaded separately because it is a
-       global component used across the website.
+       Header is used throughout the website.
+
+       File:
+       js/header.js
        ===================================================== -->
+
   <div id="site-header"></div>
+
+
+
   <!-- =====================================================
        HOMEPAGE
        ===================================================== -->
+
   <main id="homepage">
+
+
     <!-- ===================================================
          01. TOGGLE
          ===================================================
-         File:
+         HTML:
          homepage/toggle/toggle.html
+
+         CSS:
+         homepage/toggle/toggle.css
+
+         JS:
+         homepage/toggle/toggle.js
          =================================================== -->
+
     <div id="home-toggle"></div>
+
+
+
     <!-- ===================================================
          02. HERO
          ===================================================
-         File:
+         HTML:
          homepage/hero/hero.html
+
+         CSS:
+         homepage/hero/hero.css
+
+         JS:
+         homepage/hero/hero.js
          =================================================== -->
+
     <div id="home-hero"></div>
+
+
+
     <!-- ===================================================
          03. OUR TUTORS
          ===================================================
-         File:
+         HTML:
          homepage/tutors/tutors.html
-         The Tutor HTML is loaded dynamically into this
-         container.
-         Tutor API and carousel functionality are handled
-         separately by:
+
+         CSS:
+         homepage/tutors/tutors.css
+
+         JS:
          homepage/tutors/tutors.js
+
+         All Tutor-specific code should remain inside
+         the Tutors component.
          =================================================== -->
+
     <div id="home-tutors"></div>
+
+
   </main>
+
+
+
   <!-- =====================================================
        GLOBAL FOOTER
        =====================================================
-       Footer is loaded separately because it is a
-       global component used across the website.
+       Footer is used throughout the website.
+
+       File:
+       js/footer.js
        ===================================================== -->
+
   <div id="site-footer"></div>
+
+
+
   <!-- =====================================================
        GLOBAL JAVASCRIPT
        ===================================================== -->
+
   <script src="js/header.js"></script>
   <script src="js/footer.js"></script>
+
+
+
   <!-- =====================================================
-       TOGGLE JAVASCRIPT
+       HOMEPAGE COMPONENT JAVASCRIPT
        ===================================================== -->
+
+
+  <!-- -----------------------------------------------------
+       01. TOGGLE JAVASCRIPT
+       ----------------------------------------------------- -->
+
   <script src="homepage/toggle/toggle.js"></script>
-  <!-- =====================================================
-       HERO JAVASCRIPT
-       ===================================================== -->
+
+
+
+  <!-- -----------------------------------------------------
+       02. HERO JAVASCRIPT
+       ----------------------------------------------------- -->
+
   <script src="homepage/hero/hero.js"></script>
-  <!-- =====================================================
-       TUTORS JAVASCRIPT
-       ===================================================== -->
+
+
+
+  <!-- -----------------------------------------------------
+       03. TUTORS JAVASCRIPT
+       ----------------------------------------------------- -->
+
   <script src="homepage/tutors/tutors.js"></script>
+
+
+
   <!-- =====================================================
        HOMEPAGE COMPONENT LOADER
        =====================================================
-       This loader:
-       1. Loads Toggle HTML
-       2. Loads Hero HTML
-       3. Loads Tutors HTML
-       4. Initializes each component
-       Keeping this logic here allows each component
-       to remain independent.
+       This is the only place where the individual
+       homepage HTML components are assembled.
+
+       IMPORTANT:
+
+       The individual components remain independent.
+
+       index.html only:
+         1. Loads the component HTML.
+         2. Places it in the correct container.
+         3. Calls its initialization function.
+
+       Therefore, when we modify Tutors later, we should
+       normally NOT need to touch Hero, Toggle, Header,
+       Footer, etc.
        ===================================================== -->
+
   <script>
+
     document.addEventListener(
       "DOMContentLoaded",
       async function () {
+
+
+        /* =================================================
+           COMPONENT LOADER FUNCTION
+           =================================================
+           This reusable function loads an HTML component
+           and then initializes it.
+
+           This prevents us from writing the same
+           fetch/try/catch code repeatedly.
+           ================================================= */
+
+        async function loadComponent(
+          containerId,
+          filePath,
+          componentObject,
+          componentName
+        ) {
+
+          /* -------------------------------------------------
+             Find the container
+             ------------------------------------------------- */
+
+          const container =
+            document.getElementById(containerId);
+
+
+          /* -------------------------------------------------
+             Stop if the container does not exist
+             ------------------------------------------------- */
+
+          if (!container) {
+            return;
+          }
+
+
+          try {
+
+            /* -----------------------------------------------
+               Load component HTML
+               ----------------------------------------------- */
+
+            const response =
+              await fetch(filePath);
+
+
+            /* -----------------------------------------------
+               Check whether the file loaded successfully
+               ----------------------------------------------- */
+
+            if (!response.ok) {
+
+              throw new Error(
+                `Could not load ${filePath}`
+              );
+
+            }
+
+
+            /* -----------------------------------------------
+               Insert component HTML into the page
+               ----------------------------------------------- */
+
+            container.innerHTML =
+              await response.text();
+
+
+            /* -----------------------------------------------
+               Initialize component JavaScript
+               AFTER its HTML has been inserted.
+               ----------------------------------------------- */
+
+            if (
+              componentObject &&
+              typeof componentObject.init === "function"
+            ) {
+
+              componentObject.init();
+
+            }
+
+          } catch (error) {
+
+            /* -----------------------------------------------
+               Report component loading errors
+               without breaking the entire homepage.
+               ----------------------------------------------- */
+
+            console.error(
+              `${componentName} component failed to load:`,
+              error
+            );
+
+          }
+
+        }
+
+
+
         /* =================================================
            01. LOAD TOGGLE
-           =================================================
-           Loads:
-           homepage/toggle/toggle.html
            ================================================= */
-        const toggleContainer =
-          document.getElementById("home-toggle");
-        if (toggleContainer) {
-          try {
-            const response =
-              await fetch(
-                "homepage/toggle/toggle.html"
-              );
-            if (!response.ok) {
-              throw new Error(
-                "Could not load toggle.html"
-              );
-            }
-            toggleContainer.innerHTML =
-              await response.text();
-            /*
-             * Initialize Toggle after its HTML
-             * has been loaded.
-             */
-            if (
-              window.ToggleComponent &&
-              typeof window.ToggleComponent.init ===
-                "function"
-            ) {
-              window.ToggleComponent.init();
-            }
-          } catch (error) {
-            console.error(
-              "Toggle component failed to load:",
-              error
-            );
-          }
-        }
+
+        await loadComponent(
+          "home-toggle",
+          "homepage/toggle/toggle.html",
+          window.ToggleComponent,
+          "Toggle"
+        );
+
+
+
         /* =================================================
            02. LOAD HERO
-           =================================================
-           Loads:
-           homepage/hero/hero.html
            ================================================= */
-        const heroContainer =
-          document.getElementById("home-hero");
-        if (heroContainer) {
-          try {
-            const response =
-              await fetch(
-                "homepage/hero/hero.html"
-              );
-            if (!response.ok) {
-              throw new Error(
-                "Could not load hero.html"
-              );
-            }
-            heroContainer.innerHTML =
-              await response.text();
-            /*
-             * Initialize Hero after its HTML
-             * has been loaded.
-             */
-            if (
-              window.HeroComponent &&
-              typeof window.HeroComponent.init ===
-                "function"
-            ) {
-              window.HeroComponent.init();
-            }
-          } catch (error) {
-            console.error(
-              "Hero component failed to load:",
-              error
-            );
-          }
-        }
+
+        await loadComponent(
+          "home-hero",
+          "homepage/hero/hero.html",
+          window.HeroComponent,
+          "Hero"
+        );
+
+
+
         /* =================================================
            03. LOAD TUTORS
-           =================================================
-           Loads:
-           homepage/tutors/tutors.html
-           After the HTML is loaded, tutors.js is
-           initialized.
-           This is important because tutors.js needs
-           elements such as:
-             #tutorGrid
-             #tutorCounter
-             #tutorDots
-             #previousTutor
-             #nextTutor
-           which do not exist until tutors.html has
-           been loaded.
            ================================================= */
-        const tutorsContainer =
-          document.getElementById("home-tutors");
-        if (tutorsContainer) {
-          try {
-            const response =
-              await fetch(
-                "homepage/tutors/tutors.html"
-              );
-            if (!response.ok) {
-              throw new Error(
-                "Could not load tutors.html"
-              );
-            }
-            /*
-             * Insert Tutor HTML into the homepage.
-             */
-            tutorsContainer.innerHTML =
-              await response.text();
-            /*
-             * Initialize Tutor component after
-             * its HTML has been inserted.
-             */
-            if (
-              window.TutorsComponent &&
-              typeof window.TutorsComponent.init ===
-                "function"
-            ) {
-              window.TutorsComponent.init();
-            }
-          } catch (error) {
-            console.error(
-              "Tutors component failed to load:",
-              error
-            );
-          }
-        }
+
+        await loadComponent(
+          "home-tutors",
+          "homepage/tutors/tutors.html",
+          window.TutorsComponent,
+          "Tutors"
+        );
+
+
       }
     );
+
   </script>
+
+
 </body>
+
 </html>
