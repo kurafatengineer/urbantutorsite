@@ -1,1 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Urbantutorsite</title>
+
+  <!-- =====================================================
+       GLOBAL COMPONENT STYLES
+       ===================================================== -->
+
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/footer.css">
+
+
+  <!-- =====================================================
+       TOGGLE COMPONENT STYLES
+       ===================================================== -->
+
+  <link rel="stylesheet" href="homepage/toggle/toggle.css">
+
+</head>
+
+
+<body data-page="home">
+
+
+  <!-- =====================================================
+       HEADER
+       ===================================================== -->
+
+  <div id="site-header"></div>
+
+
+
+  <!-- =====================================================
+       HOMEPAGE
+       ===================================================== -->
+
+  <main id="homepage">
+
+
+    <!-- ===================================================
+         TOGGLE
+         =================================================== -->
+
+    <div id="home-toggle"></div>
+
+
+  </main>
+
+
+
+  <!-- =====================================================
+       FOOTER
+       ===================================================== -->
+
+  <div id="site-footer"></div>
+
+
+
+  <!-- =====================================================
+       GLOBAL JAVASCRIPT
+       ===================================================== -->
+
+  <script src="js/header.js"></script>
+  <script src="js/footer.js"></script>
+
+
+  <!-- =====================================================
+       TOGGLE JAVASCRIPT
+       ===================================================== -->
+
+  <script src="homepage/toggle/toggle.js"></script>
+
+
+  <!-- =====================================================
+       TEMPORARY TOGGLE LOADER
+       ===================================================== -->
+
+  <script>
+
+    document.addEventListener("DOMContentLoaded", async function () {
+
+      const toggleContainer =
+        document.getElementById("home-toggle");
+
+
+      if (!toggleContainer) {
+        return;
+      }
+
+
+      try {
+
+        const response =
+          await fetch("homepage/toggle/toggle.html");
+
+
+        if (!response.ok) {
+          throw new Error(
+            "Could not load toggle.html"
+          );
+        }
+
+
+        toggleContainer.innerHTML =
+          await response.text();
+
+
+        /*
+         * Initialize Toggle after its HTML
+         * has been loaded.
+         */
+
+        if (
+          window.ToggleComponent &&
+          typeof window.ToggleComponent.init === "function"
+        ) {
+
+          window.ToggleComponent.init();
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          "Toggle component failed to load:",
+          error
+        );
+
+      }
+
+    });
+
+  </script>
+
+
+</body>
+
+</html>
