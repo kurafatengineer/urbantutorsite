@@ -1,56 +1,42 @@
 /* =========================================================
+   URBANTUTORSITE
    OUR TUTORS COMPONENT
    =========================================================
 
-   File:
+   FILE:
    homepage/tutors/tutors.css
 
    PURPOSE:
    ---------------------------------------------------------
-   This stylesheet controls ONLY the Tutors component.
+   Complete visual styling for the Tutors component.
 
-   It does NOT control:
-   - Header
-   - Footer
-   - Toggle
-   - Hero
-   - Students
-   - Classes
-
-   DESIGN PRINCIPLES:
+   IMPORTANT DESIGN CHANGES:
    ---------------------------------------------------------
-   • Compact Tutor cards
-   • Social-media-style verification mark
-   • Small information rows
-   • Automatic responsive card count
-   • No unnecessary fixed card widths
-   • Loading/empty states hidden correctly
-   • Mobile friendly
+   1. "OUR TUTORS" removed.
+   2. Only "Meet our tutors." remains.
+   3. Heading is center aligned.
+   4. Large information boxes removed.
+   5. Dotted separators removed.
+   6. Verification badge redesigned.
+   7. Verification badge appears beside Tutor name.
+   8. Cards are smaller.
+   9. Cards automatically adapt to screen width.
+   10. Loading state is properly hidden.
+   11. Empty state is properly hidden.
+   12. Mobile layout automatically becomes one card.
 
    ========================================================= */
 
 
 
 /* =========================================================
-   01. HIDDEN UTILITY
+   01. GLOBAL HIDDEN CLASS
    =========================================================
 
-   IMPORTANT:
+   This is extremely important.
 
-   The screenshot showed both:
-
-       "Loading tutors..."
-
-   and
-
-       "Qualified tutors will appear here..."
-
-   visible at the same time.
-
-   The reason is that .hidden was not guaranteed to exist
-   in the Tutors stylesheet.
-
-   We explicitly define it here.
+   When JavaScript adds "hidden", the element disappears
+   completely and does not occupy space.
 
    ========================================================= */
 
@@ -79,7 +65,13 @@
     #090909;
 
   border-top:
-    1px solid rgba(255, 255, 255, 0.05);
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.05
+    );
 
 }
 
@@ -92,15 +84,16 @@
 .tutors-container {
 
   /*
-   * Use almost the complete screen width.
+   * Almost the entire screen width is available.
    *
-   * This is important because the number of Tutor cards
-   * should depend on the available screen width.
+   * This allows the grid to fit as many Tutor cards
+   * as possible.
    */
+
   width:
     min(
       calc(100% - 32px),
-      1400px
+      1450px
     );
 
   margin:
@@ -120,7 +113,7 @@
     100%;
 
   margin:
-    0 0 32px;
+    0 0 30px;
 
   text-align:
     center;
@@ -172,7 +165,7 @@
 
 
 /* =========================================================
-   05. CARD AREA
+   05. TUTOR CARD AREA
    ========================================================= */
 
 .tutor-card-area {
@@ -188,21 +181,30 @@
    06. RESPONSIVE TUTOR GRID
    =========================================================
 
-   THIS IS THE IMPORTANT PART.
+   IMPORTANT:
 
-   Instead of:
+   We do NOT use:
 
        repeat(3, ...)
 
-   we use:
+   anymore.
 
-       repeat(
-         auto-fit,
-         minmax(...)
-       )
+   Instead:
 
-   Therefore the browser automatically decides how many
-   Tutor cards fit.
+       auto-fit + minmax()
+
+   automatically determines how many cards can fit.
+
+   Example:
+
+   Large screen:
+   4 cards / 5 cards / more if space allows
+
+   Tablet:
+   2-3 cards
+
+   Mobile:
+   1 card
 
    ========================================================= */
 
@@ -214,33 +216,20 @@
   display:
     grid;
 
-  /*
-   * Automatically fit as many cards as possible.
-   *
-   * Minimum card width = 270px
-   *
-   * Maximum card width = 360px
-   */
   grid-template-columns:
     repeat(
       auto-fit,
       minmax(
-        270px,
-        360px
+        265px,
+        1fr
       )
     );
 
-  /*
-   * Center the cards when the last row is not full.
-   */
-  justify-content:
-    center;
+  gap:
+    18px;
 
   align-items:
     start;
-
-  gap:
-    18px;
 
 }
 
@@ -255,14 +244,8 @@
   width:
     100%;
 
-  /*
-   * Do not let the card grow excessively.
-   */
-  max-width:
-    360px;
-
-  margin:
-    0 auto;
+  min-width:
+    0;
 
   overflow:
     hidden;
@@ -271,7 +254,8 @@
     #111111;
 
   border:
-    1px solid rgba(
+    1px solid
+    rgba(
       255,
       255,
       255,
@@ -282,7 +266,7 @@
     15px;
 
   box-shadow:
-    0 15px 35px
+    0 18px 45px
     rgba(
       0,
       0,
@@ -301,7 +285,7 @@
 
 
 /* =========================================================
-   08. CARD ENTRANCE
+   08. CARD ENTRANCE ANIMATION
    ========================================================= */
 
 @keyframes tutorCardIn {
@@ -343,10 +327,11 @@
     100%;
 
   /*
-   * Compact image height.
+   * Much smaller than the previous 285px/320px design.
    */
+
   height:
-    185px;
+    190px;
 
   overflow:
     hidden;
@@ -397,8 +382,8 @@
   background:
     linear-gradient(
       to top,
-      rgba(0, 0, 0, .96),
-      rgba(0, 0, 0, .25) 65%,
+      rgba(0,0,0,.95),
+      rgba(0,0,0,.30) 60%,
       transparent
     );
 
@@ -407,7 +392,7 @@
 
 
 /* =========================================================
-   11. TUTOR IDENTITY
+   11. TUTOR NAME AREA
    ========================================================= */
 
 .tutor-card-overlay {
@@ -444,19 +429,22 @@
 
 
 /* =========================================================
-   12. TUTOR NAME ROW
+   12. NAME + VERIFIED BADGE
    =========================================================
 
-   The verification mark is placed BESIDE the name,
-   similar to verified profiles on social platforms.
-
-   Example:
+   Final appearance:
 
        Rahul Kumar  ✓
+
+   This is similar to the concept of a verified profile
+   on social platforms.
 
    ========================================================= */
 
 .tutor-name-row {
+
+  width:
+    100%;
 
   display:
     flex;
@@ -470,9 +458,6 @@
   gap:
     6px;
 
-  width:
-    100%;
-
 }
 
 
@@ -482,6 +467,17 @@
    ========================================================= */
 
 .tutor-title {
+
+  min-width:
+    0;
+
+  max-width:
+    calc(
+      100% - 24px
+    );
+
+  overflow:
+    hidden;
 
   color:
     #ffffff;
@@ -495,11 +491,11 @@
   font-weight:
     800;
 
+  letter-spacing:
+    -0.4px;
+
   white-space:
     nowrap;
-
-  overflow:
-    hidden;
 
   text-overflow:
     ellipsis;
@@ -509,23 +505,24 @@
 
 
 /* =========================================================
-   14. SOCIAL-STYLE VERIFIED BADGE
+   14. VERIFIED BADGE
    =========================================================
 
-   IMPORTANT:
+   Old:
 
-   This replaces the large "✓ APPROVED" pill.
+       ✓ APPROVED
 
-   It is deliberately designed as a small verification
-   mark beside the Tutor's name.
+   New:
+
+       Name  ✓
+
+   Small circular badge inspired by verified profile
+   indicators.
 
    ========================================================= */
 
 .verified-badge {
 
-  /*
-   * Small circular badge.
-   */
   width:
     17px;
 
@@ -544,27 +541,15 @@
   justify-content:
     center;
 
-  /*
-   * Circle.
-   */
   border-radius:
     50%;
 
-  /*
-   * Urbantutorsite accent colour.
-   */
   background:
     #b7ff00;
 
-  /*
-   * Black verification tick.
-   */
   color:
     #050505;
 
-  /*
-   * Compact check.
-   */
   font-size:
     10px;
 
@@ -574,16 +559,13 @@
   line-height:
     1;
 
-  /*
-   * Subtle separation from the name.
-   */
   box-shadow:
     0 0 0 2px
     rgba(
       183,
       255,
       0,
-      .10
+      0.10
     );
 
 }
@@ -591,7 +573,7 @@
 
 
 /* =========================================================
-   15. TUTOR ROLE
+   15. TUTOR TYPE
    ========================================================= */
 
 .tutor-role {
@@ -625,7 +607,7 @@
     100%;
 
   padding:
-    10px 12px 12px;
+    10px 13px 12px;
 
 }
 
@@ -637,29 +619,34 @@
 
    OLD DESIGN:
 
-   ┌─────────────────────────────┐
-   │ EXPERIENCE             3 Yr │
-   └─────────────────────────────┘
+   ┌──────────────────────────┐
+   │ EXPERIENCE        3 Years│
+   └──────────────────────────┘
 
    NEW DESIGN:
 
-   EXPERIENCE                 3 Years
-   ───────────────────────────────────
+   EXPERIENCE          3 Years
+   ----------------------------
 
-   Much smaller and cleaner.
+   No large box.
+   No dotted line.
+   Much smaller height.
 
    ========================================================= */
 
-.detail-line {
+.tutor-grid .detail-line {
 
   width:
     100%;
 
   min-height:
-    30px;
+    29px;
+
+  margin:
+    0;
 
   padding:
-    7px 2px;
+    6px 2px;
 
   display:
     grid;
@@ -673,27 +660,36 @@
   column-gap:
     10px;
 
-  /*
-   * Small separator instead of a large box.
-   */
+  background:
+    transparent;
+
+  border:
+    0;
+
   border-bottom:
     1px solid
     rgba(
       255,
       255,
       255,
-      .065
+      0.065
     );
+
+  border-radius:
+    0;
+
+  box-shadow:
+    none;
 
 }
 
 
 
 /* =========================================================
-   18. REMOVE BORDER FROM LAST ROW
+   18. LAST ROW
    ========================================================= */
 
-.detail-line:last-child {
+.tutor-grid .detail-line:last-child {
 
   border-bottom:
     none;
@@ -706,10 +702,13 @@
    19. DETAIL LABEL
    ========================================================= */
 
-.detail-label {
+.tutor-grid .detail-label {
+
+  min-width:
+    0;
 
   color:
-    #858585;
+    #7e7e7e;
 
   font-size:
     8px;
@@ -734,7 +733,7 @@
    20. DETAIL VALUE
    ========================================================= */
 
-.detail-value {
+.tutor-grid .detail-value {
 
   min-width:
     0;
@@ -746,7 +745,7 @@
     10px;
 
   line-height:
-    1.25;
+    1.3;
 
   font-weight:
     700;
@@ -762,29 +761,59 @@
 
 
 /* =========================================================
-   21. QUALIFICATION SECTION
+   21. REMOVE OLD DOTTED SEPARATOR
+   =========================================================
+
+   Even if old markup accidentally exists,
+   the dotted separator will never be displayed.
+
    ========================================================= */
 
-.qualification-section {
+.tutor-grid .detail-dots {
 
-  margin-top:
-    7px;
+  display:
+    none !important;
 
 }
 
 
 
 /* =========================================================
-   22. QUALIFICATION HEADING
+   22. QUALIFICATION SECTION
    ========================================================= */
 
-.block-label {
+.tutor-grid .qualification-section {
+
+  margin-top:
+    8px;
+
+  padding-top:
+    8px;
+
+  border-top:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.065
+    );
+
+}
+
+
+
+/* =========================================================
+   23. SECTION LABEL
+   ========================================================= */
+
+.tutor-grid .block-label {
 
   display:
     block;
 
   margin:
-    8px 0 2px;
+    0 0 3px;
 
   color:
     #707070;
@@ -799,7 +828,7 @@
     800;
 
   letter-spacing:
-    1.2px;
+    1.1px;
 
   text-align:
     center;
@@ -809,45 +838,54 @@
 
 
 /* =========================================================
-   23. PROFESSIONAL BLOCK
+   24. PROFESSIONAL INFORMATION
    ========================================================= */
 
-.professional-block {
+.tutor-grid .professional-block {
 
   margin-top:
-    6px;
+    8px;
 
 }
 
 
 
 /* =========================================================
-   24. LOCATION
+   25. LOCATION
    ========================================================= */
 
-.location-detail {
+.tutor-grid .location-detail {
 
   margin-top:
-    5px;
+    8px;
+
+  padding-top:
+    8px;
+
+  border-top:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.065
+    );
 
 }
 
 
 
 /* =========================================================
-   25. TAG LIST
+   26. TAG LIST
    ========================================================= */
 
-.tag-list {
+.tutor-grid .tag-list {
 
   display:
     flex;
 
   flex-wrap:
     wrap;
-
-  justify-content:
-    flex-start;
 
   gap:
     4px;
@@ -856,7 +894,7 @@
 
 
 
-.tag {
+.tutor-grid .tag {
 
   padding:
     3px 6px;
@@ -870,14 +908,14 @@
       255,
       255,
       255,
-      .07
+      0.07
     );
 
   border-radius:
     5px;
 
   color:
-    #cfcfcf;
+    #cccccc;
 
   font-size:
     8px;
@@ -887,7 +925,7 @@
 
 
 /* =========================================================
-   26. LOADING STATE
+   27. LOADING CARD
    ========================================================= */
 
 .loading-card {
@@ -896,7 +934,7 @@
     100%;
 
   min-height:
-    120px;
+    110px;
 
   display:
     flex;
@@ -913,20 +951,20 @@
   gap:
     8px;
 
+  background:
+    #111111;
+
   border:
     1px solid
     rgba(
       255,
       255,
       255,
-      .08
+      0.08
     );
 
   border-radius:
     12px;
-
-  background:
-    #111111;
 
   color:
     #888888;
@@ -948,7 +986,7 @@
 
 
 /* =========================================================
-   27. LOADING SPINNER
+   28. LOADING SPINNER
    ========================================================= */
 
 .loader {
@@ -965,7 +1003,7 @@
       255,
       255,
       255,
-      .10
+      0.10
     );
 
   border-top-color:
@@ -998,28 +1036,22 @@
 
 
 /* =========================================================
-   28. EMPTY STATE
+   29. EMPTY / ERROR STATE
    ========================================================= */
 
 .no-tutors {
 
   width:
-    100%;
+    min(
+      520px,
+      100%
+    );
 
-  min-height:
-    120px;
+  margin:
+    0 auto;
 
-  display:
-    flex;
-
-  flex-direction:
-    column;
-
-  align-items:
-    center;
-
-  justify-content:
-    center;
+  padding:
+    50px 20px;
 
   text-align:
     center;
@@ -1030,11 +1062,11 @@
       255,
       255,
       255,
-      .12
+      0.12
     );
 
   border-radius:
-    12px;
+    14px;
 
 }
 
@@ -1043,13 +1075,13 @@
 .no-tutors h3 {
 
   margin:
-    6px 0 0;
+    8px 0 0;
 
   color:
     #eeeeee;
 
   font-size:
-    16px;
+    18px;
 
 }
 
@@ -1058,13 +1090,13 @@
 .no-tutors p {
 
   max-width:
-    350px;
+    380px;
 
   margin:
-    5px 0 0;
+    7px auto 0;
 
   color:
-    #858585;
+    #777777;
 
   font-size:
     11px;
@@ -1075,10 +1107,6 @@
 }
 
 
-
-/* =========================================================
-   29. EMPTY STATE ICON
-   ========================================================= */
 
 .empty-icon {
 
@@ -1093,7 +1121,7 @@
 
 
 /* =========================================================
-   30. CAROUSEL CONTROLS
+   30. TUTOR CONTROLS
    ========================================================= */
 
 .tutor-controls {
@@ -1124,10 +1152,10 @@
 .arrow-button {
 
   width:
-    34px;
+    35px;
 
   height:
-    34px;
+    35px;
 
   display:
     grid;
@@ -1138,20 +1166,20 @@
   padding:
     0;
 
+  background:
+    #111111;
+
   border:
     1px solid
     rgba(
       255,
       255,
       255,
-      .12
+      0.12
     );
 
   border-radius:
     50%;
-
-  background:
-    #111111;
 
   color:
     #b7ff00;
@@ -1182,7 +1210,7 @@
 
 
 /* =========================================================
-   32. CAROUSEL DOTS
+   32. DOTS
    ========================================================= */
 
 .tutor-dots {
@@ -1208,11 +1236,23 @@
   height:
     6px;
 
+  padding:
+    0;
+
+  border:
+    0;
+
   border-radius:
     50%;
 
   background:
     #555555;
+
+  cursor:
+    pointer;
+
+  transition:
+    .2s ease;
 
 }
 
@@ -1242,9 +1282,8 @@
   .tutors-container {
 
     width:
-      min(
-        calc(100% - 24px),
-        760px
+      calc(
+        100% - 24px
       );
 
   }
@@ -1270,7 +1309,7 @@
   .tutor-image-area {
 
     height:
-      175px;
+      180px;
 
   }
 
@@ -1295,15 +1334,17 @@
   .tutors-container {
 
     width:
-      calc(100% - 24px);
+      calc(
+        100% - 20px
+      );
 
   }
 
 
   /*
-   * On a phone one card should occupy almost the complete
-   * available width.
+   * One card per row on mobile.
    */
+
   .tutor-grid {
 
     grid-template-columns:
@@ -1320,8 +1361,8 @@
 
   .tutor-card {
 
-    max-width:
-      390px;
+    width:
+      100%;
 
   }
 
@@ -1329,7 +1370,7 @@
   .tutor-image-area {
 
     height:
-      180px;
+      185px;
 
   }
 
@@ -1346,7 +1387,7 @@
 
 
 /* =========================================================
-   35. VERY SMALL SCREENS
+   35. VERY SMALL MOBILE
    ========================================================= */
 
 @media (max-width: 360px) {
@@ -1359,18 +1400,18 @@
   }
 
 
-  .tutor-information {
-
-    padding:
-      9px 10px 10px;
-
-  }
-
-
   .tutor-title {
 
     font-size:
       18px;
+
+  }
+
+
+  .tutor-information {
+
+    padding:
+      9px 10px 10px;
 
   }
 
