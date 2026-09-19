@@ -1,50 +1,109 @@
-.user-toggle {
-  width: min(360px, 100%);
-  margin: auto;
-  padding: 4px;
+ /* =========================================================
+    TOGGLE COMPONENT
+    =========================================================
 
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
+    File:
+    homepage/toggle/toggle.css
 
-  background: #111;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.10));
+    Purpose:
+    - Controls the complete appearance of the Toggle section.
+    - Keeps Toggle styling independent from the global
+      style.css file.
+    - The Toggle section has its own black background.
 
-  /* More curved outer shape */
-  border-radius: 999px;
+    Important:
+    - Do not put Toggle styling in style.css.
+    - Do not depend on body background for this section.
+    ========================================================= */
+
+
+
+/* =========================================================
+   01. TOGGLE SECTION
+   ========================================================= */
+
+/*
+ * Main wrapper of the Toggle component.
+ *
+ * The black background is intentionally defined here so
+ * the Toggle component remains visually independent.
+ */
+.toggle-section {
+
+  /*
+   * Black background for the complete Toggle area.
+   */
+  background: #000000;
+
+  /*
+   * Make the section span the full available width.
+   */
+  width: 100%;
+
+  /*
+   * Prevent any child element from creating
+   * horizontal overflow.
+   */
+  overflow: hidden;
+
 }
 
-.toggle-option {
-  min-height: 38px;
 
-  border: 0;
 
-  /* More curved buttons */
-  border-radius: 999px;
+/* =========================================================
+   02. TOGGLE CONTAINER
+   ========================================================= */
 
-  background: transparent;
-  color: #888;
+/*
+ * Inner container used to control the horizontal
+ * positioning of the Toggle itself.
+ */
+.toggle-container {
 
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
+  /*
+   * Keep the content centered.
+   */
+  width: min(1120px, calc(100% - 40px));
 
-  cursor: pointer;
+  margin-inline: auto;
 
-  transition: 0.2s;
-
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
 }
 
-.toggle-option:hover {
-  color: #fff;
+
+
+/* =========================================================
+   03. TOGGLE BACKGROUND SAFETY
+   ========================================================= */
+
+/*
+ * This ensures that if the Toggle HTML has an additional
+ * wrapper around the actual toggle button, that wrapper
+ * also remains black.
+ *
+ * This is useful because toggle.html is loaded dynamically.
+ */
+.toggle-section > * {
+
+  background: #000000;
+
 }
 
-.toggle-option.active {
-  background: var(--green, #b7ff00);
-  color: #050505;
 
-  /* Keep active side completely pill-shaped */
-  border-radius: 999px;
+
+/* =========================================================
+   04. MOBILE TOGGLE CONTAINER
+   ========================================================= */
+
+@media (max-width: 699px) {
+
+  /*
+   * Reduce horizontal spacing on smaller screens.
+   */
+  .toggle-container {
+
+    width:
+      calc(100% - 28px);
+
+  }
+
 }
