@@ -1,15 +1,17 @@
 <!-- =====================================================
-     OUR TUTORS COMPONENT
-     =====================================================
-     This file contains ONLY the HTML structure for the
+     TUTORS COMPONENT
+     File:
+     homepage/tutors/tutors.html
+
+     PURPOSE:
+     -----------------------------------------------------
+     This file contains ONLY the HTML structure of the
      Tutors section.
 
-     Tutor data, carousel behaviour and API communication
-     are handled by tutors.js.
+     Tutor data, cards and carousel behaviour are handled
+     separately by tutors.js.
 
-     Visual styling is handled by tutors.css.
-
-     DO NOT put global Header/Footer code here.
+     Styling is handled separately by tutors.css.
      ===================================================== -->
 
 
@@ -29,17 +31,15 @@
 
     <!-- =================================================
          SECTION HEADING
+         -------------------------------------------------
+         Only the main heading is kept.
+
+         "OUR TUTORS" and the descriptive paragraph have
+         intentionally been removed.
          ================================================= -->
 
     <header class="tutors-heading">
 
-      <!-- Small section label -->
-      <div class="tutors-kicker">
-        OUR TUTORS
-      </div>
-
-
-      <!-- Main heading -->
       <h2 id="tutorsTitle">
         Meet our <span>tutors.</span>
       </h2>
@@ -49,86 +49,140 @@
 
 
     <!-- =================================================
-         TUTOR CARD AREA
-         =================================================
-         This area initially contains only the loading
-         state.
-
-         JavaScript will replace it with tutor cards once
-         the Tutor API responds.
+         TUTOR CAROUSEL
          ================================================= -->
 
     <div
-      id="tutorCardArea"
-      class="tutor-card-area"
+      class="tutor-carousel"
+      aria-roledescription="carousel"
+      aria-label="Our tutors"
     >
 
 
       <!-- ===============================================
-           LOADING STATE
+           PREVIOUS BUTTON
            =============================================== -->
 
-      <div
-        id="loadingCard"
-        class="loading-card"
+      <button
+        id="previousTutor"
+        class="tutor-arrow tutor-arrow-previous"
+        type="button"
+        aria-label="Previous tutors"
       >
 
-        <span
-          class="loader"
-          aria-hidden="true"
-        ></span>
+        <span aria-hidden="true">
+          ←
+        </span>
 
-        <p>
-          Loading tutors...
-        </p>
-
-      </div>
+      </button>
 
 
 
       <!-- ===============================================
-           TUTOR GRID
-           ===============================================
-           Tutor cards are inserted here by tutors.js.
+           CAROUSEL VIEWPORT
+           ------------------------------------------------
+           Only the cards inside this area are visible.
+           The track moves horizontally inside it.
            =============================================== -->
 
-      <div
-        id="tutorGrid"
-        class="tutor-grid hidden"
-        aria-live="polite"
-      ></div>
+      <div class="tutor-viewport">
 
 
+        <!-- =============================================
+             LOADING STATE
+             ------------------------------------------------
+             This is visible ONLY while the API is loading.
 
-      <!-- ===============================================
-           EMPTY STATE
-           ===============================================
-           This is displayed ONLY when there are no
-           verified tutors available.
-           =============================================== -->
-
-      <div
-        id="noTutors"
-        class="no-tutors hidden"
-      >
+             Once tutors arrive, JavaScript completely hides
+             this element.
+             ============================================= -->
 
         <div
-          class="empty-icon"
-          aria-hidden="true"
+          id="tutorLoading"
+          class="tutor-loading"
         >
-          —
+
+          <span
+            class="tutor-loader"
+            aria-hidden="true"
+          ></span>
+
+          <p>
+            Loading tutors...
+          </p>
+
         </div>
 
-        <h3>
-          Tutors coming soon
-        </h3>
 
-        <p>
-          Qualified tutors will appear here once their
-          profiles are verified.
-        </p>
+
+        <!-- =============================================
+             TUTOR TRACK
+             ------------------------------------------------
+             All tutor cards are inserted here by tutors.js.
+             ============================================= -->
+
+        <div
+          id="tutorTrack"
+          class="tutor-track"
+          aria-live="polite"
+        ></div>
+
+
+
+        <!-- =============================================
+             EMPTY STATE
+             ------------------------------------------------
+             This is shown ONLY when there are genuinely
+             no tutors returned by the API.
+
+             It will NOT appear beside actual tutor cards.
+             ============================================= -->
+
+        <div
+          id="tutorEmpty"
+          class="tutor-empty"
+          hidden
+        >
+
+          <div
+            class="tutor-empty-icon"
+            aria-hidden="true"
+          >
+            —
+          </div>
+
+          <h3>
+            Tutors coming soon
+          </h3>
+
+          <p>
+            Qualified tutors will appear here once their
+            profiles are verified.
+          </p>
+
+        </div>
+
 
       </div>
+
+
+
+      <!-- ===============================================
+           NEXT BUTTON
+           =============================================== -->
+
+      <button
+        id="nextTutor"
+        class="tutor-arrow tutor-arrow-next"
+        type="button"
+        aria-label="Next tutors"
+      >
+
+        <span aria-hidden="true">
+          →
+        </span>
+
+      </button>
 
 
     </div>
@@ -136,48 +190,26 @@
 
 
     <!-- =================================================
-         CAROUSEL CONTROLS
-         =================================================
-         Hidden when there is only one tutor.
+         CAROUSEL DOTS
+         -------------------------------------------------
+         The old "1 / 1" counter has been completely
+         removed.
+
+         These dots indicate the current tutor position.
          ================================================= -->
 
     <div
       id="tutorControls"
-      class="tutor-controls hidden"
+      class="tutor-controls"
+      hidden
     >
 
-
-      <!-- Previous tutor -->
-      <button
-        id="previousTutor"
-        class="arrow-button"
-        type="button"
-        aria-label="Previous tutor"
-      >
-        ←
-      </button>
-
-
-
-      <!-- Tutor position indicators -->
       <div
         id="tutorDots"
         class="tutor-dots"
+        role="tablist"
         aria-label="Tutor navigation"
       ></div>
-
-
-
-      <!-- Next tutor -->
-      <button
-        id="nextTutor"
-        class="arrow-button"
-        type="button"
-        aria-label="Next tutor"
-      >
-        →
-      </button>
-
 
     </div>
 
