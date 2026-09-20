@@ -1,150 +1,216 @@
 "use strict";
 
-
-/* =====================================================
-   OUR TUTORS COMPONENT
-   =====================================================
+/* ============================================================
+   URBANTUTORSITE
+   TUTORS COMPONENT JAVASCRIPT
 
    File:
    homepage/tutors/tutors.js
 
-   Responsibilities:
-   1. Fetch verified tutors from Google Apps Script.
-   2. Build tutor cards.
-   3. Control responsive card count.
-   4. Control next / previous navigation.
-   5. Control automatic rotation.
-   6. Keep loading and empty states separate.
-   7. Provide a smooth transition between card groups.
+   RESPONSIBILITY:
+   ------------------------------------------------------------
+   This file controls ONLY the Tutors section.
 
-   This file should contain ONLY Tutor-specific logic.
-   ===================================================== */
+   It does NOT control:
+   - Header
+   - Footer
+   - Toggle
+   - Hero
+   - Login
+   - Student section
+
+   The component is initialized from index.html using:
+
+       window.TutorsComponent.init();
+
+   ============================================================ */
 
 
-/* =====================================================
-   GOOGLE APPS SCRIPT API
-   ===================================================== */
+/* ============================================================
+   01. CONFIGURATION
+   ============================================================ */
 
-const TUTORS_WEB_APP_URL =
+/*
+ * Google Apps Script Web App URL.
+ *
+ * This is the same API previously used by the website
+ * to retrieve approved tutors.
+ */
+const TUTORS_API_URL =
   "https://script.google.com/macros/s/AKfycbzuQGM24P9Lf6wySxhnDMGY1dwYP_6oEhVKXyn77ZS1Ou2icNEkYShyYnF6NxS8toExuw/exec";
 
 
-/* =====================================================
-   COMPONENT STATE
-   ===================================================== */
+/* ============================================================
+   02. COMPONENT STATE
+   ============================================================ */
 
+/*
+ * Stores all tutors received from the API.
+ */
 let tutors = [];
 
+
+/*
+ * Current starting position of the carousel.
+ */
 let currentTutorIndex = 0;
 
+
+/*
+ * Automatic carousel timer.
+ */
 let rotationTimer = null;
 
+
+/*
+ * Prevents the component from being initialized
+ * multiple times accidentally.
+ */
+let tutorsInitialized = false;
+
+
+/*
+ * Used during window resizing.
+ */
 let resizeTimer = null;
 
-let isChanging = false;
+
+/*
+ * Prevents multiple animations from running
+ * at the same time.
+ */
+let isAnimating = false;
 
 
-/* =====================================================
-   COMPONENT INITIALIZATION
-   =====================================================
+/* ============================================================
+   03. DOM ELEMENT REFERENCES
+   ============================================================ */
 
-   IMPORTANT:
+/*
+ * These variables are assigned only AFTER
+ * tutors.html has been loaded.
 
-   index.html loads tutors.html FIRST.
+ * This is important because tutors.html is dynamically
+ * inserted into index.html.
+ */
 
-   Then index.html calls:
+let tutorGrid = null;
+let loadingCard = null;
+let noTutors = null;
+let tutorControls = null;
+let tutorDots = null;
+let previousTutor = null;
+let nextTutor = null;
 
-       TutorsComponent.init();
 
-   Therefore all Tutor HTML elements exist here.
-   ===================================================== */
+/* ============================================================
+   04. PUBLIC COMPONENT
+   ============================================================ */
+
+/*
+ * The index.html loader calls:
+
+       window.TutorsComponent.init();
+
+ * Therefore we expose the component globally.
+ */
 
 window.TutorsComponent = {
 
   init: function () {
 
-    initializeTutors();
+    /*
+     * Prevent duplicate initialization.
+     */
+    if (tutorsInitialized) {
+      return;
+    }
+
+    tutorsInitialized = true;
+
+
+    /*
+     * Find all Tutor section elements
+     * after tutors.html has been inserted.
+     */
+    cacheElements();
+
+
+    /*
+     * Verify that the essential Tutor elements
+     * actually exist.
+     */
+    if (!tutorGrid) {
+
+      console.error(
+        "TutorsComponent: #tutorGrid was not found."
+      );
+
+      return;
+    }
+
+
+    /*
+     * Attach button events.
+     */
+    bindEvents();
+
+
+    /*
+     * Load tutors from Google Apps Script.
+     */
+    loadTutors();
 
   }
 
 };
 
 
-/* =====================================================
-   ELEMENT REFERENCES
-   ===================================================== */
+/* ============================================================
+   05. CACHE DOM ELEMENTS
+   ============================================================ */
 
-let tutorGrid = null;
-
-let loadingCard = null;
-
-let noTutors = null;
-
-let tutorControls = null;
-
-let tutorDots = null;
-
-let previousTutor = null;
-
-let nextTutor = null;
-
-
-/* =====================================================
-   INITIALIZE TUTORS
-   ===================================================== */
-
-function initializeTutors() {
-
-
-  /* -----------------------------------------------------
-     Find Tutor HTML elements
-     ----------------------------------------------------- */
+function cacheElements() {
 
   tutorGrid =
     document.getElementById("tutorGrid");
 
+
   loadingCard =
     document.getElementById("loadingCard");
+
 
   noTutors =
     document.getElementById("noTutors");
 
+
   tutorControls =
     document.getElementById("tutorControls");
+
 
   tutorDots =
     document.getElementById("tutorDots");
 
+
   previousTutor =
     document.getElementById("previousTutor");
+
 
   nextTutor =
     document.getElementById("nextTutor");
 
-
-  /* -----------------------------------------------------
-     Safety check
-     ----------------------------------------------------- */
-
-  if (
-    !tutorGrid ||
-    !loadingCard ||
-    !noTutors
-  ) {
-
-    console.error(
-      "Tutors component could not initialize."
-    );
-
-    return;
-
-  }
+}
 
 
-  /* -----------------------------------------------------
-     Button events
-     ----------------------------------------------------- */
+/* ============================================================
+   06. EVENT BINDINGS
+   ============================================================ */
 
+function bindEvents() {
+
+  /*
+   * Previous button.
+   */
   if (previousTutor) {
 
     previousTutor.addEventListener(
@@ -155,6 +221,9 @@ function initializeTutors() {
   }
 
 
+  /*
+   * Next button.
+   */
   if (nextTutor) {
 
     nextTutor.addEventListener(
@@ -165,135 +234,78 @@ function initializeTutors() {
   }
 
 
-  /* -----------------------------------------------------
-     Responsive resize
-     ----------------------------------------------------- */
-
+  /*
+   * Responsive resize handling.
+   *
+   * We wait briefly before recalculating the cards.
+   * This prevents excessive rendering while the
+   * browser is being resized.
+   */
   window.addEventListener(
     "resize",
+    handleResize
+  );
+
+}
+
+
+/* ============================================================
+   07. HANDLE WINDOW RESIZE
+   ============================================================ */
+
+function handleResize() {
+
+  clearTimeout(resizeTimer);
+
+
+  resizeTimer = setTimeout(
     function () {
 
-      clearTimeout(resizeTimer);
-
-      resizeTimer =
-        setTimeout(
-          handleResize,
-          180
-        );
-
-    }
-  );
+      if (!tutors.length) {
+        return;
+      }
 
 
-  /* -----------------------------------------------------
-     Start API request
-     ----------------------------------------------------- */
+      /*
+       * Re-render using the new number of
+       * cards that fit the screen.
+       */
+      renderTutorCarousel(false);
 
-  loadTutors();
-
-}
-
-
-/* =====================================================
-   RESPONSIVE CARD COUNT
-   =====================================================
-
-   The number of cards depends on the actual available
-   screen width.
-
-   5 cards = large desktop
-   4 cards = desktop
-   3 cards = tablet / small desktop
-   2 cards = small tablet
-   1 card  = mobile
-   ===================================================== */
-
-function getCardsPerPage() {
-
-  const width =
-    window.innerWidth;
-
-
-  if (width >= 1250) {
-
-    return Math.min(
-      5,
-      tutors.length
-    );
-
-  }
-
-
-  if (width >= 1000) {
-
-    return Math.min(
-      4,
-      tutors.length
-    );
-
-  }
-
-
-  if (width >= 760) {
-
-    return Math.min(
-      3,
-      tutors.length
-    );
-
-  }
-
-
-  if (width >= 520) {
-
-    return Math.min(
-      2,
-      tutors.length
-    );
-
-  }
-
-
-  return Math.min(
-    1,
-    tutors.length
+    },
+    180
   );
 
 }
 
 
-/* =====================================================
-   LOAD TUTORS
-   ===================================================== */
+/* ============================================================
+   08. LOAD TUTORS FROM API
+   ============================================================ */
 
 async function loadTutors() {
 
-
-  /* -----------------------------------------------------
-     Show loading state
-     ----------------------------------------------------- */
-
-  showLoadingState();
-
-
   try {
 
-
-    /* ---------------------------------------------------
-       Request verified tutors
-       --------------------------------------------------- */
-
-    const response =
-      await fetch(
-        TUTORS_WEB_APP_URL +
-        "?action=getTutors",
-        {
-          method: "GET",
-          cache: "no-store"
-        }
-      );
+    /*
+     * Keep the loading state visible while
+     * the API request is running.
+     */
+    showLoading();
 
 
+    const response = await fetch(
+      TUTORS_API_URL + "?action=getTutors",
+      {
+        method: "GET",
+        cache: "no-store"
+      }
+    );
+
+
+    /*
+     * HTTP error handling.
+     */
     if (!response.ok) {
 
       throw new Error(
@@ -303,14 +315,16 @@ async function loadTutors() {
     }
 
 
-    /* ---------------------------------------------------
-       Convert response to JSON
-       --------------------------------------------------- */
-
+    /*
+     * Convert response into JSON.
+     */
     const result =
       await response.json();
 
 
+    /*
+     * API-level error handling.
+     */
     if (!result.success) {
 
       throw new Error(
@@ -321,20 +335,25 @@ async function loadTutors() {
     }
 
 
-    /* ---------------------------------------------------
-       Store Tutor data
-       --------------------------------------------------- */
-
+    /*
+     * Store tutors safely.
+     */
     tutors =
       Array.isArray(result.tutors)
         ? result.tutors
         : [];
 
 
-    /* ---------------------------------------------------
-       Handle zero tutors
-       --------------------------------------------------- */
+    /*
+     * Remove loading state.
+     */
+    hideLoading();
 
+
+    /*
+     * If there are no tutors, show the
+     * empty state.
+     */
     if (!tutors.length) {
 
       showEmptyState();
@@ -344,125 +363,308 @@ async function loadTutors() {
     }
 
 
-    /* ---------------------------------------------------
-       Tutors available
-       --------------------------------------------------- */
+    /*
+     * Hide empty state.
+     */
+    hideEmptyState();
 
+
+    /*
+     * Start from the first tutor.
+     */
     currentTutorIndex = 0;
 
-    showTutorState();
 
+    /*
+     * Create navigation dots.
+     */
     createDots();
 
+
+    /*
+     * Render cards.
+     *
+     * FALSE means initial render.
+     * We do not animate the first appearance.
+     */
     renderTutorCarousel(false);
 
+
+    /*
+     * Start automatic rotation.
+     */
     startRotation();
 
 
   } catch (error) {
 
-
     console.error(
-      "Tutor loading error:",
+      "TutorsComponent: Tutor loading failed.",
       error
     );
 
 
-    /* ---------------------------------------------------
-       If API fails, do NOT leave loading visible.
+    /*
+     * IMPORTANT:
+     *
+     * We do NOT display the old
+     * "Tutors coming soon" message here.
+     *
+     * That message should only be used when
+     * the API successfully returns ZERO tutors.
+     */
+    hideLoading();
 
-       We show the normal empty state instead.
-       --------------------------------------------------- */
 
-    showEmptyState();
+    if (tutorGrid) {
+
+      tutorGrid.innerHTML = "";
+
+      tutorGrid.classList.add("hidden");
+
+    }
+
+
+    /*
+     * Hide controls when API fails.
+     */
+    if (tutorControls) {
+
+      tutorControls.classList.add("hidden");
+
+    }
+
+
+    /*
+     * Display a simple error message instead
+     * of showing "Tutors coming soon".
+     */
+    showErrorState();
 
   }
 
 }
 
 
-/* =====================================================
-   LOADING STATE
-   ===================================================== */
+/* ============================================================
+   09. LOADING STATE
+   ============================================================ */
 
-function showLoadingState() {
+function showLoading() {
 
-  loadingCard.classList.remove(
-    "hidden"
-  );
+  if (loadingCard) {
 
-  tutorGrid.classList.add(
-    "hidden"
-  );
-
-  noTutors.classList.add(
-    "hidden"
-  );
-
-  if (tutorControls) {
-
-    tutorControls.classList.add(
-      "hidden"
-    );
+    loadingCard.classList.remove("hidden");
 
   }
 
 }
 
 
-/* =====================================================
-   EMPTY STATE
-   ===================================================== */
+function hideLoading() {
+
+  if (loadingCard) {
+
+    loadingCard.classList.add("hidden");
+
+  }
+
+}
+
+
+/* ============================================================
+   10. EMPTY STATE
+   ============================================================ */
 
 function showEmptyState() {
 
-  loadingCard.classList.add(
-    "hidden"
-  );
+  /*
+   * Make sure loading is completely hidden.
+   */
+  hideLoading();
 
-  tutorGrid.classList.add(
-    "hidden"
-  );
 
-  noTutors.classList.remove(
-    "hidden"
-  );
+  /*
+   * Hide the tutor grid.
+   */
+  if (tutorGrid) {
 
+    tutorGrid.classList.add("hidden");
+
+  }
+
+
+  /*
+   * Show the "coming soon" state ONLY when
+   * the API actually returned zero tutors.
+   */
+  if (noTutors) {
+
+    noTutors.classList.remove("hidden");
+
+  }
+
+
+  /*
+   * Hide carousel controls.
+   */
   if (tutorControls) {
 
-    tutorControls.classList.add(
-      "hidden"
-    );
+    tutorControls.classList.add("hidden");
 
   }
 
 }
 
 
-/* =====================================================
-   TUTOR STATE
-   ===================================================== */
+function hideEmptyState() {
 
-function showTutorState() {
+  if (noTutors) {
 
-  loadingCard.classList.add(
-    "hidden"
-  );
+    noTutors.classList.add("hidden");
 
-  noTutors.classList.add(
-    "hidden"
-  );
+  }
 
-  tutorGrid.classList.remove(
-    "hidden"
+}
+
+
+/* ============================================================
+   11. API ERROR STATE
+   ============================================================ */
+
+function showErrorState() {
+
+  /*
+   * We deliberately use the existing noTutors element
+   * as a simple error container, but replace its content.
+   *
+   * This prevents:
+   *
+   * "Tutors coming soon"
+   *
+   * from appearing when the API simply failed.
+   */
+
+  if (!noTutors) {
+    return;
+  }
+
+
+  noTutors.innerHTML = `
+
+    <div class="empty-icon" aria-hidden="true">
+      !
+    </div>
+
+    <h3>
+      Unable to load tutors
+    </h3>
+
+    <p>
+      Please try again later.
+    </p>
+
+  `;
+
+
+  noTutors.classList.remove("hidden");
+
+}
+
+
+/* ============================================================
+   12. DETERMINE HOW MANY CARDS FIT
+   ============================================================ */
+
+/*
+ * IMPORTANT:
+ *
+ * We do NOT use:
+ *
+ *   3 cards on desktop
+ *   2 cards on tablet
+ *   1 card on mobile
+ *
+ * anymore.
+ *
+ * Instead, CSS determines how many columns fit.
+ *
+ * JavaScript reads the actual grid columns from CSS.
+ *
+ * This means:
+ *
+ * Large screen  → as many cards as fit
+ * Medium screen → as many cards as fit
+ * Small screen  → as many cards as fit
+ *
+ * CSS remains responsible for layout.
+ */
+
+function getCardsPerPage() {
+
+  if (!tutorGrid) {
+    return 1;
+  }
+
+
+  /*
+   * Ask the browser what columns currently exist.
+   */
+  const computedStyle =
+    window.getComputedStyle(tutorGrid);
+
+
+  const columns =
+    computedStyle.gridTemplateColumns;
+
+
+  /*
+   * Example:
+   *
+   * "300px 300px 300px 300px"
+   *
+   * becomes:
+   *
+   * 4 columns.
+   */
+  if (
+    columns &&
+    columns !== "none"
+  ) {
+
+    const columnCount =
+      columns
+        .split(" ")
+        .filter(Boolean)
+        .length;
+
+
+    if (columnCount > 0) {
+
+      return Math.min(
+        columnCount,
+        tutors.length
+      );
+
+    }
+
+  }
+
+
+  /*
+   * Safe fallback.
+   */
+  return Math.min(
+    1,
+    tutors.length
   );
 
 }
 
 
-/* =====================================================
-   CIRCULAR INDEX
-   ===================================================== */
+/* ============================================================
+   13. CIRCULAR INDEX
+   ============================================================ */
 
 function circularIndex(index) {
 
@@ -471,31 +673,28 @@ function circularIndex(index) {
 
 
   if (!total) {
-
     return 0;
-
   }
 
 
   return (
-    (index % total) +
-    total
+    (index % total) + total
   ) % total;
 
 }
 
 
-/* =====================================================
-   GET VISIBLE TUTORS
-   ===================================================== */
+/* ============================================================
+   14. GET VISIBLE TUTORS
+   ============================================================ */
 
 function getVisibleTutors() {
 
   const count =
     getCardsPerPage();
 
-  const visible =
-    [];
+
+  const visibleTutors = [];
 
 
   for (
@@ -504,11 +703,10 @@ function getVisibleTutors() {
     offset++
   ) {
 
-    visible.push(
+    visibleTutors.push(
       tutors[
         circularIndex(
-          currentTutorIndex +
-          offset
+          currentTutorIndex + offset
         )
       ]
     );
@@ -516,228 +714,213 @@ function getVisibleTutors() {
   }
 
 
-  return visible;
+  return visibleTutors;
 
 }
 
 
-/* =====================================================
-   RENDER CAROUSEL
-   =====================================================
+/* ============================================================
+   15. RENDER TUTOR CAROUSEL
+   ============================================================ */
 
-   The old implementation immediately destroyed and
-   recreated the cards.
+function renderTutorCarousel(animate = true) {
 
-   This version:
-
-   1. Fades the grid out.
-   2. Rebuilds the cards while invisible.
-   3. Fades the grid back in.
-
-   No rotation animation is applied to individual cards.
-
-   This removes the visible flicker / distortion.
-   ===================================================== */
-
-function renderTutorCarousel(
-  animate = true
-) {
-
-
-  if (!tutors.length) {
+  if (
+    !tutorGrid ||
+    !tutors.length
+  ) {
 
     return;
 
   }
 
 
-  /* -----------------------------------------------------
-     Prevent multiple simultaneous transitions
-     ----------------------------------------------------- */
-
-  if (isChanging) {
-
-    return;
-
-  }
-
-
-  if (!animate) {
-
-    buildTutorCards();
+  /*
+   * Prevent two animations from fighting
+   * with each other.
+   */
+  if (
+    animate &&
+    isAnimating
+  ) {
 
     return;
 
   }
 
 
-  isChanging = true;
+  /*
+   * Get the tutors that should currently
+   * be visible.
+   */
+  const visibleTutors =
+    getVisibleTutors();
 
 
-  /* -----------------------------------------------------
-     Fade current cards out
-     ----------------------------------------------------- */
+  /*
+   * Smooth transition.
+   *
+   * We fade the existing cards out first,
+   * then replace them.
+   *
+   * This avoids the harsh visual flicker
+   * caused by immediate DOM replacement.
+   */
+  if (animate) {
 
-  tutorGrid.classList.add(
-    "is-changing"
-  );
+    isAnimating = true;
+
+    tutorGrid.classList.add(
+      "tutors-changing"
+    );
+
+  }
 
 
-  /* -----------------------------------------------------
-     Wait for fade-out
-     ----------------------------------------------------- */
+  /*
+   * Small delay allows the browser to
+   * apply the fade-out before replacing
+   * the cards.
+   */
+  const renderDelay =
+    animate ? 180 : 0;
+
 
   setTimeout(
     function () {
 
-      buildTutorCards();
+      /*
+       * Build all cards inside a document
+       * fragment first.
+       *
+       * This prevents the browser from
+       * repeatedly recalculating the layout.
+       */
+      const fragment =
+        document.createDocumentFragment();
 
 
-      /* -------------------------------------------------
-         Allow browser to paint the new cards before
-         starting the fade-in.
-         ------------------------------------------------- */
+      visibleTutors.forEach(
+        function (tutor) {
 
-      requestAnimationFrame(
-        function () {
-
-          requestAnimationFrame(
-            function () {
-
-              tutorGrid.classList.remove(
-                "is-changing"
-              );
-
-              isChanging = false;
-
-            }
+          fragment.appendChild(
+            createTutorCard(tutor)
           );
 
         }
       );
 
-    },
-    160
-  );
 
-}
-
-
-/* =====================================================
-   BUILD TUTOR CARDS
-   ===================================================== */
-
-function buildTutorCards() {
-
-
-  /* -----------------------------------------------------
-     Clear old cards
-     ----------------------------------------------------- */
-
-  tutorGrid.innerHTML = "";
-
-
-  /* -----------------------------------------------------
-     Create visible cards
-     ----------------------------------------------------- */
-
-  getVisibleTutors().forEach(
-    function (tutor) {
+      /*
+       * Replace the grid contents only once.
+       */
+      tutorGrid.innerHTML = "";
 
       tutorGrid.appendChild(
-        createTutorCard(tutor)
+        fragment
       );
 
-    }
+
+      /*
+       * Make sure grid is visible.
+       */
+      tutorGrid.classList.remove(
+        "hidden"
+      );
+
+
+      /*
+       * Update navigation.
+       */
+      updateControls();
+
+
+      /*
+       * Fade cards back in.
+       */
+      if (animate) {
+
+        requestAnimationFrame(
+          function () {
+
+            tutorGrid.classList.remove(
+              "tutors-changing"
+            );
+
+
+            /*
+             * Allow another animation after
+             * the CSS transition has completed.
+             */
+            setTimeout(
+              function () {
+
+                isAnimating = false;
+
+              },
+              220
+            );
+
+          }
+        );
+
+      }
+
+    },
+    renderDelay
   );
-
-
-  /* -----------------------------------------------------
-     Update controls
-     ----------------------------------------------------- */
-
-  if (tutors.length <= 1) {
-
-    tutorControls.classList.add(
-      "hidden"
-    );
-
-  } else {
-
-    tutorControls.classList.remove(
-      "hidden"
-    );
-
-  }
-
-
-  /* -----------------------------------------------------
-     Update navigation dots
-     ----------------------------------------------------- */
-
-  updateDots();
 
 }
 
 
-/* =====================================================
-   CREATE TUTOR CARD
-   ===================================================== */
+/* ============================================================
+   16. CREATE TUTOR CARD
+   ============================================================ */
 
 function createTutorCard(tutor) {
 
-
-  /* -----------------------------------------------------
-     Main card
-     ----------------------------------------------------- */
-
   const card =
-    document.createElement(
-      "article"
-    );
+    document.createElement("article");
+
 
   card.className =
-    "tutor-card";
+    "tutor-card card-animation";
 
 
-  /* =====================================================
-     PROFILE IMAGE AREA
-     ===================================================== */
+  /* ==========================================================
+     TUTOR IMAGE / HEADER
+     ========================================================== */
 
   const imageArea =
-    document.createElement(
-      "div"
-    );
+    document.createElement("div");
+
 
   imageArea.className =
     "tutor-image-area";
 
 
-  /* -----------------------------------------------------
-     Profile image
-     ----------------------------------------------------- */
-
   const image =
-    document.createElement(
-      "img"
-    );
+    document.createElement("img");
+
 
   image.src =
     tutor.profileImage ||
     createPlaceholderImage();
 
+
   image.alt =
     getTutorName(tutor) +
     " profile";
+
 
   image.loading =
     "lazy";
 
 
-  /* -----------------------------------------------------
-     Fallback if image fails
-     ----------------------------------------------------- */
-
+  /*
+   * If the tutor image fails,
+   * use our placeholder.
+   */
   image.addEventListener(
     "error",
     function () {
@@ -746,104 +929,71 @@ function createTutorCard(tutor) {
         createPlaceholderImage();
 
     },
-    {
-      once: true
-    }
+    { once: true }
   );
 
 
-  /* =====================================================
-     PROFILE OVERLAY
-     ===================================================== */
+  /* ==========================================================
+     CARD TEXT OVERLAY
+     ========================================================== */
 
   const overlay =
-    document.createElement(
-      "div"
-    );
+    document.createElement("div");
+
 
   overlay.className =
     "tutor-card-overlay";
 
 
-  /* -----------------------------------------------------
-     Name row
-     ----------------------------------------------------- */
-
-  const nameRow =
-    document.createElement(
-      "div"
-    );
-
-  nameRow.className =
-    "tutor-name-row";
-
-
-  /* Tutor name */
-
+  /*
+   * Name.
+   */
   const name =
-    document.createElement(
-      "div"
-    );
+    document.createElement("div");
+
 
   name.className =
     "tutor-title";
+
 
   name.textContent =
     getTutorName(tutor);
 
 
-  /* =====================================================
-     VERIFIED BADGE
-     ===================================================== */
-
-  const badge =
-    document.createElement(
-      "span"
-    );
-
-  badge.className =
-    "verified-badge";
-
-  badge.setAttribute(
-    "aria-label",
-    "Verified tutor"
-  );
-
-  badge.title =
-    "Verified tutor";
+  /*
+   * IMPORTANT:
+   *
+   * No verified badge is created here.
+   *
+   * The previous JS contained:
+   *
+   *     verified-badge
+   *
+   * That has intentionally been removed.
+   */
 
 
-  nameRow.appendChild(name);
-
-  nameRow.appendChild(badge);
-
-
-  /* -----------------------------------------------------
-     Tutor role
-     ----------------------------------------------------- */
-
+  /*
+   * Tutor type / role.
+   */
   const role =
-    document.createElement(
-      "div"
-    );
+    document.createElement("div");
+
 
   role.className =
     "tutor-role";
 
+
   role.textContent =
     cleanValue(
       tutor.registerAs
-    ) ||
-    "Tutor";
+    ) || "Tutor";
 
-
-  /* -----------------------------------------------------
-     Assemble overlay
-     ----------------------------------------------------- */
 
   overlay.appendChild(
-    nameRow
+    name
   );
+
 
   overlay.appendChild(
     role
@@ -854,30 +1004,37 @@ function createTutorCard(tutor) {
     image
   );
 
+
   imageArea.appendChild(
     overlay
   );
 
 
-  /* =====================================================
+  /* ==========================================================
      INFORMATION AREA
-     ===================================================== */
+     ========================================================== */
 
   const information =
-    document.createElement(
-      "div"
-    );
+    document.createElement("div");
+
 
   information.className =
     "tutor-information";
 
 
-  /* -----------------------------------------------------
-     Experience
-     ----------------------------------------------------- */
+  /*
+   * Experience.
+   */
+  const experience =
+    document.createElement("div");
+
+
+  experience.className =
+    "detail-row experience-row";
+
 
   addDetailRow(
-    information,
+    experience,
     "Experience",
     formatExperience(
       tutor.experience
@@ -885,26 +1042,30 @@ function createTutorCard(tutor) {
   );
 
 
-  /* =====================================================
+  information.appendChild(
+    experience
+  );
+
+
+  /* ==========================================================
      QUALIFICATION
-     ===================================================== */
+     ========================================================== */
 
   const qualificationBlock =
-    document.createElement(
-      "div"
-    );
+    document.createElement("div");
+
 
   qualificationBlock.className =
-    "qualification-section";
+    "qualification-section professional-block";
 
 
   const qualificationLabel =
-    document.createElement(
-      "div"
-    );
+    document.createElement("div");
+
 
   qualificationLabel.className =
     "block-label";
+
 
   qualificationLabel.textContent =
     "QUALIFICATION (GRADUATION)";
@@ -915,8 +1076,9 @@ function createTutorCard(tutor) {
   );
 
 
-  /* Course */
-
+  /*
+   * Course.
+   */
   addDetailRow(
     qualificationBlock,
     "Course",
@@ -926,8 +1088,9 @@ function createTutorCard(tutor) {
   );
 
 
-  /* Stream */
-
+  /*
+   * Stream.
+   */
   addDetailRow(
     qualificationBlock,
     "Stream",
@@ -937,13 +1100,20 @@ function createTutorCard(tutor) {
   );
 
 
-  /* College */
-
+  /*
+   * College / University.
+   *
+   * Supports both field names so the component
+   * remains compatible with existing API data.
+   */
   addDetailRow(
     qualificationBlock,
     "College",
     cleanValue(
       tutor.graduationUniversity
+    ) ||
+    cleanValue(
+      tutor.graduationCollege
     )
   );
 
@@ -953,9 +1123,9 @@ function createTutorCard(tutor) {
   );
 
 
-  /* =====================================================
+  /* ==========================================================
      LOCATION
-     ===================================================== */
+     ========================================================== */
 
   const locationValue =
     cleanValue(
@@ -969,12 +1139,11 @@ function createTutorCard(tutor) {
   if (locationValue) {
 
     const locationBlock =
-      document.createElement(
-        "div"
-      );
+      document.createElement("div");
+
 
     locationBlock.className =
-      "location-detail";
+      "location-detail professional-block";
 
 
     addDetailRow(
@@ -991,9 +1160,9 @@ function createTutorCard(tutor) {
   }
 
 
-  /* -----------------------------------------------------
-     Optional subject tags
-     ----------------------------------------------------- */
+  /* ==========================================================
+     OPTIONAL INFORMATION
+     ========================================================== */
 
   appendTagBlock(
     information,
@@ -1002,20 +1171,12 @@ function createTutorCard(tutor) {
   );
 
 
-  /* -----------------------------------------------------
-     Optional class tags
-     ----------------------------------------------------- */
-
   appendTagBlock(
     information,
     "CLASSES",
     tutor.classes
   );
 
-
-  /* -----------------------------------------------------
-     Optional board tags
-     ----------------------------------------------------- */
 
   appendTagBlock(
     information,
@@ -1024,10 +1185,6 @@ function createTutorCard(tutor) {
   );
 
 
-  /* -----------------------------------------------------
-     Optional special courses
-     ----------------------------------------------------- */
-
   appendTagBlock(
     information,
     "SPECIAL COURSES",
@@ -1035,13 +1192,14 @@ function createTutorCard(tutor) {
   );
 
 
-  /* =====================================================
-     FINAL CARD ASSEMBLY
-     ===================================================== */
+  /* ==========================================================
+     FINISH CARD
+     ========================================================== */
 
   card.appendChild(
     imageArea
   );
+
 
   card.appendChild(
     information
@@ -1053,22 +1211,49 @@ function createTutorCard(tutor) {
 }
 
 
-/* =====================================================
-   ADD DETAIL ROW
-   =====================================================
+/* ============================================================
+   17. TUTOR NAME
+   ============================================================ */
 
-   IMPORTANT:
+function getTutorName(tutor) {
 
-   No dotted separator is created.
+  const firstName =
+    cleanValue(
+      tutor.firstName
+    );
 
-   Old:
 
-       EXPERIENCE ........ 3 Years
+  const lastName =
+    cleanValue(
+      tutor.lastName
+    );
 
-   New:
 
-       EXPERIENCE          3 Years
-   ===================================================== */
+  const name =
+    [
+      firstName,
+      lastName
+    ]
+      .filter(
+        function (part) {
+          return part.length > 0;
+        }
+      )
+      .join(" ");
+
+
+  return (
+    name ||
+    cleanValue(tutor.name) ||
+    "Professional Tutor"
+  );
+
+}
+
+
+/* ============================================================
+   18. DETAIL ROW
+   ============================================================ */
 
 function addDetailRow(
   container,
@@ -1076,44 +1261,69 @@ function addDetailRow(
   valueText
 ) {
 
-
   const row =
-    document.createElement(
-      "div"
-    );
+    document.createElement("div");
+
 
   row.className =
     "detail-line";
 
 
+  /*
+   * Label.
+   */
   const label =
-    document.createElement(
-      "span"
-    );
+    document.createElement("span");
+
 
   label.className =
     "detail-label";
+
 
   label.textContent =
     labelText;
 
 
+  /*
+   * IMPORTANT:
+   *
+   * No "......." separator is generated.
+   *
+   * Previous version used:
+   *
+   *     detail-dots
+   *
+   * That has been removed.
+   */
+
+
+  /*
+   * Value.
+   */
   const value =
-    document.createElement(
-      "span"
-    );
+    document.createElement("span");
+
 
   value.className =
     "detail-value";
 
+
   value.textContent =
-    valueText ||
-    "—";
+    valueText || "—";
+
+
+  /*
+   * Accessibility / tooltip for long
+   * values.
+   */
+  value.title =
+    valueText || "";
 
 
   row.appendChild(
     label
   );
+
 
   row.appendChild(
     value
@@ -1127,9 +1337,9 @@ function addDetailRow(
 }
 
 
-/* =====================================================
-   TAG BLOCK
-   ===================================================== */
+/* ============================================================
+   19. OPTIONAL TAG BLOCK
+   ============================================================ */
 
 function appendTagBlock(
   container,
@@ -1137,45 +1347,38 @@ function appendTagBlock(
   rawValue
 ) {
 
-
   const values =
-    splitValues(
-      rawValue
-    );
+    splitValues(rawValue);
 
 
   if (!values.length) {
-
     return;
-
   }
 
 
   const block =
-    document.createElement(
-      "div"
-    );
+    document.createElement("div");
+
 
   block.className =
     "professional-block";
 
 
   const label =
-    document.createElement(
-      "span"
-    );
+    document.createElement("span");
+
 
   label.className =
     "block-label";
+
 
   label.textContent =
     title;
 
 
   const list =
-    document.createElement(
-      "div"
-    );
+    document.createElement("div");
+
 
   list.className =
     "tag-list";
@@ -1187,12 +1390,12 @@ function appendTagBlock(
       function (item) {
 
         const tag =
-          document.createElement(
-            "span"
-          );
+          document.createElement("span");
+
 
         tag.className =
           "tag";
+
 
         tag.textContent =
           item;
@@ -1210,6 +1413,7 @@ function appendTagBlock(
     label
   );
 
+
   block.appendChild(
     list
   );
@@ -1222,62 +1426,18 @@ function appendTagBlock(
 }
 
 
-/* =====================================================
-   GET TUTOR NAME
-   ===================================================== */
-
-function getTutorName(tutor) {
-
-
-  const firstName =
-    cleanValue(
-      tutor.firstName
-    );
-
-
-  const lastName =
-    cleanValue(
-      tutor.lastName
-    );
-
-
-  const fullName =
-    [
-      firstName,
-      lastName
-    ]
-      .filter(
-        function (part) {
-          return part.length > 0;
-        }
-      )
-      .join(" ");
-
-
-  return (
-    fullName ||
-    cleanValue(tutor.name) ||
-    "Professional Tutor"
-  );
-
-}
-
-
-/* =====================================================
-   FORMAT EXPERIENCE
-   ===================================================== */
+/* ============================================================
+   20. EXPERIENCE FORMATTER
+   ============================================================ */
 
 function formatExperience(value) {
-
 
   const experience =
     cleanValue(value);
 
 
   if (!experience) {
-
     return "—";
-
   }
 
 
@@ -1295,12 +1455,11 @@ function formatExperience(value) {
 }
 
 
-/* =====================================================
-   SPLIT VALUES
-   ===================================================== */
+/* ============================================================
+   21. SPLIT MULTIPLE VALUES
+   ============================================================ */
 
 function splitValues(value) {
-
 
   if (
     value === undefined ||
@@ -1313,11 +1472,7 @@ function splitValues(value) {
 
 
   return String(value)
-
-    .split(
-      /[,|•]+/
-    )
-
+    .split(/[,|•]+/)
     .map(
       function (item) {
 
@@ -1325,7 +1480,6 @@ function splitValues(value) {
 
       }
     )
-
     .filter(
       function (item) {
 
@@ -1337,12 +1491,11 @@ function splitValues(value) {
 }
 
 
-/* =====================================================
-   CLEAN VALUE
-   ===================================================== */
+/* ============================================================
+   22. CLEAN VALUE
+   ============================================================ */
 
 function cleanValue(value) {
-
 
   if (
     value === undefined ||
@@ -1359,16 +1512,15 @@ function cleanValue(value) {
 }
 
 
-/* =====================================================
-   NEXT TUTOR
-   ===================================================== */
+/* ============================================================
+   23. NEXT TUTOR
+   ============================================================ */
 
 function showNextTutor() {
 
-
   if (
     tutors.length < 2 ||
-    isChanging
+    isAnimating
   ) {
 
     return;
@@ -1382,9 +1534,7 @@ function showNextTutor() {
     );
 
 
-  renderTutorCarousel(
-    true
-  );
+  renderTutorCarousel(true);
 
 
   restartRotation();
@@ -1392,16 +1542,15 @@ function showNextTutor() {
 }
 
 
-/* =====================================================
-   PREVIOUS TUTOR
-   ===================================================== */
+/* ============================================================
+   24. PREVIOUS TUTOR
+   ============================================================ */
 
 function showPreviousTutor() {
 
-
   if (
     tutors.length < 2 ||
-    isChanging
+    isAnimating
   ) {
 
     return;
@@ -1415,9 +1564,7 @@ function showPreviousTutor() {
     );
 
 
-  renderTutorCarousel(
-    true
-  );
+  renderTutorCarousel(true);
 
 
   restartRotation();
@@ -1425,17 +1572,14 @@ function showPreviousTutor() {
 }
 
 
-/* =====================================================
-   CREATE DOTS
-   ===================================================== */
+/* ============================================================
+   25. CREATE NAVIGATION DOTS
+   ============================================================ */
 
 function createDots() {
 
-
   if (!tutorDots) {
-
     return;
-
   }
 
 
@@ -1445,19 +1589,24 @@ function createDots() {
   tutors.forEach(
     function (_, index) {
 
-
       const dot =
-        document.createElement(
-          "button"
-        );
-
-
-      dot.type =
-        "button";
+        document.createElement("span");
 
 
       dot.className =
         "tutor-dot";
+
+
+      dot.setAttribute(
+        "role",
+        "button"
+      );
+
+
+      dot.setAttribute(
+        "tabindex",
+        "0"
+      );
 
 
       dot.setAttribute(
@@ -1467,15 +1616,15 @@ function createDots() {
       );
 
 
+      /*
+       * Mouse / touch click.
+       */
       dot.addEventListener(
         "click",
         function () {
 
-
-          if (isChanging) {
-
+          if (isAnimating) {
             return;
-
           }
 
 
@@ -1494,10 +1643,46 @@ function createDots() {
       );
 
 
+      /*
+       * Keyboard accessibility.
+       */
+      dot.addEventListener(
+        "keydown",
+        function (event) {
+
+          if (
+            event.key === "Enter" ||
+            event.key === " "
+          ) {
+
+            event.preventDefault();
+
+
+            if (isAnimating) {
+              return;
+            }
+
+
+            currentTutorIndex =
+              index;
+
+
+            renderTutorCarousel(
+              true
+            );
+
+
+            restartRotation();
+
+          }
+
+        }
+      );
+
+
       tutorDots.appendChild(
         dot
       );
-
 
     }
   );
@@ -1505,17 +1690,78 @@ function createDots() {
 }
 
 
-/* =====================================================
-   UPDATE DOTS
-   ===================================================== */
+/* ============================================================
+   26. UPDATE CONTROLS
+   ============================================================ */
 
-function updateDots() {
+function updateControls() {
 
+  /*
+   * One tutor means there is nothing to
+   * rotate.
+   */
+  if (
+    tutors.length <= 1
+  ) {
 
-  if (!tutorDots) {
+    if (tutorControls) {
+
+      tutorControls.classList.add(
+        "hidden"
+      );
+
+    }
 
     return;
 
+  }
+
+
+  /*
+   * Multiple tutors.
+   */
+  if (tutorControls) {
+
+    tutorControls.classList.remove(
+      "hidden"
+    );
+
+  }
+
+
+  /*
+   * Update counter if the element exists.
+   */
+  const counter =
+    document.getElementById(
+      "tutorCounter"
+    );
+
+
+  if (counter) {
+
+    counter.textContent =
+      `${currentTutorIndex + 1} / ${tutors.length}`;
+
+  }
+
+
+  /*
+   * Update navigation dots.
+   */
+  updateDots();
+
+}
+
+
+/* ============================================================
+   27. UPDATE DOTS
+   ============================================================ */
+
+function updateDots() {
+
+  if (!tutorDots) {
+    return;
   }
 
 
@@ -1539,18 +1785,24 @@ function updateDots() {
 }
 
 
-/* =====================================================
-   AUTOMATIC ROTATION
-   ===================================================== */
+/* ============================================================
+   28. AUTOMATIC ROTATION
+   ============================================================ */
 
 function startRotation() {
 
-
+  /*
+   * Always clear an existing timer first.
+   */
   clearInterval(
     rotationTimer
   );
 
 
+  /*
+   * No need for automatic rotation
+   * if there is only one tutor.
+   */
   if (
     tutors.length < 2
   ) {
@@ -1560,15 +1812,15 @@ function startRotation() {
   }
 
 
+  /*
+   * Rotate every 6 seconds.
+   */
   rotationTimer =
     setInterval(
       function () {
 
-
-        if (isChanging) {
-
+        if (isAnimating) {
           return;
-
         }
 
 
@@ -1582,7 +1834,6 @@ function startRotation() {
           true
         );
 
-
       },
       6000
     );
@@ -1590,68 +1841,28 @@ function startRotation() {
 }
 
 
-/* =====================================================
-   RESTART ROTATION
-   ===================================================== */
+/* ============================================================
+   29. RESTART ROTATION
+   ============================================================ */
 
 function restartRotation() {
-
 
   startRotation();
 
 }
 
 
-/* =====================================================
-   RESPONSIVE RESIZE
-   ===================================================== */
-
-function handleResize() {
-
-
-  if (!tutors.length) {
-
-    return;
-
-  }
-
-
-  /* Rebuild the grid only if the required card count
-     changes because of the new screen width. */
-
-  const requiredCount =
-    getCardsPerPage();
-
-
-  const currentCount =
-    tutorGrid.children.length;
-
-
-  if (
-    requiredCount !== currentCount
-  ) {
-
-    renderTutorCarousel(
-      false
-    );
-
-  }
-
-}
-
-
-/* =====================================================
-   PLACEHOLDER IMAGE
-   ===================================================== */
+/* ============================================================
+   30. PLACEHOLDER PROFILE IMAGE
+   ============================================================ */
 
 function createPlaceholderImage() {
 
-
   return (
     "data:image/svg+xml;charset=UTF-8," +
+    encodeURIComponent(
 
-    encodeURIComponent(`
-
+      `
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="600"
@@ -1669,26 +1880,23 @@ function createPlaceholderImage() {
           cx="300"
           cy="230"
           r="90"
-          fill="#202020"
+          fill="#222222"
         />
 
         <path
           d="
             M145 500
-            C160 390
-            220 350
-            300 350
-            C380 350
-            440 390
-            455 500
+            C160 390 220 350 300 350
+            C380 350 440 390 455 500
             Z
           "
-          fill="#202020"
+          fill="#222222"
         />
 
       </svg>
+      `
 
-    `)
+    )
   );
 
 }
