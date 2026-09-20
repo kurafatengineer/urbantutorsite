@@ -1,1420 +1,774 @@
-
-"use strict";
-
-/*
- * =========================================================
- * MEET OUR STUDENTS
- * =========================================================
- *
- * This component is completely independent from the tutor
- * carousel.
- *
- * IMPORTANT:
- *
- * Only PUBLIC student information is rendered.
- *
- * NEVER render:
- *   email
- *   phone
- *   whatsapp
- *   address
- *   pinCode
- *   timestamp
- *   sessionToken
- *
- * =========================================================
- */
-
-
 /* =========================================================
-   CONFIGURATION
+   MEET OUR STUDENTS  (students.js)
+
+   Shows ONLY public student information. Never render:
+   email, phone, whatsapp, address, pinCode, timestamp,
+   sessionToken.
+
+   HOW IT STARTS
+   ---------------------------------------------------------
+   The script starts itself as soon as #studentsSection
+   exists on the page, whether students.html is written
+   directly into index.html or loaded later with fetch().
+
+   You can also start it manually:
+
+       window.StudentsComponent.init()
    ========================================================= */
 
-/*
- * After deploying students.gs as a Web App,
- * paste its Web App URL here.
- *
- * Example:
- *
- * const STUDENTS_API_URL =
- *   "https://script.google.com/macros/s/XXXX/exec";
- */
-
-const STUDENTS_API_URL =
-  "https://script.google.com/macros/s/AKfycbyQ2ZkRBjB8zvJ8w_JvhUl6MZQlpkeLwAJ98DTH16ry9dbmBp4PR-eo7uPOuJlWhCfu/exec";
+(function () {
+  "use strict";
 
 
-/*
- * Number of cards shown at one time.
- *
- * Desktop  = 3
- * Tablet   = 2
- * Mobile   = 1
- */
-
-const STUDENT_DESKTOP_COUNT = 3;
-const STUDENT_TABLET_COUNT = 2;
-const STUDENT_MOBILE_COUNT = 1;
-
-
-/*
- * Automatic rotation.
- *
- * 0 means automatic rotation is disabled.
- *
- * 7000 = 7 seconds.
- */
-
-const STUDENT_ROTATION_DELAY = 7000;
-
-
-/* =========================================================
-   STATE
-   ========================================================= */
-
-let publicStudents = [];
-
-let studentPage = 0;
-
-let studentRotationTimer = null;
-
-let studentResizeTimer = null;
-
-
-/* =========================================================
-   ELEMENTS
-   ========================================================= */
-
-const studentsSection =
-  document.getElementById(
-    "studentsSection"
-  );
-
-const studentLoading =
-  document.getElementById(
-    "studentLoading"
-  );
-
-const studentGrid =
-  document.getElementById(
-    "studentGrid"
-  );
-
-const noStudents =
-  document.getElementById(
-    "noStudents"
-  );
-
-const studentControls =
-  document.getElementById(
-    "studentControls"
-  );
-
-const studentCounter =
-  document.getElementById(
-    "studentCounter"
-  );
-
-const studentDots =
-  document.getElementById(
-    "studentDots"
-  );
-
-const previousStudent =
-  document.getElementById(
-    "previousStudent"
-  );
-
-const nextStudent =
-  document.getElementById(
-    "nextStudent"
-  );
-
-const studentButton =
-  document.getElementById(
-    "studentButton"
-  );
-
-const tutorButton =
-  document.getElementById(
-    "tutorButton"
-  );
-
-const tutorsSection =
-  document.getElementById(
-    "tutorsSection"
-  );
-
-
-/* =========================================================
-   INITIALIZATION
-   ========================================================= */
-
-document.addEventListener(
-  "DOMContentLoaded",
-  initializeStudents
-);
-
-
-function initializeStudents() {
+  /* =======================================================
+     01. CONFIGURATION
+     ======================================================= */
 
   /*
-   * The section is initially visible because
-   * Student is the default selected mode.
+   * IMPORTANT: paste the Web App URL of the STUDENT
+   * DIRECTORY script (students.gs) here.
+   *
+   * Do NOT use the login / registration Web App URL.
+   * That script does not know "getPublicStudents", so it
+   * answers with no students and the section stays empty.
    */
 
-  setupUserTypeSwitching();
-
-  setupStudentControls();
-
-  handleStudentResize();
-
-  loadPublicStudents();
-
-}
-
-
-/* =========================================================
-   STUDENT / TUTOR SWITCHING
-   ========================================================= */
-
-function setupUserTypeSwitching() {
-
-  if (studentButton) {
-
-    studentButton.addEventListener(
-      "click",
-      function () {
-
-        showStudents();
-
-      }
-    );
-
-  }
-
-
-  if (tutorButton) {
-
-    tutorButton.addEventListener(
-      "click",
-      function () {
-
-        showTutors();
-
-      }
-    );
-
-  }
-
-}
-
-
-/*
- * Show Meet our Students.
- */
-
-function showStudents() {
-
-  if (studentsSection) {
-
-    studentsSection.classList.remove(
-      "hidden"
-    );
-
-  }
-
-
-  if (tutorsSection) {
-
-    tutorsSection.classList.add(
-      "hidden"
-    );
-
-  }
-
+  const STUDENTS_API_URL = "PASTE_YOUR_STUDENTS_WEB_APP_URL_HERE";
 
   /*
-   * Stop student automatic rotation when
-   * section is not visible.
+   * Which toggle shows this section?
+   *
+   *   "tutor"   -> students are shown when the "Tutor"
+   *                toggle is active (a tutor looks for
+   *                students). Matches your home page,
+   *                where "Student" mode shows tutors.
+   *   "student" -> students are shown when the "Student"
+   *                toggle is active.
    */
 
-  startStudentRotation();
+  const SHOW_STUDENTS_WHEN = "tutor";
 
-}
+  const STUDENT_DESKTOP_COUNT = 3;
+  const STUDENT_TABLET_COUNT = 2;
+  const STUDENT_MOBILE_COUNT = 1;
 
-
-/*
- * Show Meet our Tutors.
- */
-
-function showTutors() {
-
-  if (studentsSection) {
-
-    studentsSection.classList.add(
-      "hidden"
-    );
-
-  }
+  /* Automatic rotation in ms. 0 turns it off. */
+  const STUDENT_ROTATION_DELAY = 7000;
 
 
-  if (tutorsSection) {
+  /* =======================================================
+     02. STATE
+     ======================================================= */
 
-    tutorsSection.classList.remove(
-      "hidden"
-    );
+  let initialized = false;
+  let publicStudents = [];
+  let studentPage = 0;
+  let rotationTimer = null;
+  let resizeTimer = null;
 
-  }
-
-
-  stopStudentRotation();
-
-}
-
-
-/* =========================================================
-   CONTROLS
-   ========================================================= */
-
-function setupStudentControls() {
-
-  if (previousStudent) {
-
-    previousStudent.addEventListener(
-      "click",
-      function () {
-
-        showPreviousStudentPage();
-
-      }
-    );
-
-  }
+  let studentsSection;
+  let studentLoading;
+  let studentGrid;
+  let noStudents;
+  let emptyTitle;
+  let emptyText;
+  let studentControls;
+  let studentCounter;
+  let studentDots;
+  let previousStudent;
+  let nextStudent;
 
 
-  if (nextStudent) {
+  /* =======================================================
+     03. START-UP
+     ======================================================= */
 
-    nextStudent.addEventListener(
-      "click",
-      function () {
+  function init() {
 
-        showNextStudentPage();
-
-      }
-    );
-
-  }
-
-
-  /*
-   * Pause automatic movement while the user
-   * interacts with the cards.
-   */
-
-  if (studentGrid) {
-
-    studentGrid.addEventListener(
-      "mouseenter",
-      stopStudentRotation
-    );
-
-    studentGrid.addEventListener(
-      "mouseleave",
-      startStudentRotation
-    );
-
-    studentGrid.addEventListener(
-      "touchstart",
-      stopStudentRotation,
-      { passive: true }
-    );
-
-    studentGrid.addEventListener(
-      "touchend",
-      function () {
-
-        setTimeout(
-          startStudentRotation,
-          1200
-        );
-
-      },
-      { passive: true }
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   LOAD STUDENTS
-   ========================================================= */
-
-async function loadPublicStudents() {
-
-  showStudentLoading();
-
-
-  /*
-   * Prevent accidental fetch to placeholder URL.
-   */
-
-  if (
-    !STUDENTS_API_URL ||
-    STUDENTS_API_URL.includes(
-      "PASTE_YOUR"
-    )
-  ) {
-
-    console.warn(
-      "Student API URL has not been configured."
-    );
-
-    showNoStudents();
-
-    return;
-
-  }
-
-
-  try {
-
-    const response =
-      await fetch(
-        STUDENTS_API_URL +
-        "?action=getPublicStudents",
-        {
-          method: "GET",
-          cache: "no-store"
-        }
-      );
-
-
-    if (!response.ok) {
-
-      throw new Error(
-        "HTTP " +
-        response.status
-      );
-
+    if (initialized) {
+      return true;
     }
 
+    studentsSection = document.getElementById("studentsSection");
+    studentLoading = document.getElementById("studentLoading");
+    studentGrid = document.getElementById("studentGrid");
+    noStudents = document.getElementById("noStudents");
+    emptyTitle = document.getElementById("studentEmptyTitle");
+    emptyText = document.getElementById("studentEmptyText");
+    studentControls = document.getElementById("studentControls");
+    studentCounter = document.getElementById("studentCounter");
+    studentDots = document.getElementById("studentDots");
+    previousStudent = document.getElementById("previousStudent");
+    nextStudent = document.getElementById("nextStudent");
 
-    const result =
-      await response.json();
+    /* HTML is not on the page yet. */
 
-
-    if (!result.success) {
-
-      throw new Error(
-        result.message ||
-        "Unable to load students."
-      );
-
+    if (!studentsSection || !studentGrid) {
+      return false;
     }
 
+    initialized = true;
 
-    publicStudents =
-      Array.isArray(result.students)
-        ? result.students
-        : [];
+    setupControls();
+    setupModeSwitching();
+    applyCurrentMode();
+    loadPublicStudents();
 
-
-    /*
-     * Start from the first page.
-     */
-
-    studentPage = 0;
+    return true;
+  }
 
 
-    if (!publicStudents.length) {
+  /*
+   * Start automatically. If the HTML is added to the page
+   * later (fetch / include), wait until it appears.
+   */
 
-      showNoStudents();
+  function autoStart() {
+
+    if (init()) {
+      return;
+    }
+
+    const observer = new MutationObserver(function () {
+
+      if (document.getElementById("studentsSection")) {
+
+        observer.disconnect();
+
+        init();
+      }
+    });
+
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", autoStart);
+  } else {
+    autoStart();
+  }
+
+
+  /* =======================================================
+     04. STUDENT / TUTOR SWITCHING
+     =======================================================
+
+     Click handling is delegated from the document, so it
+     works even if the toggle buttons or the tutors section
+     are added to the page after this script runs.
+     ======================================================= */
+
+  function setupModeSwitching() {
+
+    document.addEventListener("click", function (event) {
+
+      if (!event.target || !event.target.closest) {
+        return;
+      }
+
+      if (event.target.closest("#studentButton")) {
+        applyMode("student");
+      } else if (event.target.closest("#tutorButton")) {
+        applyMode("tutor");
+      }
+    });
+  }
+
+  function applyMode(mode) {
+
+    const showStudentsNow = mode === SHOW_STUDENTS_WHEN;
+
+    setVisible(studentsSection, showStudentsNow);
+    setVisible(document.getElementById("tutorsSection"), !showStudentsNow);
+
+    if (showStudentsNow) {
+      startRotation();
+    } else {
+      stopRotation();
+    }
+  }
+
+  /*
+   * On start-up, follow whichever toggle is already active.
+   * If we can't tell, leave the page exactly as it is.
+   */
+
+  function applyCurrentMode() {
+
+    const studentToggle = document.getElementById("studentButton");
+    const tutorToggle = document.getElementById("tutorButton");
+
+    if (isActive(studentToggle)) {
+      applyMode("student");
+    } else if (isActive(tutorToggle)) {
+      applyMode("tutor");
+    }
+  }
+
+  function isActive(button) {
+
+    if (!button) {
+      return false;
+    }
+
+    return (
+      button.classList.contains("active") ||
+      button.classList.contains("selected") ||
+      button.getAttribute("aria-pressed") === "true" ||
+      button.getAttribute("aria-selected") === "true"
+    );
+  }
+
+  function setVisible(element, visible) {
+
+    if (!element) {
+      return;
+    }
+
+    element.classList.toggle("hidden", !visible);
+    element.hidden = !visible;
+  }
+
+
+  /* =======================================================
+     05. CONTROLS
+     ======================================================= */
+
+  function setupControls() {
+
+    if (previousStudent) {
+      previousStudent.addEventListener("click", showPreviousStudentPage);
+    }
+
+    if (nextStudent) {
+      nextStudent.addEventListener("click", showNextStudentPage);
+    }
+
+    /* Pause automatic movement while the user interacts. */
+
+    studentGrid.addEventListener("mouseenter", stopRotation);
+    studentGrid.addEventListener("mouseleave", startRotation);
+
+    studentGrid.addEventListener("touchstart", stopRotation, { passive: true });
+
+    studentGrid.addEventListener("touchend", function () {
+      setTimeout(startRotation, 1200);
+    }, { passive: true });
+
+    window.addEventListener("resize", function () {
+
+      clearTimeout(resizeTimer);
+
+      resizeTimer = setTimeout(handleResize, 180);
+    });
+  }
+
+
+  /* =======================================================
+     06. LOAD STUDENTS
+     ======================================================= */
+
+  async function loadPublicStudents() {
+
+    showLoading();
+
+    if (
+      !STUDENTS_API_URL ||
+      STUDENTS_API_URL.indexOf("PASTE_YOUR") !== -1
+    ) {
+
+      console.warn(
+        "Students: STUDENTS_API_URL is not set. Paste the Web App " +
+        "URL of students.gs into students.js."
+      );
+
+      showMessage(
+        "Student directory not connected",
+        "The student directory address has not been added yet."
+      );
 
       return;
-
     }
 
-
-    hideStudentLoading();
-
-    hideNoStudents();
-
-    renderStudentCarousel();
-
-    startStudentRotation();
-
-
-  } catch (error) {
-
-    console.error(
-      "Student loading failed:",
-      error
-    );
-
-    showNoStudents();
-
-  }
-
-}
-
-
-/* =========================================================
-   RESPONSIVE CARD COUNT
-   ========================================================= */
-
-function getStudentCardsPerPage() {
-
-  const width =
-    window.innerWidth;
-
-
-  if (width <= 650) {
-
-    return STUDENT_MOBILE_COUNT;
-
-  }
-
-
-  if (width <= 900) {
-
-    return STUDENT_TABLET_COUNT;
-
-  }
-
-
-  return STUDENT_DESKTOP_COUNT;
-
-}
-
-
-/* =========================================================
-   PAGE COUNT
-   ========================================================= */
-
-function getStudentPageCount() {
-
-  const perPage =
-    getStudentCardsPerPage();
-
-
-  return Math.max(
-    1,
-    Math.ceil(
-      publicStudents.length /
-      perPage
-    )
-  );
-
-}
-
-
-/* =========================================================
-   CURRENT PAGE
-   ========================================================= */
-
-function getCurrentStudentPage() {
-
-  const perPage =
-    getStudentCardsPerPage();
-
-
-  const start =
-    studentPage *
-    perPage;
-
-
-  return publicStudents.slice(
-    start,
-    start + perPage
-  );
-
-}
-
-
-/* =========================================================
-   RENDER
-   ========================================================= */
-
-function renderStudentCarousel() {
-
-  if (!studentGrid) return;
-
-
-  const visibleStudents =
-    getCurrentStudentPage();
-
-
-  const pageCount =
-    getStudentPageCount();
-
-
-  /*
-   * Safety:
-   *
-   * If changing screen size makes the current
-   * page invalid, move back to the last page.
-   */
-
-  if (
-    studentPage >= pageCount
-  ) {
-
-    studentPage =
-      pageCount - 1;
-
-    return renderStudentCarousel();
-
-  }
-
-
-  /*
-   * Clear the previous cards.
-   *
-   * The cards themselves are recreated.
-   *
-   * There is no transform-based carousel movement,
-   * which prevents flickering/distortion.
-   */
-
-  studentGrid.innerHTML = "";
-
-
-  /*
-   * Reset grid layout classes.
-   */
-
-  studentGrid.classList.remove(
-    "student-grid-one",
-    "student-grid-two"
-  );
-
-
-  if (
-    visibleStudents.length === 1
-  ) {
-
-    studentGrid.classList.add(
-      "student-grid-one"
-    );
-
-  }
-
-
-  if (
-    visibleStudents.length === 2
-  ) {
-
-    studentGrid.classList.add(
-      "student-grid-two"
-    );
-
-  }
-
-
-  /*
-   * Create cards.
-   */
-
-  visibleStudents.forEach(
-    function (student, index) {
-
-      const card =
-        createStudentCard(
-          student,
-          index
-        );
-
-
-      studentGrid.appendChild(
-        card
+    try {
+
+      const response = await fetch(
+        STUDENTS_API_URL + "?action=getPublicStudents",
+        { method: "GET", cache: "no-store" }
       );
 
+      if (!response.ok) {
+        throw new Error("HTTP " + response.status);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || "Unable to load students.");
+      }
+
+      /*
+       * The login / registration script answers with
+       * success:true but no "students" list. Catch that here
+       * so the mistake is obvious in the console.
+       */
+
+      if (!Array.isArray(result.students)) {
+        throw new Error(
+          "The response has no 'students' list. STUDENTS_API_URL must " +
+          "be the Web App URL of students.gs (the student directory), " +
+          "not the login Web App."
+        );
+      }
+
+      publicStudents = result.students;
+      studentPage = 0;
+
+      if (!publicStudents.length) {
+
+        showMessage(
+          "Students coming soon",
+          "Student profiles will appear here once students register on UrbanTutorSite."
+        );
+
+        return;
+      }
+
+      hideLoading();
+      hideMessage();
+      renderStudentCarousel();
+      startRotation();
+
+    } catch (error) {
+
+      console.error("Student loading failed:", error);
+
+      showMessage(
+        "Unable to load students",
+        "Please refresh the page and try again."
+      );
     }
-  );
+  }
 
 
-  /*
-   * Counter.
-   */
+  /* =======================================================
+     07. PAGING
+     ======================================================= */
 
-  if (studentCounter) {
+  function getCardsPerPage() {
 
-    const start =
-      studentPage *
-      getStudentCardsPerPage() +
-      1;
+    const width = window.innerWidth;
 
-    const end =
-      Math.min(
-        (
-          studentPage + 1
-        ) *
-        getStudentCardsPerPage(),
+    if (width <= 650) {
+      return STUDENT_MOBILE_COUNT;
+    }
+
+    if (width <= 900) {
+      return STUDENT_TABLET_COUNT;
+    }
+
+    return STUDENT_DESKTOP_COUNT;
+  }
+
+  function getPageCount() {
+    return Math.max(
+      1,
+      Math.ceil(publicStudents.length / getCardsPerPage())
+    );
+  }
+
+  function getCurrentPageStudents() {
+
+    const perPage = getCardsPerPage();
+    const start = studentPage * perPage;
+
+    return publicStudents.slice(start, start + perPage);
+  }
+
+
+  /* =======================================================
+     08. RENDER
+     ======================================================= */
+
+  function renderStudentCarousel() {
+
+    if (!studentGrid) {
+      return;
+    }
+
+    const pageCount = getPageCount();
+
+    /* A resize can make the current page invalid. */
+
+    if (studentPage >= pageCount) {
+      studentPage = pageCount - 1;
+    }
+
+    const visibleStudents = getCurrentPageStudents();
+    const perPage = getCardsPerPage();
+
+    studentGrid.innerHTML = "";
+
+    studentGrid.classList.remove("student-grid-one", "student-grid-two");
+
+    if (visibleStudents.length === 1) {
+      studentGrid.classList.add("student-grid-one");
+    }
+
+    if (visibleStudents.length === 2) {
+      studentGrid.classList.add("student-grid-two");
+    }
+
+    visibleStudents.forEach(function (student, index) {
+      studentGrid.appendChild(createStudentCard(student, index));
+    });
+
+    if (studentCounter) {
+
+      const start = studentPage * perPage + 1;
+
+      const end = Math.min(
+        (studentPage + 1) * perPage,
         publicStudents.length
       );
 
-
-    studentCounter.textContent =
-      start +
-      "–" +
-      end +
-      " / " +
-      publicStudents.length;
-
-  }
-
-
-  renderStudentDots();
-
-  updateStudentControls();
-
-}
-
-
-/* =========================================================
-   CREATE STUDENT CARD
-   ========================================================= */
-
-function createStudentCard(
-  student,
-  index
-) {
-
-  const card =
-    document.createElement(
-      "article"
-    );
-
-
-  card.className =
-    "student-card";
-
-
-  /*
-   * Small stagger makes cards enter smoothly
-   * without causing layout distortion.
-   */
-
-  card.style.animationDelay =
-    (
-      index * 70
-    ) +
-    "ms";
-
-
-  const identity =
-    document.createElement(
-      "div"
-    );
-
-
-  identity.className =
-    "student-identity";
-
-
-  const avatar =
-    document.createElement(
-      "div"
-    );
-
-
-  avatar.className =
-    "student-avatar";
-
-
-  identity.appendChild(
-    avatar
-  );
-
-
-  const name =
-    document.createElement(
-      "h3"
-    );
-
-
-  name.className =
-    "student-name";
-
-
-  name.textContent =
-    safeStudentValue(
-      student.name,
-      "Student"
-    );
-
-
-  identity.appendChild(
-    name
-  );
-
-
-  const role =
-    document.createElement(
-      "div"
-    );
-
-
-  role.className =
-    "student-role";
-
-
-  role.textContent =
-    "Student";
-
-
-  identity.appendChild(
-    role
-  );
-
-
-  card.appendChild(
-    identity
-  );
-
-
-  /*
-   * Information.
-   */
-
-  const information =
-    document.createElement(
-      "div"
-    );
-
-
-  information.className =
-    "student-information";
-
-
-  /*
-   * PUBLIC fields ONLY.
-   */
-
-  addStudentDetail(
-    information,
-    "Class",
-    student.className
-  );
-
-
-  addStudentDetail(
-    information,
-    "School",
-    student.school,
-    true
-  );
-
-
-  addStudentDetail(
-    information,
-    "Board",
-    student.board
-  );
-
-
-  addStudentDetail(
-    information,
-    "Subjects",
-    student.subjects,
-    true
-  );
-
-
-  addStudentDetail(
-    information,
-    "Preferred Tutor",
-    student.preferredTutor,
-    true
-  );
-
-
-  addStudentDetail(
-    information,
-    "Preferred Timing",
-    student.preferredTiming,
-    true
-  );
-
-
-  addStudentDetail(
-    information,
-    "City",
-    student.city
-  );
-
-
-  card.appendChild(
-    information
-  );
-
-
-  return card;
-
-}
-
-
-/* =========================================================
-   ADD INFORMATION ROW
-   ========================================================= */
-
-function addStudentDetail(
-  container,
-  label,
-  value,
-  wrap
-) {
-
-  const cleanValue =
-    safeStudentValue(
-      value,
-      ""
-    );
-
-
-  /*
-   * Don't create empty rows.
-   */
-
-  if (!cleanValue) {
-
-    return;
-
-  }
-
-
-  const row =
-    document.createElement(
-      "div"
-    );
-
-
-  row.className =
-    "student-detail";
-
-
-  const labelElement =
-    document.createElement(
-      "span"
-    );
-
-
-  labelElement.className =
-    "student-detail-label";
-
-
-  labelElement.textContent =
-    label;
-
-
-  const valueElement =
-    document.createElement(
-      "span"
-    );
-
-
-  valueElement.className =
-    "student-detail-value";
-
-
-  if (wrap) {
-
-    valueElement.classList.add(
-      "wrap"
-    );
-
-  }
-
-
-  valueElement.textContent =
-    cleanValue;
-
-
-  row.appendChild(
-    labelElement
-  );
-
-
-  row.appendChild(
-    valueElement
-  );
-
-
-  container.appendChild(
-    row
-  );
-
-}
-
-
-/* =========================================================
-   SAFE VALUE
-   ========================================================= */
-
-function safeStudentValue(
-  value,
-  fallback
-) {
-
-  const text =
-    String(
-      value ?? ""
-    ).trim();
-
-
-  return text ||
-    fallback ||
-    "";
-
-}
-
-
-/* =========================================================
-   DOTS
-   ========================================================= */
-
-function renderStudentDots() {
-
-  if (!studentDots) return;
-
-
-  const pageCount =
-    getStudentPageCount();
-
-
-  studentDots.innerHTML =
-    "";
-
-
-  if (pageCount <= 1) {
-
-    return;
-
-  }
-
-
-  for (
-    let i = 0;
-    i < pageCount;
-    i++
-  ) {
-
-    const dot =
-      document.createElement(
-        "button"
-      );
-
-
-    dot.type =
-      "button";
-
-
-    dot.className =
-      "student-dot";
-
-
-    if (
-      i === studentPage
-    ) {
-
-      dot.classList.add(
-        "active"
-      );
-
+      studentCounter.textContent =
+        start + "–" + end + " / " + publicStudents.length;
     }
 
-
-    dot.setAttribute(
-      "aria-label",
-      "Show student group " +
-      (i + 1)
-    );
+    renderDots();
+    updateControls();
+  }
 
 
-    dot.addEventListener(
-      "click",
-      function () {
+  /* =======================================================
+     09. STUDENT CARD
+     ======================================================= */
+
+  function createStudentCard(student, index) {
+
+    const card = document.createElement("article");
+
+    card.className = "student-card";
+    card.style.animationDelay = (index * 70) + "ms";
+
+    const identity = document.createElement("div");
+
+    identity.className = "student-identity";
+
+    const avatar = document.createElement("div");
+
+    avatar.className = "student-avatar";
+    avatar.setAttribute("aria-hidden", "true");
+
+    identity.appendChild(avatar);
+
+    const name = document.createElement("h3");
+
+    name.className = "student-name";
+    name.textContent = safeValue(student.name, "Student");
+
+    identity.appendChild(name);
+
+    const role = document.createElement("div");
+
+    role.className = "student-role";
+    role.textContent = "Student";
+
+    identity.appendChild(role);
+
+    card.appendChild(identity);
+
+    const information = document.createElement("div");
+
+    information.className = "student-information";
+
+    /* PUBLIC fields only. */
+
+    addDetail(information, "Class", student.className);
+    addDetail(information, "School", student.school);
+    addDetail(information, "Board", student.board);
+    addDetail(information, "Subjects", student.subjects);
+    addDetail(information, "Preferred Tutor", student.preferredTutor);
+    addDetail(information, "Preferred Timing", student.preferredTiming);
+    addDetail(information, "City", student.city);
+
+    card.appendChild(information);
+
+    return card;
+  }
+
+  function addDetail(container, label, value) {
+
+    const text = safeValue(value, "");
+
+    /* Don't create empty rows. */
+
+    if (!text) {
+      return;
+    }
+
+    const row = document.createElement("div");
+
+    row.className = "student-detail";
+
+    const labelElement = document.createElement("span");
+
+    labelElement.className = "student-detail-label";
+    labelElement.textContent = label;
+
+    const valueElement = document.createElement("span");
+
+    valueElement.className = "student-detail-value";
+    valueElement.textContent = text;
+
+    row.appendChild(labelElement);
+    row.appendChild(valueElement);
+
+    container.appendChild(row);
+  }
+
+  function safeValue(value, fallback) {
+
+    const text = String(value == null ? "" : value).trim();
+
+    return text || fallback || "";
+  }
+
+
+  /* =======================================================
+     10. DOTS AND BUTTONS
+     ======================================================= */
+
+  function renderDots() {
+
+    if (!studentDots) {
+      return;
+    }
+
+    const pageCount = getPageCount();
+
+    studentDots.innerHTML = "";
+
+    if (pageCount <= 1) {
+      return;
+    }
+
+    for (let i = 0; i < pageCount; i++) {
+
+      const dot = document.createElement("button");
+
+      dot.type = "button";
+      dot.className = "student-dot";
+
+      if (i === studentPage) {
+        dot.classList.add("active");
+      }
+
+      dot.setAttribute("aria-label", "Show student group " + (i + 1));
+
+      dot.addEventListener("click", function () {
 
         studentPage = i;
 
         renderStudentCarousel();
+        restartRotation();
+      });
 
-        restartStudentRotation();
-
-      }
-    );
-
-
-    studentDots.appendChild(
-      dot
-    );
-
+      studentDots.appendChild(dot);
+    }
   }
 
-}
+  function updateControls() {
 
+    if (!studentControls) {
+      return;
+    }
 
-/* =========================================================
-   CONTROLS
-   ========================================================= */
-
-function updateStudentControls() {
-
-  const pageCount =
-    getStudentPageCount();
-
-
-  if (!studentControls) {
-
-    return;
-
+    studentControls.classList.toggle("hidden", getPageCount() <= 1);
   }
 
+  function showNextStudentPage() {
 
-  if (pageCount <= 1) {
+    const pageCount = getPageCount();
 
-    studentControls.classList.add(
-      "hidden"
-    );
+    if (pageCount <= 1) {
+      return;
+    }
 
-    return;
+    studentPage = (studentPage + 1) % pageCount;
 
+    renderStudentCarousel();
+    restartRotation();
   }
 
+  function showPreviousStudentPage() {
 
-  studentControls.classList.remove(
-    "hidden"
-  );
+    const pageCount = getPageCount();
 
-}
+    if (pageCount <= 1) {
+      return;
+    }
 
+    studentPage = (studentPage - 1 + pageCount) % pageCount;
 
-/* =========================================================
-   NEXT
-   ========================================================= */
-
-function showNextStudentPage() {
-
-  const pageCount =
-    getStudentPageCount();
-
-
-  if (pageCount <= 1) {
-
-    return;
-
+    renderStudentCarousel();
+    restartRotation();
   }
 
 
-  studentPage =
-    (
-      studentPage + 1
-    ) %
-    pageCount;
+  /* =======================================================
+     11. AUTOMATIC ROTATION
+     ======================================================= */
 
+  function startRotation() {
 
-  renderStudentCarousel();
+    stopRotation();
 
-  restartStudentRotation();
+    if (STUDENT_ROTATION_DELAY <= 0) {
+      return;
+    }
 
-}
+    if (publicStudents.length <= getCardsPerPage()) {
+      return;
+    }
 
+    /* Not while the Students section is hidden. */
 
-/* =========================================================
-   PREVIOUS
-   ========================================================= */
+    if (
+      !studentsSection ||
+      studentsSection.hidden ||
+      studentsSection.classList.contains("hidden")
+    ) {
+      return;
+    }
 
-function showPreviousStudentPage() {
-
-  const pageCount =
-    getStudentPageCount();
-
-
-  if (pageCount <= 1) {
-
-    return;
-
-  }
-
-
-  studentPage =
-    (
-      studentPage - 1 + pageCount
-    ) %
-    pageCount;
-
-
-  renderStudentCarousel();
-
-  restartStudentRotation();
-
-}
-
-
-/* =========================================================
-   AUTOMATIC ROTATION
-   ========================================================= */
-
-function startStudentRotation() {
-
-  stopStudentRotation();
-
-
-  if (
-    STUDENT_ROTATION_DELAY <= 0
-  ) {
-
-    return;
-
-  }
-
-
-  if (
-    publicStudents.length <=
-    getStudentCardsPerPage()
-  ) {
-
-    return;
-
-  }
-
-
-  /*
-   * Don't rotate while Tutor mode is active.
-   */
-
-  if (
-    studentsSection &&
-    studentsSection.classList.contains(
-      "hidden"
-    )
-  ) {
-
-    return;
-
-  }
-
-
-  studentRotationTimer =
-    setInterval(
-      function () {
-
-        showNextStudentPage();
-
-      },
+    rotationTimer = setInterval(
+      showNextStudentPage,
       STUDENT_ROTATION_DELAY
     );
-
-}
-
-
-function stopStudentRotation() {
-
-  if (studentRotationTimer) {
-
-    clearInterval(
-      studentRotationTimer
-    );
-
-    studentRotationTimer =
-      null;
-
   }
 
-}
+  function stopRotation() {
 
+    if (rotationTimer) {
+      clearInterval(rotationTimer);
+      rotationTimer = null;
+    }
+  }
 
-function restartStudentRotation() {
-
-  stopStudentRotation();
-
-  startStudentRotation();
-
-}
-
-
-/* =========================================================
-   LOADING / EMPTY STATES
-   ========================================================= */
-
-function showStudentLoading() {
-
-  if (studentLoading) {
-
-    studentLoading.classList.remove(
-      "hidden"
-    );
-
+  function restartRotation() {
+    stopRotation();
+    startRotation();
   }
 
 
-  if (studentGrid) {
+  /* =======================================================
+     12. LOADING / MESSAGE STATES
+     ======================================================= */
 
-    studentGrid.classList.add(
-      "hidden"
-    );
+  function showLoading() {
 
+    if (studentLoading) {
+      studentLoading.classList.remove("hidden");
+    }
+
+    if (studentGrid) {
+      studentGrid.classList.add("hidden");
+    }
+
+    if (studentControls) {
+      studentControls.classList.add("hidden");
+    }
+
+    if (noStudents) {
+      noStudents.classList.add("hidden");
+    }
+  }
+
+  function hideLoading() {
+
+    if (studentLoading) {
+      studentLoading.classList.add("hidden");
+    }
+
+    if (studentGrid) {
+      studentGrid.classList.remove("hidden");
+    }
+  }
+
+  /* One panel used for "coming soon", "not connected" and errors. */
+
+  function showMessage(title, text) {
+
+    if (studentLoading) {
+      studentLoading.classList.add("hidden");
+    }
+
+    if (studentGrid) {
+      studentGrid.classList.add("hidden");
+    }
+
+    if (studentControls) {
+      studentControls.classList.add("hidden");
+    }
+
+    if (emptyTitle) {
+      emptyTitle.textContent = title;
+    }
+
+    if (emptyText) {
+      emptyText.textContent = text;
+    }
+
+    if (noStudents) {
+      noStudents.classList.remove("hidden");
+    }
+
+    if (studentCounter) {
+      studentCounter.textContent = "0 / 0";
+    }
+
+    stopRotation();
+  }
+
+  function hideMessage() {
+
+    if (noStudents) {
+      noStudents.classList.add("hidden");
+    }
   }
 
 
-  if (studentControls) {
+  /* =======================================================
+     13. RESIZE
+     ======================================================= */
 
-    studentControls.classList.add(
-      "hidden"
-    );
+  function handleResize() {
 
+    if (!publicStudents.length) {
+      return;
+    }
+
+    renderStudentCarousel();
+    restartRotation();
   }
 
 
-  if (noStudents) {
-
-    noStudents.classList.add(
-      "hidden"
-    );
-
-  }
-
-}
-
-
-function hideStudentLoading() {
-
-  if (studentLoading) {
-
-    studentLoading.classList.add(
-      "hidden"
-    );
-
-  }
-
-
-  if (studentGrid) {
-
-    studentGrid.classList.remove(
-      "hidden"
-    );
-
-  }
-
-}
-
-
-function showNoStudents() {
-
-  if (studentLoading) {
-
-    studentLoading.classList.add(
-      "hidden"
-    );
-
-  }
-
-
-  if (studentGrid) {
-
-    studentGrid.classList.add(
-      "hidden"
-    );
-
-  }
-
-
-  if (studentControls) {
-
-    studentControls.classList.add(
-      "hidden"
-    );
-
-  }
-
-
-  if (noStudents) {
-
-    noStudents.classList.remove(
-      "hidden"
-    );
-
-  }
-
-
-  if (studentCounter) {
-
-    studentCounter.textContent =
-      "0 / 0";
-
-  }
-
-}
-
-
-function hideNoStudents() {
-
-  if (noStudents) {
-
-    noStudents.classList.add(
-      "hidden"
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   RESIZE
-   ========================================================= */
-
-window.addEventListener(
-  "resize",
-  function () {
-
-    clearTimeout(
-      studentResizeTimer
-    );
-
-
-    studentResizeTimer =
-      setTimeout(
-        function () {
-
-          handleStudentResize();
-
-        },
-        180
-      );
-
-  }
-);
-
-
-function handleStudentResize() {
-
-  if (
-    !publicStudents.length
-  ) {
-
-    return;
-
-  }
-
-
-  const pageCount =
-    getStudentPageCount();
-
-
-  if (
-    studentPage >= pageCount
-  ) {
-
-    studentPage =
-      pageCount - 1;
-
-  }
-
-
-  renderStudentCarousel();
-
-}
+  /* =======================================================
+     14. PUBLIC API
+     ======================================================= */
+
+  window.StudentsComponent = {
+    init: init,
+    show: function () { applyMode(SHOW_STUDENTS_WHEN); },
+    hide: function () {
+      setVisible(studentsSection, false);
+      stopRotation();
+    }
+  };
+
+})();
