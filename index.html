@@ -20,12 +20,6 @@
 
   <!-- =====================================================
        GLOBAL COMPONENT STYLES
-       =====================================================
-       These styles are shared across the website.
-
-       DO NOT move Header/Footer CSS into individual
-       homepage components because Header and Footer
-       are global components.
        ===================================================== -->
 
   <link rel="stylesheet" href="css/header.css">
@@ -48,6 +42,7 @@
   >
 
 
+
   <!-- -----------------------------------------------------
        02. HERO
        ----------------------------------------------------- -->
@@ -56,6 +51,7 @@
     rel="stylesheet"
     href="homepage/hero/hero.css"
   >
+
 
 
   <!-- -----------------------------------------------------
@@ -67,6 +63,21 @@
     href="homepage/tutors/tutors.css"
   >
 
+
+
+  <!-- -----------------------------------------------------
+       04. STUDENTS
+       -----------------------------------------------------
+       New component:
+       Meet our Students
+       ----------------------------------------------------- -->
+
+  <link
+    rel="stylesheet"
+    href="homepage/students/students.css"
+  >
+
+
 </head>
 
 
@@ -76,11 +87,6 @@
 
   <!-- =====================================================
        GLOBAL HEADER
-       =====================================================
-       Header is used throughout the website.
-
-       File:
-       js/header.js
        ===================================================== -->
 
   <div id="site-header"></div>
@@ -96,15 +102,6 @@
 
     <!-- ===================================================
          01. TOGGLE
-         ===================================================
-         HTML:
-         homepage/toggle/toggle.html
-
-         CSS:
-         homepage/toggle/toggle.css
-
-         JS:
-         homepage/toggle/toggle.js
          =================================================== -->
 
     <div id="home-toggle"></div>
@@ -113,15 +110,6 @@
 
     <!-- ===================================================
          02. HERO
-         ===================================================
-         HTML:
-         homepage/hero/hero.html
-
-         CSS:
-         homepage/hero/hero.css
-
-         JS:
-         homepage/hero/hero.js
          =================================================== -->
 
     <div id="home-hero"></div>
@@ -131,20 +119,37 @@
     <!-- ===================================================
          03. OUR TUTORS
          ===================================================
-         HTML:
-         homepage/tutors/tutors.html
-
-         CSS:
-         homepage/tutors/tutors.css
-
-         JS:
-         homepage/tutors/tutors.js
-
-         All Tutor-specific code should remain inside
-         the Tutors component.
+         Existing Tutors component.
+         Nothing inside the Tutors component is changed.
          =================================================== -->
 
     <div id="home-tutors"></div>
+
+
+
+    <!-- ===================================================
+         04. OUR STUDENTS
+         ===================================================
+         New Students component.
+
+         HTML:
+         homepage/students/students.html
+
+         CSS:
+         homepage/students/students.css
+
+         JS:
+         homepage/students/students.js
+
+         The Students component will independently:
+           - Load student data
+           - Display student cards
+           - Hide personal information
+           - Handle its own carousel/navigation
+           - Handle its own loading state
+         =================================================== -->
+
+    <div id="home-students"></div>
 
 
   </main>
@@ -153,11 +158,6 @@
 
   <!-- =====================================================
        GLOBAL FOOTER
-       =====================================================
-       Footer is used throughout the website.
-
-       File:
-       js/footer.js
        ===================================================== -->
 
   <div id="site-footer"></div>
@@ -169,6 +169,7 @@
        ===================================================== -->
 
   <script src="js/header.js"></script>
+
   <script src="js/footer.js"></script>
 
 
@@ -202,24 +203,30 @@
 
 
 
+  <!-- -----------------------------------------------------
+       04. STUDENTS JAVASCRIPT
+       -----------------------------------------------------
+       New Students component.
+       ----------------------------------------------------- -->
+
+  <script src="homepage/students/students.js"></script>
+
+
+
   <!-- =====================================================
        HOMEPAGE COMPONENT LOADER
        =====================================================
-       This is the only place where the individual
-       homepage HTML components are assembled.
 
-       IMPORTANT:
+       This loader:
 
-       The individual components remain independent.
+       1. Loads Toggle HTML
+       2. Loads Hero HTML
+       3. Loads Tutors HTML
+       4. Loads Students HTML
+       5. Initializes each component
 
-       index.html only:
-         1. Loads the component HTML.
-         2. Places it in the correct container.
-         3. Calls its initialization function.
+       Each component remains independent.
 
-       Therefore, when we modify Tutors later, we should
-       normally NOT need to touch Hero, Toggle, Header,
-       Footer, etc.
        ===================================================== -->
 
   <script>
@@ -232,11 +239,14 @@
         /* =================================================
            COMPONENT LOADER FUNCTION
            =================================================
-           This reusable function loads an HTML component
-           and then initializes it.
 
-           This prevents us from writing the same
-           fetch/try/catch code repeatedly.
+           This function:
+
+           1. Finds the container.
+           2. Fetches the component HTML.
+           3. Inserts the HTML.
+           4. Initializes the component.
+
            ================================================= */
 
         async function loadComponent(
@@ -247,7 +257,7 @@
         ) {
 
           /* -------------------------------------------------
-             Find the container
+             Find container
              ------------------------------------------------- */
 
           const container =
@@ -255,7 +265,7 @@
 
 
           /* -------------------------------------------------
-             Stop if the container does not exist
+             Stop if container does not exist
              ------------------------------------------------- */
 
           if (!container) {
@@ -264,6 +274,7 @@
 
 
           try {
+
 
             /* -----------------------------------------------
                Load component HTML
@@ -274,7 +285,7 @@
 
 
             /* -----------------------------------------------
-               Check whether the file loaded successfully
+               Check response
                ----------------------------------------------- */
 
             if (!response.ok) {
@@ -287,7 +298,7 @@
 
 
             /* -----------------------------------------------
-               Insert component HTML into the page
+               Insert HTML
                ----------------------------------------------- */
 
             container.innerHTML =
@@ -295,8 +306,11 @@
 
 
             /* -----------------------------------------------
-               Initialize component JavaScript
-               AFTER its HTML has been inserted.
+               Initialize component
+
+               IMPORTANT:
+               This happens only AFTER the HTML has
+               been inserted into the DOM.
                ----------------------------------------------- */
 
             if (
@@ -310,9 +324,12 @@
 
           } catch (error) {
 
+
             /* -----------------------------------------------
-               Report component loading errors
-               without breaking the entire homepage.
+               Component-specific error handling
+
+               One component failing will NOT stop the
+               remaining homepage components.
                ----------------------------------------------- */
 
             console.error(
@@ -361,6 +378,26 @@
           "homepage/tutors/tutors.html",
           window.TutorsComponent,
           "Tutors"
+        );
+
+
+
+        /* =================================================
+           04. LOAD STUDENTS
+           =================================================
+           
+           New:
+           Meet our Students
+
+           This is loaded AFTER Tutors so the two sections
+           remain completely independent.
+           ================================================= */
+
+        await loadComponent(
+          "home-students",
+          "homepage/students/students.html",
+          window.StudentsComponent,
+          "Students"
         );
 
 
