@@ -41,7 +41,7 @@
  */
 
 const STUDENTS_API_URL =
-  "PASTE_YOUR_STUDENT_WEB_APP_URL_HERE";
+  "https://script.google.com/macros/s/AKfycbyQ2ZkRBjB8zvJ8w_JvhUl6MZQlpkeLwAJ98DTH16ry9dbmBp4PR-eo7uPOuJlWhCfu/exec";
 
 
 /*
