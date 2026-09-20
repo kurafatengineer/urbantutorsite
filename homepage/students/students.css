@@ -1,16 +1,15 @@
-/* =========================================================
-   MEET OUR STUDENTS  (students.css)
-   ========================================================= */
+/* =====================================================
+   STUDENTS COMPONENT STYLES
+   File: homepage/students/students.css
+
+   Same design as tutors.css. Cards show only:
+   Class, Board, Subjects and City.
+   ===================================================== */
 
 
-/* =========================================================
-   00. FIXES
-   ========================================================= */
-
-/*
- * Border-box sizing: detail rows are width:100% with padding
- * and a border, so without this they stick out of the card.
- */
+/* =====================================================
+   00. BOX SIZING
+   ===================================================== */
 
 .students-section,
 .students-section *,
@@ -19,502 +18,576 @@
   box-sizing: border-box;
 }
 
-/*
- * Hiding. The old rule ".students-section .hidden" only matched
- * elements INSIDE the section, so the section itself could never
- * be hidden when switching to Tutor mode.
- */
+
+/* =====================================================
+   00b. HIDING (used when switching Student / Tutor mode)
+   ===================================================== */
 
 .students-section.hidden,
-.students-section[hidden],
-.students-section .hidden {
+.students-section[hidden] {
   display: none !important;
 }
 
 
-/* =========================================================
-   SECTION
-   ========================================================= */
+/* =====================================================
+   01. MAIN SECTION
+   ===================================================== */
 
 .students-section {
   width: 100%;
-  padding: 90px 0 80px;
+  padding: 86px 0 70px;
   background: #090909;
-  border-top: 1px solid rgba(255, 255, 255, .05);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   overflow: hidden;
 }
 
+
+/* =====================================================
+   02. SECTION CONTAINER
+   ===================================================== */
+
 .students-container {
-  width: min(1120px, calc(100% - 40px));
+  width: min(1400px, calc(100% - 40px));
   margin: 0 auto;
 }
 
 
-/* =========================================================
-   HEADING
-   ========================================================= */
+/* =====================================================
+   03. SECTION HEADING
+   ===================================================== */
 
 .students-heading {
-  margin-bottom: 42px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 30px;
-}
-
-.students-heading-content {
-  min-width: 0;
-}
-
-.students-kicker {
-  margin-bottom: 14px;
-  color: #b7ff00;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  margin: 0 0 48px;
+  text-align: center;
 }
 
 .students-heading h2 {
   margin: 0;
   color: #f5f5f5;
-  font-size: clamp(36px, 5vw, 54px);
+  font-size: clamp(38px, 5vw, 64px);
   line-height: 1;
-  letter-spacing: -2px;
   font-weight: 800;
+  letter-spacing: -3px;
 }
 
 .students-heading h2 span {
   color: #b7ff00;
 }
 
-.students-heading p {
-  max-width: 560px;
-  margin-top: 14px;
-  color: #999;
-  font-size: 15px;
-  line-height: 1.6;
-}
 
-.student-counter {
-  flex: 0 0 auto;
-  color: #b7ff00;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-}
+/* =====================================================
+   04. CAROUSEL
+   ===================================================== */
 
-
-/* =========================================================
-   CARD AREA
-   ========================================================= */
-
-.student-card-area {
-  width: 100%;
-  min-height: 500px;
+.student-carousel {
   position: relative;
-}
-
-
-/* =========================================================
-   LOADING
-   ========================================================= */
-
-.student-loading {
-  min-height: 460px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  color: #999;
-}
-
-.student-loader {
-  width: 25px;
-  height: 25px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, .12);
-  border-top-color: #b7ff00;
-  animation: studentLoaderSpin .8s linear infinite;
-}
-
-@keyframes studentLoaderSpin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.student-loading p {
-  margin: 0;
-  font-size: 13px;
-}
-
-
-/* =========================================================
-   GRID
-   ========================================================= */
-
-.student-grid {
   width: 100%;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
-  align-items: stretch;
-}
-
-/* Two cards on the last page. */
-
-.student-grid.student-grid-two {
-  grid-template-columns: repeat(2, minmax(0, 420px));
-  justify-content: center;
-}
-
-/* One card on the last page. */
-
-.student-grid.student-grid-one {
-  grid-template-columns: minmax(0, 420px);
-  justify-content: center;
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 
-/* =========================================================
-   STUDENT CARD
-   ========================================================= */
+/* =====================================================
+   05. CAROUSEL VIEWPORT
+   ===================================================== */
 
-.student-card {
+.student-viewport {
+  position: relative;
   min-width: 0;
   width: 100%;
   overflow: hidden;
+}
+
+
+/* =====================================================
+   06. CARD TRACK
+   Cards are NOT rebuilt when the carousel moves,
+   which is what prevents flickering.
+   ===================================================== */
+
+.student-track {
+  --card-gap: 16px;
+  width: 100%;
+  display: flex;
+  align-items: stretch;
+  gap: var(--card-gap);
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  transition: transform 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.student-track[hidden] {
+  display: none !important;
+}
+
+.student-track.no-transition {
+  transition: none !important;
+}
+
+
+/* =====================================================
+   07. STUDENT CARD (large desktop: 5 cards)
+   ===================================================== */
+
+.student-card {
+  position: relative;
+  flex: 0 0 calc((100% - (4 * var(--card-gap))) / 5);
+  min-width: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: #111;
-  border: 1px solid rgba(255, 255, 255, .10);
-  border-radius: 20px;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, .35);
-  opacity: 0;
-  transform: translate3d(20px, 0, 0);
-  animation: studentCardEnter .45s cubic-bezier(.22, .75, .25, 1) forwards;
-}
-
-/* Fade and slide only. No rotation, so no distortion. */
-
-@keyframes studentCardEnter {
-  from {
-    opacity: 0;
-    transform: translate3d(20px, 0, 0);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
+  background: #101010;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
 }
 
 
-/* =========================================================
-   IDENTITY AREA
-   ========================================================= */
+/* =====================================================
+   08. STUDENT IDENTITY AREA
+   ===================================================== */
 
 .student-identity {
   position: relative;
-  min-height: 230px;
-  padding: 30px 22px 25px;
+  width: 100%;
+  height: 185px;
+  min-width: 0;
+  padding: 22px 14px 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
   text-align: center;
-  background: linear-gradient(to bottom, #0d0d0d 0%, #050505 100%);
+  background: linear-gradient(180deg, #121212 0%, #070707 100%);
+  overflow: hidden;
 }
 
-/* Generic avatar. No personal photograph is exposed. */
 
-.student-avatar {
+/* =====================================================
+   09. AVATAR PLACEHOLDER
+   ===================================================== */
+
+.student-avatar-placeholder {
   position: absolute;
-  top: 32px;
+  top: 22px;
   left: 50%;
-  width: 82px;
-  height: 82px;
+  width: 76px;
+  height: 76px;
   transform: translateX(-50%);
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 50% 35%, #252525 0 20%, transparent 21%),
-    radial-gradient(ellipse at 50% 100%, #252525 0 40%, transparent 41%);
-  opacity: .75;
+  background: #1b1b1b;
+  overflow: hidden;
 }
+
+.student-avatar-placeholder::before {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  width: 25px;
+  height: 25px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #303030;
+}
+
+.student-avatar-placeholder::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 55px;
+  height: 38px;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 0 0;
+  background: #303030;
+}
+
+
+/* =====================================================
+   10. STUDENT NAME
+   ===================================================== */
 
 .student-name {
   width: 100%;
   min-width: 0;
-  margin: 0;
-  color: #fff;
-  font-size: 20px;
-  line-height: 1.2;
+  color: #f5f5f5;
+  font-size: clamp(16px, 1.35vw, 21px);
+  line-height: 1.15;
   font-weight: 800;
-  letter-spacing: -.4px;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
+
+
+/* =====================================================
+   11. STUDENT ROLE
+   ===================================================== */
 
 .student-role {
-  margin-top: 6px;
+  width: 100%;
+  margin-top: 5px;
   color: #b7ff00;
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.2;
   font-weight: 800;
-  letter-spacing: .2px;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 
-/* =========================================================
-   INFORMATION AREA
-   ========================================================= */
+/* =====================================================
+   12. INFORMATION AREA
+   ===================================================== */
 
 .student-information {
   width: 100%;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  min-width: 0;
+  padding: 13px;
+  background: #111111;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.student-detail {
+
+/* =====================================================
+   13. INFORMATION BOX  (LABEL | VALUE)
+   ===================================================== */
+
+.student-detail-box {
   width: 100%;
   min-width: 0;
-  min-height: 48px;
-  padding: 10px 11px;
+  min-height: 40px;
+  margin: 0 0 7px;
+  padding: 8px 9px;
   display: grid;
-  grid-template-columns: minmax(75px, .8fr) minmax(0, 1.7fr);
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   align-items: center;
-  gap: 10px;
+  column-gap: 8px;
   background: #151515;
-  border: 1px solid rgba(255, 255, 255, .09);
-  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 9px;
 }
+
+.student-detail-box:last-child {
+  margin-bottom: 0;
+}
+
+
+/* =====================================================
+   14. INFORMATION LABEL
+   ===================================================== */
 
 .student-detail-label {
   min-width: 0;
-  color: #777;
-  font-size: 9px;
-  line-height: 1.3;
-  font-weight: 700;
-  letter-spacing: 1.2px;
+  color: #777777;
+  font-size: 8px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: 0.9px;
   text-transform: uppercase;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Long school names, subjects and timings wrap inside the card. */
+
+/* =====================================================
+   15. INFORMATION VALUE
+   Long subjects wrap instead of escaping the card.
+   ===================================================== */
 
 .student-detail-value {
   min-width: 0;
-  max-width: 100%;
-  color: #f2f2f2;
-  font-size: 11px;
-  line-height: 1.35;
+  color: #eeeeee;
+  font-size: 9px;
+  line-height: 1.3;
   font-weight: 700;
   text-align: right;
-  white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
 
-/* =========================================================
-   EMPTY / ERROR STATE
-   ========================================================= */
+/* =====================================================
+   16. ARROW BUTTONS
+   ===================================================== */
 
-.no-students {
-  min-height: 460px;
-  padding: 40px 20px;
+.student-arrow {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  background: #111111;
+  color: #eeeeee;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.student-arrow:hover {
+  color: #b7ff00;
+  border-color: rgba(183, 255, 0, 0.65);
+  background: #161616;
+  transform: translateY(-1px);
+}
+
+.student-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+  transform: none;
+}
+
+
+/* =====================================================
+   17. DOT CONTROLS
+   ===================================================== */
+
+.student-controls {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.student-controls[hidden] {
+  display: none !important;
+}
+
+.student-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 240px;
+  overflow: hidden;
+}
+
+.student-dot {
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #4e4e4e;
+  cursor: pointer;
+  transition: width 220ms ease, background 220ms ease;
+}
+
+.student-dot.active {
+  flex-basis: 20px;
+  width: 20px;
+  border-radius: 5px;
+  background: #b7ff00;
+}
+
+
+/* =====================================================
+   18. LOADING STATE
+   ===================================================== */
+
+.student-loading {
+  min-height: 280px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  color: #8d8d8d;
   text-align: center;
 }
 
+.student-loading[hidden] {
+  display: none !important;
+}
+
+.student-loading p {
+  margin: 12px 0 0;
+  font-size: 12px;
+}
+
+.student-loader {
+  width: 28px;
+  height: 28px;
+  display: block;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-top-color: #b7ff00;
+  border-radius: 50%;
+  animation: studentSpinner 800ms linear infinite;
+}
+
+@keyframes studentSpinner {
+  to { transform: rotate(360deg); }
+}
+
+
+/* =====================================================
+   19. EMPTY STATE
+   ===================================================== */
+
+.student-empty {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+}
+
+.student-empty[hidden] {
+  display: none !important;
+}
+
 .student-empty-icon {
-  width: 44px;
-  height: 44px;
-  margin-bottom: 18px;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 14px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: #151515;
   color: #b7ff00;
-  font-size: 18px;
 }
 
-.no-students h3 {
+.student-empty h3 {
   margin: 0;
-  color: #fff;
-  font-size: 18px;
-  font-weight: 800;
+  color: #f0f0f0;
+  font-size: 17px;
 }
 
-.no-students p {
-  max-width: 400px;
-  margin: 8px 0 0;
-  color: #777;
+.student-empty p {
+  max-width: 360px;
+  margin: 7px auto 0;
+  color: #888888;
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 
-/* =========================================================
-   CONTROLS
-   ========================================================= */
+/* =====================================================
+   20. DESKTOP: 4 CARDS
+   ===================================================== */
 
-.student-controls {
-  margin-top: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-}
-
-.student-arrow {
-  width: 42px;
-  height: 42px;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, .14);
-  border-radius: 50%;
-  background: #111;
-  color: #fff;
-  font-size: 18px;
-  cursor: pointer;
-  transition:
-    border-color .2s ease,
-    background .2s ease,
-    transform .2s ease;
-}
-
-.student-arrow:hover {
-  border-color: #b7ff00;
-  background: #171717;
-  transform: translateY(-1px);
-}
-
-.student-arrow:active {
-  transform: translateY(0);
-}
-
-.student-dots {
-  min-height: 12px;
-  max-width: 240px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.student-dot {
-  width: 5px;
-  height: 5px;
-  padding: 0;
-  border: 0;
-  border-radius: 10px;
-  background: #444;
-  cursor: pointer;
-  transition: width .25s ease, background .25s ease;
-}
-
-.student-dot.active {
-  width: 22px;
-  background: #b7ff00;
+@media (max-width: 1199px) {
+  .student-card {
+    flex-basis: calc((100% - (3 * var(--card-gap))) / 4);
+  }
 }
 
 
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
+/* =====================================================
+   21. TABLET / SMALL LAPTOP: 3 CARDS
+   ===================================================== */
 
-@media (max-width: 900px) {
-
-  .student-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 949px) {
+  .students-container {
+    width: min(1000px, calc(100% - 32px));
   }
 
+  .student-card {
+    flex-basis: calc((100% - (2 * var(--card-gap))) / 3);
+  }
 }
 
-@media (max-width: 650px) {
 
+/* =====================================================
+   22. LARGE MOBILE: 2 CARDS
+   ===================================================== */
+
+@media (max-width: 699px) {
   .students-section {
-    padding: 70px 0 60px;
+    padding: 62px 0 55px;
   }
 
   .students-container {
-    width: min(100% - 28px, 520px);
+    width: calc(100% - 28px);
   }
 
   .students-heading {
-    margin-bottom: 28px;
-    display: block;
+    margin-bottom: 32px;
   }
 
-  .student-counter {
-    margin-top: 14px;
+  .students-heading h2 {
+    font-size: clamp(34px, 10vw, 48px);
+    letter-spacing: -2px;
   }
 
-  .student-grid,
-  .student-grid.student-grid-two,
-  .student-grid.student-grid-one {
-    grid-template-columns: minmax(0, 1fr);
+  .student-carousel {
+    gap: 8px;
+  }
+
+  .student-track {
+    --card-gap: 12px;
   }
 
   .student-card {
-    border-radius: 17px;
+    flex-basis: calc((100% - var(--card-gap)) / 2);
+    border-radius: 16px;
+  }
+
+  .student-arrow {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    font-size: 15px;
+  }
+}
+
+
+/* =====================================================
+   23. SMALL MOBILE: 1 CARD
+   ===================================================== */
+
+@media (max-width: 479px) {
+  .student-card {
+    flex-basis: 100%;
   }
 
   .student-identity {
-    min-height: 210px;
+    height: 175px;
   }
 
-  .student-detail {
-    grid-template-columns: minmax(70px, .8fr) minmax(0, 1.5fr);
+  .student-information {
+    padding: 12px;
   }
 
-}
-
-@media (max-width: 400px) {
-
-  .student-detail {
-    grid-template-columns: 1fr;
-    gap: 4px;
+  .student-detail-box {
+    min-height: 39px;
+    padding: 8px;
   }
 
   .student-detail-value {
-    text-align: left;
+    font-size: 10px;
   }
-
 }
 
 
-/* =========================================================
-   REDUCED MOTION
-   Cards start at opacity 0, so make sure they stay visible
-   when animation is turned off.
-   ========================================================= */
+/* =====================================================
+   24. REDUCED MOTION
+   ===================================================== */
 
 @media (prefers-reduced-motion: reduce) {
-
-  .student-card {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-
-  .student-loader {
-    animation: none;
-  }
-
+  .student-track,
+  .student-dot,
   .student-arrow,
-  .student-dot {
-    transition: none;
+  .student-loader {
+    transition: none !important;
+    animation: none !important;
   }
-
 }
