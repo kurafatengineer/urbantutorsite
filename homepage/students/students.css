@@ -1,1 +1,863 @@
 
+/* =========================================================
+   MEET OUR STUDENTS
+   ========================================================= */
+
+
+/* =========================================================
+   SECTION
+   ========================================================= */
+
+.students-section {
+
+  width: 100%;
+
+  padding: 90px 0 80px;
+
+  background: #090909;
+
+  border-top: 1px solid rgba(255,255,255,.05);
+
+  overflow: hidden;
+
+}
+
+
+.students-container {
+
+  width: min(
+    1120px,
+    calc(100% - 40px)
+  );
+
+  margin: 0 auto;
+
+}
+
+
+/* =========================================================
+   HEADING
+   ========================================================= */
+
+.students-heading {
+
+  margin-bottom: 42px;
+
+  display: flex;
+
+  align-items: flex-end;
+
+  justify-content: space-between;
+
+  gap: 30px;
+
+}
+
+
+.students-heading-content {
+
+  min-width: 0;
+
+}
+
+
+.students-kicker {
+
+  margin-bottom: 14px;
+
+  color: #b7ff00;
+
+  font-size: 11px;
+
+  font-weight: 800;
+
+  letter-spacing: 2px;
+
+  text-transform: uppercase;
+
+}
+
+
+.students-heading h2 {
+
+  margin: 0;
+
+  color: #f5f5f5;
+
+  font-size: clamp(
+    36px,
+    5vw,
+    54px
+  );
+
+  line-height: 1;
+
+  letter-spacing: -2px;
+
+  font-weight: 800;
+
+}
+
+
+.students-heading h2 span {
+
+  color: #b7ff00;
+
+}
+
+
+.students-heading p {
+
+  max-width: 560px;
+
+  margin-top: 14px;
+
+  color: #999;
+
+  font-size: 15px;
+
+  line-height: 1.6;
+
+}
+
+
+.student-counter {
+
+  flex: 0 0 auto;
+
+  color: #b7ff00;
+
+  font-size: 13px;
+
+  font-weight: 700;
+
+  white-space: nowrap;
+
+}
+
+
+/* =========================================================
+   CARD AREA
+   ========================================================= */
+
+.student-card-area {
+
+  width: 100%;
+
+  min-height: 500px;
+
+  position: relative;
+
+}
+
+
+/* =========================================================
+   LOADING
+   ========================================================= */
+
+.student-loading {
+
+  min-height: 460px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 16px;
+
+  color: #999;
+
+}
+
+
+.student-loader {
+
+  width: 25px;
+
+  height: 25px;
+
+  border-radius: 50%;
+
+  border: 2px solid rgba(255,255,255,.12);
+
+  border-top-color: #b7ff00;
+
+  animation:
+    studentLoaderSpin .8s linear infinite;
+
+}
+
+
+@keyframes studentLoaderSpin {
+
+  to {
+
+    transform: rotate(360deg);
+
+  }
+
+}
+
+
+.student-loading p {
+
+  margin: 0;
+
+  font-size: 13px;
+
+}
+
+
+/* =========================================================
+   GRID
+   ========================================================= */
+
+.student-grid {
+
+  width: 100%;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 20px;
+
+  align-items: stretch;
+
+}
+
+
+/*
+ * When only two cards are visible.
+ */
+
+.student-grid.student-grid-two {
+
+  grid-template-columns:
+    repeat(2, minmax(0, 420px));
+
+  justify-content: center;
+
+}
+
+
+/*
+ * When only one card is visible.
+ */
+
+.student-grid.student-grid-one {
+
+  grid-template-columns:
+    minmax(0, 420px);
+
+  justify-content: center;
+
+}
+
+
+/* =========================================================
+   STUDENT CARD
+   ========================================================= */
+
+.student-card {
+
+  min-width: 0;
+
+  width: 100%;
+
+  overflow: hidden;
+
+  display: flex;
+
+  flex-direction: column;
+
+  background: #111;
+
+  border: 1px solid rgba(255,255,255,.10);
+
+  border-radius: 20px;
+
+  box-shadow:
+    0 24px 70px rgba(0,0,0,.35);
+
+  opacity: 0;
+
+  transform:
+    translate3d(20px,0,0);
+
+  animation:
+    studentCardEnter
+    .45s
+    cubic-bezier(.22,.75,.25,1)
+    forwards;
+
+}
+
+
+/*
+ * Smooth card entrance.
+ *
+ * There is NO rotation here.
+ * This prevents the distortion/flicker problem
+ * we previously had in the tutor cards.
+ */
+
+@keyframes studentCardEnter {
+
+  from {
+
+    opacity: 0;
+
+    transform:
+      translate3d(20px,0,0);
+
+  }
+
+  to {
+
+    opacity: 1;
+
+    transform:
+      translate3d(0,0,0);
+
+  }
+
+}
+
+
+/* =========================================================
+   STUDENT IDENTITY AREA
+   ========================================================= */
+
+.student-identity {
+
+  position: relative;
+
+  min-height: 230px;
+
+  padding: 30px 22px 25px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: flex-end;
+
+  text-align: center;
+
+  background:
+    linear-gradient(
+      to bottom,
+      #0d0d0d 0%,
+      #050505 100%
+    );
+
+}
+
+
+/*
+ * Generic avatar.
+ *
+ * No personal photograph is exposed.
+ */
+
+.student-avatar {
+
+  position: absolute;
+
+  top: 32px;
+
+  left: 50%;
+
+  width: 82px;
+
+  height: 82px;
+
+  transform: translateX(-50%);
+
+  border-radius: 50%;
+
+  background:
+    radial-gradient(
+      circle at 50% 35%,
+      #252525 0 20%,
+      transparent 21%
+    ),
+    radial-gradient(
+      ellipse at 50% 100%,
+      #252525 0 40%,
+      transparent 41%
+    );
+
+  opacity: .75;
+
+}
+
+
+.student-name {
+
+  width: 100%;
+
+  min-width: 0;
+
+  color: #fff;
+
+  font-size: 20px;
+
+  line-height: 1.2;
+
+  font-weight: 800;
+
+  letter-spacing: -.4px;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+}
+
+
+.student-role {
+
+  margin-top: 6px;
+
+  color: #b7ff00;
+
+  font-size: 11px;
+
+  font-weight: 800;
+
+  letter-spacing: .2px;
+
+}
+
+
+/* =========================================================
+   INFORMATION AREA
+   ========================================================= */
+
+.student-information {
+
+  width: 100%;
+
+  padding: 14px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 8px;
+
+}
+
+
+/*
+ * IMPORTANT:
+ *
+ * Every information box uses:
+ *
+ * minmax(0, 1fr)
+ *
+ * and
+ *
+ * min-width: 0
+ *
+ * so long text NEVER pushes outside
+ * the card.
+ */
+
+.student-detail {
+
+  width: 100%;
+
+  min-width: 0;
+
+  min-height: 48px;
+
+  padding: 10px 11px;
+
+  display: grid;
+
+  grid-template-columns:
+    minmax(75px, .8fr)
+    minmax(0, 1.7fr);
+
+  align-items: center;
+
+  gap: 10px;
+
+  background: #151515;
+
+  border: 1px solid rgba(255,255,255,.09);
+
+  border-radius: 10px;
+
+}
+
+
+.student-detail-label {
+
+  min-width: 0;
+
+  color: #777;
+
+  font-size: 9px;
+
+  line-height: 1.3;
+
+  font-weight: 700;
+
+  letter-spacing: 1.2px;
+
+  text-transform: uppercase;
+
+}
+
+
+.student-detail-value {
+
+  min-width: 0;
+
+  max-width: 100%;
+
+  color: #f2f2f2;
+
+  font-size: 11px;
+
+  line-height: 1.35;
+
+  font-weight: 700;
+
+  text-align: right;
+
+  overflow-wrap: anywhere;
+
+  word-break: break-word;
+
+  overflow: hidden;
+
+}
+
+
+/*
+ * Long subjects / school names / timing etc.
+ * will wrap rather than escape the card.
+ */
+
+.student-detail-value.wrap {
+
+  white-space: normal;
+
+}
+
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.no-students {
+
+  min-height: 460px;
+
+  padding: 40px 20px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  text-align: center;
+
+}
+
+
+.student-empty-icon {
+
+  width: 44px;
+
+  height: 44px;
+
+  margin-bottom: 18px;
+
+  display: grid;
+
+  place-items: center;
+
+  border-radius: 50%;
+
+  background: #151515;
+
+  color: #b7ff00;
+
+  font-size: 18px;
+
+}
+
+
+.no-students h3 {
+
+  color: #fff;
+
+  font-size: 18px;
+
+  font-weight: 800;
+
+}
+
+
+.no-students p {
+
+  max-width: 400px;
+
+  margin-top: 8px;
+
+  color: #777;
+
+  font-size: 12px;
+
+  line-height: 1.6;
+
+}
+
+
+/* =========================================================
+   CONTROLS
+   ========================================================= */
+
+.student-controls {
+
+  margin-top: 34px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 16px;
+
+}
+
+
+.student-arrow {
+
+  width: 42px;
+
+  height: 42px;
+
+  flex: 0 0 auto;
+
+  display: grid;
+
+  place-items: center;
+
+  border: 1px solid rgba(255,255,255,.14);
+
+  border-radius: 50%;
+
+  background: #111;
+
+  color: #fff;
+
+  font-size: 18px;
+
+  transition:
+    border-color .2s ease,
+    background .2s ease,
+    transform .2s ease;
+
+}
+
+
+.student-arrow:hover {
+
+  border-color: #b7ff00;
+
+  background: #171717;
+
+  transform: translateY(-1px);
+
+}
+
+
+.student-arrow:active {
+
+  transform: translateY(0);
+
+}
+
+
+.student-dots {
+
+  min-height: 12px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 5px;
+
+}
+
+
+.student-dot {
+
+  width: 5px;
+
+  height: 5px;
+
+  padding: 0;
+
+  border: 0;
+
+  border-radius: 10px;
+
+  background: #444;
+
+  transition:
+    width .25s ease,
+    background .25s ease;
+
+}
+
+
+.student-dot.active {
+
+  width: 22px;
+
+  background: #b7ff00;
+
+}
+
+
+/* =========================================================
+   UTILITY
+   ========================================================= */
+
+.students-section .hidden {
+
+  display: none !important;
+
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+
+  .student-grid {
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+  }
+
+}
+
+
+@media (max-width: 650px) {
+
+  .students-section {
+
+    padding:
+      70px 0 60px;
+
+  }
+
+
+  .students-container {
+
+    width:
+      min(
+        100% - 28px,
+        520px
+      );
+
+  }
+
+
+  .students-heading {
+
+    margin-bottom: 28px;
+
+    display: block;
+
+  }
+
+
+  .student-counter {
+
+    margin-top: 14px;
+
+  }
+
+
+  .student-grid,
+  .student-grid.student-grid-two {
+
+    grid-template-columns:
+      minmax(0, 1fr);
+
+  }
+
+
+  .student-card {
+
+    border-radius: 17px;
+
+  }
+
+
+  .student-identity {
+
+    min-height: 210px;
+
+  }
+
+
+  .student-detail {
+
+    grid-template-columns:
+      minmax(70px,.8fr)
+      minmax(0,1.5fr);
+
+  }
+
+}
+
+
+@media (max-width: 400px) {
+
+  .student-detail {
+
+    grid-template-columns:
+      1fr;
+
+    gap: 4px;
+
+  }
+
+
+  .student-detail-value {
+
+    text-align: left;
+
+  }
+
+}
