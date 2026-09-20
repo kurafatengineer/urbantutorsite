@@ -33,7 +33,7 @@
    * answers with no students and the section stays empty.
    */
 
-  const STUDENTS_API_URL = "PASTE_YOUR_STUDENTS_WEB_APP_URL_HERE";
+  const STUDENTS_API_URL = "https://script.google.com/macros/s/AKfycbyQ2ZkRBjB8zvJ8w_JvhUl6MZQlpkeLwAJ98DTH16ry9dbmBp4PR-eo7uPOuJlWhCfu/exec";
 
   /*
    * Which toggle shows this section?
