@@ -1844,4 +1844,23 @@ function clearMessages() {
  * INITIAL STATE
  ************************************************************/
 
-showPage("email");
+/*
+ * Already logged in (session saved in this browser)?
+ * Keep the student logged in and go straight to the home page.
+ */
+
+(function () {
+
+  const existingSession = getStudentSession();
+
+  if (existingSession && existingSession.sessionToken) {
+
+    window.location.replace("index.html");
+
+    return;
+
+  }
+
+  showPage("email");
+
+})();
