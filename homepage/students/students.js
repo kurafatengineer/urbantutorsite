@@ -533,7 +533,7 @@
     const role = document.createElement("div");
 
     role.className = "student-role";
-    role.textContent = "Student";
+    role.textContent = cleanValue(student.className) || "Student";
 
     identity.appendChild(role);
 
@@ -543,7 +543,6 @@
 
     information.className = "student-information";
 
-    addDetailBox(information, "Class", cleanValue(student.className));
     addDetailBox(information, "Board", cleanValue(student.board));
     addDetailBox(information, "Subjects", cleanValue(student.subjects));
     addDetailBox(information, "City", cleanValue(student.city));
