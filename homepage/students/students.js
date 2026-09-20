@@ -1,87 +1,77 @@
-/* =========================================================
-   MEET OUR STUDENTS  (students.js)
+"use strict";
 
-   Shows ONLY public student information. Never render:
-   email, phone, whatsapp, address, pinCode, timestamp,
-   sessionToken.
+/* =====================================================
+   STUDENTS COMPONENT JAVASCRIPT
+   File: homepage/students/students.js
 
-   HOW IT STARTS
-   ---------------------------------------------------------
-   The script starts itself as soon as #studentsSection
-   exists on the page, whether students.html is written
-   directly into index.html or loaded later with fetch().
+   Same carousel as tutors.js. Shows ONLY:
+   Class, Board, Subjects and City.
 
-   You can also start it manually:
+   Never rendered: email, phone, whatsapp, address,
+   pinCode, timestamp, sessionToken.
 
-       window.StudentsComponent.init()
-   ========================================================= */
+   Starts itself as soon as #studentsSection exists
+   (works with plain HTML or with fetch() includes).
+   Manual start:  window.StudentsComponent.init()
+   ===================================================== */
 
 (function () {
-  "use strict";
 
-
-  /* =======================================================
+  /* ===================================================
      01. CONFIGURATION
-     ======================================================= */
+     =================================================== */
 
-  /*
-   * IMPORTANT: paste the Web App URL of the STUDENT
-   * DIRECTORY script (students.gs) here.
-   *
-   * Do NOT use the login / registration Web App URL.
-   * That script does not know "getPublicStudents", so it
-   * answers with no students and the section stays empty.
-   */
+  /* Web App URL of the STUDENT DIRECTORY script (students.gs). */
 
-  const STUDENTS_API_URL = "https://script.google.com/macros/s/AKfycbyQ2ZkRBjB8zvJ8w_JvhUl6MZQlpkeLwAJ98DTH16ry9dbmBp4PR-eo7uPOuJlWhCfu/exec";
+  const STUDENTS_API_URL =
+    "https://script.google.com/macros/s/AKfycbyQ2ZkRBjB8zvJ8w_JvhUl6MZQlpkeLwAJ98DTH16ry9dbmBp4PR-eo7uPOuJlWhCfu/exec";
 
   /*
    * Which toggle shows this section?
-   *
-   *   "tutor"   -> students are shown when the "Tutor"
-   *                toggle is active (a tutor looks for
-   *                students). Matches your home page,
-   *                where "Student" mode shows tutors.
-   *   "student" -> students are shown when the "Student"
-   *                toggle is active.
+   *   "tutor"   -> students show when the "Tutor" toggle is active
+   *   "student" -> students show when the "Student" toggle is active
    */
 
   const SHOW_STUDENTS_WHEN = "tutor";
 
-  const STUDENT_DESKTOP_COUNT = 3;
-  const STUDENT_TABLET_COUNT = 2;
-  const STUDENT_MOBILE_COUNT = 1;
-
-  /* Automatic rotation in ms. 0 turns it off. */
-  const STUDENT_ROTATION_DELAY = 7000;
+  const AUTO_ROTATE_MS = 6000;
 
 
-  /* =======================================================
-     02. STATE
-     ======================================================= */
+  /* ===================================================
+     02. COMPONENT STATE
+     =================================================== */
 
-  let initialized = false;
-  let publicStudents = [];
-  let studentPage = 0;
+  let students = [];
+  let currentIndex = 0;
+  let visibleCount = 1;
+  let trackIndex = 0;
   let rotationTimer = null;
   let resizeTimer = null;
+  let initialized = false;
+  let isAnimating = false;
 
-  let studentsSection;
-  let studentLoading;
-  let studentGrid;
-  let noStudents;
+
+  /* ===================================================
+     03. DOM REFERENCES
+     =================================================== */
+
+  let section;
+  let viewport;
+  let track;
+  let loading;
+  let emptyState;
+  let emptyIcon;
   let emptyTitle;
   let emptyText;
-  let studentControls;
-  let studentCounter;
-  let studentDots;
-  let previousStudent;
-  let nextStudent;
+  let controls;
+  let dotsContainer;
+  let previousButton;
+  let nextButton;
 
 
-  /* =======================================================
-     03. START-UP
-     ======================================================= */
+  /* ===================================================
+     04. INITIALIZE COMPONENT
+     =================================================== */
 
   function init() {
 
@@ -89,39 +79,35 @@
       return true;
     }
 
-    studentsSection = document.getElementById("studentsSection");
-    studentLoading = document.getElementById("studentLoading");
-    studentGrid = document.getElementById("studentGrid");
-    noStudents = document.getElementById("noStudents");
+    section = document.getElementById("studentsSection");
+    viewport = document.querySelector(".student-viewport");
+    track = document.getElementById("studentTrack");
+    loading = document.getElementById("studentLoading");
+    emptyState = document.getElementById("studentEmpty");
+    emptyIcon = document.getElementById("studentEmptyIcon");
     emptyTitle = document.getElementById("studentEmptyTitle");
     emptyText = document.getElementById("studentEmptyText");
-    studentControls = document.getElementById("studentControls");
-    studentCounter = document.getElementById("studentCounter");
-    studentDots = document.getElementById("studentDots");
-    previousStudent = document.getElementById("previousStudent");
-    nextStudent = document.getElementById("nextStudent");
+    controls = document.getElementById("studentControls");
+    dotsContainer = document.getElementById("studentDots");
+    previousButton = document.getElementById("previousStudent");
+    nextButton = document.getElementById("nextStudent");
 
     /* HTML is not on the page yet. */
 
-    if (!studentsSection || !studentGrid) {
+    if (!section || !viewport || !track) {
       return false;
     }
 
     initialized = true;
 
-    setupControls();
+    bindEvents();
     setupModeSwitching();
     applyCurrentMode();
-    loadPublicStudents();
+    updateVisibleCount();
+    loadStudents();
 
     return true;
   }
-
-
-  /*
-   * Start automatically. If the HTML is added to the page
-   * later (fetch / include), wait until it appears.
-   */
 
   function autoStart() {
 
@@ -152,14 +138,9 @@
   }
 
 
-  /* =======================================================
-     04. STUDENT / TUTOR SWITCHING
-     =======================================================
-
-     Click handling is delegated from the document, so it
-     works even if the toggle buttons or the tutors section
-     are added to the page after this script runs.
-     ======================================================= */
+  /* ===================================================
+     05. STUDENT / TUTOR SWITCHING
+     =================================================== */
 
   function setupModeSwitching() {
 
@@ -181,20 +162,29 @@
 
     const showStudentsNow = mode === SHOW_STUDENTS_WHEN;
 
-    setVisible(studentsSection, showStudentsNow);
+    setVisible(section, showStudentsNow);
     setVisible(document.getElementById("tutorsSection"), !showStudentsNow);
 
     if (showStudentsNow) {
-      startRotation();
+
+      /*
+       * The section may have been hidden while cards were built,
+       * so card widths were 0. Measure again now it is visible.
+       */
+
+      requestAnimationFrame(function () {
+
+        if (students.length) {
+          positionTrack(false);
+        }
+
+        startRotation();
+      });
+
     } else {
       stopRotation();
     }
   }
-
-  /*
-   * On start-up, follow whichever toggle is already active.
-   * If we can't tell, leave the page exactly as it is.
-   */
 
   function applyCurrentMode() {
 
@@ -232,46 +222,106 @@
     element.hidden = !visible;
   }
 
+  function isSectionHidden() {
 
-  /* =======================================================
-     05. CONTROLS
-     ======================================================= */
+    return (
+      !section ||
+      section.hidden ||
+      section.classList.contains("hidden")
+    );
+  }
 
-  function setupControls() {
 
-    if (previousStudent) {
-      previousStudent.addEventListener("click", showPreviousStudentPage);
+  /* ===================================================
+     06. EVENT HANDLERS
+     =================================================== */
+
+  function bindEvents() {
+
+    if (previousButton) {
+      previousButton.addEventListener("click", movePrevious);
     }
 
-    if (nextStudent) {
-      nextStudent.addEventListener("click", showNextStudentPage);
+    if (nextButton) {
+      nextButton.addEventListener("click", moveNext);
     }
-
-    /* Pause automatic movement while the user interacts. */
-
-    studentGrid.addEventListener("mouseenter", stopRotation);
-    studentGrid.addEventListener("mouseleave", startRotation);
-
-    studentGrid.addEventListener("touchstart", stopRotation, { passive: true });
-
-    studentGrid.addEventListener("touchend", function () {
-      setTimeout(startRotation, 1200);
-    }, { passive: true });
 
     window.addEventListener("resize", function () {
 
       clearTimeout(resizeTimer);
 
-      resizeTimer = setTimeout(handleResize, 180);
+      resizeTimer = setTimeout(function () {
+
+        if (!students.length) {
+          return;
+        }
+
+        const oldVisibleCount = visibleCount;
+
+        updateVisibleCount();
+
+        if (oldVisibleCount !== visibleCount) {
+
+          currentIndex = Math.min(
+            currentIndex,
+            Math.max(0, students.length - 1)
+          );
+
+          buildCarousel(false);
+
+        } else {
+
+          positionTrack(false);
+        }
+
+      }, 180);
     });
+
+    /* Pause automatic rotation while hovering. */
+
+    section.addEventListener("mouseenter", stopRotation);
+    section.addEventListener("mouseleave", startRotation);
+
+    /* Mobile swipe. */
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    viewport.addEventListener("touchstart", function (event) {
+
+      const touch = event.changedTouches[0];
+
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+
+    }, { passive: true });
+
+    viewport.addEventListener("touchend", function (event) {
+
+      const touch = event.changedTouches[0];
+
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = touch.clientY - touchStartY;
+
+      if (Math.abs(deltaX) < 45 || Math.abs(deltaX) < Math.abs(deltaY)) {
+        return;
+      }
+
+      if (deltaX < 0) {
+        moveNext();
+      } else {
+        movePrevious();
+      }
+
+    }, { passive: true });
   }
 
 
-  /* =======================================================
-     06. LOAD STUDENTS
-     ======================================================= */
+  /* ===================================================
+     07. LOAD STUDENTS
+     =================================================== */
 
-  async function loadPublicStudents() {
+  async function loadStudents() {
 
     showLoading();
 
@@ -285,9 +335,12 @@
         "URL of students.gs into students.js."
       );
 
+      hideLoading();
+
       showMessage(
         "Student directory not connected",
-        "The student directory address has not been added yet."
+        "The student directory address has not been added yet.",
+        "!"
       );
 
       return;
@@ -311,9 +364,8 @@
       }
 
       /*
-       * The login / registration script answers with
-       * success:true but no "students" list. Catch that here
-       * so the mistake is obvious in the console.
+       * The login / registration script answers with success:true
+       * but no "students" list. Catch that so the mistake is obvious.
        */
 
       if (!Array.isArray(result.students)) {
@@ -324,152 +376,157 @@
         );
       }
 
-      publicStudents = result.students;
-      studentPage = 0;
+      students = result.students.filter(isUsableStudent);
 
-      if (!publicStudents.length) {
+      hideLoading();
+
+      if (!students.length) {
 
         showMessage(
           "Students coming soon",
-          "Student profiles will appear here once students register on UrbanTutorSite."
+          "Student profiles will appear here once students register on UrbanTutorSite.",
+          "—"
         );
 
         return;
       }
 
-      hideLoading();
       hideMessage();
-      renderStudentCarousel();
+
+      currentIndex = 0;
+
+      updateVisibleCount();
+      buildCarousel(false);
       startRotation();
 
     } catch (error) {
 
-      console.error("Student loading failed:", error);
+      console.error("Students component failed to load:", error);
+
+      hideLoading();
 
       showMessage(
         "Unable to load students",
-        "Please refresh the page and try again."
+        "Please refresh the page and try again.",
+        "!"
       );
+
+      stopRotation();
     }
   }
 
 
-  /* =======================================================
-     07. PAGING
-     ======================================================= */
+  /* ===================================================
+     08. RESPONSIVE CARD COUNT
 
-  function getCardsPerPage() {
+     >= 1200px  -> 5 cards
+     950-1199   -> 4 cards
+     700-949    -> 3 cards
+     480-699    -> 2 cards
+     < 480      -> 1 card
+     =================================================== */
+
+  function getVisibleCount() {
 
     const width = window.innerWidth;
 
-    if (width <= 650) {
-      return STUDENT_MOBILE_COUNT;
+    let count = 1;
+
+    if (width >= 1200) {
+      count = 5;
+    } else if (width >= 950) {
+      count = 4;
+    } else if (width >= 700) {
+      count = 3;
+    } else if (width >= 480) {
+      count = 2;
     }
 
-    if (width <= 900) {
-      return STUDENT_TABLET_COUNT;
-    }
-
-    return STUDENT_DESKTOP_COUNT;
+    return Math.max(1, Math.min(count, students.length || 1));
   }
 
-  function getPageCount() {
-    return Math.max(
-      1,
-      Math.ceil(publicStudents.length / getCardsPerPage())
-    );
-  }
-
-  function getCurrentPageStudents() {
-
-    const perPage = getCardsPerPage();
-    const start = studentPage * perPage;
-
-    return publicStudents.slice(start, start + perPage);
+  function updateVisibleCount() {
+    visibleCount = getVisibleCount();
   }
 
 
-  /* =======================================================
-     08. RENDER
-     ======================================================= */
+  /* ===================================================
+     09. BUILD CAROUSEL
 
-  function renderStudentCarousel() {
+     Clones at both ends give a seamless loop:
 
-    if (!studentGrid) {
+     [clone][clone][real][real][real][clone][clone]
+     =================================================== */
+
+  function buildCarousel(animate) {
+
+    if (!students.length) {
       return;
     }
 
-    const pageCount = getPageCount();
+    visibleCount = Math.max(1, Math.min(visibleCount, students.length));
 
-    /* A resize can make the current page invalid. */
+    const beforeClones = students.slice(-visibleCount);
+    const afterClones = students.slice(0, visibleCount);
 
-    if (studentPage >= pageCount) {
-      studentPage = pageCount - 1;
+    track.innerHTML = "";
+
+    /* Clones only matter when there is something to scroll. */
+
+    const needsLoop = students.length > visibleCount;
+
+    if (needsLoop) {
+      beforeClones.forEach(function (student) {
+        track.appendChild(createStudentCard(student, true));
+      });
     }
 
-    const visibleStudents = getCurrentPageStudents();
-    const perPage = getCardsPerPage();
-
-    studentGrid.innerHTML = "";
-
-    studentGrid.classList.remove("student-grid-one", "student-grid-two");
-
-    if (visibleStudents.length === 1) {
-      studentGrid.classList.add("student-grid-one");
-    }
-
-    if (visibleStudents.length === 2) {
-      studentGrid.classList.add("student-grid-two");
-    }
-
-    visibleStudents.forEach(function (student, index) {
-      studentGrid.appendChild(createStudentCard(student, index));
+    students.forEach(function (student) {
+      track.appendChild(createStudentCard(student, false));
     });
 
-    if (studentCounter) {
-
-      const start = studentPage * perPage + 1;
-
-      const end = Math.min(
-        (studentPage + 1) * perPage,
-        publicStudents.length
-      );
-
-      studentCounter.textContent =
-        start + "–" + end + " / " + publicStudents.length;
+    if (needsLoop) {
+      afterClones.forEach(function (student) {
+        track.appendChild(createStudentCard(student, true));
+      });
     }
 
-    renderDots();
+    trackIndex = (needsLoop ? visibleCount : 0) + currentIndex;
+
+    isAnimating = false;
+
+    createDots();
+    positionTrack(animate);
     updateControls();
   }
 
 
-  /* =======================================================
-     09. STUDENT CARD
-     ======================================================= */
+  /* ===================================================
+     10. CREATE STUDENT CARD
+     =================================================== */
 
-  function createStudentCard(student, index) {
+  function createStudentCard(student, isClone) {
 
     const card = document.createElement("article");
 
     card.className = "student-card";
-    card.style.animationDelay = (index * 70) + "ms";
+
+    if (isClone) {
+      card.setAttribute("aria-hidden", "true");
+    }
+
+    /* ---------- Identity area ---------- */
 
     const identity = document.createElement("div");
 
     identity.className = "student-identity";
 
-    const avatar = document.createElement("div");
+    addAvatarPlaceholder(identity);
 
-    avatar.className = "student-avatar";
-    avatar.setAttribute("aria-hidden", "true");
-
-    identity.appendChild(avatar);
-
-    const name = document.createElement("h3");
+    const name = document.createElement("div");
 
     name.className = "student-name";
-    name.textContent = safeValue(student.name, "Student");
+    name.textContent = getStudentName(student);
 
     identity.appendChild(name);
 
@@ -480,240 +537,406 @@
 
     identity.appendChild(role);
 
-    card.appendChild(identity);
+    /* ---------- Information area (public fields only) ---------- */
 
     const information = document.createElement("div");
 
     information.className = "student-information";
 
-    /* PUBLIC fields only. */
+    addDetailBox(information, "Class", cleanValue(student.className));
+    addDetailBox(information, "Board", cleanValue(student.board));
+    addDetailBox(information, "Subjects", cleanValue(student.subjects));
+    addDetailBox(information, "City", cleanValue(student.city));
 
-    addDetail(information, "Class", student.className);
-    addDetail(information, "School", student.school);
-    addDetail(information, "Board", student.board);
-    addDetail(information, "Subjects", student.subjects);
-    addDetail(information, "Preferred Tutor", student.preferredTutor);
-    addDetail(information, "Preferred Timing", student.preferredTiming);
-    addDetail(information, "City", student.city);
-
+    card.appendChild(identity);
     card.appendChild(information);
 
     return card;
   }
 
-  function addDetail(container, label, value) {
+  function addAvatarPlaceholder(container) {
 
-    const text = safeValue(value, "");
+    const placeholder = document.createElement("span");
 
-    /* Don't create empty rows. */
+    placeholder.className = "student-avatar-placeholder";
+    placeholder.setAttribute("aria-hidden", "true");
 
-    if (!text) {
-      return;
-    }
-
-    const row = document.createElement("div");
-
-    row.className = "student-detail";
-
-    const labelElement = document.createElement("span");
-
-    labelElement.className = "student-detail-label";
-    labelElement.textContent = label;
-
-    const valueElement = document.createElement("span");
-
-    valueElement.className = "student-detail-value";
-    valueElement.textContent = text;
-
-    row.appendChild(labelElement);
-    row.appendChild(valueElement);
-
-    container.appendChild(row);
+    container.appendChild(placeholder);
   }
 
-  function safeValue(value, fallback) {
+  function addDetailBox(container, labelText, valueText) {
 
-    const text = String(value == null ? "" : value).trim();
+    const box = document.createElement("div");
 
-    return text || fallback || "";
+    box.className = "student-detail-box";
+
+    const label = document.createElement("span");
+
+    label.className = "student-detail-label";
+    label.textContent = labelText;
+
+    const value = document.createElement("span");
+
+    value.className = "student-detail-value";
+    value.textContent = valueText || "—";
+
+    box.appendChild(label);
+    box.appendChild(value);
+
+    container.appendChild(box);
   }
 
 
-  /* =======================================================
-     10. DOTS AND BUTTONS
-     ======================================================= */
+  /* ===================================================
+     11. POSITION TRACK
+     =================================================== */
 
-  function renderDots() {
+  function positionTrack(animate) {
 
-    if (!studentDots) {
+    if (!track) {
       return;
     }
 
-    const pageCount = getPageCount();
+    if (!animate) {
+      track.classList.add("no-transition");
+    } else {
+      track.classList.remove("no-transition");
+    }
 
-    studentDots.innerHTML = "";
+    const step = getCardStep();
 
-    if (pageCount <= 1) {
+    track.style.transform =
+      "translate3d(" + (-trackIndex * step) + "px, 0, 0)";
+
+    if (!animate) {
+
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          track.classList.remove("no-transition");
+        });
+      });
+    }
+  }
+
+  function getCardStep() {
+
+    const firstCard = track
+      ? track.querySelector(".student-card")
+      : null;
+
+    if (!firstCard) {
+      return 0;
+    }
+
+    const cardWidth = firstCard.getBoundingClientRect().width;
+    const trackStyle = window.getComputedStyle(track);
+
+    const gap =
+      parseFloat(trackStyle.columnGap || trackStyle.gap) || 0;
+
+    return cardWidth + gap;
+  }
+
+
+  /* ===================================================
+     12. NEXT / PREVIOUS
+     =================================================== */
+
+  function canMove() {
+
+    /*
+     * Do not move while hidden: no transition would run,
+     * so the carousel would stay locked.
+     */
+
+    return (
+      students.length > visibleCount &&
+      !isAnimating &&
+      !isSectionHidden()
+    );
+  }
+
+  function moveNext() {
+
+    if (!canMove()) {
       return;
     }
 
-    for (let i = 0; i < pageCount; i++) {
+    stopRotation();
+
+    isAnimating = true;
+
+    trackIndex += 1;
+
+    currentIndex = (currentIndex + 1) % students.length;
+
+    track.classList.remove("no-transition");
+
+    positionTrack(true);
+    updateDots();
+
+    track.addEventListener(
+      "transitionend",
+      finishForwardLoop,
+      { once: true }
+    );
+  }
+
+  function finishForwardLoop(event) {
+
+    if (event.propertyName !== "transform") {
+
+      /* Wait for the transform transition instead. */
+
+      track.addEventListener(
+        "transitionend",
+        finishForwardLoop,
+        { once: true }
+      );
+
+      return;
+    }
+
+    /* Entered the end clones: silently return to real cards. */
+
+    if (trackIndex >= students.length + visibleCount) {
+
+      trackIndex = visibleCount;
+
+      positionTrack(false);
+    }
+
+    isAnimating = false;
+
+    startRotation();
+  }
+
+  function movePrevious() {
+
+    if (!canMove()) {
+      return;
+    }
+
+    stopRotation();
+
+    isAnimating = true;
+
+    /* At the first real card: jump silently to the clones. */
+
+    if (trackIndex <= visibleCount) {
+
+      trackIndex = students.length + visibleCount;
+
+      positionTrack(false);
+
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+
+          trackIndex -= 1;
+
+          currentIndex =
+            (currentIndex - 1 + students.length) % students.length;
+
+          track.classList.remove("no-transition");
+
+          positionTrack(true);
+          updateDots();
+
+          track.addEventListener(
+            "transitionend",
+            finishBackwardLoop,
+            { once: true }
+          );
+        });
+      });
+
+      return;
+    }
+
+    trackIndex -= 1;
+
+    currentIndex =
+      (currentIndex - 1 + students.length) % students.length;
+
+    track.classList.remove("no-transition");
+
+    positionTrack(true);
+    updateDots();
+
+    track.addEventListener(
+      "transitionend",
+      finishBackwardLoop,
+      { once: true }
+    );
+  }
+
+  function finishBackwardLoop(event) {
+
+    if (event.propertyName !== "transform") {
+
+      track.addEventListener(
+        "transitionend",
+        finishBackwardLoop,
+        { once: true }
+      );
+
+      return;
+    }
+
+    isAnimating = false;
+
+    startRotation();
+  }
+
+
+  /* ===================================================
+     13. NAVIGATION DOTS
+     =================================================== */
+
+  function createDots() {
+
+    if (!dotsContainer) {
+      return;
+    }
+
+    dotsContainer.innerHTML = "";
+
+    students.forEach(function (_, index) {
 
       const dot = document.createElement("button");
 
       dot.type = "button";
       dot.className = "student-dot";
 
-      if (i === studentPage) {
-        dot.classList.add("active");
-      }
-
-      dot.setAttribute("aria-label", "Show student group " + (i + 1));
+      dot.setAttribute("role", "tab");
+      dot.setAttribute("aria-label", "Show student " + (index + 1));
 
       dot.addEventListener("click", function () {
 
-        studentPage = i;
+        if (isAnimating || index === currentIndex || isSectionHidden()) {
+          return;
+        }
 
-        renderStudentCarousel();
-        restartRotation();
+        stopRotation();
+
+        isAnimating = true;
+
+        currentIndex = index;
+        trackIndex = visibleCount + index;
+
+        positionTrack(true);
+        updateDots();
+
+        track.addEventListener("transitionend", function onEnd(event) {
+
+          if (event.propertyName !== "transform") {
+            track.addEventListener("transitionend", onEnd, { once: true });
+            return;
+          }
+
+          isAnimating = false;
+
+          startRotation();
+
+        }, { once: true });
       });
 
-      studentDots.appendChild(dot);
-    }
+      dotsContainer.appendChild(dot);
+    });
+
+    updateDots();
   }
 
-  function updateControls() {
+  function updateDots() {
 
-    if (!studentControls) {
+    if (!dotsContainer) {
       return;
     }
 
-    studentControls.classList.toggle("hidden", getPageCount() <= 1);
-  }
+    dotsContainer
+      .querySelectorAll(".student-dot")
+      .forEach(function (dot, index) {
 
-  function showNextStudentPage() {
+        const active = index === currentIndex;
 
-    const pageCount = getPageCount();
-
-    if (pageCount <= 1) {
-      return;
-    }
-
-    studentPage = (studentPage + 1) % pageCount;
-
-    renderStudentCarousel();
-    restartRotation();
-  }
-
-  function showPreviousStudentPage() {
-
-    const pageCount = getPageCount();
-
-    if (pageCount <= 1) {
-      return;
-    }
-
-    studentPage = (studentPage - 1 + pageCount) % pageCount;
-
-    renderStudentCarousel();
-    restartRotation();
+        dot.classList.toggle("active", active);
+        dot.setAttribute("aria-selected", String(active));
+      });
   }
 
 
-  /* =======================================================
-     11. AUTOMATIC ROTATION
-     ======================================================= */
+  /* ===================================================
+     14. AUTOMATIC ROTATION
+     =================================================== */
 
   function startRotation() {
 
-    stopRotation();
+    clearInterval(rotationTimer);
 
-    if (STUDENT_ROTATION_DELAY <= 0) {
+    rotationTimer = null;
+
+    if (students.length <= visibleCount || isSectionHidden()) {
       return;
     }
 
-    if (publicStudents.length <= getCardsPerPage()) {
-      return;
-    }
+    rotationTimer = setInterval(function () {
 
-    /* Not while the Students section is hidden. */
+      if (!isAnimating && !isSectionHidden()) {
+        moveNext();
+      }
 
-    if (
-      !studentsSection ||
-      studentsSection.hidden ||
-      studentsSection.classList.contains("hidden")
-    ) {
-      return;
-    }
-
-    rotationTimer = setInterval(
-      showNextStudentPage,
-      STUDENT_ROTATION_DELAY
-    );
+    }, AUTO_ROTATE_MS);
   }
 
   function stopRotation() {
 
-    if (rotationTimer) {
-      clearInterval(rotationTimer);
-      rotationTimer = null;
-    }
-  }
+    clearInterval(rotationTimer);
 
-  function restartRotation() {
-    stopRotation();
-    startRotation();
+    rotationTimer = null;
   }
 
 
-  /* =======================================================
-     12. LOADING / MESSAGE STATES
-     ======================================================= */
+  /* ===================================================
+     15. LOADING / EMPTY / ERROR STATES
+     =================================================== */
 
   function showLoading() {
 
-    if (studentLoading) {
-      studentLoading.classList.remove("hidden");
+    if (loading) {
+      loading.hidden = false;
     }
 
-    if (studentGrid) {
-      studentGrid.classList.add("hidden");
+    if (emptyState) {
+      emptyState.hidden = true;
     }
 
-    if (studentControls) {
-      studentControls.classList.add("hidden");
+    if (track) {
+      track.hidden = true;
     }
 
-    if (noStudents) {
-      noStudents.classList.add("hidden");
+    if (controls) {
+      controls.hidden = true;
     }
   }
 
   function hideLoading() {
 
-    if (studentLoading) {
-      studentLoading.classList.add("hidden");
-    }
-
-    if (studentGrid) {
-      studentGrid.classList.remove("hidden");
+    if (loading) {
+      loading.hidden = true;
     }
   }
 
   /* One panel used for "coming soon", "not connected" and errors. */
 
-  function showMessage(title, text) {
+  function showMessage(title, text, icon) {
 
-    if (studentLoading) {
-      studentLoading.classList.add("hidden");
+    if (track) {
+      track.hidden = true;
+      track.innerHTML = "";
     }
 
-    if (studentGrid) {
-      studentGrid.classList.add("hidden");
-    }
-
-    if (studentControls) {
-      studentControls.classList.add("hidden");
+    if (emptyIcon) {
+      emptyIcon.textContent = icon || "—";
     }
 
     if (emptyTitle) {
@@ -724,12 +947,20 @@
       emptyText.textContent = text;
     }
 
-    if (noStudents) {
-      noStudents.classList.remove("hidden");
+    if (emptyState) {
+      emptyState.hidden = false;
     }
 
-    if (studentCounter) {
-      studentCounter.textContent = "0 / 0";
+    if (controls) {
+      controls.hidden = true;
+    }
+
+    if (previousButton) {
+      previousButton.disabled = true;
+    }
+
+    if (nextButton) {
+      nextButton.disabled = true;
     }
 
     stopRotation();
@@ -737,36 +968,72 @@
 
   function hideMessage() {
 
-    if (noStudents) {
-      noStudents.classList.add("hidden");
+    if (emptyState) {
+      emptyState.hidden = true;
+    }
+
+    if (track) {
+      track.hidden = false;
+    }
+  }
+
+  function updateControls() {
+
+    const shouldShow = students.length > visibleCount;
+
+    if (controls) {
+      controls.hidden = !shouldShow;
+    }
+
+    if (previousButton) {
+      previousButton.disabled = !shouldShow;
+    }
+
+    if (nextButton) {
+      nextButton.disabled = !shouldShow;
     }
   }
 
 
-  /* =======================================================
-     13. RESIZE
-     ======================================================= */
+  /* ===================================================
+     16. DATA HELPERS
+     =================================================== */
 
-  function handleResize() {
+  function isUsableStudent(student) {
+    return !!student && typeof student === "object";
+  }
 
-    if (!publicStudents.length) {
-      return;
+  function getStudentName(student) {
+
+    const fullName = [
+      cleanValue(student.firstName),
+      cleanValue(student.lastName)
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return fullName || cleanValue(student.name) || "Student";
+  }
+
+  function cleanValue(value) {
+
+    if (value === undefined || value === null) {
+      return "";
     }
 
-    renderStudentCarousel();
-    restartRotation();
+    return String(value).trim();
   }
 
 
-  /* =======================================================
-     14. PUBLIC API
-     ======================================================= */
+  /* ===================================================
+     17. PUBLIC COMPONENT API
+     =================================================== */
 
   window.StudentsComponent = {
     init: init,
     show: function () { applyMode(SHOW_STUDENTS_WHEN); },
     hide: function () {
-      setVisible(studentsSection, false);
+      setVisible(section, false);
       stopRotation();
     }
   };
