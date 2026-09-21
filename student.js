@@ -1,78 +1,169 @@
 "use strict";
 
-/************************************************************
- * CONFIG
- ************************************************************/
+/**
+ * ============================================================
+ * URBANTUTORSITE - STUDENT REGISTRATION
+ * ============================================================
+ *
+ * This JavaScript handles ONLY:
+ *
+ * 1. Email entry
+ * 2. Registration form
+ * 3. Sending OTP
+ * 4. OTP verification
+ * 5. Successful registration
+ *
+ *
+ * It communicates with Google Apps Script through ONE URL.
+ *
+ * ============================================================
+ */
+
+
+/**
+ * ============================================================
+ * CONFIGURATION
+ * ============================================================
+ *
+ * This is your EXISTING Web App URL taken from your original
+ * student.js.
+ *
+ * DO NOT change this unless you deploy a new Web App.
+ */
 
 const WEB_APP_URL =
   "https://script.google.com/macros/s/AKfycbyQ2ZkRBjB8zvJ8w_JvhUl6MZQlpkeLwAJ98DTH16ry9dbmBp4PR-eo7uPOuJlWhCfu/exec";
 
 
-/************************************************************
- * STATE
- ************************************************************/
+/**
+ * ============================================================
+ * PAGE STATE
+ * ============================================================
+ */
 
 let currentEmail = "";
+
 let currentName = "";
-let currentMode = "";
+
 let resendTimer = null;
 
 
-/************************************************************
- * ELEMENTS
- ************************************************************/
+/**
+ * ============================================================
+ * GET HTML ELEMENTS
+ * ============================================================
+ */
 
-const emailPage = document.getElementById("emailPage");
-const registrationPage = document.getElementById("registrationPage");
-const otpPage = document.getElementById("otpPage");
-const successPage = document.getElementById("successPage");
+const emailPage =
+  document.getElementById("emailPage");
 
-const emailForm = document.getElementById("emailForm");
-const registrationForm = document.getElementById("registrationForm");
-const otpForm = document.getElementById("otpForm");
+const registrationPage =
+  document.getElementById("registrationPage");
 
-const emailInput = document.getElementById("email");
-const registrationEmail = document.getElementById("registrationEmail");
-const phoneInput = document.getElementById("phone");
-const whatsappInput = document.getElementById("whatsapp");
-const sameAsPhoneInput = document.getElementById("sameAsPhone");
-const firstNameInput = document.getElementById("firstName");
-const lastNameInput = document.getElementById("lastName");
-const schoolInput = document.getElementById("school");
-const classInput = document.getElementById("className");
-const boardInput = document.getElementById("board");
-const subjectsInput = document.getElementById("subjects");
-const timingOtherInput = document.getElementById("timingOtherInput");
-const timingOtherWrap = document.getElementById("otherTimingWrap");
-const cityInput = document.getElementById("city");
-const addressInput = document.getElementById("address");
-const pinInput = document.getElementById("pinCode");
-const termsInput = document.getElementById("terms");
-const otpInput = document.getElementById("otp");
+const otpPage =
+  document.getElementById("otpPage");
 
-const continueButton = document.getElementById("continueButton");
-const registerButton = document.getElementById("registerButton");
-const verifyOtpButton = document.getElementById("verifyOtpButton");
-const resendButton = document.getElementById("resendButton");
-
-const emailDisplay = document.getElementById("emailDisplay");
-const successEmail = document.getElementById("successEmail");
-const continueHomeButton = document.getElementById("continueHomeButton");
-
-const studentProfileButton = document.getElementById("studentProfileButton");
-const studentProfileModal = document.getElementById("studentProfileModal");
-const studentProfileContent = document.getElementById("studentProfileContent");
-const closeStudentProfile = document.getElementById("closeStudentProfile");
-const studentLogoutButton = document.getElementById("studentLogoutButton");
+const successPage =
+  document.getElementById("successPage");
 
 
-/************************************************************
- * EVENT LISTENERS
- ************************************************************/
+const emailForm =
+  document.getElementById("emailForm");
+
+const registrationForm =
+  document.getElementById("registrationForm");
+
+const otpForm =
+  document.getElementById("otpForm");
+
+
+const emailInput =
+  document.getElementById("email");
+
+const registrationEmail =
+  document.getElementById("registrationEmail");
+
+const phoneInput =
+  document.getElementById("phone");
+
+const whatsappInput =
+  document.getElementById("whatsapp");
+
+const sameAsPhoneInput =
+  document.getElementById("sameAsPhone");
+
+const firstNameInput =
+  document.getElementById("firstName");
+
+const lastNameInput =
+  document.getElementById("lastName");
+
+const schoolInput =
+  document.getElementById("school");
+
+const classInput =
+  document.getElementById("className");
+
+const boardInput =
+  document.getElementById("board");
+
+const subjectsInput =
+  document.getElementById("subjects");
+
+const timingOtherInput =
+  document.getElementById("timingOtherInput");
+
+const timingOtherWrap =
+  document.getElementById("otherTimingWrap");
+
+const cityInput =
+  document.getElementById("city");
+
+const addressInput =
+  document.getElementById("address");
+
+const pinInput =
+  document.getElementById("pinCode");
+
+const termsInput =
+  document.getElementById("terms");
+
+const otpInput =
+  document.getElementById("otp");
+
+
+const continueButton =
+  document.getElementById("continueButton");
+
+const registerButton =
+  document.getElementById("registerButton");
+
+const verifyOtpButton =
+  document.getElementById("verifyOtpButton");
+
+const resendButton =
+  document.getElementById("resendButton");
+
+
+const emailDisplay =
+  document.getElementById("emailDisplay");
+
+const successEmail =
+  document.getElementById("successEmail");
+
+const continueHomeButton =
+  document.getElementById("continueHomeButton");
+
+
+/**
+ * ============================================================
+ * FORM EVENTS
+ * ============================================================
+ */
 
 emailForm.addEventListener(
   "submit",
-  async (event) => {
+  async function(event) {
 
     event.preventDefault();
 
@@ -84,7 +175,7 @@ emailForm.addEventListener(
 
 registrationForm.addEventListener(
   "submit",
-  async (event) => {
+  async function(event) {
 
     event.preventDefault();
 
@@ -96,7 +187,7 @@ registrationForm.addEventListener(
 
 otpForm.addEventListener(
   "submit",
-  async (event) => {
+  async function(event) {
 
     event.preventDefault();
 
@@ -112,61 +203,20 @@ resendButton.addEventListener(
 );
 
 
-if (studentProfileButton) {
-
-  studentProfileButton.addEventListener(
-    "click",
-    openStudentProfile
-  );
-
-}
-
-
-if (closeStudentProfile) {
-
-  closeStudentProfile.addEventListener(
-    "click",
-    closeStudentProfileModal
-  );
-
-}
-
-
-if (studentProfileModal) {
-
-  studentProfileModal.addEventListener(
-    "click",
-    function(event) {
-      if (event.target.hasAttribute("data-close-profile")) {
-        closeStudentProfileModal();
-      }
-    }
-  );
-
-}
-
-
-if (studentLogoutButton) {
-
-  studentLogoutButton.addEventListener(
-    "click",
-    logoutStudent
-  );
-
-}
-
-
-/************************************************************
- * SAME AS PHONE
- ************************************************************/
+/**
+ * ============================================================
+ * SAME AS PHONE NUMBER
+ * ============================================================
+ */
 
 sameAsPhoneInput.addEventListener(
   "change",
-  () => {
+  function() {
 
     if (sameAsPhoneInput.checked) {
 
-      whatsappInput.value = phoneInput.value;
+      whatsappInput.value =
+        phoneInput.value;
 
       whatsappInput.readOnly = true;
 
@@ -184,15 +234,17 @@ sameAsPhoneInput.addEventListener(
 
 phoneInput.addEventListener(
   "input",
-  () => {
+  function() {
 
     numericInput({
       target: phoneInput
     });
 
+
     if (sameAsPhoneInput.checked) {
 
-      whatsappInput.value = phoneInput.value;
+      whatsappInput.value =
+        phoneInput.value;
 
     }
 
@@ -200,65 +252,11 @@ phoneInput.addEventListener(
 );
 
 
-/************************************************************
- * BACK BUTTONS
- ************************************************************/
-
-document
-  .getElementById("registrationBackButton")
-  .addEventListener(
-    "click",
-    () => {
-
-      showPage("email");
-
-      clearMessages();
-      clearFieldErrors();
-
-    }
-  );
-
-
-document
-  .getElementById("otpBackButton")
-  .addEventListener(
-    "click",
-    () => {
-
-      clearInterval(resendTimer);
-
-      resendTimer = null;
-
-      showPage("email");
-
-      clearMessages();
-      clearFieldErrors();
-
-      otpInput.value = "";
-
-    }
-  );
-
-
-/************************************************************
- * FINISH
- ************************************************************/
-
-document
-  .getElementById("finishButton")
-  .addEventListener(
-    "click",
-    () => {
-
-      location.reload();
-
-    }
-  );
-
-
-/************************************************************
- * NUMERIC INPUTS
- ************************************************************/
+/**
+ * ============================================================
+ * OTHER NUMERIC INPUTS
+ * ============================================================
+ */
 
 whatsappInput.addEventListener(
   "input",
@@ -279,20 +277,94 @@ otpInput.addEventListener(
 function numericInput(event) {
 
   event.target.value =
-    event.target.value.replace(/\D/g, "");
+    event.target.value.replace(
+      /\D/g,
+      ""
+    );
 
 }
 
 
-/************************************************************
- * TERMS MODAL
- ************************************************************/
+/**
+ * ============================================================
+ * BACK BUTTON - REGISTRATION
+ * ============================================================
+ */
 
-const termsModal = document.getElementById("termsModal");
+document
+  .getElementById("registrationBackButton")
+  .addEventListener(
+    "click",
+    function() {
+
+      showPage("email");
+
+      clearMessages();
+
+      clearFieldErrors();
+
+    }
+  );
+
+
+/**
+ * ============================================================
+ * BACK BUTTON - OTP
+ * ============================================================
+ */
+
+document
+  .getElementById("otpBackButton")
+  .addEventListener(
+    "click",
+    function() {
+
+      clearInterval(resendTimer);
+
+      resendTimer = null;
+
+      showPage("email");
+
+      clearMessages();
+
+      clearFieldErrors();
+
+      otpInput.value = "";
+
+    }
+  );
+
+
+/**
+ * ============================================================
+ * FINISH BUTTON
+ * ============================================================
+ */
+
+document
+  .getElementById("finishButton")
+  .addEventListener(
+    "click",
+    function() {
+
+      location.reload();
+
+    }
+  );
+
+
+/**
+ * ============================================================
+ * TERMS MODAL
+ * ============================================================
+ */
+
+const termsModal =
+  document.getElementById("termsModal");
 
 
 document
-  .getElementById("showTermsButton")
+  .getElementById("termsInlineButton")
   ?.addEventListener(
     "click",
     openTerms
@@ -300,16 +372,8 @@ document
 
 
 document
-  .getElementById("termsInlineButton")
-  .addEventListener(
-    "click",
-    openTerms
-  );
-
-
-document
   .getElementById("closeTermsButton")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     closeTerms
   );
@@ -317,9 +381,9 @@ document
 
 document
   .getElementById("acceptTermsButton")
-  .addEventListener(
+  ?.addEventListener(
     "click",
-    () => {
+    function() {
 
       termsInput.checked = true;
 
@@ -331,7 +395,7 @@ document
 
 document
   .querySelector(".modal-overlay")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     closeTerms
   );
@@ -339,28 +403,55 @@ document
 
 function openTerms() {
 
-  termsModal.classList.remove("hidden");
+  termsModal.classList.remove(
+    "hidden"
+  );
 
 }
 
 
 function closeTerms() {
 
-  termsModal.classList.add("hidden");
+  termsModal.classList.add(
+    "hidden"
+  );
 
 }
 
 
-/************************************************************
+/**
+ * ============================================================
  * CHECK EMAIL
- ************************************************************/
+ * ============================================================
+ *
+ * We first ask Apps Script:
+ *
+ * "Does this email already exist?"
+ *
+ * If yes:
+ *
+ *     registration stops
+ *
+ * If no:
+ *
+ *     registration form opens
+ *
+ * ============================================================
+ */
 
 async function checkEmail() {
 
-  const email = normalizeEmail(emailInput.value);
+
+  const email =
+    normalizeEmail(
+      emailInput.value
+    );
+
 
   clearFieldErrors();
+
   clearMessages();
+
 
   if (!isValidEmail(email)) {
 
@@ -375,29 +466,42 @@ async function checkEmail() {
 
   }
 
+
   currentEmail = email;
 
-  setLoading(continueButton, true);
+
+  setLoading(
+    continueButton,
+    true
+  );
+
 
   showMessage(
     "emailMessage",
-    "Checking your account...",
+    "Checking your email...",
     "info"
   );
 
+
   try {
 
-    const result = await apiRequest({
-      action: "checkEmail",
-      email: email
-    });
+
+    const result =
+      await apiRequest({
+
+        action: "checkEmail",
+
+        email: email
+
+      });
 
 
     if (!result.success) {
 
       showMessage(
         "emailMessage",
-        result.message || "Unable to check email.",
+        result.message ||
+          "Unable to check email.",
         "error"
       );
 
@@ -408,111 +512,9 @@ async function checkEmail() {
 
     if (result.exists) {
 
-      currentMode = "login";
-      currentName = result.name || "";
-
-      emailDisplay.textContent = email;
-
-      document.getElementById("otpEyebrow").textContent =
-        "SECURE LOGIN";
-
-      document.getElementById("otpTitle").textContent =
-        "Verify to login";
-
-      document.getElementById("verifyOtpText").textContent =
-        "Login";
-
-      otpInput.value = "";
-
-      showPage("otp");
-
-      startResendTimer(result.resendAfter || 60);
-
-      focusOTP();
-
-      return;
-
-    }
-
-
-    currentMode = "register";
-
-    registrationEmail.value = email;
-
-    showPage("registration");
-
-    setTimeout(
-      () => phoneInput.focus(),
-      250
-    );
-
-
-  } catch (error) {
-
-    console.error(error);
-
-    showMessage(
-      "emailMessage",
-      "Unable to connect to the server. Please try again.",
-      "error"
-    );
-
-  } finally {
-
-    setLoading(continueButton, false);
-
-  }
-
-}
-
-
-/************************************************************
- * REGISTRATION
- ************************************************************/
-
-async function registerUser() {
-
-  clearFieldErrors();
-  clearMessages();
-
-  const data = collectRegistrationData();
-
-  const validation = validateRegistration(data);
-
-  if (!validation.valid) {
-    return;
-  }
-
-  currentName = `${data.firstName} ${data.lastName}`;
-
-  setLoading(registerButton, true);
-
-  showMessage(
-    "registrationMessage",
-    "Sending verification OTP...",
-    "info"
-  );
-
-  try {
-
-    const result = await apiRequest({
-
-      action: "sendOTP",
-
-      name: currentName,
-
-      email: currentEmail,
-
-      registration: data
-
-    });
-
-
-    if (!result.success) {
-
       showMessage(
-        "registrationMessage",
-        result.message || "Unable to send OTP.",
+        "emailMessage",
+        "This email is already registered.",
         "error"
       );
 
@@ -521,31 +523,179 @@ async function registerUser() {
     }
 
 
-    currentMode = "register";
+    registrationEmail.value =
+      email;
 
-    emailDisplay.textContent = currentEmail;
 
-    document.getElementById("otpEyebrow").textContent =
-      "REGISTRATION VERIFICATION";
+    showPage(
+      "registration"
+    );
 
-    document.getElementById("otpTitle").textContent =
-      "Verify your email";
 
-    document.getElementById("verifyOtpText").textContent =
-      "Verify & Register";
+    setTimeout(
+      function() {
+
+        phoneInput.focus();
+
+      },
+      250
+    );
+
+
+  } catch (error) {
+
+
+    console.error(error);
+
+
+    showMessage(
+      "emailMessage",
+      "Unable to connect to the server.",
+      "error"
+    );
+
+
+  } finally {
+
+
+    setLoading(
+      continueButton,
+      false
+    );
+
+  }
+
+}
+
+
+/**
+ * ============================================================
+ * REGISTER USER
+ * ============================================================
+ */
+
+async function registerUser() {
+
+
+  clearFieldErrors();
+
+  clearMessages();
+
+
+  const data =
+    collectRegistrationData();
+
+
+  const validation =
+    validateRegistration(
+      data
+    );
+
+
+  if (!validation.valid) {
+
+    return;
+
+  }
+
+
+  currentName =
+    `${data.firstName} ${data.lastName}`;
+
+
+  setLoading(
+    registerButton,
+    true
+  );
+
+
+  showMessage(
+    "registrationMessage",
+    "Sending verification OTP...",
+    "info"
+  );
+
+
+  try {
+
+
+    const result =
+      await apiRequest({
+
+        action: "sendOTP",
+
+        name: currentName,
+
+        email: currentEmail,
+
+        registration: data
+
+      });
+
+
+    if (!result.success) {
+
+      showMessage(
+        "registrationMessage",
+        result.message ||
+          "Unable to send OTP.",
+        "error"
+      );
+
+      return;
+
+    }
+
+
+    emailDisplay.textContent =
+      currentEmail;
+
+
+    document
+      .getElementById(
+        "otpEyebrow"
+      )
+      .textContent =
+        "REGISTRATION VERIFICATION";
+
+
+    document
+      .getElementById(
+        "otpTitle"
+      )
+      .textContent =
+        "Verify your email";
+
+
+    document
+      .getElementById(
+        "verifyOtpText"
+      )
+      .textContent =
+        "Verify & Register";
+
 
     otpInput.value = "";
 
-    showPage("otp");
 
-    startResendTimer(result.resendAfter || 60);
+    showPage(
+      "otp"
+    );
+
+
+    startResendTimer(
+      result.resendAfter || 60
+    );
+
 
     focusOTP();
 
 
   } catch (error) {
 
+
     console.error(error);
+
 
     showMessage(
       "registrationMessage",
@@ -553,40 +703,67 @@ async function registerUser() {
       "error"
     );
 
+
   } finally {
 
-    setLoading(registerButton, false);
+
+    setLoading(
+      registerButton,
+      false
+    );
 
   }
 
 }
 
 
-/************************************************************
+/**
+ * ============================================================
  * COLLECT REGISTRATION DATA
- ************************************************************/
+ * ============================================================
+ *
+ * These fields are taken directly from your original
+ * student.js.
+ * ============================================================
+ */
 
 function collectRegistrationData() {
 
-  const timingValues = Array.from(
-    document.querySelectorAll(
-      'input[name="preferredTiming"]:checked'
+
+  const timingValues =
+    Array.from(
+      document.querySelectorAll(
+        'input[name="preferredTiming"]:checked'
+      )
     )
-  ).map(
-    input => input.value
-  );
+    .map(
+      function(input) {
+
+        return input.value;
+
+      }
+    );
 
 
-  const otherIndex = timingValues.indexOf("Other");
+  const otherIndex =
+    timingValues.indexOf(
+      "Other"
+    );
 
 
   if (otherIndex !== -1) {
 
-    const otherTiming = cleanText(timingOtherInput.value);
+
+    const otherTiming =
+      cleanText(
+        timingOtherInput.value
+      );
+
 
     if (otherTiming) {
 
-      timingValues[otherIndex] = `Other: ${otherTiming}`;
+      timingValues[otherIndex] =
+        `Other: ${otherTiming}`;
 
     }
 
@@ -595,51 +772,114 @@ function collectRegistrationData() {
 
   return {
 
-    phone: cleanText(phoneInput.value),
 
-    whatsapp: cleanText(whatsappInput.value),
+    phone:
+      cleanText(
+        phoneInput.value
+      ),
 
-    firstName: cleanText(firstNameInput.value),
 
-    lastName: cleanText(lastNameInput.value),
+    whatsapp:
+      cleanText(
+        whatsappInput.value
+      ),
 
-    gender: getRadioValue("gender"),
 
-    school: cleanText(schoolInput.value),
+    firstName:
+      cleanText(
+        firstNameInput.value
+      ),
 
-    className: cleanText(classInput.value),
 
-    board: cleanText(boardInput.value),
+    lastName:
+      cleanText(
+        lastNameInput.value
+      ),
 
-    subjects: cleanText(subjectsInput.value),
 
-    preferredTutor: getRadioValue("preferredTutor"),
+    gender:
+      getRadioValue(
+        "gender"
+      ),
 
-    preferredTiming: timingValues.join(", "),
 
-    city: cleanText(cityInput.value),
+    school:
+      cleanText(
+        schoolInput.value
+      ),
 
-    address: cleanText(addressInput.value),
 
-    pinCode: cleanText(pinInput.value),
+    className:
+      cleanText(
+        classInput.value
+      ),
 
-    termsAccepted: termsInput.checked
+
+    board:
+      cleanText(
+        boardInput.value
+      ),
+
+
+    subjects:
+      cleanText(
+        subjectsInput.value
+      ),
+
+
+    preferredTutor:
+      getRadioValue(
+        "preferredTutor"
+      ),
+
+
+    preferredTiming:
+      timingValues.join(
+        ", "
+      ),
+
+
+    city:
+      cleanText(
+        cityInput.value
+      ),
+
+
+    address:
+      cleanText(
+        addressInput.value
+      ),
+
+
+    pinCode:
+      cleanText(
+        pinInput.value
+      ),
+
+
+    termsAccepted:
+      termsInput.checked
 
   };
 
 }
 
 
-/************************************************************
- * CLIENT VALIDATION
- ************************************************************/
+/**
+ * ============================================================
+ * CLIENT-SIDE VALIDATION
+ * ============================================================
+ */
 
 function validateRegistration(data) {
+
 
   let valid = true;
 
 
-  if (!/^\d{10}$/.test(data.phone)) {
+  if (!/^\d{10}$/.test(
+    data.phone
+  )) {
 
     setFieldError(
       "phoneError",
@@ -651,7 +891,9 @@ function validateRegistration(data) {
   }
 
 
-  if (!/^\d{10}$/.test(data.whatsapp)) {
+  if (!/^\d{10}$/.test(
+    data.whatsapp
+  )) {
 
     setFieldError(
       "whatsappError",
@@ -663,7 +905,9 @@ function validateRegistration(data) {
   }
 
 
-  if (data.firstName.length < 2) {
+  if (
+    data.firstName.length < 2
+  ) {
 
     setFieldError(
       "firstNameError",
@@ -675,7 +919,9 @@ function validateRegistration(data) {
   }
 
 
-  if (data.lastName.length < 1) {
+  if (
+    data.lastName.length < 1
+  ) {
 
     setFieldError(
       "lastNameError",
@@ -687,7 +933,9 @@ function validateRegistration(data) {
   }
 
 
-  if (data.school.length < 2) {
+  if (
+    data.school.length < 2
+  ) {
 
     setFieldError(
       "schoolError",
@@ -723,7 +971,9 @@ function validateRegistration(data) {
   }
 
 
-  if (data.subjects.length < 2) {
+  if (
+    data.subjects.length < 2
+  ) {
 
     setFieldError(
       "subjectsError",
@@ -735,7 +985,9 @@ function validateRegistration(data) {
   }
 
 
-  if (!data.preferredTiming) {
+  if (
+    !data.preferredTiming
+  ) {
 
     setFieldError(
       "timingError",
@@ -748,8 +1000,12 @@ function validateRegistration(data) {
 
 
   if (
-    data.preferredTiming.includes("Other") &&
-    !cleanText(timingOtherInput.value)
+    data.preferredTiming.includes(
+      "Other"
+    ) &&
+    !cleanText(
+      timingOtherInput.value
+    )
   ) {
 
     setFieldError(
@@ -762,7 +1018,9 @@ function validateRegistration(data) {
   }
 
 
-  if (data.city.length < 2) {
+  if (
+    data.city.length < 2
+  ) {
 
     setFieldError(
       "cityError",
@@ -774,7 +1032,9 @@ function validateRegistration(data) {
   }
 
 
-  if (data.address.length < 3) {
+  if (
+    data.address.length < 3
+  ) {
 
     setFieldError(
       "addressError",
@@ -786,7 +1046,9 @@ function validateRegistration(data) {
   }
 
 
-  if (!/^\d{6}$/.test(data.pinCode)) {
+  if (!/^\d{6}$/.test(
+    data.pinCode
+  )) {
 
     setFieldError(
       "pinError",
@@ -810,35 +1072,54 @@ function validateRegistration(data) {
   }
 
 
-  return { valid };
+  return {
+
+    valid: valid
+
+  };
 
 }
 
 
-/************************************************************
+/**
+ * ============================================================
  * OTHER TIMING
- ************************************************************/
+ * ============================================================
+ */
 
 document
   .getElementById("timingOther")
-  .addEventListener(
+  ?.addEventListener(
     "change",
-    function () {
+    function() {
+
 
       if (this.checked) {
 
-        timingOtherWrap.classList.remove("hidden");
+        timingOtherWrap
+          .classList
+          .remove("hidden");
+
 
         setTimeout(
-          () => timingOtherInput.focus(),
+          function() {
+
+            timingOtherInput.focus();
+
+          },
           50
         );
 
+
       } else {
 
-        timingOtherWrap.classList.add("hidden");
+        timingOtherWrap
+          .classList
+          .add("hidden");
 
-        timingOtherInput.value = "";
+
+        timingOtherInput.value =
+          "";
 
       }
 
@@ -846,16 +1127,27 @@ document
   );
 
 
-/************************************************************
+/**
+ * ============================================================
  * VERIFY OTP
- ************************************************************/
+ * ============================================================
+ */
 
 async function verifyOTP() {
 
-  const otp = otpInput.value.trim();
 
-  clearFieldError("otpError");
-  clearMessage("otpMessage");
+  const otp =
+    otpInput.value.trim();
+
+
+  clearFieldError(
+    "otpError"
+  );
+
+  clearMessage(
+    "otpMessage"
+  );
+
 
   if (!/^\d{6}$/.test(otp)) {
 
@@ -870,7 +1162,12 @@ async function verifyOTP() {
 
   }
 
-  setLoading(verifyOtpButton, true);
+
+  setLoading(
+    verifyOtpButton,
+    true
+  );
+
 
   showMessage(
     "otpMessage",
@@ -881,41 +1178,9 @@ async function verifyOTP() {
 
   try {
 
-    if (currentMode === "login") {
 
-      const result = await apiRequest({
-
-        action: "verifyLoginOTP",
-
-        email: currentEmail,
-
-        otp: otp
-
-      });
-
-
-      if (!result.success) {
-
-        showMessage(
-          "otpMessage",
-          result.message || "Incorrect OTP.",
-          "error"
-        );
-
-        return;
-
-      }
-
-      showSuccess("login", result);
-
-      return;
-
-    }
-
-
-    if (currentMode === "register") {
-
-      const result = await apiRequest({
+    const result =
+      await apiRequest({
 
         action: "verifyOTP",
 
@@ -926,27 +1191,34 @@ async function verifyOTP() {
       });
 
 
-      if (!result.success) {
+    if (!result.success) {
 
-        showMessage(
-          "otpMessage",
-          result.message || "Unable to complete registration.",
-          "error"
-        );
+      showMessage(
+        "otpMessage",
+        result.message ||
+          "Unable to complete registration.",
+        "error"
+      );
 
-        return;
-
-      }
-
-
-      showSuccess("register", result);
+      return;
 
     }
 
 
+    /**
+     * Registration is now permanently saved.
+     */
+
+    showRegistrationSuccess(
+      result
+    );
+
+
   } catch (error) {
 
+
     console.error(error);
+
 
     showMessage(
       "otpMessage",
@@ -954,22 +1226,31 @@ async function verifyOTP() {
       "error"
     );
 
+
   } finally {
 
-    setLoading(verifyOtpButton, false);
+
+    setLoading(
+      verifyOtpButton,
+      false
+    );
 
   }
 
 }
 
 
-/************************************************************
+/**
+ * ============================================================
  * RESEND OTP
- ************************************************************/
+ * ============================================================
+ */
 
 async function resendOTP() {
 
+
   resendButton.disabled = true;
+
 
   showMessage(
     "otpMessage",
@@ -980,43 +1261,33 @@ async function resendOTP() {
 
   try {
 
-    const payload = {
 
-      action: "resendOTP",
+    const result =
+      await apiRequest({
 
-      email: currentEmail
+        action: "resendOTP",
 
-    };
+        email: currentEmail,
 
+        name: currentName
 
-    if (currentMode === "register") {
-
-      payload.name = currentName;
-
-    }
-
-
-    const result = await apiRequest(payload);
+      });
 
 
     if (!result.success) {
 
+
       showMessage(
         "otpMessage",
-        result.message || "Unable to resend OTP.",
+        result.message ||
+          "Unable to resend OTP.",
         "error"
       );
 
 
-      if (result.resendAfter) {
+      resendButton.disabled =
+        false;
 
-        startResendTimer(result.resendAfter);
-
-      } else {
-
-        resendButton.disabled = false;
-
-      }
 
       return;
 
@@ -1029,14 +1300,21 @@ async function resendOTP() {
       "success"
     );
 
-    startResendTimer(result.resendAfter || 60);
+
+    startResendTimer(
+      result.resendAfter || 60
+    );
 
 
   } catch (error) {
 
+
     console.error(error);
 
-    resendButton.disabled = false;
+
+    resendButton.disabled =
+      false;
+
 
     showMessage(
       "otpMessage",
@@ -1049,207 +1327,128 @@ async function resendOTP() {
 }
 
 
-/************************************************************
- * SUCCESS / STUDENT SIGN-IN
- ************************************************************/
+/**
+ * ============================================================
+ * SHOW REGISTRATION SUCCESS
+ * ============================================================
+ */
 
-function showSuccess(type, result) {
+function showRegistrationSuccess(
+  result
+) {
 
-  if (!result || !result.sessionToken) {
 
-    showMessage(
-      "otpMessage",
-      "Verification succeeded, but the student session could not be created. Please try again.",
-      "error"
+  clearInterval(
+    resendTimer
+  );
+
+
+  resendTimer = null;
+
+
+  successEmail.textContent =
+    currentEmail;
+
+
+  /**
+   * Show the success page.
+   */
+
+  showPage(
+    "success"
+  );
+
+
+  /**
+   * If the HTML has a success description element,
+   * update it with the Student ID.
+   */
+
+  const description =
+    document.getElementById(
+      "successDescription"
     );
 
-    return;
+
+  if (
+    description &&
+    result.studentId
+  ) {
+
+    description.textContent =
+      "Your registration has been completed successfully. " +
+      "Your Student ID is " +
+      result.studentId +
+      ".";
 
   }
 
-  localStorage.setItem(
-    "urbantutorsite_student_session",
-    JSON.stringify({
-      sessionToken: result.sessionToken,
-      profile: result.profile || null
-    })
-  );
+
+  /**
+   * We don't need a login/session system in this first
+   * registration-only version.
+   */
 
   if (continueHomeButton) {
-    continueHomeButton.href = "index.html";
+
+    continueHomeButton
+      .classList
+      .remove("hidden");
+
   }
 
-  window.location.href = "index.html";
 }
 
 
-/************************************************************
- * STUDENT PROFILE
- ************************************************************/
-
-function getStudentSession() {
-
-  try {
-    const raw = localStorage.getItem(
-      "urbantutorsite_student_session"
-    );
-
-    return raw ? JSON.parse(raw) : null;
-
-  } catch (error) {
-
-    localStorage.removeItem(
-      "urbantutorsite_student_session"
-    );
-
-    return null;
-  }
-}
-
-async function openStudentProfile() {
-
-  const session = getStudentSession();
-
-  if (!session || !session.sessionToken) {
-    return;
-  }
-
-  try {
-
-    const result = await apiRequest({
-      action: "getStudentProfile",
-      sessionToken: session.sessionToken
-    });
-
-    if (!result.success) {
-      localStorage.removeItem(
-        "urbantutorsite_student_session"
-      );
-      window.location.href = "index.html";
-      return;
-    }
-
-    session.profile = result.profile;
-    localStorage.setItem(
-      "urbantutorsite_student_session",
-      JSON.stringify(session)
-    );
-
-    renderStudentProfile(result.profile);
-
-    studentProfileModal.classList.remove("hidden");
-    studentProfileModal.setAttribute("aria-hidden", "false");
-
-  } catch (error) {
-
-    console.error(error);
-
-    alert("Unable to load your profile. Please try again.");
-
-  }
-}
-
-function renderStudentProfile(profile) {
-
-  if (!studentProfileContent) {
-    return;
-  }
-
-  const fields = [
-    ["Name", profile.name],
-    ["Email", profile.email],
-    ["Phone", profile.phone],
-    ["WhatsApp", profile.whatsapp],
-    ["School", profile.school],
-    ["Class", profile.className],
-    ["Board", profile.board],
-    ["Subjects", profile.subjects, true],
-    ["Preferred Tutor", profile.preferredTutor],
-    ["Preferred Timing", profile.preferredTiming],
-    ["City", profile.city],
-    ["Address", profile.address, true],
-    ["PIN Code", profile.pinCode],
-    ["Account Status", profile.status]
-  ];
-
-  studentProfileContent.innerHTML = fields
-    .filter(function(item) {
-      return item[1] !== undefined && item[1] !== null && String(item[1]).trim() !== "";
-    })
-    .map(function(item) {
-      const label = escapeHTML(item[0]);
-      const value = escapeHTML(String(item[1]));
-      const full = item[2] ? " full" : "";
-      return `<div class="student-profile-item${full}"><span>${label}</span><strong>${value}</strong></div>`;
-    })
-    .join("");
-}
-
-function escapeHTML(value) {
-
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function closeStudentProfileModal() {
-
-  if (!studentProfileModal) {
-    return;
-  }
-
-  studentProfileModal.classList.add("hidden");
-  studentProfileModal.setAttribute("aria-hidden", "true");
-}
-
-async function logoutStudent() {
-
-  const session = getStudentSession();
-
-  if (session && session.sessionToken) {
-    try {
-      await apiRequest({
-        action: "logoutStudent",
-        sessionToken: session.sessionToken
-      });
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  localStorage.removeItem(
-    "urbantutorsite_student_session"
-  );
-
-  window.location.href = "index.html";
-}
-
-
-/************************************************************
+/**
+ * ============================================================
  * API REQUEST
- ************************************************************/
+ * ============================================================
+ *
+ * All communication with Google Apps Script happens here.
+ *
+ * Later, when we add:
+ *
+ *     getStudents
+ *     updateStudent
+ *     getAppointments
+ *     updateAppointment
+ *
+ * we will still use this SAME function.
+ *
+ * ============================================================
+ */
 
-async function apiRequest(payload) {
+async function apiRequest(
+  payload
+) {
 
-  const response = await fetch(
-    WEB_APP_URL,
-    {
 
-      method: "POST",
+  const response =
+    await fetch(
 
-      headers: {
+      WEB_APP_URL,
 
-        "Content-Type": "text/plain;charset=utf-8"
+      {
 
-      },
+        method:
+          "POST",
 
-      body: JSON.stringify(payload)
+        headers: {
 
-    }
-  );
+          "Content-Type":
+            "text/plain;charset=utf-8"
+
+        },
+
+        body:
+          JSON.stringify(
+            payload
+          )
+
+      }
+
+    );
 
 
   if (!response.ok) {
@@ -1261,14 +1460,23 @@ async function apiRequest(payload) {
   }
 
 
-  const text = await response.text();
+  const text =
+    await response.text();
 
 
   try {
 
-    return JSON.parse(text);
+    return JSON.parse(
+      text
+    );
 
   } catch (error) {
+
+    console.error(
+      "Server response:",
+      text
+    );
+
 
     throw new Error(
       "Invalid server response."
@@ -1279,69 +1487,101 @@ async function apiRequest(payload) {
 }
 
 
-/************************************************************
+/**
+ * ============================================================
  * PAGE MANAGEMENT
- ************************************************************/
+ * ============================================================
+ */
 
 function showPage(page) {
 
-  emailPage.classList.add("hidden");
 
-  registrationPage.classList.add("hidden");
+  emailPage
+    .classList
+    .add("hidden");
 
-  otpPage.hidden = true;
 
-  successPage.hidden = true;
+  registrationPage
+    .classList
+    .add("hidden");
+
+
+  otpPage.hidden =
+    true;
+
+
+  successPage.hidden =
+    true;
 
 
   if (page === "email") {
 
-    emailPage.classList.remove("hidden");
+    emailPage
+      .classList
+      .remove("hidden");
 
   }
 
 
   if (page === "registration") {
 
-    registrationPage.classList.remove("hidden");
+    registrationPage
+      .classList
+      .remove("hidden");
 
   }
 
 
   if (page === "otp") {
 
-    otpPage.hidden = false;
+    otpPage.hidden =
+      false;
 
   }
 
 
   if (page === "success") {
 
-    successPage.hidden = false;
+    successPage.hidden =
+      false;
 
   }
 
 
-  window.scrollTo(0, 0);
+  window.scrollTo(
+    0,
+    0
+  );
 
 }
 
 
-/************************************************************
- * RESEND TIMER
- ************************************************************/
+/**
+ * ============================================================
+ * OTP RESEND TIMER
+ * ============================================================
+ */
 
-function startResendTimer(seconds) {
+function startResendTimer(
+  seconds
+) {
 
-  clearInterval(resendTimer);
 
-  let remaining = Math.max(
-    0,
-    Number(seconds) || 60
+  clearInterval(
+    resendTimer
   );
 
 
-  resendButton.disabled = remaining > 0;
+  let remaining =
+    Math.max(
+      0,
+      Number(seconds) || 60
+    );
+
+
+  resendButton.disabled =
+    remaining > 0;
+
 
   resendButton.textContent =
     remaining > 0
@@ -1350,112 +1590,207 @@ function startResendTimer(seconds) {
 
 
   if (remaining <= 0) {
+
     return;
+
   }
 
 
-  resendTimer = setInterval(
-    () => {
+  resendTimer =
+    setInterval(
+      function() {
 
-      remaining--;
 
-      if (remaining <= 0) {
+        remaining--;
 
-        clearInterval(resendTimer);
 
-        resendTimer = null;
+        if (remaining <= 0) {
 
-        resendButton.disabled = false;
 
-        resendButton.textContent = "Resend OTP";
+          clearInterval(
+            resendTimer
+          );
 
-        return;
 
-      }
+          resendTimer =
+            null;
 
-      resendButton.textContent =
-        `Resend in ${remaining}s`;
 
-    },
-    1000
-  );
+          resendButton.disabled =
+            false;
+
+
+          resendButton.textContent =
+            "Resend OTP";
+
+
+          return;
+
+        }
+
+
+        resendButton.textContent =
+          `Resend in ${remaining}s`;
+
+
+      },
+      1000
+    );
 
 }
 
 
-/************************************************************
- * LOADING
- ************************************************************/
+/**
+ * ============================================================
+ * LOADING STATE
+ * ============================================================
+ */
 
-function setLoading(button, loading) {
-
-  button.disabled = loading;
-
-  let textElement = null;
-  let loaderElement = null;
+function setLoading(
+  button,
+  loading
+) {
 
 
-  if (button === continueButton) {
+  if (!button) {
 
-    textElement = document.getElementById("continueText");
-
-    loaderElement = document.getElementById("continueLoader");
+    return;
 
   }
 
 
-  if (button === registerButton) {
+  button.disabled =
+    loading;
 
-    textElement = document.getElementById("registerText");
 
-    loaderElement = document.getElementById("registerLoader");
+  let textElement =
+    null;
+
+
+  let loaderElement =
+    null;
+
+
+  if (
+    button ===
+    continueButton
+  ) {
+
+    textElement =
+      document.getElementById(
+        "continueText"
+      );
+
+
+    loaderElement =
+      document.getElementById(
+        "continueLoader"
+      );
 
   }
 
 
-  if (button === verifyOtpButton) {
+  if (
+    button ===
+    registerButton
+  ) {
 
-    textElement = document.getElementById("verifyOtpText");
+    textElement =
+      document.getElementById(
+        "registerText"
+      );
 
-    loaderElement = document.getElementById("verifyOtpLoader");
+
+    loaderElement =
+      document.getElementById(
+        "registerLoader"
+      );
 
   }
 
 
-  if (textElement && loaderElement) {
+  if (
+    button ===
+    verifyOtpButton
+  ) {
 
-    textElement.classList.toggle("hidden", loading);
+    textElement =
+      document.getElementById(
+        "verifyOtpText"
+      );
 
-    loaderElement.classList.toggle("hidden", !loading);
+
+    loaderElement =
+      document.getElementById(
+        "verifyOtpLoader"
+      );
+
+  }
+
+
+  if (
+    textElement &&
+    loaderElement
+  ) {
+
+    textElement
+      .classList
+      .toggle(
+        "hidden",
+        loading
+      );
+
+
+    loaderElement
+      .classList
+      .toggle(
+        "hidden",
+        !loading
+      );
 
   }
 
 }
 
 
-/************************************************************
+/**
+ * ============================================================
  * HELPERS
- ************************************************************/
+ * ============================================================
+ */
 
-function normalizeEmail(email) {
+function normalizeEmail(
+  email
+) {
 
-  return String(email || "")
+  return String(
+    email || ""
+  )
     .trim()
     .toLowerCase();
 
 }
 
 
-function cleanText(value) {
+function cleanText(
+  value
+) {
 
-  return String(value || "")
+  return String(
+    value || ""
+  )
     .trim()
-    .replace(/\s+/g, " ");
+    .replace(
+      /\s+/g,
+      " "
+    );
 
 }
 
 
-function isValidEmail(email) {
+function isValidEmail(
+  email
+) {
 
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i
     .test(email);
@@ -1463,11 +1798,16 @@ function isValidEmail(email) {
 }
 
 
-function getRadioValue(name) {
+function getRadioValue(
+  name
+) {
 
-  const element = document.querySelector(
-    `input[name="${name}"]:checked`
-  );
+
+  const element =
+    document.querySelector(
+      `input[name="${name}"]:checked`
+    );
+
 
   return element
     ? element.value
@@ -1476,40 +1816,70 @@ function getRadioValue(name) {
 }
 
 
+/**
+ * ============================================================
+ * FOCUS OTP
+ * ============================================================
+ */
+
 function focusOTP() {
 
+
   setTimeout(
-    () => otpInput.focus(),
+    function() {
+
+      otpInput.focus();
+
+    },
     250
   );
 
 }
 
 
-/************************************************************
- * ERRORS / MESSAGES
- ************************************************************/
+/**
+ * ============================================================
+ * ERROR HELPERS
+ * ============================================================
+ */
 
-function setFieldError(id, message) {
+function setFieldError(
+  id,
+  message
+) {
 
-  const element = document.getElementById(id);
+
+  const element =
+    document.getElementById(
+      id
+    );
+
 
   if (element) {
 
-    element.textContent = message;
+    element.textContent =
+      message;
 
   }
 
 }
 
 
-function clearFieldError(id) {
+function clearFieldError(
+  id
+) {
 
-  const element = document.getElementById(id);
+
+  const element =
+    document.getElementById(
+      id
+    );
+
 
   if (element) {
 
-    element.textContent = "";
+    element.textContent =
+      "";
 
   }
 
@@ -1518,110 +1888,134 @@ function clearFieldError(id) {
 
 function clearFieldErrors() {
 
+
   [
+
     "emailError",
+
     "phoneError",
+
     "whatsappError",
+
     "firstNameError",
+
     "lastNameError",
+
     "schoolError",
+
     "classError",
+
     "boardError",
+
     "subjectsError",
+
     "timingError",
+
     "cityError",
+
     "addressError",
+
     "pinError",
+
     "termsError",
+
     "otpError"
 
-  ].forEach(clearFieldError);
+  ].forEach(
+    clearFieldError
+  );
 
 }
 
 
-function showMessage(id, message, type) {
+/**
+ * ============================================================
+ * MESSAGE HELPERS
+ * ============================================================
+ */
 
-  const element = document.getElementById(id);
+function showMessage(
+  id,
+  message,
+  type
+) {
+
+
+  const element =
+    document.getElementById(
+      id
+    );
+
 
   if (!element) {
+
     return;
+
   }
 
-  element.textContent = message;
 
-  element.className = `message ${type}`;
+  element.textContent =
+    message;
+
+
+  element.className =
+    `message ${type}`;
 
 }
 
 
-function clearMessage(id) {
+function clearMessage(
+  id
+) {
 
-  const element = document.getElementById(id);
+
+  const element =
+    document.getElementById(
+      id
+    );
+
 
   if (!element) {
+
     return;
+
   }
 
-  element.textContent = "";
 
-  element.className = "message";
+  element.textContent =
+    "";
+
+
+  element.className =
+    "message";
 
 }
 
 
 function clearMessages() {
 
+
   [
+
     "emailMessage",
+
     "registrationMessage",
+
     "otpMessage"
 
-  ].forEach(clearMessage);
+  ].forEach(
+    clearMessage
+  );
 
 }
 
 
-/************************************************************
- * INITIAL STATE
- *
- * The login form is shown first. Only if the saved session is
- * confirmed valid by the server is the student sent to
- * index.html. An expired / invalid session is cleared so the
- * form stays usable.
- ************************************************************/
+/**
+ * ============================================================
+ * INITIAL PAGE
+ * ============================================================
+ */
 
-showPage("email");
-
-(async function () {
-
-  const existingSession = getStudentSession();
-
-  if (!existingSession || !existingSession.sessionToken) {
-    return;
-  }
-
-  try {
-
-    const result = await apiRequest({
-      action: "getStudentProfile",
-      sessionToken: existingSession.sessionToken
-    });
-
-    if (result.success) {
-
-      window.location.replace("index.html");
-
-      return;
-
-    }
-
-    localStorage.removeItem("urbantutorsite_student_session");
-
-  } catch (error) {
-
-    console.error(error);
-
-  }
-
-})();
+showPage(
+  "email"
+);
