@@ -21,7 +21,7 @@
      =================================================== */
 
   const WEB_APP_URL =
-    "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec/exec";
+    "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec";
 
   const AUTO_ROTATE_MS = 6000;
 
