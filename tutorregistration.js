@@ -1,120 +1,847 @@
+"use strict";
+
+/************************************************************
+ * URBANTUTORSITE - TUTOR REGISTRATION (front-end)
+ *
+ * FLOW
+ *   1. Email page
+ *        - email already registered -> LOGIN  : OTP  -> welcome page
+ *        - new email                -> REGISTER: form -> OTP -> saved
+ *   2. Registration page (validated in the browser)
+ *   3. OTP page (shared by registration and login)
+ *   4. Success page
+ *
+ * API ACTIONS USED (see API Router.gs / Tutor Registration.gs)
+ *   checkTutorEmail            sendTutorOTP
+ *   resendTutorOTP             verifyTutorOTP
+ *   completeTutorRegistration
+ ************************************************************/
+
+
+/************************************************************
+ * CONFIGURATION
+ ************************************************************/
+
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec";
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-let verifiedEmail = "";
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024;   // 5 MB per document
+
+
+/************************************************************
+ * STATE
+ ************************************************************/
+
+let currentEmail = "";     // email the tutor entered on page 1
+let currentMode = "";      // "register" or "login"
+let currentName = "";      // used only in the OTP e-mail greeting
+let verifiedToken = "";    // received after a correct registration OTP
+let resendTimer = null;    // countdown interval for "Resend OTP"
+
+
+/************************************************************
+ * SMALL HELPERS
+ ************************************************************/
 
 const $ = id => document.getElementById(id);
 
-function setMessage(el, text, type="") { el.textContent=text||""; el.className="message"+(type?" "+type:""); }
-function setError(id, text) { const e=$(id); if(e)e.textContent=text||""; }
-function clearErrors(){document.querySelectorAll(".field-error").forEach(e=>e.textContent="");}
-function val(id){return ($(id)?.value||"").trim();}
-function checked(name){const e=document.querySelector(`input[name="${name}"]:checked`);return e?e.value:"";}
-function values(containerId){return [...document.querySelectorAll(`#${containerId} input:checked`)].map(x=>x.value);}
+function val(id) { return ($(id)?.value || "").trim(); }
 
-async function apiRequest(payload, timeoutMs=45000){
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),timeoutMs);
-  try{
-    const response=await fetch(WEB_APP_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),signal:controller.signal});
-    const raw=await response.text();
-    if(!response.ok) throw new Error(`HTTP ${response.status}`);
-    let data;
-    try{data=JSON.parse(raw);}catch(e){throw new Error("Server returned an invalid response.");}
-    return data;
-  }catch(err){
-    if(err.name==="AbortError") throw new Error("Request timed out. Please try again.");
-    if(err instanceof TypeError) throw new Error("Load failed. Please check the API Web App URL and deployment access.");
+function cleanText(value) { return String(value || "").trim().replace(/\s+/g, " "); }
+
+function checked(name) {
+  const e = document.querySelector(`input[name="${name}"]:checked`);
+  return e ? e.value : "";
+}
+
+/* Values of all ticked checkboxes inside a container */
+function values(containerId) {
+  return [...document.querySelectorAll(`#${containerId} input:checked`)].map(x => x.value);
+}
+
+function normalizeEmail(email) { return String(email || "").trim().toLowerCase(); }
+
+function isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email); }
+
+/* Inline field error */
+function setError(id, text) { const e = $(id); if (e) e.textContent = text || ""; }
+
+function clearErrors() { document.querySelectorAll(".field-error").forEach(e => e.textContent = ""); }
+
+/* Status message under a form ("info" | "error" | "success") */
+function showMessage(id, text, type = "") {
+  const el = $(id);
+  if (!el) return;
+  el.textContent = text || "";
+  el.className = "message" + (type ? " " + type : "");
+}
+
+function clearMessages() {
+  ["emailMessage", "registrationMessage", "otpMessage"].forEach(id => showMessage(id, ""));
+}
+
+/* Swap a button's label for a spinner */
+function setBusy(button, textId, loaderId, busy) {
+  button.disabled = busy;
+  $(textId).classList.toggle("hidden", busy);
+  $(loaderId).classList.toggle("hidden", !busy);
+}
+
+/* Keep only digits (or digits + one dot when allowDecimal) */
+function digitsOnly(input, allowDecimal = false) {
+  let v = input.value;
+  if (allowDecimal) {
+    v = v.replace(/[^\d.]/g, "");
+    const firstDot = v.indexOf(".");
+    if (firstDot !== -1) {
+      v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, "");
+    }
+  } else {
+    v = v.replace(/\D/g, "");
+  }
+  input.value = v;
+}
+
+function formatFileSize(bytes) {
+  return bytes >= 1024 * 1024
+    ? (bytes / (1024 * 1024)).toFixed(1) + " MB"
+    : Math.max(1, Math.round(bytes / 1024)) + " KB";
+}
+
+
+/************************************************************
+ * PAGE MANAGEMENT
+ ************************************************************/
+
+function showPage(name) {
+  ["email", "registration", "otp", "success"].forEach(n =>
+    $(n + "Page").classList.toggle("hidden", n !== name)
+  );
+  window.scrollTo(0, 0);
+}
+
+
+/************************************************************
+ * API REQUEST (with timeout and readable errors)
+ ************************************************************/
+
+async function apiRequest(payload, timeoutMs = 45000) {
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+
+    const response = await fetch(WEB_APP_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+
+    const raw = await response.text();
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      throw new Error("Server returned an invalid response.");
+    }
+
+  } catch (err) {
+
+    if (err.name === "AbortError") throw new Error("Request timed out. Please try again.");
+    if (err instanceof TypeError) throw new Error("Unable to connect to the server. Please try again.");
     throw err;
-  }finally{clearTimeout(timer);}
+
+  } finally {
+
+    clearTimeout(timer);
+
+  }
+
 }
 
-function setBusy(button,textId,loaderId,busy){
-  button.disabled=busy; $(textId).classList.toggle("hidden",busy); $(loaderId).classList.toggle("hidden",!busy);
+
+/************************************************************
+ * FORM INPUT BEHAVIOUR
+ ************************************************************/
+
+/* ---- WhatsApp "same as mobile" ---- */
+
+$("sameWhatsapp").addEventListener("change", () => {
+  if ($("sameWhatsapp").checked) {
+    $("whatsapp").value = val("mobile");
+    $("whatsapp").readOnly = true;
+  } else {
+    $("whatsapp").readOnly = false;
+    $("whatsapp").value = "";
+  }
+});
+
+$("mobile").addEventListener("input", () => {
+  digitsOnly($("mobile"));
+  if ($("sameWhatsapp").checked) $("whatsapp").value = val("mobile");
+});
+
+/* ---- digits-only fields ---- */
+
+["whatsapp", "pinCode", "otp", "twelfthYear", "graduationYear", "pgYear"].forEach(id =>
+  $(id).addEventListener("input", () => digitsOnly($(id)))
+);
+
+/* ---- 12th: Percentage OR CGPA (never both) ----
+ * Typing in one box disables the other; clearing it enables it again. */
+
+function syncTwelfthResult() {
+  const percentage = $("twelfthPercentage");
+  const cgpa = $("twelfthCgpa");
+  cgpa.disabled = percentage.value.trim() !== "";
+  percentage.disabled = cgpa.value.trim() !== "";
 }
 
-/* Page switching: email -> registration -> success (same flow as the student page) */
-function showPage(name){
-  ["email","registration","success"].forEach(n=>$(n+"Page").classList.toggle("hidden",n!==name));
-  window.scrollTo(0,0);
+["twelfthPercentage", "twelfthCgpa"].forEach(id =>
+  $(id).addEventListener("input", () => {
+    digitsOnly($(id), true);
+    setError(id + "Error", "");
+    syncTwelfthResult();
+  })
+);
+
+/* ---- Date of birth ----
+ * The input is a real date field; the "Choose Date of Birth" text is a
+ * placeholder drawn on top. `has-value` hides it once a date is chosen. */
+
+const birthDateInput = $("birthDate");
+const birthDateWrap = $("birthDateWrap");
+
+function syncBirthDate() {
+  birthDateWrap.classList.toggle("has-value", birthDateInput.value !== "");
 }
 
-function validateEmail(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);}
-function validatePhone(id,errorId,label){const v=val(id); if(!/^\d{10}$/.test(v)){setError(errorId,`${label} must contain 10 digits.`);return false}return true;}
-function validateFile(id,errorId,imagesOnly=false){const f=$(id).files[0]; if(!f){setError(errorId,"Please upload this file.");return false} if(f.size>MAX_FILE_SIZE){setError(errorId,"File must be 5 MB or smaller.");return false} if(imagesOnly && !/^image\/(jpeg|png)$/.test(f.type)){setError(errorId,"Please upload a JPG or PNG image.");return false} if(!imagesOnly && !["application/pdf","image/jpeg","image/png"].includes(f.type)){setError(errorId,"Please upload PDF, JPG or PNG.");return false}return true;}
-function fileToBase64(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(",")[1]);r.onerror=()=>reject(new Error("Could not read uploaded file."));r.readAsDataURL(file);});}
+birthDateInput.max = new Date().toISOString().split("T")[0];   // no future dates
+birthDateInput.addEventListener("input", syncBirthDate);
+birthDateInput.addEventListener("change", syncBirthDate);
+syncBirthDate();
 
-$("sameWhatsapp").addEventListener("change",()=>{if($("sameWhatsapp").checked){$("whatsapp").value=val("mobile");$("whatsapp").readOnly=true}else{$("whatsapp").readOnly=false;$("whatsapp").value="";}});
-$("mobile").addEventListener("input",()=>{if($("sameWhatsapp").checked)$("whatsapp").value=val("mobile");});
+/* ---- Upload cards (file name, size, "Change" button, photo preview) ---- */
 
-/* Show the chosen file name inside each upload box */
-[["identityProof","identityHint"],["profileImage","profileHint"]].forEach(([inputId,hintId])=>{
-  const input=$(inputId),hint=$(hintId),original=hint.textContent;
-  input.addEventListener("change",()=>{
-    const f=input.files[0];
-    hint.textContent=f?f.name:original;
-    input.closest(".upload-box").classList.toggle("has-file",!!f);
+function bindUpload(prefix, inputId) {
+
+  const input = $(inputId);
+  const card = $(prefix + "Card");
+  const fileLine = $(prefix + "File");
+  const buttonText = $(prefix + "BtnText");
+  const preview = $(prefix + "Preview");      // only the profile card has one
+  let previewUrl = "";
+
+  input.addEventListener("change", () => {
+
+    setError(prefix + "Error", "");
+
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = ""; }
+
+    const file = input.files[0];
+
+    card.classList.toggle("has-file", !!file);
+    buttonText.textContent = file ? "Change" : "Upload";
+    fileLine.textContent = file ? `✓ ${file.name} · ${formatFileSize(file.size)}` : "";
+
+    if (preview) {
+      if (file && /^image\//.test(file.type)) {
+        previewUrl = URL.createObjectURL(file);
+        preview.src = previewUrl;
+        preview.classList.remove("hidden");
+      } else {
+        preview.classList.add("hidden");
+        preview.removeAttribute("src");
+      }
+    }
+
   });
-});
 
-/* STEP 1: email check */
-$("emailForm").addEventListener("submit",async e=>{
+}
+
+bindUpload("identity", "identityProof");
+bindUpload("profile", "profileImage");
+
+
+/************************************************************
+ * TERMS MODAL
+ ************************************************************/
+
+$("termsButton").onclick = () => $("termsModal").classList.remove("hidden");
+$("closeTerms").onclick = () => $("termsModal").classList.add("hidden");
+$("acceptTerms").onclick = () => {
+  $("terms").checked = true;
+  $("termsModal").classList.add("hidden");
+  setError("termsError", "");
+};
+$("termsModal").querySelector(".modal-overlay").onclick = () => $("termsModal").classList.add("hidden");
+
+
+/************************************************************
+ * STEP 1 - EMAIL
+ *   existing tutor -> login OTP
+ *   new tutor      -> registration form
+ ************************************************************/
+
+$("emailForm").addEventListener("submit", async e => {
   e.preventDefault();
-  clearErrors(); setMessage($("emailMessage"),"");
-  const email=val("email").toLowerCase();
-  if(!validateEmail(email)){setError("emailError","Please enter a valid email address.");return;}
-  const b=$("checkEmailButton");setBusy(b,"checkEmailText","checkEmailLoader",true);
-  try{
-    const result=await apiRequest({action:"checkTutorEmail",email});
-    if(!result.success) throw new Error(result.message||"Unable to check email.");
-    if(result.exists){setMessage($("emailMessage"),result.message||"This email is already registered.","error");return;}
-    verifiedEmail=email;
-    $("registrationEmail").value=email;
-    showPage("registration");
-  }catch(err){setMessage($("emailMessage"),err.message,"error");}
-  finally{setBusy(b,"checkEmailText","checkEmailLoader",false);}
+  await checkEmail();
 });
 
-/* Back to email step */
-$("registrationBackButton").addEventListener("click",()=>{
-  verifiedEmail="";
+async function checkEmail() {
+
   clearErrors();
-  setMessage($("registrationMessage"),"");
-  setMessage($("emailMessage"),"");
+  clearMessages();
+
+  const email = normalizeEmail($("email").value);
+
+  if (!isValidEmail(email)) {
+    setError("emailError", "Please enter a valid email address.");
+    $("email").focus();
+    return;
+  }
+
+  currentEmail = email;
+  verifiedToken = "";
+
+  const button = $("continueButton");
+  setBusy(button, "continueText", "continueLoader", true);
+  showMessage("emailMessage", "Checking your account...", "info");
+
+  try {
+
+    const result = await apiRequest({ action: "checkTutorEmail", email });
+
+    if (!result.success) {
+      showMessage("emailMessage", result.message || "Unable to check email.", "error");
+      return;
+    }
+
+    /* ---- Existing tutor: LOGIN with OTP ---- */
+
+    if (result.exists) {
+
+      currentMode = "login";
+      currentName = result.name || "";
+
+      showMessage("emailMessage", "Account found. Sending your login code...", "info");
+
+      const otpResult = await apiRequest({
+        action: "sendTutorOTP",
+        email: currentEmail,
+        mode: "login"
+      });
+
+      if (!otpResult.success) {
+        showMessage("emailMessage", otpResult.message || "Unable to send OTP.", "error");
+        return;
+      }
+
+      showMessage("emailMessage", "");
+      openOtpPage("login", otpResult);
+      return;
+
+    }
+
+    /* ---- New tutor: REGISTRATION form ---- */
+
+    currentMode = "register";
+    $("registrationEmail").value = email;
+    showMessage("emailMessage", "");
+    showPage("registration");
+    setTimeout(() => $("mobile").focus(), 250);
+
+  } catch (err) {
+
+    showMessage("emailMessage", err.message, "error");
+
+  } finally {
+
+    setBusy(button, "continueText", "continueLoader", false);
+
+  }
+
+}
+
+
+/************************************************************
+ * STEP 2 - REGISTRATION FORM
+ *   Validate -> send OTP -> OTP page.
+ *   Nothing is saved until the OTP is verified.
+ ************************************************************/
+
+$("registrationBackButton").addEventListener("click", () => {
+  clearErrors();
+  clearMessages();
   showPage("email");
 });
 
-/* STEP 2: registration */
-$("tutorForm").addEventListener("submit",async e=>{
-  e.preventDefault();clearErrors();setMessage($("registrationMessage"),"");
-  if(!verifiedEmail){showPage("email");setMessage($("emailMessage"),"Please enter your email first.","error");return;}
-  let ok=true;
-  ok=validatePhone("mobile","mobileError","Mobile Number")&&ok;ok=validatePhone("whatsapp","whatsappError","WhatsApp Number")&&ok;
-  ["firstName","lastName","birthDate","experience","city","address","pinCode"].forEach(id=>{if(!val(id)){setError(id+"Error","This field is required.");ok=false;}});
-  if(!/^\d{6}$/.test(val("pinCode"))){setError("pinError","Pin Code must contain 6 digits.");ok=false;}
-  if(values("languages").length===0){setError("languagesError","Select at least one language.");ok=false;}
-  if(values("classesTeach").length===0){setError("classesError","Select at least one class range.");ok=false;}
-  if(values("subjectsTeach").length===0){setError("subjectsError","Select at least one subject.");ok=false;}
-  if(values("boardsTeach").length===0){setError("boardsError","Select at least one board.");ok=false;}
-  ok=validateFile("identityProof","identityError",false)&&ok;ok=validateFile("profileImage","profileError",true)&&ok;
-  if(!$("terms").checked){setError("termsError","Please accept the Terms & Conditions.");ok=false;}
-  if(!ok){const first=document.querySelector(".field-error:not(:empty)");if(first)first.scrollIntoView({behavior:"smooth",block:"center"});return;}
-
-  const button=$("registerButton");setBusy(button,"registerText","registerLoader",true);
-  try{
-    const identity=$("identityProof").files[0], profile=$("profileImage").files[0];
-    const [identityData,profileData]=await Promise.all([fileToBase64(identity),fileToBase64(profile)]);
-    const payload={action:"tutorregistration",email:verifiedEmail,mobile:val("mobile"),whatsapp:val("whatsapp"),registerAs:checked("registerAs"),firstName:val("firstName"),lastName:val("lastName"),birthDate:val("birthDate"),gender:checked("gender"),languages:values("languages"),identityProof:{name:identity.name,mimeType:identity.type,size:identity.size,data:identityData},profileImage:{name:profile.name,mimeType:profile.type,size:profile.size,data:profileData},twelfthStream:checked("twelfthStream"),twelfthYear:val("twelfthYear"),twelfthGrade:val("twelfthGrade"),twelfthBoard:checked("twelfthBoard"),graduationCourse:val("graduationCourse"),graduationSubject:val("graduationSubject"),graduationCollege:val("graduationCollege"),graduationYear:val("graduationYear"),graduationPercentage:val("graduationPercentage"),pgSubject:val("pgSubject"),pgCollege:val("pgCollege"),pgYear:val("pgYear"),pgPercentage:val("pgPercentage"),specialCourses:values("specialCourses"),disability:values("disability"),experience:val("experience"),classesTeach:values("classesTeach"),subjectsTeach:values("subjectsTeach"),boardsTeach:values("boardsTeach"),location:val("location"),city:val("city"),address:val("address"),pinCode:val("pinCode")};
-    const result=await apiRequest(payload,90000);
-    if(!result.success) throw new Error(result.message||"Registration could not be completed.");
-    $("successText").textContent=`Your Tutor ID is ${result.tutorId||"generated successfully"}. Your documents have been saved for verification.`;
-    $("successEmail").textContent=verifiedEmail;
-    showPage("success");
-  }catch(err){setMessage($("registrationMessage"),err.message,"error");}
-  finally{setBusy(button,"registerText","registerLoader",false);}
+$("tutorForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  await registerTutor();
 });
 
-/* Terms modal */
-$("termsButton").onclick=()=>$("termsModal").classList.remove("hidden");
-$("closeTerms").onclick=()=>$("termsModal").classList.add("hidden");
-$("acceptTerms").onclick=()=>{ $("terms").checked=true;$("termsModal").classList.add("hidden");setError("termsError","");};
-$("termsModal").querySelector(".modal-overlay").onclick=()=>$("termsModal").classList.add("hidden");
+/* Client-side validation. Returns true when everything is fine. */
+function validateRegistration() {
+
+  let ok = true;
+
+  const fail = (id, message) => { setError(id, message); ok = false; };
+
+  /* Phone numbers */
+  if (!/^\d{10}$/.test(val("mobile"))) fail("mobileError", "Mobile Number must contain 10 digits.");
+  if (!/^\d{10}$/.test(val("whatsapp"))) fail("whatsappError", "WhatsApp Number must contain 10 digits.");
+
+  /* Full name */
+  if (cleanText($("fullName").value).length < 2) fail("fullNameError", "Please enter your full name.");
+
+  /* Date of birth */
+  if (!val("birthDate")) {
+    fail("birthDateError", "Please choose your date of birth.");
+  } else if (new Date(val("birthDate")) > new Date()) {
+    fail("birthDateError", "Date of birth cannot be in the future.");
+  }
+
+  /* Class 12th result: percentage 0-100 OR CGPA 0-10 */
+  const percentage = val("twelfthPercentage");
+  const cgpa = val("twelfthCgpa");
+  const decimal = /^\d+(\.\d{1,2})?$/;
+
+  if (percentage && (!decimal.test(percentage) || Number(percentage) > 100)) {
+    fail("twelfthPercentageError", "Enter 0 - 100.");
+  }
+  if (cgpa && (!decimal.test(cgpa) || Number(cgpa) > 10)) {
+    fail("twelfthCgpaError", "Enter 0 - 10.");
+  }
+
+  /* Required text fields */
+  ["experience", "city", "address"].forEach(id => {
+    if (!val(id)) fail(id + "Error", "This field is required.");
+  });
+
+  if (!/^\d{6}$/.test(val("pinCode"))) fail("pinError", "Pin Code must contain 6 digits.");
+
+  /* Groups */
+  if (values("languages").length === 0) fail("languagesError", "Select at least one language.");
+  if (values("classesTeach").length === 0) fail("classesError", "Select at least one class range.");
+  if (values("subjectsTeach").length === 0) fail("subjectsError", "Select at least one subject.");
+  if (values("boardsTeach").length === 0) fail("boardsError", "Select at least one board.");
+
+  /* Documents */
+  if (!validateFile("identityProof", "identityError", false)) ok = false;
+  if (!validateFile("profileImage", "profileError", true)) ok = false;
+
+  /* Terms */
+  if (!$("terms").checked) fail("termsError", "Please accept the Terms & Conditions.");
+
+  return ok;
+
+}
+
+function validateFile(id, errorId, imagesOnly) {
+
+  const f = $(id).files[0];
+
+  if (!f) { setError(errorId, "Please upload this file."); return false; }
+  if (f.size > MAX_FILE_SIZE) { setError(errorId, "File must be 5 MB or smaller."); return false; }
+
+  if (imagesOnly && !/^image\/(jpeg|png)$/.test(f.type)) {
+    setError(errorId, "Please upload a JPG or PNG image.");
+    return false;
+  }
+
+  if (!imagesOnly && !["application/pdf", "image/jpeg", "image/png"].includes(f.type)) {
+    setError(errorId, "Please upload PDF, JPG or PNG.");
+    return false;
+  }
+
+  return true;
+
+}
+
+async function registerTutor() {
+
+  clearErrors();
+  clearMessages();
+
+  if (!currentEmail) {
+    showPage("email");
+    showMessage("emailMessage", "Please enter your email first.", "error");
+    return;
+  }
+
+  if (!validateRegistration()) {
+    const first = document.querySelector(".field-error:not(:empty)");
+    if (first) first.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+
+  currentName = cleanText($("fullName").value);
+  verifiedToken = "";
+
+  const button = $("registerButton");
+  setBusy(button, "registerText", "registerLoader", true);
+  showMessage("registrationMessage", "Sending verification OTP...", "info");
+
+  try {
+
+    const result = await apiRequest({
+      action: "sendTutorOTP",
+      email: currentEmail,
+      mode: "register",
+      name: currentName
+    });
+
+    if (!result.success) {
+      showMessage("registrationMessage", result.message || "Unable to send OTP.", "error");
+      return;
+    }
+
+    showMessage("registrationMessage", "");
+    openOtpPage("register", result);
+
+  } catch (err) {
+
+    showMessage("registrationMessage", err.message, "error");
+
+  } finally {
+
+    setBusy(button, "registerText", "registerLoader", false);
+
+  }
+
+}
+
+
+/************************************************************
+ * STEP 3 - OTP (registration and login)
+ ************************************************************/
+
+function openOtpPage(mode, apiResult) {
+
+  currentMode = mode;
+
+  $("emailDisplay").textContent = currentEmail;
+  $("otp").value = "";
+  clearErrors();
+  showMessage("otpMessage", "");
+
+  if (mode === "login") {
+    $("otpEyebrow").textContent = "SECURE LOGIN";
+    $("otpTitle").textContent = "Verify to login";
+    $("verifyOtpText").textContent = "Login";
+    $("otpBackButton").textContent = "← Change email";
+  } else {
+    $("otpEyebrow").textContent = "REGISTRATION VERIFICATION";
+    $("otpTitle").textContent = "Verify your email";
+    $("verifyOtpText").textContent = "Verify & Register";
+    $("otpBackButton").textContent = "← Edit details";
+  }
+
+  showPage("otp");
+  startResendTimer(apiResult.resendAfter || 60);
+  setTimeout(() => $("otp").focus(), 250);
+
+}
+
+/* Back: registration -> form (details kept), login -> email page */
+$("otpBackButton").addEventListener("click", () => {
+
+  clearInterval(resendTimer);
+  resendTimer = null;
+  verifiedToken = "";
+
+  clearErrors();
+  clearMessages();
+  $("otp").value = "";
+
+  showPage(currentMode === "register" ? "registration" : "email");
+
+});
+
+$("otpForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  await verifyOtp();
+});
+
+async function verifyOtp() {
+
+  clearErrors();
+  showMessage("otpMessage", "");
+
+  const otp = val("otp");
+
+  /* If the OTP was already accepted (only the upload failed), skip the OTP check */
+  const needOtp = !(currentMode === "register" && verifiedToken);
+
+  if (needOtp && !/^\d{6}$/.test(otp)) {
+    setError("otpError", "Please enter the 6-digit OTP.");
+    $("otp").focus();
+    return;
+  }
+
+  const button = $("verifyOtpButton");
+  setBusy(button, "verifyOtpText", "verifyOtpLoader", true);
+
+  try {
+
+    /* ---- A. verify the OTP ---- */
+
+    if (needOtp) {
+
+      showMessage("otpMessage", "Verifying your OTP...", "info");
+
+      const result = await apiRequest({
+        action: "verifyTutorOTP",
+        email: currentEmail,
+        otp: otp,
+        mode: currentMode
+      });
+
+      if (!result.success) {
+        showMessage("otpMessage", result.message || "Incorrect OTP.", "error");
+        return;
+      }
+
+      /* LOGIN finished */
+      if (currentMode === "login") {
+        showSuccess("login", result);
+        return;
+      }
+
+      verifiedToken = result.verificationToken || "";
+
+    }
+
+    /* ---- B. registration: OTP is correct -> save the tutor ---- */
+
+    if (!verifiedToken) {
+      showMessage("otpMessage", "Verification failed. Please request a new OTP.", "error");
+      return;
+    }
+
+    showMessage("otpMessage", "Email verified. Saving your registration and documents...", "info");
+
+    const payload = await buildRegistrationPayload();
+    payload.action = "completeTutorRegistration";
+    payload.email = currentEmail;
+    payload.verificationToken = verifiedToken;
+
+    const saved = await apiRequest(payload, 90000);
+
+    if (!saved.success) {
+      showMessage("otpMessage", saved.message || "Registration could not be completed.", "error");
+      return;
+    }
+
+    showSuccess("register", saved);
+
+  } catch (err) {
+
+    showMessage("otpMessage", err.message, "error");
+
+  } finally {
+
+    setBusy(button, "verifyOtpText", "verifyOtpLoader", false);
+
+  }
+
+}
+
+/* Resend OTP (server enforces the 60 second gap) */
+$("resendButton").addEventListener("click", async () => {
+
+  const button = $("resendButton");
+  button.disabled = true;
+  verifiedToken = "";
+  showMessage("otpMessage", "Sending a new OTP...", "info");
+
+  try {
+
+    const result = await apiRequest({
+      action: "resendTutorOTP",
+      email: currentEmail,
+      mode: currentMode,
+      name: currentName
+    });
+
+    if (!result.success) {
+      showMessage("otpMessage", result.message || "Unable to resend OTP.", "error");
+      if (result.resendAfter) startResendTimer(result.resendAfter);
+      else button.disabled = false;
+      return;
+    }
+
+    $("otp").value = "";
+    showMessage("otpMessage", "New OTP sent successfully.", "success");
+    startResendTimer(result.resendAfter || 60);
+
+  } catch (err) {
+
+    button.disabled = false;
+    showMessage("otpMessage", err.message, "error");
+
+  }
+
+});
+
+/* "Resend in 42s" countdown */
+function startResendTimer(seconds) {
+
+  const button = $("resendButton");
+
+  clearInterval(resendTimer);
+
+  let remaining = Math.max(0, Number(seconds) || 60);
+
+  button.disabled = remaining > 0;
+  button.textContent = remaining > 0 ? `Resend in ${remaining}s` : "Resend OTP";
+
+  if (remaining <= 0) return;
+
+  resendTimer = setInterval(() => {
+
+    remaining--;
+
+    if (remaining <= 0) {
+      clearInterval(resendTimer);
+      resendTimer = null;
+      button.disabled = false;
+      button.textContent = "Resend OTP";
+      return;
+    }
+
+    button.textContent = `Resend in ${remaining}s`;
+
+  }, 1000);
+
+}
+
+
+/************************************************************
+ * REGISTRATION PAYLOAD (form + documents)
+ * Built only AFTER the OTP is verified.
+ ************************************************************/
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1]);
+    reader.onerror = () => reject(new Error("Could not read uploaded file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function buildRegistrationPayload() {
+
+  const identity = $("identityProof").files[0];
+  const profile = $("profileImage").files[0];
+
+  const [identityData, profileData] = await Promise.all([
+    fileToBase64(identity),
+    fileToBase64(profile)
+  ]);
+
+  return {
+
+    mobile: val("mobile"),
+    whatsapp: val("whatsapp"),
+    registerAs: checked("registerAs"),
+
+    fullName: cleanText($("fullName").value),
+    birthDate: val("birthDate"),
+    gender: checked("gender"),
+    languages: values("languages"),
+
+    identityProof: { name: identity.name, mimeType: identity.type, size: identity.size, data: identityData },
+    profileImage: { name: profile.name, mimeType: profile.type, size: profile.size, data: profileData },
+
+    twelfthStream: checked("twelfthStream"),
+    twelfthYear: val("twelfthYear"),
+    twelfthPercentage: val("twelfthPercentage"),
+    twelfthCgpa: val("twelfthCgpa"),
+    twelfthBoard: checked("twelfthBoard"),
+
+    graduationCourse: val("graduationCourse"),
+    graduationSubject: val("graduationSubject"),
+    graduationCollege: val("graduationCollege"),
+    graduationYear: val("graduationYear"),
+    graduationPercentage: val("graduationPercentage"),
+
+    pgSubject: val("pgSubject"),
+    pgCollege: val("pgCollege"),
+    pgYear: val("pgYear"),
+    pgPercentage: val("pgPercentage"),
+
+    specialCourses: values("specialCourses"),
+    disability: values("disability"),
+
+    experience: val("experience"),
+
+    classesTeach: values("classesTeach"),
+    subjectsTeach: values("subjectsTeach"),
+    boardsTeach: values("boardsTeach"),
+
+    location: val("location"),
+    city: val("city"),
+    address: val("address"),
+    pinCode: val("pinCode"),
+
+    termsAccepted: $("terms").checked
+
+  };
+
+}
+
+
+/************************************************************
+ * STEP 4 - SUCCESS
+ ************************************************************/
+
+function showSuccess(type, result) {
+
+  clearInterval(resendTimer);
+  resendTimer = null;
+
+  $("successEmail").textContent = currentEmail;
+
+  if (type === "login") {
+
+    const profile = result.profile || {};
+    const firstName = (profile.fullName || currentName || "").split(" ")[0];
+
+    $("successEyebrow").textContent = "SECURE LOGIN";
+    $("successTitle").textContent = firstName ? `Welcome back, ${firstName}.` : "Welcome back.";
+    $("successDescription").textContent =
+      "Your email is verified and you are signed in as a tutor." +
+      (profile.status ? ` Your profile status is ${profile.status}.` : "");
+
+    $("successTutorId").textContent = profile.tutorId || "";
+    $("successIdBox").classList.toggle("hidden", !profile.tutorId);
+
+  } else {
+
+    $("successEyebrow").textContent = "REGISTRATION COMPLETE";
+    $("successTitle").textContent = "You're registered.";
+    $("successDescription").textContent =
+      "Your email is verified and your profile has been submitted for verification. " +
+      "We will contact you once the review is complete.";
+
+    // The Tutor ID (result.tutorId) is saved in the sheet but not shown here.
+    $("successIdBox").classList.add("hidden");
+
+  }
+
+  showPage("success");
+
+}
+
+
+/************************************************************
+ * INITIAL STATE
+ ************************************************************/
+
+showPage("email");
