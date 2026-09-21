@@ -1,4 +1,4 @@
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmux-IR_I8EGudmGAgLscda2y3nxLg/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec";
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 let verifiedEmail = "";
 
