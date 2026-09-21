@@ -32,15 +32,33 @@ function setBusy(button,textId,loaderId,busy){
   button.disabled=busy; $(textId).classList.toggle("hidden",busy); $(loaderId).classList.toggle("hidden",!busy);
 }
 
+/* Page switching: email -> registration -> success (same flow as the student page) */
+function showPage(name){
+  ["email","registration","success"].forEach(n=>$(n+"Page").classList.toggle("hidden",n!==name));
+  window.scrollTo(0,0);
+}
+
 function validateEmail(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);}
 function validatePhone(id,errorId,label){const v=val(id); if(!/^\d{10}$/.test(v)){setError(errorId,`${label} must contain 10 digits.`);return false}return true;}
 function validateFile(id,errorId,imagesOnly=false){const f=$(id).files[0]; if(!f){setError(errorId,"Please upload this file.");return false} if(f.size>MAX_FILE_SIZE){setError(errorId,"File must be 5 MB or smaller.");return false} if(imagesOnly && !/^image\/(jpeg|png)$/.test(f.type)){setError(errorId,"Please upload a JPG or PNG image.");return false} if(!imagesOnly && !["application/pdf","image/jpeg","image/png"].includes(f.type)){setError(errorId,"Please upload PDF, JPG or PNG.");return false}return true;}
 function fileToBase64(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(",")[1]);r.onerror=()=>reject(new Error("Could not read uploaded file."));r.readAsDataURL(file);});}
 
-$("sameWhatsapp").addEventListener("change",()=>{if($("sameWhatsapp").checked){$("whatsapp").value=val("mobile");$("whatsapp").readOnly=true}else $("whatsapp").readOnly=false;});
+$("sameWhatsapp").addEventListener("change",()=>{if($("sameWhatsapp").checked){$("whatsapp").value=val("mobile");$("whatsapp").readOnly=true}else{$("whatsapp").readOnly=false;$("whatsapp").value="";}});
 $("mobile").addEventListener("input",()=>{if($("sameWhatsapp").checked)$("whatsapp").value=val("mobile");});
 
-$("checkEmailButton").addEventListener("click",async()=>{
+/* Show the chosen file name inside each upload box */
+[["identityProof","identityHint"],["profileImage","profileHint"]].forEach(([inputId,hintId])=>{
+  const input=$(inputId),hint=$(hintId),original=hint.textContent;
+  input.addEventListener("change",()=>{
+    const f=input.files[0];
+    hint.textContent=f?f.name:original;
+    input.closest(".upload-box").classList.toggle("has-file",!!f);
+  });
+});
+
+/* STEP 1: email check */
+$("emailForm").addEventListener("submit",async e=>{
+  e.preventDefault();
   clearErrors(); setMessage($("emailMessage"),"");
   const email=val("email").toLowerCase();
   if(!validateEmail(email)){setError("emailError","Please enter a valid email address.");return;}
@@ -49,14 +67,26 @@ $("checkEmailButton").addEventListener("click",async()=>{
     const result=await apiRequest({action:"checkTutorEmail",email});
     if(!result.success) throw new Error(result.message||"Unable to check email.");
     if(result.exists){setMessage($("emailMessage"),result.message||"This email is already registered.","error");return;}
-    verifiedEmail=email;$("verifiedEmail").textContent=email;$("registrationFields").classList.remove("hidden");setMessage($("emailMessage"),"Email is available. You can continue.","success");$("registrationFields").scrollIntoView({behavior:"smooth",block:"start"});
+    verifiedEmail=email;
+    $("registrationEmail").value=email;
+    showPage("registration");
   }catch(err){setMessage($("emailMessage"),err.message,"error");}
   finally{setBusy(b,"checkEmailText","checkEmailLoader",false);}
 });
 
+/* Back to email step */
+$("registrationBackButton").addEventListener("click",()=>{
+  verifiedEmail="";
+  clearErrors();
+  setMessage($("registrationMessage"),"");
+  setMessage($("emailMessage"),"");
+  showPage("email");
+});
+
+/* STEP 2: registration */
 $("tutorForm").addEventListener("submit",async e=>{
   e.preventDefault();clearErrors();setMessage($("registrationMessage"),"");
-  if(!verifiedEmail){setMessage($("emailMessage"),"Please verify your email first.","error");return;}
+  if(!verifiedEmail){showPage("email");setMessage($("emailMessage"),"Please enter your email first.","error");return;}
   let ok=true;
   ok=validatePhone("mobile","mobileError","Mobile Number")&&ok;ok=validatePhone("whatsapp","whatsappError","WhatsApp Number")&&ok;
   ["firstName","lastName","birthDate","experience","city","address","pinCode"].forEach(id=>{if(!val(id)){setError(id+"Error","This field is required.");ok=false;}});
@@ -76,9 +106,15 @@ $("tutorForm").addEventListener("submit",async e=>{
     const payload={action:"tutorregistration",email:verifiedEmail,mobile:val("mobile"),whatsapp:val("whatsapp"),registerAs:checked("registerAs"),firstName:val("firstName"),lastName:val("lastName"),birthDate:val("birthDate"),gender:checked("gender"),languages:values("languages"),identityProof:{name:identity.name,mimeType:identity.type,size:identity.size,data:identityData},profileImage:{name:profile.name,mimeType:profile.type,size:profile.size,data:profileData},twelfthStream:checked("twelfthStream"),twelfthYear:val("twelfthYear"),twelfthGrade:val("twelfthGrade"),twelfthBoard:checked("twelfthBoard"),graduationCourse:val("graduationCourse"),graduationSubject:val("graduationSubject"),graduationCollege:val("graduationCollege"),graduationYear:val("graduationYear"),graduationPercentage:val("graduationPercentage"),pgSubject:val("pgSubject"),pgCollege:val("pgCollege"),pgYear:val("pgYear"),pgPercentage:val("pgPercentage"),specialCourses:values("specialCourses"),disability:values("disability"),experience:val("experience"),classesTeach:values("classesTeach"),subjectsTeach:values("subjectsTeach"),boardsTeach:values("boardsTeach"),location:val("location"),city:val("city"),address:val("address"),pinCode:val("pinCode")};
     const result=await apiRequest(payload,90000);
     if(!result.success) throw new Error(result.message||"Registration could not be completed.");
-    $("successText").textContent=`Your Tutor ID is ${result.tutorId||"generated successfully"}. Your documents have been saved for verification.`;$("successPage").classList.remove("hidden");window.scrollTo(0,0);
+    $("successText").textContent=`Your Tutor ID is ${result.tutorId||"generated successfully"}. Your documents have been saved for verification.`;
+    $("successEmail").textContent=verifiedEmail;
+    showPage("success");
   }catch(err){setMessage($("registrationMessage"),err.message,"error");}
   finally{setBusy(button,"registerText","registerLoader",false);}
 });
 
-$("termsButton").onclick=()=>$("termsModal").classList.remove("hidden");$("closeTerms").onclick=()=>$("termsModal").classList.add("hidden");$("acceptTerms").onclick=()=>{ $("terms").checked=true;$("termsModal").classList.add("hidden");setError("termsError","");};$("termsModal").querySelector(".modal-overlay").onclick=()=>$("termsModal").classList.add("hidden");
+/* Terms modal */
+$("termsButton").onclick=()=>$("termsModal").classList.remove("hidden");
+$("closeTerms").onclick=()=>$("termsModal").classList.add("hidden");
+$("acceptTerms").onclick=()=>{ $("terms").checked=true;$("termsModal").classList.add("hidden");setError("termsError","");};
+$("termsModal").querySelector(".modal-overlay").onclick=()=>$("termsModal").classList.add("hidden");
