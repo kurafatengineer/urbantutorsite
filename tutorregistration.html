@@ -1,114 +1,1558 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="theme-color" content="#050505">
-<meta name="description" content="Urbantutorsite — Tutor Registration">
-<title>Urbantutorsite — Tutor Registration</title>
-<link rel="stylesheet" href="css/header.css">
-<link rel="stylesheet" href="css/footer.css">
-<link rel="stylesheet" href="tutorregistration.css">
+
+<meta
+  name="viewport"
+  content="width=device-width,initial-scale=1.0"
+>
+
+<meta
+  name="theme-color"
+  content="#050505"
+>
+
+<meta
+  name="description"
+  content="Urbantutorsite — Tutor Registration"
+>
+
+<title>
+  Urbantutorsite — Tutor Registration
+</title>
+
+<link
+  rel="stylesheet"
+  href="css/header.css"
+>
+
+<link
+  rel="stylesheet"
+  href="css/footer.css"
+>
+
+<link
+  rel="stylesheet"
+  href="tutorregistration.css"
+>
+
 </head>
+
+
 <body data-page="tutorregistration">
+
+
 <div id="site-header"></div>
 
+
 <main class="page">
-  <div class="container">
-    <div class="intro">
-      <div class="kicker">URBANTUTORSITE</div>
-      <h1>Join as a<br><span>tutor.</span></h1>
-      <p>Complete your profile to help students discover you and to start the verification process.</p>
-    </div>
 
-    <div class="form-card">
-      <form id="tutorForm" novalidate>
-        <section class="section email-section">
-          <div class="section-title centered"><h2>Email Verification</h2></div>
-          <div class="field">
-            <input id="email" type="email" maxlength="254" autocomplete="email" placeholder="you@example.com" required>
-            <small id="emailError" class="field-error"></small>
-          </div>
-          <button id="checkEmailButton" class="submit" type="button">
-            <span id="checkEmailText">Check Email</span><span id="checkEmailLoader" class="loader hidden"></span>
-          </button>
-          <div id="emailMessage" class="message"></div>
-        </section>
+<div class="container">
 
-        <div id="registrationFields" class="hidden">
-          <div class="verified-email"><span>Verified email</span><strong id="verifiedEmail"></strong></div>
 
-          <section class="section">
-            <div class="section-title"><h2>Contact Information</h2></div>
-            <div class="vertical-fields">
-              <div class="field"><div class="phone-input"><span class="country-code">+91</span><input id="mobile" type="tel" inputmode="numeric" maxlength="10" placeholder="Mobile Number" required></div><small id="mobileError" class="field-error"></small></div>
-              <div class="field"><div class="phone-input"><span class="country-code">+91</span><input id="whatsapp" type="tel" inputmode="numeric" maxlength="10" placeholder="WhatsApp Number" required></div><label class="check-line"><input id="sameWhatsapp" type="checkbox"><span>Same as Mobile Number</span></label><small id="whatsappError" class="field-error"></small></div>
-              <div class="field"><label>Register As <span class="required">*</span></label><div class="selection-box"><label class="selection-option"><input type="radio" name="registerAs" value="Full Time Tutor" checked><span>Full Time Tutor</span></label><label class="selection-option"><input type="radio" name="registerAs" value="Part Time Tutor"><span>Part Time Tutor</span></label></div></div>
-            </div>
-          </section>
+<!-- =====================================================
+     INTRO
+====================================================== -->
 
-          <section class="section">
-            <div class="section-title"><h2>Basic Information</h2></div>
-            <div class="vertical-fields">
-              <div class="two-col"><div class="field"><input id="firstName" placeholder="First Name" maxlength="80" required><small id="firstNameError" class="field-error"></small></div><div class="field"><input id="lastName" placeholder="Last Name" maxlength="80" required><small id="lastNameError" class="field-error"></small></div></div>
-              <div class="field"><label for="birthDate">Birth Date <span class="required">*</span></label><input id="birthDate" type="date" required><small id="birthDateError" class="field-error"></small></div>
-              <div class="field"><label>Gender <span class="required">*</span></label><div class="selection-box"><label class="selection-option"><input type="radio" name="gender" value="Male" checked><span>Male</span></label><label class="selection-option"><input type="radio" name="gender" value="Female"><span>Female</span></label></div></div>
-            </div>
-          </section>
+<div class="intro">
 
-          <section class="section"><div class="section-title"><h2>Languages Known</h2></div><div class="choice-grid compact" id="languages"><label><input type="checkbox" value="Hindi"><span>Hindi</span></label><label><input type="checkbox" value="English"><span>English</span></label><label><input type="checkbox" value="Marathi"><span>Marathi</span></label><label><input type="checkbox" value="Bengali"><span>Bengali</span></label><label><input type="checkbox" value="Tamil"><span>Tamil</span></label><label><input type="checkbox" value="Telugu"><span>Telugu</span></label></div><small id="languagesError" class="field-error"></small></section>
+<div class="kicker">
+URBANTUTORSITE
+</div>
 
-          <section class="section">
-            <div class="section-title"><h2>Identity Proof</h2></div>
-            <div class="upload-box"><div><strong>Identity Proof</strong><span>PDF, JPG, JPEG or PNG · max 5 MB</span></div><label class="upload-button">Upload<input id="identityProof" type="file" accept=".pdf,.jpg,.jpeg,.png" required></label></div><small id="identityError" class="field-error"></small>
-            <div class="upload-box"><div><strong>Provide Your Image</strong><span>Profile photo for verification · JPG, JPEG or PNG · max 5 MB</span></div><label class="upload-button">Upload<input id="profileImage" type="file" accept=".jpg,.jpeg,.png" required></label></div><small id="profileError" class="field-error"></small>
-          </section>
+<h1>
+Join as a<br>
+<span>tutor.</span>
+</h1>
 
-          <section class="section">
-            <div class="section-title"><h2>Education & Qualification</h2></div>
-            <div class="vertical-fields">
-              <div class="field"><label>Class 12th - Stream</label><div class="selection-box wrap"><label class="selection-option"><input type="radio" name="twelfthStream" value="Science"><span>Science</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Commerce"><span>Commerce</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Arts"><span>Arts</span></label></div></div>
-              <div class="two-col"><div class="field"><input id="twelfthYear" inputmode="numeric" maxlength="4" placeholder="Class 12th - Passing Year"></div><div class="field"><input id="twelfthGrade" placeholder="Class 12th Grade"></div></div>
-              <div class="field"><label>Class 12th - Board</label><div class="choice-grid compact" id="twelfthBoard"><label><input type="radio" name="twelfthBoard" value="IB"><span>IB</span></label><label><input type="radio" name="twelfthBoard" value="ICSE"><span>ICSE</span></label><label><input type="radio" name="twelfthBoard" value="CBSE"><span>CBSE</span></label><label><input type="radio" name="twelfthBoard" value="IGCSE"><span>IGCSE</span></label><label><input type="radio" name="twelfthBoard" value="State Board"><span>State Board</span></label></div></div>
-              <div class="two-col"><div class="field"><input id="graduationCourse" placeholder="Graduation - Course"></div><div class="field"><input id="graduationSubject" placeholder="Graduation - Subject"></div></div>
-              <div class="two-col"><div class="field"><input id="graduationCollege" placeholder="Graduation - College/University"></div><div class="field"><input id="graduationYear" inputmode="numeric" maxlength="4" placeholder="Graduation - Passing Year"></div></div>
-              <div class="field"><input id="graduationPercentage" placeholder="Graduation - Percentage"></div>
-              <div class="two-col"><div class="field"><input id="pgSubject" placeholder="Post Graduation Subject"></div><div class="field"><input id="pgCollege" placeholder="Post Graduation College/University"></div></div>
-              <div class="two-col"><div class="field"><input id="pgYear" inputmode="numeric" maxlength="4" placeholder="Post Graduation Passing Year"></div><div class="field"><input id="pgPercentage" placeholder="Post Graduation Percentage"></div></div>
-              <div class="field"><label>Special Courses</label><div class="choice-grid" id="specialCourses"><label><input type="checkbox" value="B. Ed"><span>B. Ed</span></label><label><input type="checkbox" value="M. Ed"><span>M. Ed</span></label><label><input type="checkbox" value="D. Ed"><span>D. Ed</span></label><label><input type="checkbox" value="D. El. Ed."><span>D. El. Ed.</span></label><label><input type="checkbox" value="D. P. Ed"><span>D. P. Ed</span></label><label><input type="checkbox" value="M. P. Ed"><span>M. P. Ed</span></label><label><input type="checkbox" value="B. P. Ed"><span>B. P. Ed</span></label><label><input type="checkbox" value="NET/IRF"><span>NET/IRF</span></label><label><input type="checkbox" value="Phd"><span>Phd</span></label><label><input type="checkbox" value="PHE"><span>PHE</span></label></div></div>
-              <div class="field"><label>Special Child Disability</label><div class="choice-grid" id="disability"><label><input type="checkbox" value="Specific Learning Disability (SLD)"><span>Specific Learning Disability (SLD)</span></label><label><input type="checkbox" value="Health Impairment"><span>Health Impairment</span></label><label><input type="checkbox" value="Autism Spectrum Disorder"><span>Autism Spectrum Disorder</span></label><label><input type="checkbox" value="Emotional disturbance"><span>Emotional disturbance</span></label><label><input type="checkbox" value="Speech or language impairment"><span>Speech or language impairment</span></label><label><input type="checkbox" value="Shadow Teacher"><span>Shadow Teacher</span></label></div></div>
-            </div>
-          </section>
+<p>
+Complete your profile to help students discover you
+and to start the verification process.
+</p>
 
-          <section class="section"><div class="section-title"><h2>Experience</h2></div><div class="field"><input id="experience" type="number" min="0" max="60" step="0.1" placeholder="Experience (In Years)" required><small id="experienceError" class="field-error"></small></div></section>
+</div>
 
-          <section class="section">
-            <div class="section-title"><h2>Teaching Preferences</h2></div>
-            <div class="vertical-fields">
-              <div class="field"><label>Classes You Teach</label><div class="choice-grid" id="classesTeach"><label><input type="checkbox" value="1st-5th"><span>1st-5th</span></label><label><input type="checkbox" value="6th-8th"><span>6th-8th</span></label><label><input type="checkbox" value="9th-10th"><span>9th-10th</span></label><label><input type="checkbox" value="11th-12th"><span>11th-12th</span></label></div><small id="classesError" class="field-error"></small></div>
-              <div class="field"><label>Subject You Teach</label><div class="choice-grid" id="subjectsTeach">
-                <label><input type="checkbox" value="Accountancy"><span>Accountancy</span></label><label><input type="checkbox" value="Arts & Craft"><span>Arts & Craft</span></label><label><input type="checkbox" value="Biology"><span>Biology</span></label><label><input type="checkbox" value="Biology/Biotechnology"><span>Biology/Biotechnology</span></label><label><input type="checkbox" value="Business Administration (BBA/MBA)"><span>Business Administration (BBA/MBA)</span></label><label><input type="checkbox" value="Business Studies"><span>Business Studies</span></label><label><input type="checkbox" value="Chemistry"><span>Chemistry</span></label><label><input type="checkbox" value="Civis"><span>Civis</span></label><label><input type="checkbox" value="Computer Applications"><span>Computer Applications</span></label><label><input type="checkbox" value="Computer Science"><span>Computer Science</span></label><label><input type="checkbox" value="Dance"><span>Dance</span></label><label><input type="checkbox" value="Economics"><span>Economics</span></label><label><input type="checkbox" value="English"><span>English</span></label><label><input type="checkbox" value="Environmental Studies (EVS)"><span>Environmental Studies (EVS)</span></label><label><input type="checkbox" value="Geography"><span>Geography</span></label><label><input type="checkbox" value="Hindi"><span>Hindi</span></label><label><input type="checkbox" value="History"><span>History</span></label><label><input type="checkbox" value="Home Science"><span>Home Science</span></label><label><input type="checkbox" value="Informatics Practices"><span>Informatics Practices</span></label><label><input type="checkbox" value="Information Technology"><span>Information Technology</span></label><label><input type="checkbox" value="Marathi"><span>Marathi</span></label><label><input type="checkbox" value="Mathematics"><span>Mathematics</span></label><label><input type="checkbox" value="Music"><span>Music</span></label><label><input type="checkbox" value="Philosophy"><span>Philosophy</span></label><label><input type="checkbox" value="Physical Education"><span>Physical Education</span></label><label><input type="checkbox" value="Physics"><span>Physics</span></label><label><input type="checkbox" value="Political Science"><span>Political Science</span></label><label><input type="checkbox" value="Psychology"><span>Psychology</span></label><label><input type="checkbox" value="Sanskrit"><span>Sanskrit</span></label><label><input type="checkbox" value="Sciences"><span>Sciences</span></label><label><input type="checkbox" value="Sociology"><span>Sociology</span></label><label><input type="checkbox" value="French"><span>French</span></label><label><input type="checkbox" value="German"><span>German</span></label><label><input type="checkbox" value="Spanish"><span>Spanish</span></label><label><input type="checkbox" value="Korean"><span>Korean</span></label><label><input type="checkbox" value="Punjabi"><span>Punjabi</span></label><label><input type="checkbox" value="Yoga & Gymnastics"><span>Yoga & Gymnastics</span></label>
-              </div><small id="subjectsError" class="field-error"></small></div>
-              <div class="field"><label>Boards You Teach</label><div class="choice-grid compact" id="boardsTeach"><label><input type="checkbox" value="IB"><span>IB</span></label><label><input type="checkbox" value="ICSE"><span>ICSE</span></label><label><input type="checkbox" value="CBSE"><span>CBSE</span></label><label><input type="checkbox" value="IGCSE"><span>IGCSE</span></label><label><input type="checkbox" value="State Board"><span>State Board</span></label></div><small id="boardsError" class="field-error"></small></div>
-            </div>
-          </section>
 
-          <section class="section"><div class="section-title"><h2>Areas You Teach</h2></div><div class="vertical-fields"><div class="field"><label>Location</label><select id="location"><option value="">Select Location</option><option>New Delhi</option><option>Navi Mumbai</option><option>Mumbai</option><option>Pune</option><option>Faridabad</option><option>Ghaziabad</option><option>Noida</option><option>Gurugram</option></select></div><div class="field"><input id="city" placeholder="City" required><small id="cityError" class="field-error"></small></div><div class="field"><textarea id="address" rows="4" maxlength="400" placeholder="Present Address" required></textarea><small id="addressError" class="field-error"></small></div><div class="field"><input id="pinCode" inputmode="numeric" maxlength="6" placeholder="Pin Code" required><small id="pinError" class="field-error"></small></div></div></section>
+<!-- =====================================================
+     MAIN FORM CARD
+====================================================== -->
 
-          <section class="section last-section"><div class="verification-note">Don't forget to upload your profile image for completing the verification process.</div><label class="terms"><input id="terms" type="checkbox" required><span>I confirm that the information provided is accurate and I agree to the <button id="termsButton" class="inline-link" type="button">Terms & Conditions</button> and privacy requirements of Urbantutorsite.</span></label><small id="termsError" class="field-error"></small><button id="registerButton" class="submit" type="submit"><span id="registerText">Submit Tutor Registration</span><span id="registerLoader" class="loader hidden"></span></button><div id="registrationMessage" class="message"></div></section>
-        </div>
-      </form>
-    </div>
-  </div>
+<div class="form-card">
+
+
+<form
+  id="tutorForm"
+  novalidate
+>
+
+
+<!-- ===================================================
+     EMAIL PAGE
+==================================================== -->
+
+<section
+  id="emailPage"
+  class="page-section"
+>
+
+
+<div class="section-title centered">
+
+<h2>
+Email Verification
+</h2>
+
+</div>
+
+
+<div class="field">
+
+<input
+  id="email"
+  type="email"
+  maxlength="254"
+  autocomplete="email"
+  placeholder="you@example.com"
+>
+
+<small
+  id="emailError"
+  class="field-error"
+></small>
+
+</div>
+
+
+<button
+  id="checkEmailButton"
+  class="submit"
+  type="button"
+>
+
+<span id="checkEmailText">
+Continue
+</span>
+
+<span
+  id="checkEmailLoader"
+  class="loader hidden"
+></span>
+
+</button>
+
+
+<div
+  id="emailMessage"
+  class="message"
+></div>
+
+
+</section>
+
+
+
+<!-- ===================================================
+     REGISTRATION PAGE
+==================================================== -->
+
+<section
+  id="registrationPage"
+  class="hidden"
+>
+
+
+<div class="verified-email">
+
+<span>
+Email
+</span>
+
+<strong id="verifiedEmail">
+</strong>
+
+</div>
+
+
+<!-- =================================================
+     CONTACT
+================================================== -->
+
+<section class="section">
+
+<div class="section-title centered">
+
+<h2>
+Contact Information
+</h2>
+
+</div>
+
+
+<div class="vertical-fields">
+
+
+<div class="field">
+
+<div class="phone-input">
+
+<span class="country-code">
++91
+</span>
+
+<input
+  id="mobile"
+  type="tel"
+  inputmode="numeric"
+  maxlength="10"
+  placeholder="Mobile Number"
+>
+
+</div>
+
+<small
+  id="mobileError"
+  class="field-error"
+></small>
+
+</div>
+
+
+
+<div class="field">
+
+<div class="phone-input">
+
+<span class="country-code">
++91
+</span>
+
+<input
+  id="whatsapp"
+  type="tel"
+  inputmode="numeric"
+  maxlength="10"
+  placeholder="WhatsApp Number"
+>
+
+</div>
+
+
+<label class="same-phone">
+
+<input
+  id="sameWhatsapp"
+  type="checkbox"
+>
+
+<span>
+Same as Mobile Number
+</span>
+
+</label>
+
+
+<small
+  id="whatsappError"
+  class="field-error"
+></small>
+
+</div>
+
+
+
+<div class="field">
+
+<label>
+Register As
+<span class="required">*</span>
+</label>
+
+<div class="selection-box">
+
+<label class="selection-option">
+
+<input
+  type="radio"
+  name="registerAs"
+  value="Full Time Tutor"
+  checked
+>
+
+<span>
+Full Time Tutor
+</span>
+
+</label>
+
+
+<label class="selection-option">
+
+<input
+  type="radio"
+  name="registerAs"
+  value="Part Time Tutor"
+>
+
+<span>
+Part Time Tutor
+</span>
+
+</label>
+
+</div>
+
+</div>
+
+
+</div>
+
+</section>
+
+
+
+<!-- =================================================
+     BASIC INFORMATION
+================================================== -->
+
+<section class="section">
+
+<div class="section-title centered">
+
+<h2>
+Basic Information
+</h2>
+
+</div>
+
+
+<div class="vertical-fields">
+
+
+<div class="two-col">
+
+<div class="field">
+
+<input
+  id="firstName"
+  type="text"
+  maxlength="80"
+  placeholder="First Name"
+>
+
+<small
+  id="firstNameError"
+  class="field-error"
+></small>
+
+</div>
+
+
+<div class="field">
+
+<input
+  id="lastName"
+  type="text"
+  maxlength="80"
+  placeholder="Last Name"
+>
+
+<small
+  id="lastNameError"
+  class="field-error"
+></small>
+
+</div>
+
+</div>
+
+
+
+<div class="field">
+
+<label>
+Birth Date
+<span class="required">*</span>
+</label>
+
+<input
+  id="birthDate"
+  type="date"
+>
+
+<small
+  id="birthDateError"
+  class="field-error"
+></small>
+
+</div>
+
+
+
+<div class="field">
+
+<label>
+Gender
+<span class="required">*</span>
+</label>
+
+<div class="selection-box">
+
+<label class="selection-option">
+
+<input
+  type="radio"
+  name="gender"
+  value="Male"
+  checked
+>
+
+<span>
+Male
+</span>
+
+</label>
+
+
+<label class="selection-option">
+
+<input
+  type="radio"
+  name="gender"
+  value="Female"
+>
+
+<span>
+Female
+</span>
+
+</label>
+
+</div>
+
+</div>
+
+
+</div>
+
+</section>
+
+
+
+<!-- =================================================
+     LANGUAGES
+================================================== -->
+
+<section class="section">
+
+<div class="section-title centered">
+
+<h2>
+Languages Known
+</h2>
+
+</div>
+
+
+<div
+  class="choice-grid compact"
+  id="languages"
+>
+
+
+<label>
+<input type="checkbox" value="Hindi">
+<span>Hindi</span>
+</label>
+
+
+<label>
+<input type="checkbox" value="English">
+<span>English</span>
+</label>
+
+
+<label>
+<input type="checkbox" value="Marathi">
+<span>Marathi</span>
+</label>
+
+
+<label>
+<input type="checkbox" value="Bengali">
+<span>Bengali</span>
+</label>
+
+
+<label>
+<input type="checkbox" value="Tamil">
+<span>Tamil</span>
+</label>
+
+
+<label>
+<input type="checkbox" value="Telugu">
+<span>Telugu</span>
+</label>
+
+
+</div>
+
+
+<small
+  id="languagesError"
+  class="field-error"
+></small>
+
+</section>
+
+
+
+<!-- =================================================
+     IDENTITY / PHOTO
+================================================== -->
+
+<section class="section">
+
+<div class="section-title centered">
+
+<h2>
+Identity Proof
+</h2>
+
+</div>
+
+
+<div class="upload-box">
+
+<div>
+
+<strong>
+Identity Proof
+</strong>
+
+<span>
+PDF, JPG, JPEG or PNG · max 5 MB
+</span>
+
+</div>
+
+
+<label class="upload-button">
+
+Upload
+
+<input
+  id="identityProof"
+  type="file"
+  accept=".pdf,.jpg,.jpeg,.png"
+>
+
+</label>
+
+</div>
+
+
+<small
+  id="identityError"
+  class="field-error"
+></small>
+
+
+
+<div class="upload-box">
+
+<div>
+
+<strong>
+Provide Your Image
+</strong>
+
+<span>
+Profile photo for verification · JPG, JPEG or PNG · max 5 MB
+</span>
+
+</div>
+
+
+<label class="upload-button">
+
+Upload
+
+<input
+  id="profileImage"
+  type="file"
+  accept=".jpg,.jpeg,.png"
+>
+
+</label>
+
+</div>
+
+
+<small
+  id="profileError"
+  class="field-error"
+></small>
+
+
+</section>
+
+
+
+<!-- =================================================
+     EDUCATION
+================================================== -->
+
+<section class="section">
+
+<div class="section-title centered">
+
+<h2>
+Education & Qualification
+</h2>
+
+</div>
+
+
+<div class="vertical-fields">
+
+
+<div class="field">
+
+<label>
+Class 12th - Stream
+</label>
+
+<div class="selection-box wrap">
+
+
+<label class="selection-option">
+<input
+  type="radio"
+  name="twelfthStream"
+  value="Science"
+>
+<span>Science</span>
+</label>
+
+
+<label class="selection-option">
+<input
+  type="radio"
+  name="twelfthStream"
+  value="Commerce"
+>
+<span>Commerce</span>
+</label>
+
+
+<label class="selection-option">
+<input
+  type="radio"
+  name="twelfthStream"
+  value="Arts"
+>
+<span>Arts</span>
+</label>
+
+
+</div>
+
+</div>
+
+
+
+<div class="two-col">
+
+<div class="field">
+
+<input
+  id="twelfthYear"
+  inputmode="numeric"
+  maxlength="4"
+  placeholder="Class 12th - Passing Year"
+>
+
+</div>
+
+
+<div class="field">
+
+<input
+  id="twelfthGrade"
+  placeholder="Class 12th Grade"
+>
+
+</div>
+
+</div>
+
+
+
+<div class="field">
+
+<label>
+Class 12th - Board
+</label>
+
+<div
+  class="choice-grid compact"
+  id="twelfthBoard"
+>
+
+
+<label>
+<input
+  type="radio"
+  name="twelfthBoard"
+  value="IB"
+>
+<span>IB</span>
+</label>
+
+
+<label>
+<input
+  type="radio"
+  name="twelfthBoard"
+  value="ICSE"
+>
+<span>ICSE</span>
+</label>
+
+
+<label>
+<input
+  type="radio"
+  name="twelfthBoard"
+  value="CBSE"
+>
+<span>CBSE</span>
+</label>
+
+
+<label>
+<input
+  type="radio"
+  name="twelfthBoard"
+  value="IGCSE"
+>
+<span>IGCSE</span>
+</label>
+
+
+<label>
+<input
+  type="radio"
+  name="twelfthBoard"
+  value="State Board"
+>
+<span>State Board</span>
+</label>
+
+
+</div>
+
+</div>
+
+
+
+<div class="two-col">
+
+<div class="field">
+
+<input
+  id="graduationCourse"
+  placeholder="Graduation - Course"
+>
+
+</div>
+
+
+<div class="field">
+
+<input
+  id="graduationSubject"
+  placeholder="Graduation - Subject"
+>
+
+</div>
+
+</div>
+
+
+
+<div class="two-col">
+
+<div class="field">
+
+<input
+  id="graduationCollege"
+  placeholder="Graduation - College/University"
+>
+
+</div>
+
+
+<div class="field">
+
+<input
+  id="graduationYear"
+  inputmode="numeric"
+  maxlength="4"
+  placeholder="Graduation - Passing Year"
+>
+
+</div>
+
+</div>
+
+
+
+<div class="field">
+
+<input
+  id="graduationPercentage"
+  placeholder="Graduation - Percentage"
+>
+
+</div>
+
+
+
+<div class="two-col">
+
+<div class="field">
+
+<input
+  id="pgSubject"
+  placeholder="Post Graduation Subject"
+>
+
+</div>
+
+
+<div class="field">
+
+<input
+  id="pgCollege"
+  placeholder="Post Graduation College/University"
+>
+
+</div>
+
+</div>
+
+
+
+<div class="two-col">
+
+<div class="field">
+
+<input
+  id="pgYear"
+  inputmode="numeric"
+  maxlength="4"
+  placeholder="Post Graduation Passing Year"
+>
+
+</div>
+
+
+<div class="field">
+
+<input
+  id="pgPercentage"
+  placeholder="Post Graduation Percentage"
+>
+
+</div>
+
+</div>
+
+
+
+<div class="field">
+
+<label>
+Special Courses
+</label>
+
+<div
+  class="choice-grid"
+  id="specialCourses"
+>
+
+<label><input type="checkbox" value="B. Ed"><span>B. Ed</span></label>
+<label><input type="checkbox" value="M. Ed"><span>M. Ed</span></label>
+<label><input type="checkbox" value="D. Ed"><span>D. Ed</span></label>
+<label><input type="checkbox" value="D. El. Ed."><span>D. El. Ed.</span></label>
+<label><input type="checkbox" value="D. P. Ed"><span>D. P. Ed</span></label>
+<label><input type="checkbox" value="M. P. Ed"><span>M. P. Ed</span></label>
+<label><input type="checkbox" value="B. P. Ed"><span>B. P. Ed</span></label>
+<label><input type="checkbox" value="NET/IRF"><span>NET/IRF</span></label>
+<label><input type="checkbox" value="Phd"><span>Phd</span></label>
+<label><input type="checkbox" value="PHE"><span>PHE</span></label>
+
+</div>
+
+</div>
+
+
+
+<div class="field">
+
+<label>
+Special Child Disability
+</label>
+
+<div
+  class="choice-grid"
+  id="disability"
+>
+
+<label><input type="checkbox" value="Specific Learning Disability (SLD)"><span>Specific Learning Disability (SLD)</span></label>
+<label><input type="checkbox" value="Health Impairment"><span>Health Impairment</span></label>
+<label><input type="checkbox" value="Autism Spectrum Disorder"><span>Autism Spectrum Disorder</span></label>
+<label><input type="checkbox" value="Emotional disturbance"><span>Emotional disturbance</span></label>
+<label><input type="checkbox" value="Speech or language impairment"><span>Speech or language impairment</span></label>
+<label><input type="checkbox" value="Shadow Teacher"><span>Shadow Teacher</span></label>
+
+</div>
+
+</div>
+
+
+</div>
+
+</section>
+
+
+
+<!-- =================================================
+     EXPERIENCE
+================================================== -->
+
+<section class="section">
+
+<div class="section-title centered">
+
+<h2>
+Experience
+</h2>
+
+</div>
+
+
+<div class="field">
+
+<input
+  id="experience"
+  type="number"
+  min="0"
+  max="60"
+  step="0.1"
+  placeholder="Experience (In Years)"
+>
+
+<small
+  id="experienceError"
+  class="field-error"
+></small>
+
+</div>
+
+</section>
+
+
+
+<!-- =================================================
+     TEACHING PREFERENCES
+================================================== -->
+
+<section class="section">
+
+<div class="section-title centered">
+
+<h2>
+Teaching Preferences
+</h2>
+
+</div>
+
+
+<div class="vertical-fields">
+
+
+<div class="field">
+
+<label>
+Classes You Teach
+</label>
+
+<div
+  class="choice-grid"
+  id="classesTeach"
+>
+
+<label><input type="checkbox" value="1st-5th"><span>1st-5th</span></label>
+<label><input type="checkbox" value="6th-8th"><span>6th-8th</span></label>
+<label><input type="checkbox" value="9th-10th"><span>9th-10th</span></label>
+<label><input type="checkbox" value="11th-12th"><span>11th-12th</span></label>
+
+</div>
+
+<small
+  id="classesError"
+  class="field-error"
+></small>
+
+</div>
+
+
+
+<div class="field">
+
+<label>
+Subject You Teach
+</label>
+
+<div
+  class="choice-grid"
+  id="subjectsTeach"
+>
+
+<label><input type="checkbox" value="Accountancy"><span>Accountancy</span></label>
+<label><input type="checkbox" value="Arts & Craft"><span>Arts & Craft</span></label>
+<label><input type="checkbox" value="Biology"><span>Biology</span></label>
+<label><input type="checkbox" value="Biology/Biotechnology"><span>Biology/Biotechnology</span></label>
+<label><input type="checkbox" value="Business Administration (BBA/MBA)"><span>Business Administration (BBA/MBA)</span></label>
+<label><input type="checkbox" value="Business Studies"><span>Business Studies</span></label>
+<label><input type="checkbox" value="Chemistry"><span>Chemistry</span></label>
+<label><input type="checkbox" value="Civis"><span>Civis</span></label>
+<label><input type="checkbox" value="Computer Applications"><span>Computer Applications</span></label>
+<label><input type="checkbox" value="Computer Science"><span>Computer Science</span></label>
+<label><input type="checkbox" value="Dance"><span>Dance</span></label>
+<label><input type="checkbox" value="Economics"><span>Economics</span></label>
+<label><input type="checkbox" value="English"><span>English</span></label>
+<label><input type="checkbox" value="Environmental Studies (EVS)"><span>Environmental Studies (EVS)</span></label>
+<label><input type="checkbox" value="Geography"><span>Geography</span></label>
+<label><input type="checkbox" value="Hindi"><span>Hindi</span></label>
+<label><input type="checkbox" value="History"><span>History</span></label>
+<label><input type="checkbox" value="Home Science"><span>Home Science</span></label>
+<label><input type="checkbox" value="Informatics Practices"><span>Informatics Practices</span></label>
+<label><input type="checkbox" value="Information Technology"><span>Information Technology</span></label>
+<label><input type="checkbox" value="Marathi"><span>Marathi</span></label>
+<label><input type="checkbox" value="Mathematics"><span>Mathematics</span></label>
+<label><input type="checkbox" value="Music"><span>Music</span></label>
+<label><input type="checkbox" value="Philosophy"><span>Philosophy</span></label>
+<label><input type="checkbox" value="Physical Education"><span>Physical Education</span></label>
+<label><input type="checkbox" value="Physics"><span>Physics</span></label>
+<label><input type="checkbox" value="Political Science"><span>Political Science</span></label>
+<label><input type="checkbox" value="Psychology"><span>Psychology</span></label>
+<label><input type="checkbox" value="Sanskrit"><span>Sanskrit</span></label>
+<label><input type="checkbox" value="Sciences"><span>Sciences</span></label>
+<label><input type="checkbox" value="Sociology"><span>Sociology</span></label>
+<label><input type="checkbox" value="French"><span>French</span></label>
+<label><input type="checkbox" value="German"><span>German</span></label>
+<label><input type="checkbox" value="Spanish"><span>Spanish</span></label>
+<label><input type="checkbox" value="Korean"><span>Korean</span></label>
+<label><input type="checkbox" value="Punjabi"><span>Punjabi</span></label>
+<label><input type="checkbox" value="Yoga & Gymnastics"><span>Yoga & Gymnastics</span></label>
+
+</div>
+
+<small
+  id="subjectsError"
+  class="field-error"
+></small>
+
+</div>
+
+
+
+<div class="field">
+
+<label>
+Boards You Teach
+</label>
+
+<div
+  class="choice-grid compact"
+  id="boardsTeach"
+>
+
+<label><input type="checkbox" value="IB"><span>IB</span></label>
+<label><input type="checkbox" value="ICSE"><span>ICSE</span></label>
+<label><input type="checkbox" value="CBSE"><span>CBSE</span></label>
+<label><input type="checkbox" value="IGCSE"><span>IGCSE</span></label>
+<label><input type="checkbox" value="State Board"><span>State Board</span></label>
+
+</div>
+
+<small
+  id="boardsError"
+  class="field-error"
+></small>
+
+</div>
+
+
+</div>
+
+</section>
+
+
+
+<!-- =================================================
+     AREAS
+================================================== -->
+
+<section class="section">
+
+<div class="section-title centered">
+
+<h2>
+Areas You Teach
+</h2>
+
+</div>
+
+
+<div class="vertical-fields">
+
+
+<div class="field">
+
+<select id="location">
+
+<option value="">
+Select Location
+</option>
+
+<option>
+New Delhi
+</option>
+
+<option>
+Navi Mumbai
+</option>
+
+<option>
+Mumbai
+</option>
+
+<option>
+Pune
+</option>
+
+<option>
+Faridabad
+</option>
+
+<option>
+Ghaziabad
+</option>
+
+<option>
+Noida
+</option>
+
+<option>
+Gurugram
+</option>
+
+</select>
+
+</div>
+
+
+
+<div class="field">
+
+<input
+  id="city"
+  placeholder="City"
+>
+
+<small
+  id="cityError"
+  class="field-error"
+></small>
+
+</div>
+
+
+
+<div class="field">
+
+<textarea
+  id="address"
+  rows="4"
+  maxlength="400"
+  placeholder="Present Address"
+></textarea>
+
+<small
+  id="addressError"
+  class="field-error"
+></small>
+
+</div>
+
+
+
+<div class="field">
+
+<input
+  id="pinCode"
+  inputmode="numeric"
+  maxlength="6"
+  placeholder="Pin Code"
+>
+
+<small
+  id="pinError"
+  class="field-error"
+></small>
+
+</div>
+
+
+</div>
+
+</section>
+
+
+
+<!-- =================================================
+     TERMS
+================================================== -->
+
+<section class="section last-section">
+
+
+<div class="verification-note">
+
+Don't forget to upload your profile image for completing
+the verification process.
+
+</div>
+
+
+<label class="terms">
+
+<input
+  id="terms"
+  type="checkbox"
+>
+
+<span>
+
+I confirm that the information provided is accurate and
+I agree to the
+
+<button
+  id="termsButton"
+  class="inline-link"
+  type="button"
+>
+Terms & Conditions
+</button>
+
+and privacy requirements of Urbantutorsite.
+
+</span>
+
+</label>
+
+
+<small
+  id="termsError"
+  class="field-error"
+></small>
+
+
+<button
+  id="registerButton"
+  class="submit"
+  type="submit"
+>
+
+<span id="registerText">
+Continue to Verification
+</span>
+
+<span
+  id="registerLoader"
+  class="loader hidden"
+></span>
+
+</button>
+
+
+<div
+  id="registrationMessage"
+  class="message"
+></div>
+
+
+</section>
+
+
+</section>
+
+
+<!-- ===================================================
+     OTP PAGE
+==================================================== -->
+
+<section
+  id="otpPage"
+  class="otp-page hidden"
+>
+
+
+<div class="otp-card">
+
+
+<button
+  id="backToRegistration"
+  class="back-link"
+  type="button"
+>
+← Back to Registration
+</button>
+
+
+<div class="otp-header">
+
+<div class="kicker">
+REGISTRATION VERIFICATION
+</div>
+
+<h2>
+Verify your email
+</h2>
+
+<p>
+We sent a 6-digit verification code to
+<strong id="otpEmail"></strong>
+</p>
+
+</div>
+
+
+<div class="field">
+
+<label class="otp-label">
+Enter OTP
+</label>
+
+<input
+  id="otpInput"
+  class="otp-input"
+  type="text"
+  inputmode="numeric"
+  autocomplete="one-time-code"
+  maxlength="6"
+  placeholder="000000"
+>
+
+<small
+  id="otpError"
+  class="field-error center"
+></small>
+
+</div>
+
+
+<button
+  id="verifyOtpButton"
+  class="submit"
+  type="button"
+>
+
+<span id="verifyOtpText">
+Verify & Register
+</span>
+
+<span
+  id="verifyOtpLoader"
+  class="loader hidden"
+></span>
+
+</button>
+
+
+<div class="resend-area">
+
+<button
+  id="resendOtpButton"
+  class="resend-button"
+  type="button"
+>
+Resend OTP
+</button>
+
+</div>
+
+
+<div
+  id="otpMessage"
+  class="message"
+></div>
+
+
+</div>
+
+</section>
+
+
+</form>
+
+</div>
+
+</div>
+
 </main>
 
-<div id="successPage" class="success-screen hidden"><div class="success-card"><div class="success-mark">✓</div><div class="kicker">SUCCESS</div><h2>Tutor registration submitted.</h2><p id="successText">Your profile has been saved and is awaiting verification.</p><a class="submit home-button" href="index.html">Continue to Home</a></div></div>
 
-<div id="termsModal" class="modal hidden"><div class="modal-overlay"></div><div class="modal-box"><button id="closeTerms" class="modal-close" type="button">×</button><div class="kicker">URBANTUTORSITE</div><h2>Terms & Conditions</h2><p>By registering, you confirm that the information and documents submitted by you are accurate and belong to you or have been provided with appropriate permission.</p><p>Your information and documents may be used for tutor verification, profile creation, tutor matching and communication regarding requested services.</p><p>You agree not to submit misleading, fraudulent or unlawful information.</p><button id="acceptTerms" class="submit" type="button">I Understand</button></div></div>
+
+<!-- =====================================================
+     SUCCESS
+====================================================== -->
+
+<div
+  id="successPage"
+  class="success-screen hidden"
+>
+
+
+<div class="success-card">
+
+
+<div class="success-mark">
+✓
+</div>
+
+
+<div class="kicker">
+SUCCESS
+</div>
+
+
+<h2>
+Tutor registration submitted.
+</h2>
+
+
+<p id="successText">
+Your profile has been verified and your registration
+has been saved successfully.
+</p>
+
+
+<a
+  class="submit home-button"
+  href="index.html"
+>
+Continue to Home
+</a>
+
+
+</div>
+
+</div>
+
+
+
+<!-- =====================================================
+     TERMS MODAL
+====================================================== -->
+
+<div
+  id="termsModal"
+  class="modal hidden"
+>
+
+
+<div class="modal-overlay"></div>
+
+
+<div class="modal-box">
+
+
+<button
+  id="closeTerms"
+  class="modal-close"
+  type="button"
+>
+×
+</button>
+
+
+<div class="kicker">
+URBANTUTORSITE
+</div>
+
+
+<h2>
+Terms & Conditions
+</h2>
+
+
+<p>
+By registering, you confirm that the information and
+documents submitted by you are accurate and belong to you
+or have been provided with appropriate permission.
+</p>
+
+
+<p>
+Your information and documents may be used for tutor
+verification, profile creation, tutor matching and
+communication regarding requested services.
+</p>
+
+
+<p>
+You agree not to submit misleading, fraudulent or
+unlawful information.
+</p>
+
+
+<button
+  id="acceptTerms"
+  class="submit"
+  type="button"
+>
+I Understand
+</button>
+
+
+</div>
+
+</div>
+
+
 
 <div id="site-footer"></div>
+
+
 <script src="js/header.js"></script>
+
 <script src="js/footer.js"></script>
-<script src="tutorregistration.js" defer></script>
+
+<script
+  src="tutorregistration.js"
+  defer
+></script>
+
+
 </body>
+
 </html>
