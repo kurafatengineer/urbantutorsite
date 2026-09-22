@@ -27,7 +27,10 @@
    ========================================================= */
 
 const TOGGLE_STUDENT_LOGIN_URL = "student.html";
-const TOGGLE_TUTOR_LOGIN_URL = "tutor.html";
+
+// FIX: there is no "tutor.html" file in this project - the
+// real tutor login + registration page is "tutorregistration.html".
+const TOGGLE_TUTOR_LOGIN_URL = "tutorregistration.html";
 
 
 /* =========================================================
@@ -83,9 +86,42 @@ function initializeToggle() {
 
   /* -------------------------------------------------------
      Initial state
+
+     NEW: defaults to "student" exactly as before, UNLESS a
+     tutor is currently signed in on this device, or just
+     came straight from tutor login/registration - in which
+     case the toggle opens on "Tutor" instead.
      ------------------------------------------------------- */
 
-  setUserType("student");
+  setUserType(
+    isLoggedInTutor_() ? "tutor" : "student"
+  );
+
+}
+
+
+/* =========================================================
+   NEW: TUTOR SESSION CHECK
+   =========================================================
+   Read-only check against localStorage/sessionStorage - this
+   component never talks to the server. tutorregistration.js
+   and tutorprofile.js remain the only places that create,
+   verify, or clear a tutor session.
+   ========================================================= */
+
+function isLoggedInTutor_() {
+
+  try {
+
+    if (sessionStorage.getItem("urbantutorsite_last_login") === "tutor") {
+      return true;
+    }
+
+    return !!localStorage.getItem("urbantutorsite_tutor_session");
+
+  } catch (error) {
+    return false;
+  }
 
 }
 
