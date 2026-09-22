@@ -224,12 +224,6 @@ a {
     0 8px 22px rgba(0, 0, 0, 0.4);
 }
 
-.profile-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .profile-avatar span {
   font-size: 27px;
   font-weight: 700;
@@ -241,6 +235,19 @@ a {
   flex: 1 1 auto;
   min-width: 0;
   padding-top: 2px;
+}
+
+/* Nothing on the profile card should ever push past the card's
+   edge on a narrow screen — long names, long subject lists,
+   long city names, etc. all wrap instead of overflowing. */
+.profile-heading h1,
+.chip,
+.stat-value,
+.stat-label,
+.class-subject,
+.class-detail {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .profile-kicker {
@@ -521,18 +528,47 @@ a {
 
 @media (max-width: 560px) {
 
+  .container {
+    padding: 28px 16px 70px;
+  }
+
   .profile-card {
-    padding: 26px 22px 24px;
+    padding: 24px 18px 20px;
   }
 
   .profile-card-top {
     flex-wrap: wrap;
   }
 
+  .profile-avatar {
+    width: 68px;
+    height: 68px;
+  }
+
+  .profile-avatar span {
+    font-size: 22px;
+  }
+
+  .profile-heading h1 {
+    font-size: 21px;
+  }
+
   .logout-button {
     order: 3;
     width: 100%;
     margin-top: 8px;
+  }
+
+  .profile-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stat {
+    padding: 14px 14px;
+  }
+
+  .stat-value {
+    font-size: 18px;
   }
 
   .section-heading {
@@ -543,6 +579,14 @@ a {
 
   .section-heading p {
     text-align: left;
+  }
+
+  .class-card {
+    padding: 16px 16px 16px 18px;
+  }
+
+  .class-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
