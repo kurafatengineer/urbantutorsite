@@ -53,6 +53,18 @@
   --indigo: #8f9dff;
   --indigo-dim: rgba(143, 157, 255, 0.14);
 
+  /* Border colours for the subject pill (same rgb as each accent's
+     -dim above, just a stronger alpha), so a subject pill gets an
+     outline the same way the status pills already do. */
+  --success-line: rgba(114, 227, 154, 0.3);
+  --info-line: rgba(143, 160, 255, 0.3);
+  --emerald-line: rgba(79, 227, 168, 0.3);
+  --amber-line: rgba(255, 196, 77, 0.3);
+  --cyan-line: rgba(94, 216, 232, 0.3);
+  --rose-line: rgba(255, 143, 176, 0.3);
+  --orange-line: rgba(255, 161, 92, 0.3);
+  --indigo-line: rgba(143, 157, 255, 0.3);
+
   --radius: 20px;
 
   --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.45);
@@ -358,7 +370,7 @@ svg {
   border: 1px solid var(--border);
   border-radius: 14px;
   min-height: 74px;
-  padding: 14px 18px 14px 0;
+  padding: 0;
   overflow: hidden;
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
@@ -379,7 +391,6 @@ svg {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 14px 0;
 }
 
 .stat > div:last-child {
@@ -387,6 +398,7 @@ svg {
   flex-direction: column;
   justify-content: center;
   min-width: 0;
+  padding: 14px 18px 14px 0;
 }
 
 .stat-rail span {
