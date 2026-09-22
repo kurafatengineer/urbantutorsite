@@ -14,7 +14,16 @@
  * API ACTIONS USED (see API Router.gs / Tutor Registration.gs)
  *   checkTutorEmail            sendTutorOTP
  *   resendTutorOTP             verifyTutorOTP
- *   completeTutorRegistration
+ *   completeTutorRegistration  getTutorProfile   (NEW)
+ *
+ * UPDATE (Tutor Login / Session):
+ *   A successful login OR a freshly completed registration now
+ *   returns a "sessionToken". showSuccess() stores it in
+ *   localStorage and sends the tutor straight to index.html,
+ *   already logged in, instead of showing a static message.
+ *   The IIFE at the bottom of this file checks for an existing
+ *   session on page load and, if it is still valid, skips the
+ *   login form entirely and goes straight to index.html.
  ************************************************************/
 
 
@@ -815,10 +824,47 @@ async function buildRegistrationPayload() {
  * STEP 4 - SUCCESS
  ************************************************************/
 
+const TUTOR_SESSION_KEY = "urbantutorsite_tutor_session";
+
 function showSuccess(type, result) {
 
   clearInterval(resendTimer);
   resendTimer = null;
+
+  /*
+   * NEW: sign the tutor in on this device and go straight to
+   * the home screen, with the header's Tutor toggle already
+   * selected. If, for any reason, the backend did not send a
+   * sessionToken (e.g. an older deployment), fall back to the
+   * original static success screen below instead of breaking.
+   */
+
+  if (result && result.sessionToken) {
+
+    try {
+
+      localStorage.setItem(
+        TUTOR_SESSION_KEY,
+        JSON.stringify({
+          sessionToken: result.sessionToken,
+          profile: result.profile || null
+        })
+      );
+
+    } catch (storageError) {
+      console.error(storageError);
+    }
+
+    // Home reads this once, on the very next load, to pre-select
+    // the "Tutor" toggle instead of the default "Student" one.
+    try {
+      sessionStorage.setItem("urbantutorsite_last_login", "tutor");
+    } catch (ignore) {}
+
+    window.location.href = "index.html";
+    return;
+
+  }
 
   $("successEmail").textContent = currentEmail;
 
@@ -856,6 +902,47 @@ function showSuccess(type, result) {
 
 /************************************************************
  * INITIAL STATE
+ *
+ * The login/registration form is shown first. Only if a saved
+ * session is confirmed valid by the server is the tutor sent
+ * to index.html. An expired / invalid session is cleared so
+ * the form stays usable.
  ************************************************************/
 
 showPage("email");
+
+(async function () {
+
+  let existingSession = null;
+
+  try {
+    const raw = localStorage.getItem(TUTOR_SESSION_KEY);
+    existingSession = raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    localStorage.removeItem(TUTOR_SESSION_KEY);
+    return;
+  }
+
+  if (!existingSession || !existingSession.sessionToken) {
+    return;
+  }
+
+  try {
+
+    const result = await apiRequest({
+      action: "getTutorProfile",
+      sessionToken: existingSession.sessionToken
+    });
+
+    if (result.success) {
+      window.location.replace("index.html");
+      return;
+    }
+
+    localStorage.removeItem(TUTOR_SESSION_KEY);
+
+  } catch (error) {
+    console.error(error);
+  }
+
+})();
