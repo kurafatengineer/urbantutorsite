@@ -275,11 +275,37 @@ otpInput.addEventListener(
   numericInput
 );
 
+otpInput.addEventListener(
+  "input",
+  autoVerifyOtpWhenComplete
+);
+
 
 function numericInput(event) {
 
   event.target.value =
     event.target.value.replace(/\D/g, "");
+
+}
+
+
+/************************************************************
+ * AUTO-VERIFY OTP
+ *
+ * As soon as the 6th digit is typed/pasted in, verify
+ * automatically - no click on "Verify OTP" required.
+ ************************************************************/
+
+function autoVerifyOtpWhenComplete(event) {
+
+  if (
+    /^\d{6}$/.test(event.target.value) &&
+    !verifyOtpButton.disabled
+  ) {
+
+    verifyOTP();
+
+  }
 
 }
 
@@ -897,31 +923,79 @@ function validateRegistration(data) {
  * OTHER TIMING
  ************************************************************/
 
-document
-  .getElementById("timingOther")
-  .addEventListener(
+const timingOtherCheckbox = document.getElementById("timingOther");
+
+const timingRegularCheckboxes = Array.from(
+  document.querySelectorAll('input[name="preferredTiming"]')
+).filter(
+  (input) => input !== timingOtherCheckbox
+);
+
+timingOtherCheckbox.addEventListener(
+  "change",
+  function () {
+
+    if (this.checked) {
+
+      // "Other" selected -> clear and lock every regular time slot.
+      timingRegularCheckboxes.forEach((input) => {
+        input.checked = false;
+        input.disabled = true;
+      });
+
+      timingOtherWrap.classList.remove("hidden");
+
+      setTimeout(
+        () => timingOtherInput.focus(),
+        50
+      );
+
+    } else {
+
+      timingRegularCheckboxes.forEach((input) => {
+        input.disabled = false;
+      });
+
+      timingOtherWrap.classList.add("hidden");
+
+      timingOtherInput.value = "";
+
+    }
+
+  }
+);
+
+// Vice versa: picking any regular time slot clears/locks "Other".
+timingRegularCheckboxes.forEach((input) => {
+
+  input.addEventListener(
     "change",
     function () {
 
       if (this.checked) {
 
-        timingOtherWrap.classList.remove("hidden");
+        timingOtherCheckbox.checked = false;
+        timingOtherCheckbox.disabled = true;
 
-        setTimeout(
-          () => timingOtherInput.focus(),
-          50
-        );
+        timingOtherWrap.classList.add("hidden");
+        timingOtherInput.value = "";
 
       } else {
 
-        timingOtherWrap.classList.add("hidden");
+        const anyRegularChecked = timingRegularCheckboxes.some(
+          (checkbox) => checkbox.checked
+        );
 
-        timingOtherInput.value = "";
+        if (!anyRegularChecked) {
+          timingOtherCheckbox.disabled = false;
+        }
 
       }
 
     }
   );
+
+});
 
 
 /************************************************************
