@@ -273,12 +273,16 @@
           <small id="otpError" class="field-error center"></small>
         </div>
 
-        <div class="submit-area">
+        <div class="submit-area" id="otpSubmitArea" style="display:none;">
           <button id="verifyOtpButton" class="submit" type="submit">
             <span id="verifyOtpText">Verify OTP</span>
             <span id="verifyOtpLoader" class="loader hidden"></span>
           </button>
         </div>
+
+        <p class="center" style="color:var(--muted);font-size:13px;margin-top:4px;">
+          Enter the 6-digit code above - it verifies automatically.
+        </p>
 
       </form>
 
