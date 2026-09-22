@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050505">
+  <meta name="description" content="Urbantutorsite — Tutor Profile">
+  <title>Urbantutorsite — Tutor Profile</title>
+
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/footer.css">
+  <link rel="stylesheet" href="tutorprofile.css">
+</head>
+
+<body data-page="tutorprofile">
+
+<!-- Reusable Header -->
+<div id="site-header"></div>
+
+<!-- =====================================================
+     LOADING STATE (shown until the session check finishes)
+===================================================== -->
+
+<main id="loadingPage" class="page loading-page">
+  <div class="container">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>Loading your profile...</p>
+  </div>
+</main>
+
+<!-- =====================================================
+     PROFILE PAGE
+===================================================== -->
+
+<main id="profilePage" class="page profile-page hidden">
+  <div class="container">
+
+    <!-- ================= PROFILE HEADER CARD ================= -->
+
+    <section class="profile-card">
+
+      <div class="profile-card-top">
+
+        <div class="profile-avatar" id="profileAvatarWrap">
+          <span id="profileAvatarInitials"></span>
+        </div>
+
+        <div class="profile-heading">
+          <div class="profile-kicker">Tutor Profile</div>
+          <h1 id="profileName">—</h1>
+
+          <div class="profile-meta">
+            <span id="profileRegisterAs" class="chip chip-muted"></span>
+            <span id="profileCity" class="chip chip-muted"></span>
+            <span id="profileStatus" class="chip"></span>
+          </div>
+        </div>
+
+        <button id="logoutButton" class="logout-button" type="button">
+          Log out
+        </button>
+
+      </div>
+
+      <div class="profile-stats" id="profileStats">
+        <!-- filled by JS: Experience / Subjects / Classes / Active -->
+      </div>
+
+    </section>
+
+    <!-- ================= DEMO / CLASS STATUS ================= -->
+
+    <section class="classes-section">
+
+      <div class="section-heading">
+        <h2>Demo &amp; Class Status</h2>
+        <p>Everything assigned to you — live from the office.</p>
+      </div>
+
+      <div id="classesList" class="classes-list">
+        <!-- filled by JS -->
+      </div>
+
+      <div id="classesEmpty" class="classes-empty hidden">
+        <p>No demos or classes have been assigned to you yet.</p>
+        <p class="muted">Once the office assigns you a demo or a class, it will appear here automatically.</p>
+      </div>
+
+    </section>
+
+  </div>
+</main>
+
+<!-- =====================================================
+     ERROR STATE (session invalid / server error)
+===================================================== -->
+
+<main id="errorPage" class="page error-page hidden">
+  <div class="container">
+    <h1>We couldn't load your profile</h1>
+    <p id="errorMessage" class="muted">Please log in again.</p>
+    <a class="submit" href="tutorregistration.html">Go to Login</a>
+  </div>
+</main>
+
+<!-- Reusable Footer -->
+<div id="site-footer"></div>
+
+<script src="js/header.js"></script>
+<script src="js/footer.js"></script>
+<script src="tutorprofile.js" defer></script>
+
+</body>
+</html>
