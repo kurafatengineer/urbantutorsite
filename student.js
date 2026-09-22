@@ -937,10 +937,9 @@ timingOtherCheckbox.addEventListener(
 
     if (this.checked) {
 
-      // "Other" selected -> clear and lock every regular time slot.
+      // "Other" selected -> clear every regular time slot and show the textbox.
       timingRegularCheckboxes.forEach((input) => {
         input.checked = false;
-        input.disabled = true;
       });
 
       timingOtherWrap.classList.remove("hidden");
@@ -952,10 +951,6 @@ timingOtherCheckbox.addEventListener(
 
     } else {
 
-      timingRegularCheckboxes.forEach((input) => {
-        input.disabled = false;
-      });
-
       timingOtherWrap.classList.add("hidden");
 
       timingOtherInput.value = "";
@@ -965,30 +960,20 @@ timingOtherCheckbox.addEventListener(
   }
 );
 
-// Vice versa: picking any regular time slot clears/locks "Other".
+// Vice versa: picking any regular time slot clears "Other" and hides its textbox.
 timingRegularCheckboxes.forEach((input) => {
 
   input.addEventListener(
     "change",
     function () {
 
-      if (this.checked) {
+      if (this.checked && timingOtherCheckbox.checked) {
 
         timingOtherCheckbox.checked = false;
-        timingOtherCheckbox.disabled = true;
 
         timingOtherWrap.classList.add("hidden");
+
         timingOtherInput.value = "";
-
-      } else {
-
-        const anyRegularChecked = timingRegularCheckboxes.some(
-          (checkbox) => checkbox.checked
-        );
-
-        if (!anyRegularChecked) {
-          timingOtherCheckbox.disabled = false;
-        }
 
       }
 
