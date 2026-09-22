@@ -184,7 +184,7 @@ function renderProfile(profile) {
   $("profileAvatarInitials").textContent = initials || "T";
 
   $("profileKicker").textContent = profile.tutorId
-    ? `Tutor ID • ${profile.tutorId}`
+    ? profile.tutorId
     : "Tutor Profile";
 
   $("profileRegisterAs").textContent = profile.registerAs || "Tutor";
@@ -229,8 +229,13 @@ function stat(value, label, accent) {
  * SUBJECT -> ICON + ACCENT COLOUR
  ************************************************************/
 
+// NOTE: "violet" is deliberately never used here — it is the
+// exact accent the "Demo Scheduled" status pill uses (see
+// .status-demo-scheduled in tutorprofile.css), so a subject
+// using it would render in an identical colour to that status
+// pill sitting right next to it on the same row.
 const SUBJECT_VISUALS = [
-  { test: /phys/i,                          icon: "atom",  accent: "violet"  },
+  { test: /phys/i,                          icon: "atom",  accent: "indigo"  },
   { test: /chem/i,                          icon: "flask", accent: "emerald" },
   { test: /bio/i,                           icon: "leaf",  accent: "success" },
   { test: /math/i,                          icon: "ruler", accent: "info"    },
@@ -240,7 +245,7 @@ const SUBJECT_VISUALS = [
   { test: /hindi|sanskrit|language/i,       icon: "book",  accent: "amber"   }
 ];
 
-const FALLBACK_ACCENTS = ["violet", "emerald", "info", "amber", "cyan", "rose", "orange", "success"];
+const FALLBACK_ACCENTS = ["indigo", "emerald", "info", "amber", "cyan", "rose", "orange", "success"];
 
 function subjectVisual(subject) {
 
@@ -406,7 +411,7 @@ function renderClassCard(item) {
       <div class="class-body">
 
         <div class="class-row-top">
-          <span class="status-badge subject-badge" style="background: var(--${visual.accent}-dim, var(--surface-2)); color: var(--${visual.accent}, var(--muted));">${escapeHTML(item.subject || "Subject")}</span>
+          <span class="status-badge subject-badge" style="background: var(--${visual.accent}-dim, var(--surface-2)); color: var(--${visual.accent}, var(--muted)); border-color: var(--${visual.accent}-line, var(--border-light));">${escapeHTML(item.subject || "Subject")}</span>
           <span class="status-badge ${statusClass}">${escapeHTML(item.status || "")}</span>
         </div>
 
