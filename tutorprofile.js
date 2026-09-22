@@ -146,14 +146,9 @@ function renderProfile(profile) {
     .map(part => part[0].toUpperCase())
     .join("");
 
+  // Always show the name-letter avatar — never a photo, even
+  // if profile.profileImage exists.
   $("profileAvatarInitials").textContent = initials || "T";
-
-  if (profile.profileImage) {
-    const img = $("profileAvatarImg");
-    img.src = profile.profileImage;
-    img.classList.remove("hidden");
-    $("profileAvatarInitials").classList.add("hidden");
-  }
 
   $("profileRegisterAs").textContent = profile.registerAs || "Tutor";
   $("profileCity").textContent = profile.city || "";
@@ -224,8 +219,7 @@ function renderClassCard(item) {
     ["Medium", item.medium],
     ["Preferred Timing", item.preferredTiming],
     ["Demo Date", item.demoDate],
-    ["Duration", item.duration],
-    ["Classes Completed", item.classesCompleted]
+    ["Duration", item.duration]
   ].filter(pair => pair[1] !== undefined && pair[1] !== null && String(pair[1]).trim() !== "");
 
   return `
