@@ -186,9 +186,23 @@ $("mobile").addEventListener("input", () => {
 
 /* ---- digits-only fields ---- */
 
-["whatsapp", "pinCode", "otp", "twelfthYear", "graduationYear", "pgYear"].forEach(id =>
+["whatsapp", "pinCode", "twelfthYear", "graduationYear", "pgYear"].forEach(id =>
   $(id).addEventListener("input", () => digitsOnly($(id)))
 );
+
+/* ---- OTP: digits only, then auto-verify once 6 digits are entered ---- */
+
+$("otp").addEventListener("input", () => {
+
+  digitsOnly($("otp"));
+
+  const button = $("verifyOtpButton");
+
+  if (/^\d{6}$/.test(val("otp")) && !button.disabled) {
+    verifyOtp();
+  }
+
+});
 
 /* ---- 12th: Percentage OR CGPA (never both) ----
  * Typing in one box disables the other; clearing it enables it again. */
