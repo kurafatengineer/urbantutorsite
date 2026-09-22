@@ -261,8 +261,11 @@ function handleHeaderClick(event) {
 
   if (tutorButton) {
 
+    // FIX: "tutor.html" does not exist in this project.
     loginButton.href =
-      "tutor.html";
+      isLoggedInTutor_()
+        ? "tutorprofile.html"
+        : "tutorregistration.html";
 
     return;
   }
@@ -324,8 +327,14 @@ function updateLoginDestination() {
     )
   ) {
 
+    // FIX: "tutor.html" does not exist in this project.
     loginButton.href =
-      "tutor.html";
+      isLoggedInTutor_()
+        ? "tutorprofile.html"
+        : "tutorregistration.html";
+
+    loginButton.title =
+      isLoggedInTutor_() ? "My Profile" : "Login";
 
     return;
   }
@@ -354,6 +363,25 @@ function updateLoginDestination() {
    */
 
   loginButton.href =
-    "student.html";
+    isLoggedInTutor_() ? "tutorprofile.html" : "student.html";
+
+}
+
+
+/* =========================================================
+   NEW: TUTOR SESSION CHECK
+   =========================================================
+   Read-only check against localStorage - the header never
+   creates, verifies with the server, or clears a session.
+   That stays entirely in tutorregistration.js / tutorprofile.js.
+   ========================================================= */
+
+function isLoggedInTutor_() {
+
+  try {
+    return !!localStorage.getItem("urbantutorsite_tutor_session");
+  } catch (error) {
+    return false;
+  }
 
 }
