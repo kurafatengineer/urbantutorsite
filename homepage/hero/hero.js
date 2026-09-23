@@ -78,7 +78,14 @@ function initializeHero() {
    * Set initial Hero state.
    */
 
-  updateHeroContent("student");
+  // FIX: start from whatever is actually selected (the toggle is
+  // loaded before the hero, and a logged-in user has no toggle).
+  const initialType =
+    (window.UrbanSession && window.UrbanSession.role()) ||
+    (window.ToggleComponent && window.ToggleComponent.getUserType && window.ToggleComponent.getUserType()) ||
+    "student";
+
+  updateHeroContent(initialType);
 
 }
 
