@@ -471,7 +471,9 @@ body.add-modal-open {
   align-items: stretch;
   gap: 4px;
   margin: calc(var(--tc-top) * -1) calc(var(--tc-right) * -1) 0 calc(var(--tc-left) * -1);
-  padding: 11px 16px;
+  /* extra room on the right: a single, centred line never runs
+     up to the container's edge */
+  padding: 11px 28px 11px 16px;
   border-bottom: 1px solid var(--border);
   text-align: center;
 }
@@ -511,9 +513,19 @@ body.add-modal-open {
   border-right: 0;
 }
 
+/* two data sets (title + badge): one on the left, one on the right.
+   A single one stays centred (the default above). */
+.tutor-head-row.two {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+
 .tutor-head-badge {
   display: inline-block;
-  margin-left: 10px;
+  margin-left: 0;
   padding: 2px 10px;
   border-radius: 999px;
   border: 1px solid currentColor;
@@ -575,7 +587,9 @@ body.add-modal-open {
 .tutor-btn:disabled {
   background: var(--surface-3);
   color: var(--muted-2);
-  cursor: not-allowed;
+  cursor: pointer;
+  /* clicks pass through to the card, so a disabled button collapses it */
+  pointer-events: none;
 }
 
 
