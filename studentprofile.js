@@ -29,8 +29,10 @@
  *              "Completed"
  *   tutorsApplied, demoDate, parentAccepted, tutorAccepted,
  *   price, duration, classes,
- *   tutor   <- { fullName, qualification, experience, mobile }
- *              (mobile only once the class is Running)
+ *   tutor   <- { fullName, qualification, experience }
+ *
+ * PRIVACY: no email or mobile number (the parent's or the
+ * tutor's) is sent to or shown on this page.
  ************************************************************/
 
 const WEB_APP_URL =
@@ -262,11 +264,10 @@ function renderSwitcher() {
 
   const account = STATE.account;
 
-  $("accountLine").textContent = [
-    account.parentsName ? `Parent: ${account.parentsName}` : "",
-    account.email || "",
-    account.phone || ""
-  ].filter(Boolean).join("  |  ");
+  // Privacy: only the parent's name is shown - never the
+  // account's email or mobile number.
+  $("accountLine").textContent =
+    account.parentsName ? `Parent: ${account.parentsName}` : "";
 
   const pills = STATE.students.map(s => `
     <button
@@ -553,12 +554,9 @@ function renderClassCard(item, student) {
     [ICONS.clock, "Duration", item.duration]
   ].filter(triple => triple[2] !== undefined && triple[2] !== null && String(triple[2]).trim() !== "");
 
-  const phoneRow = tutor && tutor.mobile ? `
-    <div class="class-detail class-detail-location" title="Tutor's phone">
-      <span class="class-detail-icon">${ICONS.phone}</span>
-      <span class="class-detail-value"><a class="location-pin" href="tel:${escapeHTML(tutor.mobile)}">${escapeHTML(tutor.mobile)}</a></span>
-    </div>
-  ` : "";
+  // Privacy: no phone / email row - the tutor's contact details
+  // are never shown on the Student Profile.
+  const phoneRow = "";
 
   // Last row: the student's location (small) + PIN (bold).
   const locationText = joinAddress(student && student.address, student && student.city);
