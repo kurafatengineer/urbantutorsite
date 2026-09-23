@@ -332,10 +332,10 @@ body.add-modal-open {
 .profile-card {
   /* Padding of .profile-card (tutorprofile.css), kept in one place
      so the "Apply for new tuition" bar can bleed out to the card's
-     sides and bottom edge exactly. */
+     top edge and sides exactly. */
   --pc-x: 28px;
-  --pc-b: 28px;
-  --pc-top: 22px;      /* top corner radius of the apply bar */
+  --pc-t: 34px;
+  --pc-bar-bottom: 20px;   /* rounded lower corners of the bar */
 }
 
 #profileStats.profile-stats {
@@ -345,9 +345,9 @@ body.add-modal-open {
 
 /* =========================================================
    "APPLY FOR NEW TUITION" BAR
-   Same width as the profile card (both sides flush with its
-   sides), bottom edge + bottom corners identical to the card's,
-   and both top corners rounded outwards (normal, positive radius).
+   Sits at the TOP of the profile card: flush with its top edge and
+   both sides, top corners curved upward with the card's own radius
+   (so they follow the card's corners), lower corners softly rounded.
 ========================================================= */
 
 .apply-tuition-bar {
@@ -356,11 +356,11 @@ body.add-modal-open {
   justify-content: center;
 
   width: calc(100% + (var(--pc-x) * 2));
-  margin: 26px calc(var(--pc-x) * -1) calc(var(--pc-b) * -1);
-  padding: 20px 20px 18px;
+  margin: calc(var(--pc-t) * -1) calc(var(--pc-x) * -1) 26px;
+  padding: 18px 20px;
 
   border: 0;
-  border-radius: var(--pc-top) var(--pc-top) var(--radius) var(--radius);
+  border-radius: var(--radius) var(--radius) var(--pc-bar-bottom) var(--pc-bar-bottom);
 
   background: var(--lime);
   color: #050505;
@@ -461,19 +461,33 @@ body.add-modal-open {
   --tc-left: 6px;
 }
 
-/* top layer: "Applied by" / "Demo Scheduled" / "Your Tutor" */
+/* top layer: "Applied by" / "Demo Scheduled" / "Your Tutor" (+ note) */
 .tutor-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: calc(var(--tc-top) * -1) calc(var(--tc-right) * -1) 0 calc(var(--tc-left) * -1);
+  padding: 11px var(--tc-right) 11px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tutor-head-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin: calc(var(--tc-top) * -1) calc(var(--tc-right) * -1) 0 calc(var(--tc-left) * -1);
-  padding: 11px var(--tc-right) 11px 16px;
-  border-bottom: 1px solid var(--border);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.tutor-head-note {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.9;
 }
 
 /* the colour classes (.status-*) are the shared ones and also
@@ -558,52 +572,46 @@ body.add-modal-open {
 
 /* ---------------------------------------------------------
    Semicircular cut-outs at every seam of a stack: between the
-   tuition card and its first tutor, and between one tutor and
-   the next. A half circle (filled with the page background and
-   outlined like the cards) bites into each side of the seam.
+   tuition card and its first tutor, and between one tutor and the
+   next. The half circle is CUT OUT of the cards themselves (a
+   mask, not something drawn on top), so the dashed seam line and
+   the cards' side lines stop at the notch instead of running
+   through it.
+     first card  -> its two bottom corners are cut
+     last card   -> its two top corners are cut
+     cards between -> both
 --------------------------------------------------------- */
 
 .tuition-stack > .class-card {
-  --cut: 11px;
+  --cut: 12px;
+  --cut-tl: radial-gradient(circle at 0 0, transparent var(--cut), #000 calc(var(--cut) + 0.5px));
+  --cut-tr: radial-gradient(circle at 100% 0, transparent var(--cut), #000 calc(var(--cut) + 0.5px));
+  --cut-bl: radial-gradient(circle at 0 100%, transparent var(--cut), #000 calc(var(--cut) + 0.5px));
+  --cut-br: radial-gradient(circle at 100% 100%, transparent var(--cut), #000 calc(var(--cut) + 0.5px));
 }
 
-.tuition-stack > .class-card:not(:last-child)::after,
-.tuition-stack > .class-card:not(:first-child)::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: var(--cut);
-  z-index: 3;
-  pointer-events: none;
+/* first card: bottom corners */
+.tuition-stack > .class-card:first-child {
+  -webkit-mask-image: var(--cut-bl), var(--cut-br);
+  -webkit-mask-composite: source-in;
+          mask-image: var(--cut-bl), var(--cut-br);
+          mask-composite: intersect;
 }
 
-/* lower half of the notch - bottom corners of the upper card */
-.tuition-stack > .class-card:not(:last-child)::after {
-  bottom: 0;
-  background:
-    radial-gradient(circle at 0 100%,
-      var(--bg) 0, var(--bg) calc(var(--cut) - 1px),
-      var(--border-light) calc(var(--cut) - 1px), var(--border-light) var(--cut),
-      transparent calc(var(--cut) + 0.5px)) left bottom / var(--cut) var(--cut) no-repeat,
-    radial-gradient(circle at 100% 100%,
-      var(--bg) 0, var(--bg) calc(var(--cut) - 1px),
-      var(--border-light) calc(var(--cut) - 1px), var(--border-light) var(--cut),
-      transparent calc(var(--cut) + 0.5px)) right bottom / var(--cut) var(--cut) no-repeat;
+/* last card: top corners */
+.tuition-stack > .class-card:last-child {
+  -webkit-mask-image: var(--cut-tl), var(--cut-tr);
+  -webkit-mask-composite: source-in;
+          mask-image: var(--cut-tl), var(--cut-tr);
+          mask-composite: intersect;
 }
 
-/* upper half of the notch - top corners of the lower card */
-.tuition-stack > .class-card:not(:first-child)::before {
-  top: 0;
-  background:
-    radial-gradient(circle at 0 0,
-      var(--bg) 0, var(--bg) calc(var(--cut) - 1px),
-      var(--border-light) calc(var(--cut) - 1px), var(--border-light) var(--cut),
-      transparent calc(var(--cut) + 0.5px)) left top / var(--cut) var(--cut) no-repeat,
-    radial-gradient(circle at 100% 0,
-      var(--bg) 0, var(--bg) calc(var(--cut) - 1px),
-      var(--border-light) calc(var(--cut) - 1px), var(--border-light) var(--cut),
-      transparent calc(var(--cut) + 0.5px)) right top / var(--cut) var(--cut) no-repeat;
+/* cards in the middle: top AND bottom corners */
+.tuition-stack > .class-card:not(:first-child):not(:last-child) {
+  -webkit-mask-image: var(--cut-tl), var(--cut-tr), var(--cut-bl), var(--cut-br);
+  -webkit-mask-composite: source-in, source-in, source-in;
+          mask-image: var(--cut-tl), var(--cut-tr), var(--cut-bl), var(--cut-br);
+          mask-composite: intersect, intersect, intersect;
 }
 
 
@@ -645,8 +653,8 @@ body.add-modal-open {
 
   .profile-card {
     --pc-x: 18px;
-    --pc-b: 20px;
-    --pc-top: 18px;
+    --pc-t: 24px;
+    --pc-bar-bottom: 16px;
   }
 
   .tutor-card {
@@ -657,8 +665,8 @@ body.add-modal-open {
   }
 
   .apply-tuition-bar {
-    margin-top: 22px;
-    padding: 18px 16px 16px;
+    margin-bottom: 22px;
+    padding: 16px;
     font-size: 15px;
   }
 
