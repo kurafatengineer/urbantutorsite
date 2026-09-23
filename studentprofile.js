@@ -280,6 +280,11 @@ function renderAll() {
 
 /************************************************************
  * STUDENT SWITCHER  (all Student IDs on this account)
+ *
+ * The Student ID under the avatar is the switcher. With more
+ * than one student on this account it opens a small list of
+ * every Student ID; picking one switches the whole page to that
+ * student. With a single student it is plain, non-clickable text.
  ************************************************************/
 
 function renderSwitcher() {
@@ -287,31 +292,48 @@ function renderSwitcher() {
   const account = STATE.account;
 
   // Privacy: only the parent's name is shown - never the
-  // account's email or mobile number.
+  // account's email or mobile number. Shown under the student's name.
   $("accountLine").textContent =
     account.parentsName ? `Parent: ${account.parentsName}` : "";
+  $("accountLine").classList.toggle("hidden", !account.parentsName);
 
-  const pills = STATE.students.map(s => `
+  const many = STATE.students.length > 1;
+  const kicker = $("profileKicker");
+
+  kicker.disabled = !many;
+  kicker.classList.toggle("is-switchable", many);
+  kicker.setAttribute("aria-expanded", "false");
+
+  $("sidMenu").classList.add("hidden");
+
+  $("sidMenu").innerHTML = STATE.students.map(s => `
     <button
-      class="student-pill"
+      class="sid-option${s.studentId === STATE.selectedId ? " active" : ""}"
       type="button"
-      role="tab"
+      role="option"
       data-student-id="${escapeHTML(s.studentId)}"
       aria-selected="${s.studentId === STATE.selectedId ? "true" : "false"}"
     >
-      <span class="student-pill-avatar" aria-hidden="true">${escapeHTML(initialsOf(s.studentName, "S"))}</span>
-      <span>
-        <strong>${escapeHTML(s.studentName || "Student")}</strong>
-        <small>${escapeHTML(s.studentId)}</small>
-      </span>
+      <span class="sid-option-id">${escapeHTML(s.studentId)}</span>
+      <span class="sid-option-name">${escapeHTML(s.studentName || "Student")}</span>
     </button>
   `).join("");
 
-  $("studentTabs").innerHTML = pills + `
-    <button class="student-pill add-pill" type="button" id="addStudentButton">
-      + Add student
-    </button>
-  `;
+}
+
+function openSidMenu() {
+
+  if ($("profileKicker").disabled) return;
+
+  $("sidMenu").classList.remove("hidden");
+  $("profileKicker").setAttribute("aria-expanded", "true");
+
+}
+
+function closeSidMenu() {
+
+  $("sidMenu").classList.add("hidden");
+  $("profileKicker").setAttribute("aria-expanded", "false");
 
 }
 
@@ -346,8 +368,8 @@ function renderProfile(student) {
 
   // Location on its own line, School directly below it.
   $("profileStats").innerHTML = [
-    stat(student.city || student.pinCode || "—", "Location", "purple"),
-    stat(student.school || "—", "School", "green")
+    stat(student.city || student.pinCode || "—", "Location", "lime"),
+    stat(student.school || "—", "School", "lime")
   ].join("");
 
 }
@@ -1050,24 +1072,45 @@ async function respondToTutor(button) {
 
 function wireStaticEvents() {
 
-  // Switch student / open "Add student"
-  $("studentTabs").addEventListener("click", (event) => {
+  // Student ID under the avatar -> list of this account's students
+  $("profileKicker").addEventListener("click", (event) => {
 
-    if (event.target.closest("#addStudentButton")) {
-      openAddStudent();
-      return;
-    }
+    event.stopPropagation();
 
-    const pill = event.target.closest("[data-student-id]");
+    if ($("sidMenu").classList.contains("hidden")) openSidMenu();
+    else closeSidMenu();
 
-    if (!pill) return;
+  });
 
-    STATE.selectedId = pill.dataset.studentId;
+  // Pick a student from that list
+  $("sidMenu").addEventListener("click", (event) => {
+
+    const option = event.target.closest("[data-student-id]");
+
+    if (!option) return;
+
+    closeSidMenu();
+
+    if (option.dataset.studentId === STATE.selectedId) return;
+
+    STATE.selectedId = option.dataset.studentId;
     writeSelected(STATE.selectedId);
 
     renderAll();
 
   });
+
+  // Click anywhere else closes the list
+  document.addEventListener("click", (event) => {
+
+    if (!event.target.closest || !event.target.closest(".sid-switch")) {
+      closeSidMenu();
+    }
+
+  });
+
+  // Open "Add student"
+  $("addStudentButton").addEventListener("click", openAddStudent);
 
   // Filter tabs
   $("filterTabs").addEventListener("click", (event) => {
@@ -1145,6 +1188,10 @@ function wireStaticEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !$("sidMenu").classList.contains("hidden")) {
+      closeSidMenu();
+      $("profileKicker").focus();
+    }
     if (event.key === "Escape" && !$("addStudentModal").classList.contains("hidden")) {
       closeAddStudent();
     }
