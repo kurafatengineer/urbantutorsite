@@ -408,9 +408,9 @@ function renderClassCard(item) {
   const pinText = String(item.pinCode || "").trim();
 
   const locationRow = (locationText || pinText) ? `
-    <div class="class-detail class-detail-location" title="Location" aria-label="Location: ${escapeHTML([locationText, pinText].filter(Boolean).join(" - "))}">
+    <div class="class-detail class-detail-location" title="Location" aria-label="Location: ${escapeHTML([locationText, pinText ? "PIN " + pinText : ""].filter(Boolean).join(" - "))}">
       <span class="class-detail-icon">${ICONS.pin}</span>
-      <span class="class-detail-value">${locationText ? `<span class="location-address">${escapeHTML(locationText)}</span>` : ""}${locationText && pinText ? `<span class="location-sep"> - </span>` : ""}${pinText ? `<span class="location-pin">${escapeHTML(pinText)}</span>` : ""}</span>
+      <span class="class-detail-value">${locationText ? `<span class="location-address">${escapeHTML(locationText)}</span>` : ""}${pinText ? `<span class="location-pin">PIN ${escapeHTML(pinText)}</span>` : ""}</span>
     </div>
   ` : "";
 
