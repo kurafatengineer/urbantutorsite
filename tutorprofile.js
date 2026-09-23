@@ -579,7 +579,7 @@ function renderClassCard(item) {
   ` : "";
 
   return `
-    <div class="class-card${open ? "" : " is-collapsed"}"
+    <div class="class-card tone-${statusClass.slice(7)}${open ? "" : " is-collapsed"}"
          data-card="${escapeHTML(key)}" tabindex="0" aria-expanded="${open ? "true" : "false"}">
       <div class="class-spine ${statusClass}">
         ${item.demoId ? `<span class="class-spine-id">${escapeHTML(item.demoId)}</span><span class="class-spine-label">Demo ID</span>` : ""}
