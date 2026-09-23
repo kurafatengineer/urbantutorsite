@@ -25,12 +25,14 @@ const WEB_APP_URL =
 const TUTOR_SESSION_KEY = "urbantutorsite_tutor_session";
 
 // Each filter select id -> the tuition field it filters on.
+// Filters shown: Subject, Class, Medium, PIN Code, City.
+// (Board and Sort by were removed - list is always newest first.)
 const FILTER_FIELDS = {
   subjectFilter: "subject",
-  boardFilter: "board",
-  cityFilter: "city",
+  classFilter: "className",
+  mediumFilter: "medium",
   pinFilter: "pinCode",
-  mediumFilter: "medium"
+  cityFilter: "city"
 };
 
 
@@ -248,7 +250,7 @@ function refreshFilterOptions() {
           .map(item => String(item[field] || "").trim())
           .filter(Boolean)
       )
-    ).sort((a, b) => a.localeCompare(b));
+    ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
     fillSelect(id, values, selections[field]);
 
@@ -281,12 +283,10 @@ Object.keys(FILTER_FIELDS).forEach(id => {
   });
 });
 
-$("sortTuitions")?.addEventListener("change", render);
 
 $("clearFilters")?.addEventListener("click", () => {
 
   Object.keys(FILTER_FIELDS).forEach(id => { $(id).value = ""; });
-  $("sortTuitions").value = "newest";
 
   refreshFilterOptions();
   render();
@@ -301,7 +301,6 @@ $("clearFilters")?.addEventListener("click", () => {
 function render() {
 
   const selections = getSelections();
-  const sortBy = $("sortTuitions").value;
 
   let filtered = allTuitions.filter(item =>
     Object.entries(selections).every(
@@ -309,7 +308,7 @@ function render() {
     )
   );
 
-  filtered = sortTuitions(filtered, sortBy);
+  filtered = sortTuitions(filtered, "newest");
 
   const list = $("tuitionsList");
   const empty = $("tuitionsEmpty");
