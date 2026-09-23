@@ -924,6 +924,16 @@ function renderTutorCard(tutor, item) {
   return `
     <div class="class-card tutor-card tone-${head.cls.slice(7)}${open ? "" : " is-collapsed"}"
          data-card="${escapeHTML(key)}" data-group="${escapeHTML(item.demoId)}" tabindex="0" aria-expanded="${open ? "true" : "false"}">
+
+      <!-- first layer: full card width, above the Tutor ID spine -->
+      <div class="tutor-head ${head.cls}">
+        ${(head.title || head.badge) ? `<div class="tutor-head-row${(head.title && head.badge) ? " two" : ""}">
+          <span class="tutor-head-title">${escapeHTML(head.title)}</span>
+          ${head.badge ? `<span class="tutor-head-badge">${escapeHTML(head.badge)}</span>` : ""}
+        </div>` : ""}
+        ${head.note ? `<div class="tutor-head-note">${escapeHTML(head.note)}</div>` : ""}
+      </div>
+
       <div class="class-spine ${head.cls}">
         ${tutor.tutorId ? `<span class="class-spine-id">${escapeHTML(tutor.tutorId)}</span><span class="class-spine-label">Tutor ID</span>` : ""}
       </div>
@@ -932,14 +942,6 @@ function renderTutorCard(tutor, item) {
         <div class="tutor-mini">
           <span class="tutor-mini-name">${escapeHTML(tutor.fullName || "Tutor")}</span>
           <span class="tutor-mini-gender">${escapeHTML(tutor.gender || "")}</span>
-        </div>
-
-        <div class="tutor-head ${head.cls}">
-          ${(head.title || head.badge) ? `<div class="tutor-head-row${(head.title && head.badge) ? " two" : ""}">
-            <span class="tutor-head-title">${escapeHTML(head.title)}</span>
-            ${head.badge ? `<span class="tutor-head-badge">${escapeHTML(head.badge)}</span>` : ""}
-          </div>` : ""}
-          ${head.note ? `<div class="tutor-head-note">${escapeHTML(head.note)}</div>` : ""}
         </div>
 
         ${info.length ? `
