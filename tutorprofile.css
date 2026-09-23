@@ -1150,6 +1150,37 @@ svg {
   display: flex;
 }
 
+/* collapsed card: the whole card takes the tuition's status colour */
+[data-page="tutorprofile"] .class-card.is-collapsed.tone-applied {
+  background: var(--lime-dim);
+  border-color: var(--lime-line);
+}
+
+[data-page="tutorprofile"] .class-card.is-collapsed.tone-demo-scheduled {
+  background: var(--violet-dim);
+  border-color: rgba(180, 144, 255, 0.3);
+}
+
+[data-page="tutorprofile"] .class-card.is-collapsed.tone-processing {
+  background: var(--warn-dim);
+  border-color: rgba(255, 209, 102, 0.3);
+}
+
+[data-page="tutorprofile"] .class-card.is-collapsed.tone-running {
+  background: var(--success-dim);
+  border-color: rgba(114, 227, 154, 0.3);
+}
+
+[data-page="tutorprofile"] .class-card.is-collapsed.tone-completed {
+  background: var(--surface-2);
+  border-color: var(--border-light);
+}
+
+[data-page="tutorprofile"] .class-card.is-collapsed.tone-declined {
+  background: var(--danger-dim);
+  border-color: rgba(255, 104, 104, 0.3);
+}
+
 [data-page="tutorprofile"] .class-card.is-collapsed .class-body {
   padding: 14px 16px 14px 14px;
 }
