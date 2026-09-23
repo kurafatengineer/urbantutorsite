@@ -945,7 +945,7 @@ body.add-modal-open {
   font-weight: 600;
 }
 
-/* "Parent: ..." under the student's name */
+/* "(Parent's name)" under the student's name */
 .profile-parent {
   margin: 0;
   font-size: 13.5px;
@@ -991,14 +991,305 @@ body.add-modal-open {
    LOCATION / SCHOOL TILES - lime rail, value in normal colour
 ========================================================= */
 
+/* same colours as the "+ Add Student" button */
 .stat[data-accent="lime"] .stat-rail {
-  background: var(--lime);
+  background: var(--lime-dim);
+  border-right: 1px solid var(--lime-line);
 }
 
 .stat[data-accent="lime"] .stat-rail span {
-  color: #050505;
+  color: var(--lime);
 }
 
 .stat[data-accent="lime"] .stat-value {
   color: var(--text);
+}
+
+
+
+/* =========================================================
+   MODALS - "Add a Student" + "Apply For New Tuition"
+========================================================= */
+
+/* ---------- titles ---------- */
+
+.add-modal-box .modal-title {
+  margin: 0 36px 4px;
+  text-align: center;
+}
+
+.modal-subtitle {
+  margin: 0 0 22px;
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+#addStudentTitle {
+  margin-bottom: 22px;
+}
+
+
+/* ---------- floating-label text boxes ----------
+   The label sits inside the box like a placeholder. As soon as the
+   box is focused or has text, it moves up onto the top border,
+   left-aligned. */
+
+.float-field {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.float-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 15px 14px 13px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  transition: border-color 0.15s ease;
+}
+
+.float-field input:focus {
+  outline: none;
+  border-color: var(--lime-line);
+}
+
+.float-field > span {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  max-width: calc(100% - 24px);
+  padding: 0 4px;
+  transform: translateY(-50%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14.5px;
+  color: var(--muted-2);
+  pointer-events: none;
+  /* half modal background, half box background, so the label
+     "cuts" the border when it sits on it */
+  background: linear-gradient(to bottom, var(--surface) 50%, var(--surface-2) 50%);
+  border-radius: 4px;
+  transition: top 0.15s ease, font-size 0.15s ease, color 0.15s ease;
+}
+
+.float-field input:focus + span,
+.float-field input:not(:placeholder-shown) + span {
+  top: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.float-field input:focus + span {
+  color: var(--lime);
+}
+
+.float-field.hidden {
+  display: none;
+}
+
+
+/* ---------- equal-width choice buttons ---------- */
+
+.choice-row {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.choice-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.choice-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.choice-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.choice-row label {
+  position: relative;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.choice-row input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.choice-row label span {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.choice-row input:checked + span {
+  color: #050505;
+  background: var(--lime);
+  border-color: var(--lime);
+}
+
+.choice-row input:focus-visible + span {
+  outline: 2px solid var(--lime);
+  outline-offset: 2px;
+}
+
+.timing-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.timing-title {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+
+/* ---------- premium checkbox ---------- */
+
+.premium-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 0;
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.premium-check input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.premium-check-box {
+  position: relative;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1.5px solid var(--border-light);
+  background: var(--surface-2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.premium-check-box::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 3px;
+  width: 5px;
+  height: 10px;
+  border: solid #050505;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg) scale(0);
+  transition: transform 0.15s ease;
+}
+
+.premium-check input:checked + .premium-check-box {
+  background: var(--lime);
+  border-color: var(--lime);
+  box-shadow: 0 0 0 4px var(--lime-dim);
+}
+
+.premium-check input:checked + .premium-check-box::after {
+  transform: rotate(45deg) scale(1);
+}
+
+.premium-check input:focus-visible + .premium-check-box {
+  outline: 2px solid var(--lime);
+  outline-offset: 3px;
+}
+
+.premium-check:hover .premium-check-box {
+  border-color: var(--lime-line);
+}
+
+
+/* ---------- scrolling (all screens, tuned for phones) ----------
+   The modal layer itself scrolls, so a tall form is never cut off
+   at the top or bottom and the page behind never moves. */
+
+.add-modal {
+  align-items: flex-start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.add-modal-overlay {
+  position: fixed;
+}
+
+.add-modal-box {
+  margin: auto 0;
+  max-height: none;
+  overflow: visible;
+}
+
+body.add-modal-open {
+  overflow: hidden;
+}
+
+
+@media (max-width: 760px) {
+
+  /* hide the floating WhatsApp / Call buttons while a form is open */
+  body.add-modal-open .floating-contact,
+  body.add-modal-open .floating-whatsapp,
+  body.add-modal-open .floating-call {
+    display: none !important;
+  }
+
+}
+
+@media (max-width: 560px) {
+
+  .add-modal {
+    padding: 12px 10px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .add-modal-box {
+    padding: 22px 16px 18px;
+  }
+
+  .add-modal-box .modal-title {
+    font-size: 20px;
+  }
+
+  .choice-row label span {
+    padding: 10px 4px;
+    font-size: 12.5px;
+  }
+
+  /* City + PIN keep one line each on a narrow phone */
+  .add-grid {
+    grid-template-columns: 1fr;
+  }
+
 }
