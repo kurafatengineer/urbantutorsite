@@ -294,7 +294,7 @@ function renderSwitcher() {
   // Privacy: only the parent's name is shown - never the
   // account's email or mobile number. Shown under the student's name.
   $("accountLine").textContent =
-    account.parentsName ? `Parent: ${account.parentsName}` : "";
+    account.parentsName ? `(${account.parentsName})` : "";
   $("accountLine").classList.toggle("hidden", !account.parentsName);
 
   const many = STATE.students.length > 1;
@@ -1166,7 +1166,33 @@ function wireStaticEvents() {
 
   $("newTimings").innerHTML = TIMING_OPTIONS.map(t => `
     <label><input type="checkbox" name="newTiming" value="${t}"><span>${t}</span></label>
-  `).join("");
+  `).join("") + `
+    <label><input type="checkbox" id="newTimingOther" value="Other"><span>Other</span></label>
+  `;
+
+  // "Other" and the fixed times exclude each other:
+  //   Other ticked  -> every time is unticked, a text box opens
+  //   a time ticked -> Other is unticked, the text box closes
+  $("newTimings").addEventListener("change", (event) => {
+
+    const box = event.target;
+
+    if (box.id === "newTimingOther") {
+
+      if (box.checked) {
+        document.querySelectorAll('input[name="newTiming"]').forEach(t => { t.checked = false; });
+      }
+
+      setOtherTiming(box.checked);
+
+    } else if (box.name === "newTiming" && box.checked) {
+
+      $("newTimingOther").checked = false;
+      setOtherTiming(false);
+
+    }
+
+  });
 
   $("closeNewTuition").addEventListener("click", closeNewTuition);
 
@@ -1177,9 +1203,6 @@ function wireStaticEvents() {
   $("newTuitionForm").addEventListener("submit", submitNewTuition);
 
   // Add student modal
-  $("addTimings").innerHTML = TIMING_OPTIONS.map(t => `
-    <label><input type="checkbox" name="addTiming" value="${t}"><span>${t}</span></label>
-  `).join("");
 
   $("closeAddStudent").addEventListener("click", closeAddStudent);
 
@@ -1268,13 +1291,10 @@ async function submitAddStudent(event) {
     gender: radioValue("addGender"),
     school: clean($("addSchool").value),
     className: clean($("addClass").value),
-    board: clean($("addBoard").value),
-    subjects: clean($("addSubjects").value),
-    preferredTutor: radioValue("addTutor"),
-    medium: radioValue("addMedium"),
-    preferredTiming: Array.from(document.querySelectorAll('input[name="addTiming"]:checked'))
-      .map(input => input.value)
-      .join(", ")
+    board: clean($("addBoard").value)
+    // Subjects / preferred tutor / medium / timing are no longer asked
+    // here: tuitions for the new student are added afterwards with
+    // "Apply for new tuition".
   };
 
   const sameAddress = $("addSameAddress").checked;
@@ -1291,8 +1311,6 @@ async function submitAddStudent(event) {
     student.school.length < 2 ? ["addSchool", "Enter the school or college."] :
     !student.className ? ["addClass", "Enter the class or stream."] :
     !student.board ? ["addBoard", "Enter the board or university."] :
-    student.subjects.length < 2 ? ["addSubjects", "Enter at least one subject."] :
-    !student.preferredTiming ? [null, "Select at least one preferred timing."] :
     (!sameAddress && student.address.length < 3) ? ["addAddress", "Enter the address."] :
     (!sameAddress && student.city.length < 2) ? ["addCity", "Enter the city."] :
     (!sameAddress && !/^\d{6}$/.test(student.pinCode)) ? ["addPin", "PIN code must be 6 digits."] :
@@ -1345,7 +1363,7 @@ async function submitAddStudent(event) {
     message.textContent = "Unable to connect to the server. Please try again.";
   } finally {
     button.disabled = false;
-    button.textContent = "Add student";
+    button.textContent = "Add Student";
   }
 
 }
@@ -1363,6 +1381,7 @@ function openNewTuition() {
 
   $("newTuitionForm").reset();
   $("newTuitionMessage").textContent = "";
+  setOtherTiming(false);
   $("newTuitionFor").textContent =
     `${student.studentName || "Student"} · ${student.studentId}`;
 
@@ -1371,6 +1390,19 @@ function openNewTuition() {
   document.body.classList.add("add-modal-open");
 
   setTimeout(() => $("newSubjects").focus(), 50);
+
+}
+
+// Shows / hides the "Add your preferred time" box under the timings.
+function setOtherTiming(show) {
+
+  $("newOtherTimingField").classList.toggle("hidden", !show);
+
+  if (show) {
+    setTimeout(() => $("newOtherTiming").focus(), 30);
+  } else {
+    $("newOtherTiming").value = "";
+  }
 
 }
 
@@ -1397,9 +1429,11 @@ async function submitNewTuition(event) {
     subjects: clean($("newSubjects").value),
     preferredTutor: radioValue("newTutor") || "Any",
     medium: radioValue("newMedium") || "Any",
-    preferredTiming: Array.from(document.querySelectorAll('input[name="newTiming"]:checked'))
-      .map(input => input.value)
-      .join(", ")
+    preferredTiming: $("newTimingOther").checked
+      ? clean($("newOtherTiming").value)
+      : Array.from(document.querySelectorAll('input[name="newTiming"]:checked'))
+          .map(input => input.value)
+          .join(", ")
   };
 
   if (tuition.subjects.length < 2) {
@@ -1409,7 +1443,12 @@ async function submitNewTuition(event) {
   }
 
   if (!tuition.preferredTiming) {
-    message.textContent = "Select at least one preferred timing.";
+    if ($("newTimingOther").checked) {
+      message.textContent = "Enter your preferred time.";
+      $("newOtherTiming").focus();
+    } else {
+      message.textContent = "Select at least one preferred timing.";
+    }
     return;
   }
 
@@ -1455,7 +1494,7 @@ async function submitNewTuition(event) {
     message.textContent = "Unable to connect to the server. Please try again.";
   } finally {
     button.disabled = false;
-    button.textContent = "Post tuition request";
+    button.textContent = "Post Tuition Request";
   }
 
 }
