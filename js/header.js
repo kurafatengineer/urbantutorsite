@@ -13,6 +13,14 @@
 const HEADER_COMPONENT =
   "components/header.html";
 
+// Same Apps Script Web App as every other page. Used only to look up
+// the logged-in user's NAME for the header initials, once, when it
+// is not already known.
+const HEADER_WEB_APP_URL =
+  "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec";
+
+const HEADER_NAME_CACHE_KEY = "urbantutorsite_header_name";
+
 
 /* =========================================================
    INITIALIZE
@@ -105,6 +113,8 @@ async function loadHeader() {
 
 
   initializeHeaderLogin();
+
+  renderHeaderAvatar();
 
 }
 
@@ -443,5 +453,182 @@ function lastLoginType_() {
   } catch (error) {
     return "";
   }
+
+}
+
+
+
+/* =========================================================
+   NEW: WHO IS LOGGED IN  (shared by every page)
+   =========================================================
+   window.UrbanSession.role() -> "student" | "tutor" | ""
+
+   One role at a time: if both a tutor and a student session exist
+   on this device, the most recent login wins (same rule the header
+   already used for its link).
+   ========================================================= */
+
+window.UrbanSession = {
+
+  role: function () {
+
+    const student = isLoggedInStudent_();
+    const tutor = isLoggedInTutor_();
+
+    if (student && (lastLoginType_() === "student" || !tutor)) return "student";
+    if (tutor) return "tutor";
+
+    return "";
+
+  },
+
+  readSession: function (role) {
+
+    try {
+      const raw = localStorage.getItem(
+        role === "tutor" ? "urbantutorsite_tutor_session" : "urbantutorsite_student_session"
+      );
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      return null;
+    }
+
+  },
+
+  // Profile pages call this when they know the name, so the header
+  // shows the right initials straight away.
+  rememberName: function (role, name) {
+
+    const session = this.readSession(role);
+
+    if (!session || !session.sessionToken || !name) return;
+
+    try {
+      localStorage.setItem(HEADER_NAME_CACHE_KEY, JSON.stringify({
+        role: role,
+        token: session.sessionToken,
+        name: String(name)
+      }));
+    } catch (ignore) {}
+
+    renderHeaderAvatar();
+
+  }
+
+};
+
+
+/* =========================================================
+   NEW: HEADER AVATAR  (logged-in user's initials)
+   ========================================================= */
+
+function initialsFromName_(name) {
+
+  return String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0].toUpperCase())
+    .join("");
+
+}
+
+function cachedHeaderName_(role, token) {
+
+  try {
+    const raw = localStorage.getItem(HEADER_NAME_CACHE_KEY);
+    const data = raw ? JSON.parse(raw) : null;
+
+    if (data && data.role === role && data.token === token) return data.name;
+  } catch (ignore) {}
+
+  return "";
+
+}
+
+async function renderHeaderAvatar() {
+
+  const button = document.getElementById("headerLogin");
+
+  if (!button) return;
+
+  const role = window.UrbanSession.role();
+
+  if (!role) {
+    setHeaderInitials_(button, "");
+    return;
+  }
+
+  const session = window.UrbanSession.readSession(role) || {};
+  const token = session.sessionToken || "";
+
+  let name =
+    cachedHeaderName_(role, token) ||
+    (role === "tutor" && session.profile && session.profile.fullName) || "";
+
+  setHeaderInitials_(button, initialsFromName_(name));
+
+  if (name || !token) return;
+
+  // Not known yet (e.g. first page after a student login): ask once.
+  try {
+
+    const response = await fetch(HEADER_WEB_APP_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        action: role === "tutor" ? "getTutorProfile" : "getStudentProfile",
+        sessionToken: token
+      })
+    });
+
+    const result = JSON.parse(await response.text());
+
+    if (!result || !result.success) return;
+
+    if (role === "tutor") {
+      name = result.profile && result.profile.fullName;
+    } else {
+      let selected = "";
+      try { selected = localStorage.getItem("urbantutorsite_selected_student") || ""; } catch (ignore) {}
+      const list = result.students || [];
+      const pick = list.find(s => s.studentId === selected) || list[0];
+      name = pick && pick.studentName;
+    }
+
+    if (name) window.UrbanSession.rememberName(role, name);
+
+  } catch (error) {
+    console.warn("Header avatar:", error);
+  }
+
+}
+
+function setHeaderInitials_(button, initials) {
+
+  let badge = button.querySelector(".header-initials");
+  const icon = button.querySelector(".header-login-icon");
+
+  if (!initials) {
+    if (badge) badge.remove();
+    if (icon) icon.style.display = "";
+    button.classList.remove("has-initials");
+    return;
+  }
+
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.className = "header-initials";
+    badge.setAttribute("aria-hidden", "true");
+    button.appendChild(badge);
+  }
+
+  badge.textContent = initials;
+
+  if (icon) icon.style.display = "none";
+
+  button.classList.add("has-initials");
+  button.setAttribute("aria-label", "My Profile");
 
 }
