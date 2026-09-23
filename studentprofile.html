@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050505">
+  <meta name="description" content="Urbantutorsite — Student Profile">
+  <title>Urbantutorsite — Student Profile</title>
+
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/footer.css">
+  <!-- Same look as the Tutor Profile: its stylesheet is reused as-is,
+       studentprofile.css only adds the student switcher + add form. -->
+  <link rel="stylesheet" href="tutorprofile.css">
+  <link rel="stylesheet" href="studentprofile.css">
+</head>
+
+<body data-page="studentprofile">
+
+<!-- Reusable Header -->
+<div id="site-header"></div>
+
+<!-- =====================================================
+     LOADING STATE (shown until the session check finishes)
+===================================================== -->
+
+<main id="loadingPage" class="page loading-page">
+  <div class="container">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>Loading your profile...</p>
+  </div>
+</main>
+
+<!-- =====================================================
+     PROFILE PAGE
+===================================================== -->
+
+<main id="profilePage" class="page profile-page hidden">
+  <div class="container">
+
+    <!-- ================= STUDENTS ON THIS ACCOUNT ================= -->
+
+    <section class="student-switcher" aria-labelledby="switcherTitle">
+
+      <div class="switcher-head">
+        <h2 id="switcherTitle">Students on this account</h2>
+        <p id="accountLine" class="muted"></p>
+      </div>
+
+      <div class="switcher-list" id="studentTabs" role="tablist" aria-labelledby="switcherTitle">
+        <!-- filled by JS: one pill per Student ID + "Add student" -->
+      </div>
+
+    </section>
+
+    <!-- ================= PROFILE HEADER CARD ================= -->
+
+    <section class="profile-card" id="studentPanel" role="tabpanel">
+
+      <div class="profile-card-center">
+
+        <div class="profile-avatar" id="profileAvatarWrap">
+          <span id="profileAvatarInitials"></span>
+        </div>
+
+        <div class="profile-kicker" id="profileKicker">Student Profile</div>
+        <h1 id="profileName">—</h1>
+
+        <div class="profile-meta">
+          <span id="profileClass" class="chip chip-muted"></span>
+          <span id="profileBoard" class="chip chip-muted"></span>
+          <span id="profileCity" class="chip chip-muted"></span>
+        </div>
+
+        <button id="logoutButton" class="logout-button" type="button">
+          Log out
+        </button>
+
+      </div>
+
+      <div class="profile-stats" id="profileStats">
+        <!-- filled by JS: School / Subjects / Classes / Location -->
+      </div>
+
+    </section>
+
+    <!-- ================= TUITION STATUS ================= -->
+
+    <section class="classes-section">
+
+      <div class="filter-tabs" id="filterTabs" role="tablist">
+        <button class="filter-tab active" data-filter="all" type="button">All</button>
+        <button class="filter-tab" data-filter="searching" type="button">Searching</button>
+        <button class="filter-tab" data-filter="demo" type="button">Demo</button>
+        <button class="filter-tab" data-filter="processing" type="button">Processing</button>
+        <button class="filter-tab" data-filter="running" type="button">Running</button>
+        <button class="filter-tab" data-filter="completed" type="button">Completed</button>
+      </div>
+
+      <div id="classesList" class="classes-list">
+        <!-- filled by JS -->
+      </div>
+
+      <div id="classesEmpty" class="classes-empty hidden">
+        <p>No tuition requests for this student yet.</p>
+        <p class="muted">Tuition requests made during registration appear here automatically.</p>
+      </div>
+
+      <div id="filterEmpty" class="classes-empty hidden">
+        <p>Nothing in this category yet.</p>
+        <p class="muted">Try a different tab above.</p>
+      </div>
+
+    </section>
+
+  </div>
+</main>
+
+<!-- =====================================================
+     ERROR STATE (session invalid / server error)
+===================================================== -->
+
+<main id="errorPage" class="page error-page hidden">
+  <div class="container">
+    <h1>We couldn't load your profile</h1>
+    <p id="errorMessage" class="muted">Please log in again.</p>
+    <a class="submit" href="student.html">Go to Login</a>
+  </div>
+</main>
+
+<!-- =====================================================
+     ADD STUDENT MODAL
+     A sibling on the same email + mobile number gets their
+     own Student ID. Parent details come from the account.
+===================================================== -->
+
+<div id="addStudentModal" class="add-modal hidden" aria-hidden="true">
+  <div class="add-modal-overlay" data-close-add></div>
+
+  <section class="add-modal-box" role="dialog" aria-modal="true" aria-labelledby="addStudentTitle">
+
+    <button id="closeAddStudent" class="add-modal-close" type="button" aria-label="Close">×</button>
+
+    <h2 id="addStudentTitle">Add a student</h2>
+    <p class="muted add-hint">Uses this account's email and mobile number. The new student gets their own Student ID.</p>
+
+    <form id="addStudentForm" novalidate>
+
+      <div class="add-grid">
+
+        <label class="add-field add-wide">
+          <span>Student name</span>
+          <input id="addStudentName" type="text" maxlength="80" autocomplete="off" required>
+        </label>
+
+        <div class="add-field add-wide">
+          <span>Gender</span>
+          <div class="add-options">
+            <label><input type="radio" name="addGender" value="Male"><span>Male</span></label>
+            <label><input type="radio" name="addGender" value="Female"><span>Female</span></label>
+          </div>
+        </div>
+
+        <label class="add-field add-wide">
+          <span>School / College</span>
+          <input id="addSchool" type="text" maxlength="150" required>
+        </label>
+
+        <label class="add-field">
+          <span>Class / Stream</span>
+          <input id="addClass" type="text" maxlength="80" placeholder="e.g. Class 10 / Science" required>
+        </label>
+
+        <label class="add-field">
+          <span>Board / University</span>
+          <input id="addBoard" type="text" maxlength="150" placeholder="e.g. CBSE" required>
+        </label>
+
+        <label class="add-field add-wide">
+          <span>Subjects</span>
+          <input id="addSubjects" type="text" maxlength="250" placeholder="Mathematics, Physics, Chemistry" required>
+          <small class="muted">Each subject becomes its own tuition request.</small>
+        </label>
+
+        <div class="add-field">
+          <span>Preferred tutor</span>
+          <div class="add-options">
+            <label><input type="radio" name="addTutor" value="Male"><span>Male</span></label>
+            <label><input type="radio" name="addTutor" value="Any" checked><span>Any</span></label>
+            <label><input type="radio" name="addTutor" value="Female"><span>Female</span></label>
+          </div>
+        </div>
+
+        <div class="add-field">
+          <span>Medium</span>
+          <div class="add-options">
+            <label><input type="radio" name="addMedium" value="Offline"><span>Offline</span></label>
+            <label><input type="radio" name="addMedium" value="Any" checked><span>Any</span></label>
+            <label><input type="radio" name="addMedium" value="Online"><span>Online</span></label>
+          </div>
+        </div>
+
+        <div class="add-field add-wide">
+          <span>Preferred timing</span>
+          <div class="add-options add-timings" id="addTimings">
+            <!-- filled by JS: 8 AM ... 9 PM, same as registration -->
+          </div>
+        </div>
+
+        <label class="add-check add-wide">
+          <input type="checkbox" id="addSameAddress" checked>
+          <span>Same address as my other student</span>
+        </label>
+
+        <label class="add-field add-wide hidden" data-address>
+          <span>Address</span>
+          <input id="addAddress" type="text" maxlength="250">
+        </label>
+
+        <label class="add-field hidden" data-address>
+          <span>City</span>
+          <input id="addCity" type="text" maxlength="80">
+        </label>
+
+        <label class="add-field hidden" data-address>
+          <span>PIN code</span>
+          <input id="addPin" type="text" inputmode="numeric" maxlength="6">
+        </label>
+
+      </div>
+
+      <p id="addStudentMessage" class="add-message" role="alert"></p>
+
+      <button id="addStudentSubmit" class="add-submit" type="submit">Add student</button>
+
+    </form>
+
+  </section>
+</div>
+
+<!-- Reusable Footer -->
+<div id="site-footer"></div>
+
+<script src="js/header.js"></script>
+<script src="js/footer.js"></script>
+<script src="studentprofile.js" defer></script>
+
+</body>
+</html>

@@ -1,0 +1,325 @@
+/* =========================================================
+   URBANTUTORSITE - STUDENT PROFILE
+   ---------------------------------------------------------
+   Loaded AFTER tutorprofile.css, which supplies every shared
+   style (profile card, stats, filter tabs, class cards). This
+   file only adds what the Student Profile needs on top:
+   the student switcher, two student-only status colours and
+   the "Add a student" modal.
+========================================================= */
+
+
+/* ---------------- student switcher ---------------- */
+
+.student-switcher {
+  margin-bottom: 18px;
+}
+
+.switcher-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-bottom: 12px;
+}
+
+.switcher-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.switcher-head p {
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.switcher-list {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+
+.student-pill {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.student-pill:hover {
+  border-color: var(--border-light);
+}
+
+.student-pill-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--lime);
+  background: var(--surface);
+  border: 1px solid var(--lime-line);
+}
+
+.student-pill strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.student-pill small {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.student-pill[aria-selected="true"] {
+  border-color: var(--lime-line);
+  background: var(--lime-dim);
+}
+
+.student-pill[aria-selected="true"] small {
+  color: var(--lime);
+}
+
+.student-pill.add-pill {
+  padding: 8px 18px;
+  border-style: dashed;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.student-pill.add-pill:hover {
+  color: var(--lime);
+  border-color: var(--lime-line);
+}
+
+
+/* ---------------- student-only statuses ---------------- */
+
+.status-finding-tutor,
+.class-spine.status-finding-tutor { background: var(--lime-dim); color: var(--lime); border-color: var(--lime-line); }
+
+.status-tutors-applied,
+.class-spine.status-tutors-applied { background: var(--info-dim); color: var(--info); border-color: var(--info-line); }
+
+.class-spine.status-finding-tutor,
+.class-spine.status-tutors-applied { border-color: transparent; }
+
+.class-status-message a {
+  color: var(--lime);
+  font-weight: 700;
+}
+
+
+/* ---------------- add student modal ---------------- */
+
+.add-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.add-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.add-modal-box {
+  position: relative;
+  width: min(620px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.add-modal-box h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.add-hint {
+  margin: 0 0 20px;
+  font-size: 13.5px;
+}
+
+.add-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.add-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.add-wide {
+  grid-column: 1 / -1;
+}
+
+.add-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.add-field > span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.add-field input[type="text"] {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.add-field input[type="text"]:focus {
+  outline: none;
+  border-color: var(--lime-line);
+}
+
+.add-field small {
+  font-size: 12px;
+}
+
+.add-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.add-options label {
+  position: relative;
+  cursor: pointer;
+}
+
+.add-options input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.add-options label span {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.add-options input:checked + span {
+  color: #050505;
+  background: var(--lime);
+  border-color: var(--lime);
+}
+
+.add-options input:focus-visible + span {
+  outline: 2px solid var(--lime);
+  outline-offset: 2px;
+}
+
+.add-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.add-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--lime);
+}
+
+.add-message {
+  min-height: 1.3em;
+  margin: 16px 0 0;
+  font-size: 13.5px;
+  color: var(--danger);
+}
+
+.add-submit {
+  width: 100%;
+  margin-top: 10px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 999px;
+  background: var(--lime);
+  color: #050505;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.add-submit:hover {
+  background: var(--lime-hover);
+}
+
+.add-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+body.add-modal-open {
+  overflow: hidden;
+}
+
+@media (max-width: 560px) {
+
+  .add-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .add-modal-box {
+    padding: 24px 18px 20px;
+  }
+
+}
