@@ -975,3 +975,277 @@ svg {
   outline: 2px solid var(--lime);
   outline-offset: 3px;
 }
+
+
+/* =========================================================
+   TUTOR PROFILE - ADDITIONS
+   Everything below is scoped to the Tutor Profile page
+   (body[data-page="tutorprofile"]) because the Student Profile
+   also loads this stylesheet and has its own versions.
+========================================================= */
+
+/* ---------- filter: icon tab bar (one line, 7 tabs) ---------- */
+
+[data-page="tutorprofile"] .filter-tabs.icon-tabs {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  padding: 6px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+[data-page="tutorprofile"] .icon-tabs .filter-tab {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 9px 2px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  box-shadow: none;
+  color: var(--muted-2);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+  cursor: pointer;
+}
+
+[data-page="tutorprofile"] .icon-tabs .filter-tab svg {
+  width: 20px;
+  height: 20px;
+}
+
+[data-page="tutorprofile"] .icon-tabs .filter-tab-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-page="tutorprofile"] .icon-tabs .filter-tab:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+[data-page="tutorprofile"] .icon-tabs .filter-tab.active {
+  color: var(--lime);
+  background: var(--lime-dim);
+  box-shadow: inset 0 0 0 1px var(--lime-line);
+}
+
+
+/* ---------- card layout ---------- */
+
+[data-page="tutorprofile"] .class-card {
+  --tc-top: 18px;
+  --tc-right: 20px;
+  --tc-bottom: 18px;
+  --tc-left: 6px;
+}
+
+/* one-column body: a long row can never widen the card and push the
+   status pill to the right */
+[data-page="tutorprofile"] .class-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+[data-page="tutorprofile"] .class-row-top .subject-badge {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+[data-page="tutorprofile"] .class-row-top .status-badge:not(.subject-badge) {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+
+/* ---------- fourth layer: Accept | Reject, 50% each ---------- */
+
+[data-page="tutorprofile"] .tutor-actions {
+  display: flex;
+  align-items: stretch;
+  margin: 0 calc(var(--tc-right) * -1) calc(var(--tc-bottom) * -1) calc(var(--tc-left) * -1);
+  border-top: 1px solid var(--border);
+}
+
+[data-page="tutorprofile"] .tutor-btn {
+  flex: 0 0 50%;
+  width: 50%;
+  min-width: 0;
+  padding: 15px 10px;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+[data-page="tutorprofile"] .tutor-btn + .tutor-btn {
+  border-left: 1px solid var(--border);
+}
+
+[data-page="tutorprofile"] .tutor-btn-accept {
+  background: var(--lime);
+  color: #050505;
+}
+
+[data-page="tutorprofile"] .tutor-btn-accept:hover:not(:disabled) {
+  background: var(--lime-hover);
+}
+
+[data-page="tutorprofile"] .tutor-btn-reject {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+[data-page="tutorprofile"] .tutor-btn-reject:hover:not(:disabled) {
+  background: rgba(255, 104, 104, 0.24);
+}
+
+/* disabled = the same grey everywhere; the tap passes through to the
+   card, so a disabled button collapses it like any other spot */
+[data-page="tutorprofile"] .tutor-btn:disabled {
+  background: var(--surface-3);
+  color: var(--muted-2);
+  cursor: pointer;
+  pointer-events: none;
+}
+
+
+/* ---------- collapsed / expanded ---------- */
+
+[data-page="tutorprofile"] .class-card[data-card] {
+  cursor: pointer;
+}
+
+[data-page="tutorprofile"] .class-card[data-card]:focus-visible {
+  outline: 2px solid var(--lime);
+  outline-offset: -2px;
+}
+
+[data-page="tutorprofile"] .class-mini {
+  display: none;
+}
+
+[data-page="tutorprofile"] .class-card.is-collapsed .class-body > *:not(.class-mini) {
+  display: none !important;
+}
+
+/* collapsed: Subject on the left, Medium on the right */
+[data-page="tutorprofile"] .class-card.is-collapsed .class-mini {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+[data-page="tutorprofile"] .class-mini-subject {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 800;
+  color: var(--text);
+}
+
+[data-page="tutorprofile"] .class-mini-medium {
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+[data-page="tutorprofile"] .class-card.is-collapsed .class-body {
+  padding: 14px 16px 14px 14px;
+}
+
+[data-page="tutorprofile"] .class-card.is-collapsed .class-spine {
+  width: 10px;
+  padding: 0;
+}
+
+[data-page="tutorprofile"] .class-card.is-collapsed .class-spine > * {
+  display: none;
+}
+
+
+/* ---------- toast ---------- */
+
+.profile-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 1100;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--lime-line);
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 12px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.profile-toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.profile-toast.error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+
+@media (max-width: 560px) {
+
+  [data-page="tutorprofile"] .class-card {
+    --tc-top: 16px;
+    --tc-right: 14px;
+    --tc-bottom: 16px;
+    --tc-left: 4px;
+  }
+
+}
+
+/* small screens: icons only in the filter bar */
+@media (max-width: 460px) {
+
+  [data-page="tutorprofile"] .filter-tabs.icon-tabs {
+    padding: 5px;
+    gap: 2px;
+  }
+
+  [data-page="tutorprofile"] .icon-tabs .filter-tab {
+    padding: 11px 0;
+  }
+
+  [data-page="tutorprofile"] .icon-tabs .filter-tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+}
