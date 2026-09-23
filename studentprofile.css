@@ -832,3 +832,173 @@ body.add-modal-open {
 .tutor-info-grid .class-detail-value {
   font-weight: 400;
 }
+
+
+/* =========================================================
+   PROFILE HEADER - STUDENT ID SWITCHER, PARENT LINE, ACTIONS
+========================================================= */
+
+.sid-switch {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* The Student ID keeps the look of the kicker text. */
+.sid-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  font-family: inherit;
+  cursor: default;
+}
+
+.sid-button:disabled {
+  opacity: 1;
+  color: var(--muted-2);
+}
+
+/* More than one student: it becomes a small lime button with a caret. */
+.sid-button.is-switchable {
+  cursor: pointer;
+  color: var(--lime);
+  border-color: var(--lime-line);
+  background: var(--lime-dim);
+}
+
+.sid-button.is-switchable::after {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  transition: transform 0.15s ease;
+}
+
+.sid-button.is-switchable[aria-expanded="true"]::after {
+  transform: rotate(180deg);
+}
+
+.sid-button.is-switchable:hover {
+  border-color: var(--lime);
+}
+
+.sid-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 50;
+  transform: translateX(-50%);
+  min-width: 230px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+  background: var(--surface-3);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+}
+
+.sid-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sid-option:hover {
+  background: var(--surface-2);
+}
+
+.sid-option.active {
+  background: var(--lime-dim);
+}
+
+.sid-option-id {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--lime);
+}
+
+.sid-option-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+/* "Parent: ..." under the student's name */
+.profile-parent {
+  margin: 0;
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+
+/* + Add Student (left) | Log out (right), 50% each */
+.profile-actions {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.profile-actions .logout-button {
+  margin-top: 0;
+  max-width: none;
+}
+
+.add-student-button {
+  width: 100%;
+  padding: 13px 20px;
+  border-radius: 999px;
+  border: 1px solid var(--lime-line);
+  background: var(--lime-dim);
+  color: var(--lime);
+  font: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.add-student-button:hover {
+  border-color: var(--lime);
+  background: rgba(202, 255, 61, 0.2);
+}
+
+
+/* =========================================================
+   LOCATION / SCHOOL TILES - lime rail, value in normal colour
+========================================================= */
+
+.stat[data-accent="lime"] .stat-rail {
+  background: var(--lime);
+}
+
+.stat[data-accent="lime"] .stat-rail span {
+  color: #050505;
+}
+
+.stat[data-accent="lime"] .stat-value {
+  color: var(--text);
+}
