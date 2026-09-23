@@ -221,6 +221,16 @@ async function loadProfile(selectAfter) {
     STATE.account = result.account || {};
     STATE.students = result.students || [];
 
+    // The tuition card only has three states: "Finding Tutor" until a
+    // tutor is confirmed by BOTH sides, then "Running", then
+    // "Completed". Everything in between (applied, demo scheduled,
+    // waiting for approval) is shown on the tutor cards instead.
+    STATE.students.forEach(st => (st.tuitions || []).forEach(t => {
+      t.detailStatus = t.status;
+      const key = String(t.status || "").toLowerCase();
+      t.status = (key === "running" || key === "completed") ? t.status : "Finding Tutor";
+    }));
+
     const wanted = selectAfter || urlStudentId() || readSelected();
     const exists = STATE.students.some(s => s.studentId === wanted);
 
@@ -367,6 +377,15 @@ function classifyItem(item) {
   return "searching"; // "Finding Tutor" / "Tutors Applied"
 }
 
+// Filter tab a tutor card belongs to (the tuition card itself stays
+// "Finding Tutor" until a tutor is confirmed).
+function tutorGroup(tutor) {
+  const s = String(tutor.status || "").toLowerCase();
+  if (s === "demo scheduled") return "demo";
+  if (s === "processing") return "processing";
+  return "";
+}
+
 const STATUS_ORDER = ["searching", "demo", "processing", "running", "completed"];
 
 function sortClasses(items) {
@@ -404,7 +423,9 @@ function renderClasses() {
   empty.classList.add("hidden");
 
   const filtered = filter && filter !== "all"
-    ? classes.filter(item => classifyItem(item) === filter)
+    ? classes.filter(item =>
+        classifyItem(item) === filter ||
+        (item.tutors || []).some(t => tutorGroup(t) === filter))
     : classes;
 
   if (!filtered.length) {
@@ -627,7 +648,7 @@ function renderClassCard(item, student) {
   return `
     <div class="tuition-stack">
       ${studentCard}
-      ${tutors.map(tutor => renderTutorCard(tutor, item)).join("")}
+      ${sortTutors(tutors).map(tutor => renderTutorCard(tutor, item)).join("")}
     </div>
   `;
 
@@ -643,7 +664,7 @@ function renderClassCard(item, student) {
  *   layer 3 Accept / Reject
  ************************************************************/
 
-function tutorStatusMessage(tutor) {
+function tutorStatusMessage(tutor, confirmedElsewhere) {
 
   const when = formatDemoDateTime(tutor.demoDate);
 
@@ -672,6 +693,9 @@ function tutorStatusMessage(tutor) {
       return { text: "This class has been completed", sub: when };
 
     case "declined":
+      if (confirmedElsewhere && isTicked(tutor.parentRejected)) {
+        return { text: "Another tutor has been confirmed for this tuition" };
+      }
       return {
         text: isTicked(tutor.parentRejected)
           ? "You have rejected this tutor"
@@ -685,11 +709,60 @@ function tutorStatusMessage(tutor) {
 
 }
 
+// Top layer of a tutor card: title + colour for THIS card only.
+//   applied              -> "Applied by"
+//   demo scheduled       -> "Demo Scheduled"   (also while one side
+//                            has approved and the other is pending)
+//   approved by both     -> "Your Tutor"  + Running badge
+//   completed            -> "Your Tutor"  + Completed badge
+//   rejected             -> "Applied by"  + Rejected badge
+function tutorHead(tutor) {
+
+  switch (String(tutor.status || "").toLowerCase()) {
+
+    case "demo scheduled":
+    case "processing":
+      return { title: "Demo Scheduled", badge: "", cls: "status-demo-scheduled" };
+
+    case "running":
+      return { title: "Your Tutor", badge: "Running", cls: "status-running" };
+
+    case "completed":
+      return { title: "Your Tutor", badge: "Completed", cls: "status-completed" };
+
+    case "declined":
+      return { title: "Applied by", badge: "Rejected", cls: "status-declined" };
+
+    default:
+      return { title: "Applied by", badge: "", cls: "status-applied" };
+
+  }
+
+}
+
+const TUTOR_ORDER = { running: 0, completed: 1, processing: 2, "demo scheduled": 3, applied: 4, declined: 5 };
+
+function sortTutors(tutors) {
+
+  return tutors
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => {
+      const ra = TUTOR_ORDER[String(a.t.status || "").toLowerCase()];
+      const rb = TUTOR_ORDER[String(b.t.status || "").toLowerCase()];
+      return ((ra === undefined ? 9 : ra) - (rb === undefined ? 9 : rb)) || (a.i - b.i);
+    })
+    .map(x => x.t);
+
+}
+
 function renderTutorCard(tutor, item) {
 
-  const statusClass = "status-" + String(tutor.status || "")
-    .toLowerCase()
-    .replace(/\s+/g, "-");
+  const head = tutorHead(tutor);
+
+  const confirmedElsewhere = (item.tutors || []).some(t => {
+    const s = String(t.status || "").toLowerCase();
+    return s === "running" || s === "completed";
+  });
 
   const exp = String(tutor.experience || "").trim();
   const expNumber = Number(exp);
@@ -701,26 +774,32 @@ function renderTutorCard(tutor, item) {
     [ICONS.clock, "Experience", exp ? (isNaN(expNumber) ? exp : `${exp} ${expNumber === 1 ? "yr" : "yrs"}`) : ""]
   ].filter(row => row[2] !== undefined && row[2] !== null && String(row[2]).trim() !== "");
 
-  const message = tutorStatusMessage(tutor);
+  const message = tutorStatusMessage(tutor, confirmedElsewhere);
 
   const acceptedByMe = isTicked(tutor.parentAccepted);
   const rejectedByMe = isTicked(tutor.parentRejected);
 
-  const showButtons =
-    tutor.canAccept || tutor.canReject || acceptedByMe || rejectedByMe;
+  // Always shown; the server switches them off (canAccept / canReject)
+  // once an answer is given or another tutor is confirmed.
+  const showButtons = true;
 
   const acceptTitle = tutor.canAccept
     ? "Accept this tutor"
-    : (acceptedByMe ? "You accepted this tutor" : "You can accept once the demo is scheduled");
+    : (acceptedByMe ? "You accepted this tutor" : "Accept is not available right now");
 
   const data = `data-demo="${escapeHTML(item.demoId)}" data-tutor="${escapeHTML(tutor.tutorId)}"`;
 
   return `
     <div class="class-card tutor-card">
-      <div class="class-spine ${statusClass}">
+      <div class="class-spine ${head.cls}">
         ${tutor.tutorId ? `<span class="class-spine-id">${escapeHTML(tutor.tutorId)}</span><span class="class-spine-label">Tutor ID</span>` : ""}
       </div>
       <div class="class-body">
+
+        <div class="tutor-head ${head.cls}">
+          <span class="tutor-head-title">${escapeHTML(head.title)}</span>
+          ${head.badge ? `<span class="tutor-head-badge">${escapeHTML(head.badge)}</span>` : ""}
+        </div>
 
         ${info.length ? `
           <div class="class-detail-grid tutor-info-grid">
@@ -743,7 +822,7 @@ function renderTutorCard(tutor, item) {
         ` : ""}
 
         ${showButtons ? `
-          <div class="class-row-bottom tutor-actions">
+          <div class="tutor-actions">
             <button type="button" class="tutor-btn tutor-btn-accept${acceptedByMe ? " chosen" : ""}"
               data-respond="accept" ${data}
               title="${escapeHTML(acceptTitle)}"
