@@ -469,7 +469,7 @@ function renderClasses() {
 
 // Cards are collapsed by default. A click anywhere on a card opens it,
 // and a click anywhere on an open card closes it again (Accept / Reject
-// keep their own job, and selecting text never collapses a card).
+// keep their own job while enabled, and selecting text never collapses a card).
 //
 // Only ONE tuition - its own card plus its tutor cards - can be open at
 // a time: opening a card closes every card that belongs to another
@@ -480,7 +480,10 @@ function toggleCard(target, force) {
 
   if (!card) return;
 
-  if (target.closest(".tutor-actions")) return;
+  // An enabled Accept / Reject does its own job. A disabled one is just
+  // part of the card (it has pointer-events: none, so the click lands
+  // on the card) and collapses it like any other spot.
+  if (target.closest("button:not(:disabled)")) return;
 
   if (!force) {
     const selected = window.getSelection ? String(window.getSelection()) : "";
@@ -908,7 +911,7 @@ function renderTutorCard(tutor, item) {
         </div>
 
         <div class="tutor-head ${head.cls}">
-          ${(head.title || head.badge) ? `<div class="tutor-head-row">
+          ${(head.title || head.badge) ? `<div class="tutor-head-row${(head.title && head.badge) ? " two" : ""}">
             <span class="tutor-head-title">${escapeHTML(head.title)}</span>
             ${head.badge ? `<span class="tutor-head-badge">${escapeHTML(head.badge)}</span>` : ""}
           </div>` : ""}
