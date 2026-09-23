@@ -320,3 +320,25 @@
   }
 
 }
+
+
+
+/* =========================================================
+   NEW: LOGGED-IN USER INITIALS
+   ========================================================= */
+
+.header-initials {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--header-green);
+}
+
+.header-login.has-initials {
+  border-color: var(--header-green);
+}
+
+.header-login.has-initials:hover .header-initials {
+  color: #050505;
+}
