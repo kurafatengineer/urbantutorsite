@@ -1,18 +1,19 @@
 /* =========================================================
    URBANTUTORSITE
-   TUTOR REGISTRATION
-   ORIGINAL DARK + LIME DESIGN
-========================================================= */
-
-
-/* =========================================================
-   ROOT
+   TUTOR PROFILE — "BEAST" REDESIGN
+   Same dark brand system as the rest of the site, with a
+   richer multi-accent palette for stats / class cards.
+   Every class name and id below is identical to the markup
+   in tutorprofile.html and every hook tutorprofile.js reads
+   or writes. No selector was renamed, so no functionality
+   changes are required elsewhere on the site.
 ========================================================= */
 
 :root {
   --bg: #050505;
   --surface: #101010;
   --surface-2: #151515;
+  --surface-3: #1a1a1a;
 
   --border: #292929;
   --border-light: #353535;
@@ -23,18 +24,52 @@
 
   --lime: #caff3d;
   --lime-hover: #d6ff63;
+  --lime-dim: rgba(202, 255, 61, 0.12);
+  --lime-line: rgba(202, 255, 61, 0.28);
 
   --danger: #ff6868;
+  --danger-dim: rgba(255, 104, 104, 0.14);
   --success: #72e39a;
+  --success-dim: rgba(114, 227, 154, 0.14);
   --info: #8fa0ff;
+  --info-dim: rgba(143, 160, 255, 0.14);
+  --warn: #ffd166;
+  --warn-dim: rgba(255, 209, 102, 0.14);
 
-  --radius: 18px;
+  /* Extra accents used by the stat rail / class-card spine /
+     subject icons in the new design. */
+  --violet: #b490ff;
+  --violet-dim: rgba(180, 144, 255, 0.14);
+  --emerald: #4fe3a8;
+  --emerald-dim: rgba(79, 227, 168, 0.14);
+  --amber: #ffc44d;
+  --amber-dim: rgba(255, 196, 77, 0.14);
+  --cyan: #5ed8e8;
+  --cyan-dim: rgba(94, 216, 232, 0.14);
+  --rose: #ff8fb0;
+  --rose-dim: rgba(255, 143, 176, 0.14);
+  --orange: #ffa15c;
+  --orange-dim: rgba(255, 161, 92, 0.14);
+  --indigo: #8f9dff;
+  --indigo-dim: rgba(143, 157, 255, 0.14);
+
+  /* Border colours for the subject pill (same rgb as each accent's
+     -dim above, just a stronger alpha), so a subject pill gets an
+     outline the same way the status pills already do. */
+  --success-line: rgba(114, 227, 154, 0.3);
+  --info-line: rgba(143, 160, 255, 0.3);
+  --emerald-line: rgba(79, 227, 168, 0.3);
+  --amber-line: rgba(255, 196, 77, 0.3);
+  --cyan-line: rgba(94, 216, 232, 0.3);
+  --rose-line: rgba(255, 143, 176, 0.3);
+  --orange-line: rgba(255, 161, 92, 0.3);
+  --indigo-line: rgba(143, 157, 255, 0.3);
+
+  --radius: 20px;
+
+  --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --shadow-soft: 0 10px 26px rgba(0, 0, 0, 0.3);
 }
-
-
-/* =========================================================
-   RESET
-========================================================= */
 
 * {
   box-sizing: border-box;
@@ -61,15 +96,16 @@ body {
     sans-serif;
 
   line-height: 1.5;
-}
 
-button,
-input,
-textarea {
-  font: inherit;
+  background-image:
+    radial-gradient(680px 420px at 82% -6%, rgba(202, 255, 61, 0.07), transparent 60%),
+    radial-gradient(900px 560px at 14% 8%, rgba(202, 255, 61, 0.04), transparent 65%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 button {
+  font: inherit;
   cursor: pointer;
 }
 
@@ -78,1364 +114,808 @@ a {
   text-decoration: none;
 }
 
-
-/* =========================================================
-   COMMON
-========================================================= */
+svg {
+  display: block;
+}
 
 .hidden {
   display: none !important;
 }
 
-.page {
-  min-height: 100vh;
-}
-
 .container {
-  width: min(900px, calc(100% - 40px));
+  max-width: 960px;
   margin: 0 auto;
-  padding: 42px 0 80px;
+  padding: 40px 20px 90px;
 }
 
-
-/* Global header is provided by css/header.css and injected by js/header.js. */
-
-
-/* =========================================================
-   INTRO
-========================================================= */
-
-.intro {
-  padding: 70px 0 42px;
-}
-
-.kicker {
-  margin-bottom: 15px;
-
-  color: var(--lime);
-
-  font-size: 12px;
-  font-weight: 800;
-
-  letter-spacing: 3px;
-  text-transform: uppercase;
-}
-
-.intro h1 {
-  margin: 0;
-
-  font-size: clamp(54px, 8vw, 92px);
-  line-height: 0.94;
-
-  font-weight: 850;
-  letter-spacing: -5px;
-
-  color: #f5f5f5;
-}
-
-.intro h1 span {
-  color: var(--lime);
-}
-
-.intro p {
-  max-width: 650px;
-
-  margin: 28px 0 0;
-
+.muted {
   color: var(--muted);
-
-  font-size: 17px;
-  line-height: 1.65;
 }
 
 
 /* =========================================================
-   FORM CARD
+   LOADING / ERROR PAGES
 ========================================================= */
 
-.form-card {
-  background: var(--surface);
-
-  border: 1px solid var(--border);
-
-  border-radius: 24px;
-
-  padding: 38px;
-}
-
-.email-card {
-  max-width: 100%;
-}
-
-
-/* =========================================================
-   SECTIONS
-========================================================= */
-
-.section {
-  padding: 0 0 42px;
-  margin-bottom: 42px;
-
-  border-bottom: 1px solid #242424;
-}
-
-.section:last-child {
-  border-bottom: 0;
-}
-
-.last-section {
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
-
-.section-title {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-
-  margin-bottom: 30px;
-}
-
-.section-title h2 {
-  margin: 0;
-
-  font-size: 24px;
-  font-weight: 800;
-
-  letter-spacing: -0.8px;
-}
-
-.section-title p {
-  margin: 5px 0 0;
-
-  color: var(--muted);
-
-  font-size: 14px;
-}
-
-
-/* =========================================================
-   FIELDS
-========================================================= */
-
-.vertical-fields {
+.loading-page .container,
+.error-page .container {
+  min-height: 64vh;
   display: flex;
   flex-direction: column;
-  gap: 27px;
-}
-
-.field {
-  width: 100%;
-}
-
-.field label:not(.selection-option):not(.time-option):not(.same-phone):not(.terms):not(.upload-button) {
-  display: block;
-
-  margin-bottom: 10px;
-
-  color: #c4c4c4;
-
-  font-size: 12px;
-  font-weight: 800;
-
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
-
-.required {
-  color: var(--lime);
-}
-
-
-/* =========================================================
-   TEXT INPUTS
-========================================================= */
-
-.field input[type="text"],
-.field input[type="email"],
-.field input[type="tel"],
-.field textarea {
-  display: block;
-
-  width: 100%;
-
-  padding: 17px 18px;
-
-  color: #ffffff;
-  background: #050505;
-
-  border: 2px solid var(--border);
-  border-radius: 17px;
-
-  outline: none;
-
-  font-size: 16px;
-
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease;
-}
-
-
-/* =========================================================
-   INPUT FOCUS
-   SINGLE BORDER ONLY
-========================================================= */
-
-.field input[type="text"]:focus,
-.field input[type="email"]:focus,
-.field input[type="tel"]:focus,
-.field textarea:focus {
-  border-color: var(--lime);
-
-  outline: none;
-
-  box-shadow: none;
-}
-
-.field input[type="text"]:focus-visible,
-.field input[type="email"]:focus-visible,
-.field input[type="tel"]:focus-visible,
-.field textarea:focus-visible {
-  outline: none;
-}
-
-
-/* =========================================================
-   PLACEHOLDER
-========================================================= */
-
-input::placeholder,
-textarea::placeholder {
-  color: #454545;
-  opacity: 1;
-}
-
-
-/* =========================================================
-   READONLY EMAIL
-========================================================= */
-
-input[readonly] {
-  color: #777777 !important;
-  background: #090909 !important;
-
-  cursor: default;
-}
-
-input[readonly]:focus {
-  border-color: var(--border) !important;
-  box-shadow: none !important;
-}
-
-
-/* =========================================================
-   TEXTAREA
-========================================================= */
-
-textarea {
-  resize: vertical;
-  min-height: 120px;
-}
-
-
-/* =========================================================
-   PHONE INPUT
-========================================================= */
-
-.phone-input {
-  display: flex;
-  align-items: stretch;
-
-  width: 100%;
-
-  background: #050505;
-
-  border: 2px solid var(--border);
-  border-radius: 17px;
-
-  overflow: hidden;
-
-  transition: border-color 0.2s ease;
-}
-
-.phone-input:focus-within {
-  border-color: var(--lime);
-}
-
-.phone-input input {
-  flex: 1;
-
-  min-width: 0;
-
-  border: 0 !important;
-  border-radius: 0 !important;
-
-  outline: none !important;
-  box-shadow: none !important;
-
-  background: transparent !important;
-}
-
-.country-code {
-  display: flex;
-  align-items: center;
-
-  padding: 0 16px;
-
-  color: #777777;
-
-  font-size: 16px;
-
-  border-right: 1px solid #282828;
-}
-
-
-/* =========================================================
-   SAME AS PHONE
-   CIRCULAR CHECKBOX
-========================================================= */
-
-.same-phone {
-  display: flex !important;
-  align-items: center;
-
-  gap: 10px;
-
-  margin-top: 11px;
-
-  color: #8e8e8e !important;
-
-  font-size: 13px !important;
-  font-weight: 500 !important;
-
-  letter-spacing: 0 !important;
-  text-transform: none !important;
-
-  cursor: pointer;
-}
-
-.same-phone input {
-  appearance: none;
-  -webkit-appearance: none;
-
-  width: 19px;
-  height: 19px;
-
-  margin: 0;
-
-  flex: 0 0 19px;
-
-  border: 2px solid #414141;
-  border-radius: 50%;
-
-  background: #050505;
-
-  position: relative;
-
-  cursor: pointer;
-}
-
-.same-phone input:checked {
-  border-color: var(--lime);
-  background: var(--lime);
-}
-
-.same-phone input:checked::after {
-  content: "";
-
-  position: absolute;
-
-  width: 5px;
-  height: 9px;
-
-  left: 5px;
-  top: 2px;
-
-  border-right: 2px solid #050505;
-  border-bottom: 2px solid #050505;
-
-  transform: rotate(45deg);
-}
-
-
-/* =========================================================
-   GENDER / PREFERRED TUTOR
-   BUTTON STYLE
-========================================================= */
-
-.selection-box {
-  display: grid;
-
-  grid-template-columns:
-    repeat(2, minmax(0, 1fr));
-
-  gap: 12px;
-
-  width: 100%;
-}
-
-
-/* Preferred Tutor = 3 columns */
-
-.field:has(
-  input[name="preferredTutor"]
-) .selection-box {
-  grid-template-columns:
-    repeat(3, minmax(0, 1fr));
-}
-
-
-/* Hide actual radio */
-
-.selection-option input {
-  position: absolute;
-
-  opacity: 0;
-  pointer-events: none;
-}
-
-
-/*
-   BUTTON HEIGHT IS NOW BASED ON:
-   TEXT + PADDING
-
-   No large min-height.
-*/
-
-.selection-option {
-  min-height: 0;
-
-  display: flex !important;
-
   align-items: center;
   justify-content: center;
-
   text-align: center;
-
-  padding: 18px 12px;
-
-  color: #d0d0d0;
-
-  background: #050505;
-
-  border: 2px solid var(--border);
-  border-radius: 20px;
-
-  font-size: 18px !important;
-  font-weight: 750 !important;
-
-  line-height: 1.2;
-
-  letter-spacing: 0 !important;
-  text-transform: none !important;
-
-  cursor: pointer;
-
-  transition:
-    background 0.18s ease,
-    color 0.18s ease,
-    border-color 0.18s ease;
+  gap: 14px;
 }
 
-.selection-option:hover {
-  border-color: #444444;
-}
-
-
-/* Selected */
-
-.selection-option:has(input:checked) {
-  color: #050505;
-
-  background: var(--lime);
-
-  border-color: var(--lime);
-}
-
-
-/* =========================================================
-   STUDENT PREFERRED TIMING
-   3 COLUMNS
-========================================================= */
-
-.timing-options {
-  display: grid;
-
-  grid-template-columns:
-    repeat(3, minmax(0, 1fr));
-
-  gap: 12px;
-
-  width: 100%;
-}
-
-
-/*
-   Timing buttons
-
-   Height = text + padding.
-*/
-
-.time-option {
-  position: relative;
-
-  min-height: 0;
-
-  display: flex !important;
-
-  align-items: center;
-  justify-content: center;
-
-  text-align: center;
-
-  padding: 16px 10px;
-
-  color: #d0d0d0;
-
-  background: #050505;
-
-  border: 2px solid var(--border);
-  border-radius: 18px;
-
-  font-size: 17px !important;
-  font-weight: 750 !important;
-
-  line-height: 1.2;
-
-  letter-spacing: 0 !important;
-  text-transform: none !important;
-
-  cursor: pointer;
-
-  transition:
-    background 0.18s ease,
-    color 0.18s ease,
-    border-color 0.18s ease;
-}
-
-.time-option:hover {
-  border-color: #444444;
-}
-
-
-/* Hide checkbox */
-
-.time-option input {
-  position: absolute;
-
-  opacity: 0;
-  pointer-events: none;
-}
-
-
-/* Selected timing */
-
-.time-option:has(input:checked) {
-  color: #050505;
-
-  background: var(--lime);
-
-  border-color: var(--lime);
-}
-
-
-/* =========================================================
-   OTHER TIMING
-========================================================= */
-
-.other-time {
-  margin-top: 13px;
-}
-
-.other-time input {
-  width: 100%;
-
-  padding: 16px 18px;
-
-  color: #ffffff;
-  background: #050505;
-
-  border: 2px solid var(--border);
-  border-radius: 16px;
-
-  outline: none;
-}
-
-.other-time input:focus {
-  border-color: var(--lime);
-
-  outline: none;
-
-  box-shadow: none;
-}
-
-
-/* =========================================================
-   TERMS
-   CIRCULAR CHECKBOX
-========================================================= */
-
-.terms {
-  display: flex !important;
-  align-items: flex-start;
-
-  gap: 12px;
-
-  cursor: pointer;
-
-  color: #9a9a9a;
-
-  font-size: 14px !important;
-  line-height: 1.6;
-
-  letter-spacing: 0 !important;
-  text-transform: none !important;
-}
-
-.terms input {
-  appearance: none;
-  -webkit-appearance: none;
-
-  width: 21px;
-  height: 21px;
-
-  flex: 0 0 21px;
-
-  margin: 2px 0 0;
-
-  background: #050505;
-
-  border: 2px solid #444444;
-
+.spinner {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-
-  position: relative;
-
-  cursor: pointer;
-}
-
-.terms input:checked {
-  background: var(--lime);
-
-  border-color: var(--lime);
-}
-
-.terms input:checked::after {
-  content: "";
-
-  position: absolute;
-
-  width: 6px;
-  height: 10px;
-
-  left: 5px;
-  top: 2px;
-
-  border-right: 2px solid #050505;
-  border-bottom: 2px solid #050505;
-
-  transform: rotate(45deg);
-}
-
-.terms-text {
-  flex: 1;
-}
-
-.inline-link {
-  padding: 0;
-
-  border: 0;
-
-  color: var(--lime);
-
-  background: transparent;
-
-  font-weight: 700;
-
-  text-decoration: underline;
-}
-
-.inline-link:hover {
-  color: var(--lime-hover);
-}
-
-
-/* =========================================================
-   SUBMIT BUTTON
-========================================================= */
-
-.submit-area {
-  margin-top: 28px;
-}
-
-button.submit,
-a.submit {
-  width: 100%;
-
-  min-height: 58px;
-
-  display: flex;
-
-  align-items: center;
-  justify-content: center;
-
-  text-align: center;
-
-  padding: 15px 22px;
-
-  border: 0;
-  border-radius: 16px;
-
-  color: #050505;
-
-  background: var(--lime);
-
-  font-size: 16px;
-  font-weight: 800;
-
-  cursor: pointer;
-
-  transition:
-    background 0.18s ease,
-    transform 0.18s ease,
-    opacity 0.18s ease;
-}
-
-button.submit:hover,
-a.submit:hover {
-  background: var(--lime-hover);
-}
-
-button.submit:active,
-a.submit:active {
-  transform: translateY(1px);
-}
-
-button.submit:disabled {
-  cursor: not-allowed;
-
-  opacity: 0.55;
-}
-
-
-/* =========================================================
-   LOADER
-========================================================= */
-
-.loader {
-  width: 19px;
-  height: 19px;
-
-  border: 2px solid rgba(0, 0, 0, 0.25);
-
-  border-top-color: #050505;
-
-  border-radius: 50%;
-
-  animation: spin 0.7s linear infinite;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--lime);
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 6px;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
-
-/* =========================================================
-   BACK BUTTON
-========================================================= */
-
-.back-link {
-  padding: 0;
-
-  margin-bottom: 30px;
-
-  border: 0;
-
-  color: #8e8e8e;
-
-  background: transparent;
-
-  font-size: 14px;
-  font-weight: 700;
-
-  cursor: pointer;
-}
-
-.back-link:hover {
-  color: var(--lime);
-}
-
-
-/* =========================================================
-   MESSAGES
-========================================================= */
-
-.message {
-  min-height: 22px;
-
-  margin-top: 16px;
-
-  font-size: 14px;
-
-  text-align: center;
-}
-
-.message.info {
-  color: var(--info);
-}
-
-.message.error {
-  color: var(--danger);
-}
-
-.message.success {
-  color: var(--success);
-}
-
-
-/* =========================================================
-   FIELD ERRORS
-========================================================= */
-
-.field-error {
-  display: block;
-
-  min-height: 18px;
-
-  margin-top: 7px;
-
-  color: var(--danger);
-
-  font-size: 12px;
-
-  line-height: 1.4;
-}
-
-.field-error.center {
-  text-align: center;
-}
-
-
-/* =========================================================
-   HELPER TEXT
-========================================================= */
-
-.helper-text {
-  display: block;
-
-  margin-top: 7px;
-
-  color: #686868;
-
-  font-size: 12px;
-}
-
-
-/* =========================================================
-   OTP PAGE
-========================================================= */
-
-.otp-card {
-  max-width: 650px;
-
-  margin: 0 auto;
-}
-
-.otp-header {
-  margin-bottom: 30px;
-}
-
-.otp-header h2 {
-  margin: 0 0 8px;
-
-  font-size: 28px;
-  font-weight: 800;
-
-  letter-spacing: -1px;
-}
-
-.otp-header p {
-  margin: 0;
-
+.loading-page p {
   color: var(--muted);
-
-  font-size: 15px;
+  font-size: 14px;
+  letter-spacing: 0.01em;
 }
 
-.otp-header strong {
-  color: #ffffff;
+.error-page h1 {
+  margin: 0 0 6px;
+  font-size: clamp(22px, 4vw, 26px);
+  letter-spacing: -0.02em;
 }
 
-.otp-label {
-  text-align: center;
-}
-
-.otp-input {
-  text-align: center;
-
-  font-size: 28px !important;
-  font-weight: 800;
-
-  letter-spacing: 8px;
-}
-
-
-/* =========================================================
-   RESEND
-========================================================= */
-
-.resend-area {
-  display: flex;
-
-  justify-content: center;
-  align-items: center;
-
-  flex-wrap: wrap;
-
-  gap: 7px;
-
-  margin-top: 24px;
-
-  color: #777777;
-
-  font-size: 13px;
-}
-
-.resend-button {
-  padding: 0;
-
-  border: 0;
-
-  color: var(--lime);
-
-  background: transparent;
-
-  font-weight: 750;
-}
-
-.resend-button:disabled {
-  color: #555555;
-
-  cursor: not-allowed;
-}
-
-
-/* =========================================================
-   SUCCESS
-========================================================= */
-
-.success-card {
-  max-width: 650px;
-
-  margin: 90px auto 0;
-
-  text-align: center;
-}
-
-.success-mark {
-  width: 70px;
-  height: 70px;
-
-  display: flex;
-
-  align-items: center;
-  justify-content: center;
-
-  margin: 0 auto 28px;
-
-  color: #050505;
-
+.error-page .submit {
+  margin-top: 20px;
+  display: inline-block;
+  padding: 13px 30px;
+  border-radius: 999px;
   background: var(--lime);
-
-  border-radius: 50%;
-
-  font-size: 34px;
-  font-weight: 900;
+  color: #050505;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 10px 26px rgba(202, 255, 61, 0.18);
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.success-card h1 {
-  margin: 0;
-
-  font-size: 48px;
-  line-height: 1;
-
-  letter-spacing: -2px;
+.error-page .submit:hover {
+  background: var(--lime-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 32px rgba(202, 255, 61, 0.24);
 }
 
-.success-description {
-  max-width: 500px;
 
-  margin: 20px auto;
+/* =========================================================
+   PROFILE CARD
+========================================================= */
 
-  color: var(--muted);
+.profile-card {
+  position: relative;
+  overflow: hidden;
 
-  line-height: 1.7;
-}
-
-.registered-email {
-  margin: 28px 0;
-
-  padding: 16px 20px;
-
-  background: #080808;
-
+  background:
+    linear-gradient(165deg, var(--surface-3) 0%, var(--surface) 55%, var(--surface-2) 100%);
   border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 34px 28px 28px;
+  margin-bottom: 36px;
 
-  border-radius: 15px;
+  box-shadow: var(--shadow-card);
 }
 
-.registered-email span {
-  display: block;
+.profile-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--lime) 45%, transparent 90%);
+  opacity: 0.7;
+}
 
-  margin-bottom: 4px;
+.profile-card-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
 
-  color: #666666;
+.profile-avatar {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--lime-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 6px;
 
-  font-size: 11px;
+  box-shadow:
+    0 0 0 6px rgba(202, 255, 61, 0.06),
+    0 0 26px rgba(202, 255, 61, 0.18),
+    0 8px 22px rgba(0, 0, 0, 0.4);
+}
+
+.profile-avatar span {
+  font-size: 30px;
   font-weight: 800;
-
-  letter-spacing: 2px;
-
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: var(--lime);
 }
 
-.registered-email strong {
-  color: #ffffff;
+.profile-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted-2);
+}
 
+.profile-card-center h1 {
+  margin: 4px 0 2px;
+  font-size: clamp(23px, 4vw, 29px);
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-.login-button {
-  margin-top: 20px;
-}
-
-.secondary-button {
-  width: 100%;
-
-  min-height: 54px;
-
-  margin-top: 12px;
-
-  border: 1px solid var(--border);
-
-  border-radius: 15px;
-
-  color: #c0c0c0;
-
-  background: transparent;
-
-  font-weight: 750;
-}
-
-.secondary-button:hover {
-  color: #ffffff;
-
-  border-color: #444444;
-}
-
-
-/* =========================================================
-   TERMS MODAL
-========================================================= */
-
-.modal {
-  position: fixed;
-
-  inset: 0;
-
-  z-index: 1000;
-
+.profile-meta {
   display: flex;
-
-  align-items: center;
+  flex-wrap: wrap;
   justify-content: center;
-
-  padding: 20px;
+  gap: 8px;
+  margin-top: 4px;
 }
 
-.modal-overlay {
-  position: absolute;
-
-  inset: 0;
-
-  background: rgba(0, 0, 0, 0.82);
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid var(--border-light);
+  background: var(--surface-2);
+  color: var(--text);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.modal-box {
+.chip-muted {
+  color: var(--muted);
+  background: transparent;
+}
+
+.chip-verified,
+.chip-pending,
+.chip-rejected {
   position: relative;
-
-  z-index: 1;
-
-  width: min(600px, 100%);
-  max-height: 85vh;
-
-  overflow-y: auto;
-
-  padding: 35px;
-
-  background: #101010;
-
-  border: 1px solid #303030;
-
-  border-radius: 22px;
-
-  box-shadow:
-    0 30px 80px rgba(0, 0, 0, 0.5);
+  padding-left: 22px;
+  border: 1px solid transparent;
+  text-transform: capitalize;
 }
 
-.modal-box h2 {
-  margin: 0 0 20px;
-
-  font-size: 28px;
-
-  letter-spacing: -1px;
-}
-
-.modal-box p {
-  color: #999999;
-
-  font-size: 14px;
-
-  line-height: 1.7;
-}
-
-.modal-close {
+.chip-verified::before,
+.chip-pending::before,
+.chip-rejected::before {
+  content: "";
   position: absolute;
+  left: 11px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
 
-  top: 14px;
-  right: 17px;
+.chip-verified   { color: var(--success); background: var(--success-dim); border-color: rgba(114, 227, 154, 0.3); }
+.chip-verified::before { background: var(--success); box-shadow: 0 0 0 3px var(--success-dim); }
 
-  width: 40px;
-  height: 40px;
+.chip-pending    { color: var(--warn); background: var(--warn-dim); border-color: rgba(255, 209, 102, 0.3); }
+.chip-pending::before { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-dim); }
 
+.chip-rejected   { color: var(--danger); background: var(--danger-dim); border-color: rgba(255, 104, 104, 0.3); }
+.chip-rejected::before { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-dim); }
+
+.logout-button {
+  margin-top: 18px;
+  width: 100%;
+  max-width: 420px;
+  padding: 13px 20px;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 14px;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.logout-button:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-dim);
+}
+
+.profile-stats {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat {
+  position: relative;
   display: flex;
+  align-items: stretch;
+  gap: 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  min-height: 74px;
+  padding: 0;
+  overflow: hidden;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
 
+.stat:hover {
+  border-color: var(--border-light);
+  transform: translateY(-1px);
+}
+
+/* The rotated accent rail on the left of every stat tile,
+   colour-coded per metric and carrying its own label so the
+   tile reads at a glance without extra copy. Fixed width plus
+   the tile's min-height guarantees the rotated word always has
+   enough room and is never clipped by the tile's overflow:hidden. */
+.stat-rail {
+  flex: 0 0 auto;
+  width: 32px;
+  display: flex;
   align-items: center;
   justify-content: center;
+}
 
-  border: 0;
+.stat > div:last-child {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 14px 18px 14px 0;
+}
 
-  color: #aaa;
+.stat-rail span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
 
+.stat[data-accent="green"]  .stat-rail { background: rgba(114, 227, 154, 0.16); }
+.stat[data-accent="green"]  .stat-rail span { color: var(--success); }
+.stat[data-accent="blue"]   .stat-rail { background: rgba(143, 160, 255, 0.16); }
+.stat[data-accent="blue"]   .stat-rail span { color: var(--info); }
+.stat[data-accent="gold"]   .stat-rail { background: rgba(255, 196, 77, 0.16); }
+.stat[data-accent="gold"]   .stat-rail span { color: var(--amber); }
+.stat[data-accent="purple"] .stat-rail { background: rgba(180, 144, 255, 0.16); }
+.stat[data-accent="purple"] .stat-rail span { color: var(--violet); }
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--lime);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.stat-label {
+  display: none;
+}
+
+
+/* =========================================================
+   CLASSES SECTION
+========================================================= */
+
+.filter-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.filter-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: clamp(11px, 2.6vw, 13px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.filter-tab svg {
+  flex: 0 0 auto;
+  width: clamp(13px, 3vw, 15px);
+  height: clamp(13px, 3vw, 15px);
+}
+
+.filter-tab:hover {
+  border-color: var(--border-light);
+  color: var(--text);
+}
+
+.filter-tab.active {
+  color: #050505;
+  border-color: transparent;
+  background: linear-gradient(120deg, var(--indigo), var(--violet));
+  box-shadow: 0 8px 20px rgba(143, 157, 255, 0.25);
+}
+
+.classes-list {
+  display: grid;
+  gap: 14px;
+}
+
+.class-card {
+  position: relative;
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.class-card:hover {
+  border-color: var(--border-light);
+}
+
+/* The coloured "Demo ID" spine, keyed to the subject icon's
+   accent colour so each card reads distinctly at a glance. */
+.class-spine {
+  flex: 0 0 auto;
+  width: 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 0;
+}
+
+.class-spine-id,
+.class-spine-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.class-spine-id {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.class-spine-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.class-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 18px 20px 18px 6px;
+  display: grid;
+  gap: 14px;
+}
+
+/* TOP ROW: subject pill (left) + status pill (right). Both use
+   the exact same .status-badge component, just recoloured per
+   subject — so "Subject" always reads visually identical to
+   "Demo Scheduled" / "Completed" / etc. flex-wrap stays off so
+   this never collapses to two lines; each pill truncates with
+   an ellipsis instead if the card gets too narrow to fit both. */
+.class-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.class-row-top .status-badge {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.status-badge::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Subject pill: always a plain black chip, never colour-keyed
+   to the subject — keeps it visually distinct from every
+   status pill, "Completed" included. */
+.subject-badge { background: #000; color: var(--text); border-color: var(--border-light); }
+
+.status-running               { background: var(--success-dim); color: var(--success); border-color: rgba(114, 227, 154, 0.3); }
+.status-demo-scheduled        { background: var(--violet-dim);  color: var(--violet);  border-color: rgba(180, 144, 255, 0.3); }
+.status-processing            { background: var(--warn-dim);    color: var(--warn);    border-color: rgba(255, 209, 102, 0.3); }
+.status-completed             { background: var(--surface-2);   color: var(--muted);   border-color: var(--border-light); }
+.status-declined              { background: var(--danger-dim);  color: var(--danger);  border-color: rgba(255, 104, 104, 0.3); }
+
+/* The "Demo ID" spine picks up the same status colour as the
+   status-badge above, so the two always agree at a glance. */
+.class-spine.status-running               { background: var(--success-dim); color: var(--success); }
+.class-spine.status-demo-scheduled        { background: var(--violet-dim);  color: var(--violet); }
+.class-spine.status-processing            { background: var(--warn-dim);    color: var(--warn); }
+
+/* "Applied" - the tutor has applied, nothing scheduled yet. */
+.status-applied                           { background: var(--cyan-dim);    color: var(--cyan);    border-color: var(--cyan-line); }
+.class-spine.status-applied               { background: var(--cyan-dim);    color: var(--cyan); }
+
+/* Middle layer, third row: location icon + address (small,
+   regular) followed by PIN Code (bold), full width. */
+.class-detail-location {
+  grid-column: 1 / -1;
+}
+
+.class-detail-location .class-detail-value {
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.location-address,
+.location-sep {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.location-pin {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+.class-spine.status-completed             { background: var(--surface-2);   color: var(--muted); }
+.class-spine.status-declined              { background: var(--danger-dim);  color: var(--danger); }
+
+.class-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.class-detail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  min-width: 0;
+}
+
+.class-detail-icon {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.class-detail-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.class-detail-value {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* BOTTOM ROW: preferred-timing (left half) + the demo date/time
+   badge (right half). Always a fixed 50/50 split regardless of
+   how much content either side has — a long timing list scrolls
+   sideways inside its own half (with a visible slim scrollbar,
+   the "slider") instead of pushing into the date badge's half. */
+.class-row-bottom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.timing-col {
+  flex: 0 1 50%;
+  max-width: 50%;
+  min-width: 0;
+}
+
+/* Non-"Demo Scheduled" cards have no date/time block, so
+   Preferred Timing takes the full width of the bottom row. */
+.timing-col-full {
+  flex: 1 1 100%;
+  max-width: 100%;
+}
+
+/* Date/Time column, "Demo Scheduled" cards only: bottom-left,
+   the other 50% (Preferred Timing sits on the right, per
+   .timing-col above). */
+.class-when-col {
+  flex: 0 1 50%;
+  max-width: 50%;
+  min-width: 0;
+}
+
+.timing-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.timing-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+
+/* Visible slim scrollbar ("slider") so a long Preferred Timing
+   list is discoverable as scrollable, not hidden/invisible. */
+.timing-chips::-webkit-scrollbar {
+  height: 4px;
+}
+
+.timing-chips::-webkit-scrollbar-track {
   background: transparent;
-
-  font-size: 28px;
 }
 
-.modal-close:hover {
-  color: #ffffff;
+.timing-chips::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 999px;
+}
+
+.timing-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  color: var(--muted-2);
+}
+
+.timing-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.timing-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.timing-chip svg {
+  width: 13px;
+  height: 13px;
+}
+
+.timing-chip.am { background: var(--amber-dim); color: var(--amber); }
+.timing-chip.pm { background: var(--indigo-dim); color: var(--indigo); }
+
+.class-when {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+/* "Not scheduled" — icon + text only, no box around it. */
+.class-when-empty {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.class-when-empty svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.class-when svg {
+  width: 17px;
+  height: 17px;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.class-when > div {
+  min-width: 0;
+}
+
+.class-when-day {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.class-when-time {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.classes-empty {
+  background: var(--surface);
+  border: 1px dashed var(--border-light);
+  border-radius: 16px;
+  padding: 34px 20px;
+  text-align: center;
+}
+
+.classes-empty p {
+  margin: 4px 0;
+}
+
+.classes-empty p:first-child {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 15px;
 }
 
 
 /* =========================================================
-   EMAIL PAGE
+   RESPONSIVE
 ========================================================= */
 
-.email-page .form-card {
-  margin-top: 10px;
-}
-
-
-/* =========================================================
-   MOBILE
-========================================================= */
-
-@media (max-width: 700px) {
+@media (max-width: 560px) {
 
   .container {
-    width: min(100% - 28px, 900px);
-
-    padding-top: 25px;
-    padding-bottom: 55px;
+    padding: 28px 16px 70px;
   }
 
-
-  /* HEADER */
-
-  .site-header {
-    padding-bottom: 28px;
+  .profile-card {
+    padding: 24px 18px 20px;
   }
 
-
-  /* INTRO */
-
-  .intro {
-    padding: 48px 0 30px;
+  .profile-card-center {
+    padding: 0;
   }
 
-  .intro h1 {
-    font-size: clamp(48px, 14vw, 72px);
-
-    letter-spacing: -3.5px;
+  .profile-avatar {
+    width: 72px;
+    height: 72px;
   }
 
-  .intro p {
-    font-size: 15px;
+  .profile-avatar span {
+    font-size: 23px;
   }
 
-
-  /* CARD */
-
-  .form-card {
-    padding: 25px 20px;
-
-    border-radius: 20px;
+  .profile-card-center h1 {
+    font-size: 21px;
   }
 
-
-  /* SECTIONS */
-
-  .section {
-    padding-bottom: 32px;
-
-    margin-bottom: 32px;
+  .class-body {
+    padding: 16px 14px 16px 4px;
+    gap: 12px;
   }
 
-  .section-title {
-    margin-bottom: 24px;
+  .class-row-top .status-badge {
+    font-size: 10.5px;
+    padding: 4px 9px 4px 8px;
   }
 
-  .section-title h2 {
-    font-size: 22px;
+  .class-row-bottom {
+    gap: 6px;
   }
 
-  .vertical-fields {
-    gap: 24px;
+  .timing-chip {
+    font-size: 11.5px;
+    padding: 5px 9px;
   }
 
-
-  /* =======================================================
-     GENDER
-     50 / 50
-  ======================================================= */
-
-  .selection-box {
-    grid-template-columns:
-      repeat(2, minmax(0, 1fr));
-
-    gap: 8px;
+  .class-when {
+    padding: 7px 8px;
+    gap: 5px;
   }
 
-
-  /* =======================================================
-     PREFERRED TUTOR
-     3 IN ONE LINE
-  ======================================================= */
-
-  .field:has(
-    input[name="preferredTutor"]
-  ) .selection-box {
-
-    grid-template-columns:
-      repeat(3, minmax(0, 1fr));
-
-    gap: 8px;
+  .class-when svg {
+    width: 15px;
+    height: 15px;
   }
 
-
-  .selection-option {
-    min-height: 0;
-
-    padding: 14px 8px;
-
-    border-radius: 17px;
-
-    font-size: 16px !important;
-
-    line-height: 1.2;
-  }
-
-
-  /* =======================================================
-     TIMING
-     3 COLUMNS
-  ======================================================= */
-
-  .timing-options {
-    grid-template-columns:
-      repeat(3, minmax(0, 1fr));
-
-    gap: 8px;
-  }
-
-  .time-option {
-    min-height: 0;
-
-    padding: 13px 6px;
-
-    border-radius: 16px;
-
-    font-size: 15px !important;
-
-    line-height: 1.2;
-  }
-
-
-  /* OTP */
-
-  .otp-input {
-    font-size: 25px !important;
-
-    letter-spacing: 6px;
-  }
-
-
-  /* SUCCESS */
-
-  .success-card {
-    margin-top: 40px;
-  }
-
-  .success-card h1 {
-    font-size: 40px;
-  }
-
-
-  /* MODAL */
-
-  .modal-box {
-    padding: 28px 22px;
-  }
-}
-
-
-/* =========================================================
-   SMALL MOBILE
-========================================================= */
-
-@media (max-width: 400px) {
-
-  .container {
-    width: calc(100% - 22px);
-  }
-
-  .form-card {
-    padding: 22px 16px;
-  }
-
-
-  /*
-     No fixed heights.
-     Height comes from text + padding.
-  */
-
-  .selection-option {
-    min-height: 0;
-
-    padding: 13px 6px;
-
-    font-size: 15px !important;
-  }
-
-  .time-option {
-    min-height: 0;
-
-    padding: 12px 5px;
-
-    font-size: 14px !important;
+  .class-when-time {
+    font-size: 12.5px;
   }
 }
 
@@ -1444,786 +924,21 @@ button.submit:disabled {
    ACCESSIBILITY
 ========================================================= */
 
-button:focus-visible,
-a:focus-visible {
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+
+  .stat,
+  .class-card,
+  .logout-button,
+  .filter-tab,
+  .error-page .submit {
+    transition: none;
+  }
+}
+
+:focus-visible {
   outline: 2px solid var(--lime);
   outline-offset: 3px;
-}
-
-
-/*
-   Prevent double borders on all inputs.
-*/
-
-input:focus,
-textarea:focus {
-  outline: none;
-}
-
-/* =========================================================
-   GLOBAL HEADER / FOOTER INTEGRATION
-   Uses the same header and footer design as index.html.
-========================================================= */
-
-.site-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  display: block;
-  margin: 0;
-  padding: 0;
-  background: rgba(5, 5, 5, 0.88);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(16px);
-}
-
-.header-inner {
-  width: min(1120px, calc(100% - 40px));
-  min-height: 78px;
-  margin: 0 auto;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.site-header .logo {
-  display: inline-block;
-  color: #fff;
-  font-size: 23px;
-  font-weight: 800;
-  letter-spacing: -0.7px;
-}
-
-.site-header .logo span,
-.footer .logo span {
-  color: var(--lime);
-}
-
-.profile-button {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(202, 255, 61, 0.45);
-  border-radius: 50%;
-  background: #111;
-  color: inherit;
-  transition: 0.2s;
-}
-
-.profile-button:hover {
-  border-color: var(--lime);
-  background: #181818;
-  transform: translateY(-1px);
-}
-
-.profile-icon svg {
-  width: 22px;
-  height: 22px;
-  fill: none;
-  stroke: var(--lime);
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.footer {
-  padding: 45px 0 25px;
-  border-top: 1px solid rgba(255, 255, 255, 0.10);
-}
-
-.footer-container {
-  width: min(1120px, calc(100% - 40px));
-  margin: 0 auto;
-}
-
-.footer-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 30px;
-}
-
-.footer-brand .logo {
-  font-size: 23px;
-  font-weight: 800;
-  letter-spacing: -0.7px;
-}
-
-.footer-brand p {
-  margin-top: 7px;
-  color: #777;
-  font-size: 12px;
-}
-
-.social-links {
-  display: flex;
-  align-items: center;
-  gap: 22px;
-}
-
-.social-links a {
-  color: #999;
-  font-size: 12px;
-  transition: color 0.2s;
-}
-
-.social-links a:hover {
-  color: var(--lime);
-}
-
-.footer-bottom {
-  margin-top: 30px;
-  padding-top: 18px;
-  display: flex;
-  justify-content: space-between;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  color: #555;
-  font-size: 10px;
-}
-
-/* Student profile modal */
-.profile-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.profile-modal-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.82);
-}
-
-.profile-modal-box {
-  position: relative;
-  z-index: 1;
-  width: min(560px, 100%);
-  max-height: 85vh;
-  overflow-y: auto;
-  padding: 34px;
-  background: #101010;
-  border: 1px solid #303030;
-  border-radius: 22px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
-}
-
-.profile-modal-box h2 {
-  margin: 0 0 22px;
-  font-size: 30px;
-  letter-spacing: -1px;
-}
-
-.profile-modal-close {
-  position: absolute;
-  top: 12px;
-  right: 15px;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  background: transparent;
-  color: #aaa;
-  font-size: 28px;
-}
-
-.profile-modal-close:hover {
-  color: #fff;
-}
-
-.student-profile-content {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.student-profile-item {
-  min-width: 0;
-  padding: 13px 14px;
-  background: #080808;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-}
-
-.student-profile-item.full {
-  grid-column: 1 / -1;
-}
-
-.student-profile-item span {
-  display: block;
-  margin-bottom: 4px;
-  color: #666;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
-}
-
-.student-profile-item strong {
-  display: block;
-  color: #f5f5f5;
-  font-size: 13px;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.profile-logout {
-  width: 100%;
-  min-height: 50px;
-  margin-top: 18px;
-  border: 1px solid var(--border-light);
-  border-radius: 14px;
-  color: #c0c0c0;
-  background: transparent;
-  font-weight: 750;
-}
-
-.profile-logout:hover {
-  color: #fff;
-  border-color: #555;
-}
-
-@media (max-width: 700px) {
-  .header-inner {
-    width: calc(100% - 28px);
-    min-height: 68px;
-  }
-
-  .site-header .logo {
-    font-size: 20px;
-  }
-
-  .footer-container {
-    width: calc(100% - 28px);
-  }
-
-  .footer-inner {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .social-links {
-    gap: 16px;
-  }
-
-  .footer-bottom {
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .student-profile-content {
-    grid-template-columns: 1fr;
-  }
-
-  .student-profile-item.full {
-    grid-column: auto;
-  }
-}
-
-
-/* Shared header/footer responsive sizing */
-@media (max-width: 699px) {
-  .header-inner,
-  .footer-container {
-    width: calc(100% - 28px);
-  }
-
-  .header-inner {
-    min-height: 68px;
-  }
-
-  .logo {
-    font-size: 20px;
-  }
-
-  .footer-inner {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .social-links {
-    gap: 16px;
-  }
-
-  .footer-bottom {
-    flex-direction: column;
-    gap: 6px;
-  }
-}
-
-
-/* =========================================================
-   FORM REDESIGN OVERRIDES
-   ---------------------------------------------------------
-   These rules implement the simplified registration form:
-   - Login / email area centered
-   - Contact Information heading centered
-   - Email field has no visible label
-   - Change email button centered
-   - Input fields work with placeholders instead of labels
-========================================================= */
-
-.email-section-title,
-.centered-section-title {
-  justify-content: center;
-  text-align: center;
-}
-
-.email-section-title > div,
-.centered-section-title > div {
-  width: 100%;
-}
-
-.email-page .field {
-  text-align: center;
-}
-
-.email-page .field input[type="email"] {
-  text-align: center;
-}
-
-.email-registration-field input {
-  text-align: center;
-}
-
-.registrationPage .back-link,
-#registrationPage .back-link {
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  text-align: center;
-}
-
-/*
- * Field labels have been removed from the main text fields.
- * Their purpose is now served by clear placeholders and
- * aria-label attributes in the HTML.
- *
- * Interactive labels such as radio buttons, checkboxes,
- * gender, tutor preference and timing options are intentionally
- * NOT removed because they are part of the controls themselves.
- */
-
-
-/* =========================================================
-   USER REQUESTED FORM ALIGNMENT / LABEL CLEANUP
-   ========================================================= */
-
-#otpPage .back-link {
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  text-align: center;
-}
-
-#otpPage .otp-header {
-  text-align: center;
-}
-
-#otpPage .otp-header h2,
-#otpPage .otp-header p {
-  text-align: center;
-}
-
-#otpPage .otp-header strong {
-  display: inline-block;
-  text-align: center;
-  word-break: break-word;
-}
-
-.centered-field-label {
-  display: block !important;
-  margin-bottom: 10px;
-  text-align: center;
-}
-
-.medium-options {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: 12px;
-}
-
-#registrationPage .centered-section-title {
-  justify-content: center;
-  text-align: center;
-}
-
-#registrationPage .centered-section-title > div {
-  width: 100%;
-}
-
-@media (max-width: 700px) {
-  .medium-options {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-  }
-}
-
-
-/* =========================================================
-   TUTOR REGISTRATION ADDITIONS
-   (built on the student design system above)
-========================================================= */
-
-/* Grid children may shrink: prevents wide controls (e.g. date) overflowing */
-.field {
-  min-width: 0;
-}
-
-/* Group labels (centered, same style as "Student Preferred Timing") */
-.field-label {
-  display: block;
-  margin-bottom: 10px;
-  text-align: center;
-}
-
-.helper-text.center {
-  text-align: center;
-}
-
-/* ---------------------------------------------------------
-   Option buttons: checkbox + radio groups reuse .selection-option
---------------------------------------------------------- */
-
-.selection-option {
-  position: relative;
-}
-
-.selection-box.cols-2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.selection-box.cols-3,
-.selection-box.cols-3m2 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.selection-box.small .selection-option {
-  padding: 15px 10px;
-  border-radius: 18px;
-  font-size: 16px !important;
-}
-
-/* ---------------------------------------------------------
-   Two-column rows
---------------------------------------------------------- */
-
-.two-col {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 27px 16px;
-  align-items: start;
-}
-
-/* ---------------------------------------------------------
-   Number + select share the text input look
---------------------------------------------------------- */
-
-.field input[type="number"],
-.field select {
-  display: block;
-  width: 100%;
-  padding: 17px 18px;
-  color: #ffffff;
-  background: #050505;
-  border: 2px solid var(--border);
-  border-radius: 17px;
-  outline: none;
-  font-size: 16px;
-  transition: border-color 0.2s ease;
-}
-
-.field input[type="number"]:focus,
-.field select:focus {
-  border-color: var(--lime);
-  outline: none;
-  box-shadow: none;
-}
-
-.field select {
-  appearance: none;
-  -webkit-appearance: none;
-  padding-right: 48px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9' fill='none' stroke='%23caff3d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 20px center;
-  cursor: pointer;
-}
-
-.field select option {
-  background: #101010;
-  color: #ffffff;
-}
-
-/* ---------------------------------------------------------
-   DATE OF BIRTH
-   A native date input (best picker on every device) with a
-   custom "Choose Date of Birth" placeholder drawn on top.
-   The box is width-locked so it can never overflow on mobile.
---------------------------------------------------------- */
-
-.date-field {
-  position: relative;
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;
-  border-radius: 17px;
-}
-
-.date-field input[type="date"] {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  height: 62px;
-  margin: 0;
-  padding: 0 18px;
-  color: #ffffff;
-  color-scheme: dark;
-  background: #050505;
-  border: 2px solid var(--border);
-  border-radius: 17px;
-  outline: none;
-  font-size: 16px;
-  line-height: 58px;
-  text-align: left;
-  -webkit-appearance: none;
-  appearance: none;
-  transition: border-color 0.2s ease;
-}
-
-.date-field input[type="date"]:focus {
-  border-color: var(--lime);
-  box-shadow: none;
-}
-
-/* iOS Safari renders the value in an inner element */
-.date-field input[type="date"]::-webkit-date-and-time-value {
-  min-height: 1.2em;
-  margin: 0;
-  text-align: left;
-}
-
-.date-field input[type="date"]::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  opacity: 0.7;
-}
-
-/* Placeholder text (same colour as the other placeholders) */
-.date-placeholder {
-  position: absolute;
-  top: 50%;
-  left: 20px;
-  transform: translateY(-50%);
-  color: #454545;
-  font-size: 16px;
-  pointer-events: none;
-}
-
-/* Empty + not focused: hide "dd/mm/yyyy" and show the placeholder */
-.date-field:not(.has-value):not(:focus-within) input[type="date"] {
-  color: transparent;
-}
-
-/* Value chosen or field focused: hide the placeholder */
-.date-field.has-value .date-placeholder,
-.date-field:focus-within .date-placeholder {
-  display: none;
-}
-
-/* ---------------------------------------------------------
-   Disabled inputs (12th Percentage <-> CGPA)
---------------------------------------------------------- */
-
-.field input:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  background: #090909;
-}
-
-/* ---------------------------------------------------------
-   UPLOAD CARDS
---------------------------------------------------------- */
-
-.upload-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 18px;
-  background: #050505;
-  border: 2px dashed #3a3a3a;
-  border-radius: 18px;
-  transition: border-color 0.2s ease, background 0.2s ease;
-}
-
-.upload-card:hover {
-  border-color: #4d4d4d;
-}
-
-.upload-card + .field-error {
-  margin-bottom: 14px;
-}
-
-.upload-icon {
-  flex: 0 0 56px;
-  width: 56px;
-  height: 56px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  background: rgba(202, 255, 61, 0.07);
-  border: 1px solid rgba(202, 255, 61, 0.28);
-  border-radius: 15px;
-}
-
-.upload-icon svg {
-  width: 27px;
-  height: 27px;
-  fill: none;
-  stroke: var(--lime);
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.upload-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.upload-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.upload-info strong {
-  display: block;
-  color: #f5f5f5;
-  font-size: 16px;
-  letter-spacing: -0.2px;
-}
-
-.upload-hint {
-  display: block;
-  margin-top: 3px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-/* File name + size, visible only after a file is chosen */
-.upload-file {
-  display: none;
-  margin-top: 8px;
-  color: var(--lime);
-  font-size: 13px;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.upload-card.has-file {
-  background: #0a0d05;
-  border-style: solid;
-  border-color: rgba(202, 255, 61, 0.55);
-}
-
-.upload-card.has-file .upload-file {
-  display: block;
-}
-
-.upload-card.has-file .upload-icon {
-  background: rgba(202, 255, 61, 0.14);
-}
-
-.upload-button {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 110px;
-  padding: 12px 22px;
-  color: #050505;
-  background: var(--lime);
-  border-radius: 14px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: background 0.18s ease;
-}
-
-.upload-button:hover {
-  background: var(--lime-hover);
-}
-
-.upload-button input {
-  display: none;
-}
-
-/* After a file is chosen the button becomes a quiet "Change" */
-.upload-card.has-file .upload-button {
-  color: var(--lime);
-  background: transparent;
-  border: 1px solid rgba(202, 255, 61, 0.5);
-}
-
-.upload-card.has-file .upload-button:hover {
-  background: rgba(202, 255, 61, 0.08);
-}
-
-/* ---------------------------------------------------------
-   Verification note
---------------------------------------------------------- */
-
-.verification-note {
-  margin-bottom: 24px;
-  padding: 16px 18px;
-  color: var(--muted);
-  background: #080808;
-  border: 1px solid var(--border);
-  border-radius: 15px;
-  font-size: 14px;
-  text-align: center;
-}
-
-/* ---------------------------------------------------------
-   Mobile
---------------------------------------------------------- */
-
-@media (max-width: 700px) {
-
-  .two-col {
-    grid-template-columns: 1fr;
-    gap: 24px;
-  }
-
-  /* Percentage + CGPA stay side by side (short values) */
-  .field > .two-col {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .selection-box.small .selection-option {
-    padding: 13px 8px;
-    border-radius: 16px;
-    font-size: 14px !important;
-  }
-
-  .selection-box.cols-3m2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .upload-card {
-    flex-wrap: wrap;
-    padding: 16px;
-  }
-
-  .upload-button {
-    flex: 1 0 100%;
-  }
 }
