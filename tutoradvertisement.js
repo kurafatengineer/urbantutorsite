@@ -315,7 +315,7 @@ function render() {
   const count = $("tuitionsCount");
 
   count.textContent = filtered.length
-    ? `${filtered.length} open tuition${filtered.length === 1 ? "" : "s"}`
+    ? `${filtered.length} Open Tuition${filtered.length === 1 ? "" : "s"}`
     : "";
 
   if (!filtered.length) {
