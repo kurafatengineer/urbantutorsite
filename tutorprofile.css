@@ -1143,29 +1143,11 @@ svg {
   display: none !important;
 }
 
-/* collapsed: Subject on the left, Medium on the right */
+/* collapsed: Subject pill on the left, Medium pill on the right -
+   the same pills (with the dot) as the Student Profile. The Medium
+   pill takes the card's status colour. */
 [data-page="tutorprofile"] .class-card.is-collapsed .class-mini {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 14px;
-}
-
-[data-page="tutorprofile"] .class-mini-subject {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 800;
-  color: var(--text);
-}
-
-[data-page="tutorprofile"] .class-mini-medium {
-  flex: 0 0 auto;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--muted);
 }
 
 [data-page="tutorprofile"] .class-card.is-collapsed .class-body {
