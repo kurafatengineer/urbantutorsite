@@ -173,7 +173,8 @@ const STATE = {
   account: {},
   students: [],
   selectedId: "",
-  filter: "all"
+  filter: "all",
+  expanded: new Set()   // keys of the cards the parent has opened; empty = all collapsed
 };
 
 
@@ -221,14 +222,19 @@ async function loadProfile(selectAfter) {
     STATE.account = result.account || {};
     STATE.students = result.students || [];
 
-    // The tuition card only has three states: "Finding Tutor" until a
+    // The tuition card only has these states: "Finding Tutor" until a
     // tutor is confirmed by BOTH sides, then "Running", then
-    // "Completed". Everything in between (applied, demo scheduled,
+    // "Completed" (or "Rejected" when every applicant was turned down). Everything in between (applied, demo scheduled,
     // waiting for approval) is shown on the tutor cards instead.
     STATE.students.forEach(st => (st.tuitions || []).forEach(t => {
       t.detailStatus = t.status;
       const key = String(t.status || "").toLowerCase();
-      t.status = (key === "running" || key === "completed") ? t.status : "Finding Tutor";
+      if (key === "running" || key === "completed") return;
+      // Every tutor who applied has been rejected -> "Rejected"
+      // (it goes back to "Finding Tutor" as soon as a new tutor applies).
+      t.status = ((Number(t.tutorsApplied) || 0) === 0 && (Number(t.declinedCount) || 0) > 0)
+        ? "Rejected"
+        : "Finding Tutor";
     }));
 
     const wanted = selectAfter || urlStudentId() || readSelected();
@@ -386,18 +392,35 @@ function tutorGroup(tutor) {
   return "";
 }
 
-const STATUS_ORDER = ["searching", "demo", "processing", "running", "completed"];
+// Order of tuitions, top to bottom:
+//   0 Demo Scheduled (a tutor has a demo scheduled / awaiting approval)
+//   1 Finding Tutor
+//   2 Running
+//   3 Completed
+//   4 Rejected
+// and inside each group: latest to oldest.
+function tuitionRank(item) {
+
+  const s = String(item.status || "").toLowerCase();
+
+  if (s === "running") return 2;
+  if (s === "completed") return 3;
+  if (s === "rejected") return 4;
+
+  return (item.tutors || []).some(t => tutorGroup(t)) ? 0 : 1;
+
+}
 
 function sortClasses(items) {
 
   return items.slice().sort((a, b) => {
 
-    const groupDiff =
-      STATUS_ORDER.indexOf(classifyItem(a)) - STATUS_ORDER.indexOf(classifyItem(b));
+    const groupDiff = tuitionRank(a) - tuitionRank(b);
 
     if (groupDiff) return groupDiff;
 
-    return (Number(b.timestampMs) || 0) - (Number(a.timestampMs) || 0);
+    return (Number(b.timestampMs) || 0) - (Number(a.timestampMs) || 0) ||
+      (String(b.demoId) > String(a.demoId) ? 1 : -1);
 
   });
 
@@ -439,6 +462,28 @@ function renderClasses() {
   list.innerHTML = sortClasses(filtered)
     .map(item => renderClassCard(item, student))
     .join("");
+
+}
+
+// Cards are collapsed by default. A collapsed card opens on a click
+// anywhere on it; an open card closes again when its top strip is
+// clicked (so selecting text inside it never collapses it).
+function toggleCard(target, force) {
+
+  const card = target.closest && target.closest("[data-card]");
+
+  if (!card) return;
+
+  const collapsed = card.classList.contains("is-collapsed");
+
+  if (!collapsed && !force && !target.closest(".class-row-top, .tutor-head")) return;
+
+  card.classList.toggle("is-collapsed", !collapsed);
+  card.setAttribute("aria-expanded", collapsed ? "true" : "false");
+
+  const key = card.dataset.card;
+
+  if (collapsed) STATE.expanded.add(key); else STATE.expanded.delete(key);
 
 }
 
@@ -491,6 +536,9 @@ function statusMessage(item) {
 
     case "finding tutor":
       return { text: "We are finding the right tutor for you" };
+
+    case "rejected":
+      return { text: "The tutors who applied were rejected, we are finding another tutor for you" };
 
     case "tutors applied": {
       const n = Number(item.tutorsApplied) || 0;
@@ -576,6 +624,9 @@ function renderClassCard(item, student) {
 
   const tutors = Array.isArray(item.tutors) ? item.tutors : [];
 
+  const cardKey = `d:${item.demoId}`;
+  const cardOpen = STATE.expanded.has(cardKey);
+
   // Second layer, 2 per row. (The tutor's own details now live on
   // the tutor cards stacked underneath this card.)
   const details = [
@@ -612,7 +663,8 @@ function renderClassCard(item, student) {
   ` : "";
 
   const studentCard = `
-    <div class="class-card${tutors.length ? " has-tutors" : ""}">
+    <div class="class-card${tutors.length ? " has-tutors" : ""}${cardOpen ? "" : " is-collapsed"}"
+         data-card="${escapeHTML(cardKey)}" tabindex="0" aria-expanded="${cardOpen ? "true" : "false"}">
       <div class="class-spine ${statusClass}">
         ${item.demoId ? `<span class="class-spine-id">${escapeHTML(item.demoId)}</span><span class="class-spine-label">Demo ID</span>` : ""}
       </div>
@@ -667,7 +719,8 @@ function renderClassCard(item, student) {
 // THIRD LAYER of a tutor card - only ever one of two things:
 //   - "This tutor has applied, we will schedule your demo soon"
 //   - the demo's date and time
-// Every other message lives in the first layer (tutorHead below).
+// (plus, for a rejected tutor, who rejected: "You have rejected this
+// tutor" / "Rejected by the Tutor"). Every other message lives in the first layer (tutorHead below).
 function tutorStatusMessage(tutor) {
 
   const status = String(tutor.status || "").toLowerCase();
@@ -677,7 +730,11 @@ function tutorStatusMessage(tutor) {
   }
 
   if (status === "declined") {
-    return { text: "" };
+    return {
+      text: isTicked(tutor.parentRejected)
+        ? "You have rejected this tutor"
+        : "Rejected by the Tutor"
+    };
   }
 
   const when = formatDemoDateTime(tutor.demoDate);
@@ -693,11 +750,12 @@ function tutorStatusMessage(tutor) {
 // to THIS card only.
 //   applied              -> "Applied by"
 //   demo scheduled       -> "Demo Scheduled"
-//   one side approved    -> "Demo Scheduled" + who is being waited for
+//   one side approved    -> only "You have approved, waiting for the
+//                           tutor's approval" (or the tutor's version)
 //   approved by both     -> "Your Tutor"  + Running badge
 //   completed            -> "Your Tutor"  + Completed badge
-//   rejected             -> "Applied by"  + Rejected badge + reason
-function tutorHead(tutor, confirmedElsewhere) {
+//   rejected             -> "Applied by"  + Rejected badge
+function tutorHead(tutor) {
 
   switch (String(tutor.status || "").toLowerCase()) {
 
@@ -705,8 +763,9 @@ function tutorHead(tutor, confirmedElsewhere) {
       return { title: "Demo Scheduled", badge: "", note: "", cls: "status-demo-scheduled" };
 
     case "processing":
+      // Only the waiting message - no "Demo Scheduled" title.
       return {
-        title: "Demo Scheduled",
+        title: "",
         badge: "",
         note: isTicked(tutor.parentAccepted) && !isTicked(tutor.tutorAccepted)
           ? "You have approved, waiting for the tutor's approval"
@@ -721,16 +780,7 @@ function tutorHead(tutor, confirmedElsewhere) {
       return { title: "Your Tutor", badge: "Completed", note: "", cls: "status-completed" };
 
     case "declined":
-      return {
-        title: "Applied by",
-        badge: "Rejected",
-        note: confirmedElsewhere && isTicked(tutor.parentRejected)
-          ? "Another tutor has been confirmed for this tuition"
-          : (isTicked(tutor.parentRejected)
-              ? "You have rejected this tutor"
-              : "The tutor has declined this tuition"),
-        cls: "status-declined"
-      };
+      return { title: "Applied by", badge: "Rejected", note: "", cls: "status-declined" };
 
     default:
       return { title: "Applied by", badge: "", note: "", cls: "status-applied" };
@@ -739,7 +789,8 @@ function tutorHead(tutor, confirmedElsewhere) {
 
 }
 
-const TUTOR_ORDER = { running: 0, completed: 1, processing: 2, "demo scheduled": 3, applied: 4, declined: 5 };
+// Running, Completed, Demo Scheduled, Applied, Rejected
+const TUTOR_ORDER = { running: 0, completed: 1, processing: 2, "demo scheduled": 2, applied: 3, declined: 4 };
 
 function sortTutors(tutors) {
 
@@ -756,12 +807,10 @@ function sortTutors(tutors) {
 
 function renderTutorCard(tutor, item) {
 
-  const confirmedElsewhere = (item.tutors || []).some(t => {
-    const s = String(t.status || "").toLowerCase();
-    return s === "running" || s === "completed";
-  });
+  const head = tutorHead(tutor);
 
-  const head = tutorHead(tutor, confirmedElsewhere);
+  const key = `t:${item.demoId}:${tutor.tutorId}`;
+  const open = STATE.expanded.has(key);
 
   const exp = String(tutor.experience || "").trim();
   const expNumber = Number(exp);
@@ -789,17 +838,23 @@ function renderTutorCard(tutor, item) {
   const data = `data-demo="${escapeHTML(item.demoId)}" data-tutor="${escapeHTML(tutor.tutorId)}"`;
 
   return `
-    <div class="class-card tutor-card">
+    <div class="class-card tutor-card tone-${head.cls.slice(7)}${open ? "" : " is-collapsed"}"
+         data-card="${escapeHTML(key)}" tabindex="0" aria-expanded="${open ? "true" : "false"}">
       <div class="class-spine ${head.cls}">
         ${tutor.tutorId ? `<span class="class-spine-id">${escapeHTML(tutor.tutorId)}</span><span class="class-spine-label">Tutor ID</span>` : ""}
       </div>
       <div class="class-body">
 
+        <div class="tutor-mini">
+          <span class="tutor-mini-name">${escapeHTML(tutor.fullName || "Tutor")}</span>
+          <span class="tutor-mini-gender">${escapeHTML(tutor.gender || "")}</span>
+        </div>
+
         <div class="tutor-head ${head.cls}">
-          <div class="tutor-head-row">
+          ${(head.title || head.badge) ? `<div class="tutor-head-row">
             <span class="tutor-head-title">${escapeHTML(head.title)}</span>
             ${head.badge ? `<span class="tutor-head-badge">${escapeHTML(head.badge)}</span>` : ""}
-          </div>
+          </div>` : ""}
           ${head.note ? `<div class="tutor-head-note">${escapeHTML(head.note)}</div>` : ""}
         </div>
 
@@ -970,9 +1025,25 @@ function wireStaticEvents() {
 
     const button = event.target.closest("[data-respond]");
 
-    if (!button || button.disabled) return;
+    if (button) {
+      if (!button.disabled) respondToTutor(button);
+      return;
+    }
 
-    respondToTutor(button);
+    toggleCard(event.target);
+
+  });
+
+  $("classesList").addEventListener("keydown", (event) => {
+
+    if (event.key !== "Enter" && event.key !== " ") return;
+
+    const card = event.target.closest && event.target.closest("[data-card]");
+
+    if (!card || event.target !== card) return;
+
+    event.preventDefault();
+    toggleCard(card, true);
 
   });
 
