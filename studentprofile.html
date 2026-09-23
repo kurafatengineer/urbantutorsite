@@ -141,6 +141,8 @@
      ADD STUDENT MODAL
      A sibling on the same email + mobile number gets their
      own Student ID. Parent details come from the account.
+     Tuition requests for the new student are added afterwards
+     with "Apply for new tuition".
 ===================================================== -->
 
 <div id="addStudentModal" class="add-modal hidden" aria-hidden="true">
@@ -150,97 +152,63 @@
 
     <button id="closeAddStudent" class="add-modal-close" type="button" aria-label="Close">×</button>
 
-    <h2 id="addStudentTitle">Add a student</h2>
-    <p class="muted add-hint">Uses this account's email and mobile number. The new student gets their own Student ID.</p>
+    <h2 id="addStudentTitle" class="modal-title">Add a Student</h2>
 
     <form id="addStudentForm" novalidate>
 
       <div class="add-grid">
 
-        <label class="add-field add-wide">
-          <span>Student name</span>
-          <input id="addStudentName" type="text" maxlength="80" autocomplete="off" required>
+        <label class="float-field add-wide">
+          <input id="addStudentName" type="text" maxlength="80" autocomplete="off" placeholder=" " required>
+          <span>Student Name</span>
         </label>
 
-        <div class="add-field add-wide">
-          <span>Gender</span>
-          <div class="add-options">
-            <label><input type="radio" name="addGender" value="Male"><span>Male</span></label>
-            <label><input type="radio" name="addGender" value="Female"><span>Female</span></label>
-          </div>
+        <div class="choice-row choice-2 add-wide" role="radiogroup" aria-label="Gender">
+          <label><input type="radio" name="addGender" value="Male"><span>Male</span></label>
+          <label><input type="radio" name="addGender" value="Female"><span>Female</span></label>
         </div>
 
-        <label class="add-field add-wide">
-          <span>School / College</span>
-          <input id="addSchool" type="text" maxlength="150" required>
+        <label class="float-field add-wide">
+          <input id="addSchool" type="text" maxlength="150" autocomplete="off" placeholder=" " required>
+          <span>School / College Name</span>
         </label>
 
-        <label class="add-field">
-          <span>Class / Stream</span>
-          <input id="addClass" type="text" maxlength="80" placeholder="e.g. Class 10 / Science" required>
+        <label class="float-field add-wide">
+          <input id="addClass" type="text" maxlength="80" autocomplete="off" placeholder=" " required>
+          <span>Class / Course</span>
         </label>
 
-        <label class="add-field">
+        <label class="float-field add-wide">
+          <input id="addBoard" type="text" maxlength="150" autocomplete="off" placeholder=" " required>
           <span>Board / University</span>
-          <input id="addBoard" type="text" maxlength="150" placeholder="e.g. CBSE" required>
         </label>
 
-        <label class="add-field add-wide">
-          <span>Subjects</span>
-          <input id="addSubjects" type="text" maxlength="250" placeholder="Mathematics, Physics, Chemistry" required>
-          <small class="muted">Each subject becomes its own tuition request.</small>
-        </label>
-
-        <div class="add-field">
-          <span>Preferred tutor</span>
-          <div class="add-options">
-            <label><input type="radio" name="addTutor" value="Male"><span>Male</span></label>
-            <label><input type="radio" name="addTutor" value="Any" checked><span>Any</span></label>
-            <label><input type="radio" name="addTutor" value="Female"><span>Female</span></label>
-          </div>
-        </div>
-
-        <div class="add-field">
-          <span>Medium</span>
-          <div class="add-options">
-            <label><input type="radio" name="addMedium" value="Offline"><span>Offline</span></label>
-            <label><input type="radio" name="addMedium" value="Any" checked><span>Any</span></label>
-            <label><input type="radio" name="addMedium" value="Online"><span>Online</span></label>
-          </div>
-        </div>
-
-        <div class="add-field add-wide">
-          <span>Preferred timing</span>
-          <div class="add-options add-timings" id="addTimings">
-            <!-- filled by JS: 8 AM ... 9 PM, same as registration -->
-          </div>
-        </div>
-
-        <label class="add-check add-wide">
+        <label class="premium-check add-wide">
           <input type="checkbox" id="addSameAddress" checked>
-          <span>Same address as my other student</span>
+          <span class="premium-check-box" aria-hidden="true"></span>
+          <span class="premium-check-text">Same address as my other student</span>
         </label>
 
-        <label class="add-field add-wide hidden" data-address>
+        <label class="float-field add-wide hidden" data-address>
+          <input id="addAddress" type="text" maxlength="250" autocomplete="off" placeholder=" ">
           <span>Address</span>
-          <input id="addAddress" type="text" maxlength="250">
         </label>
 
-        <label class="add-field hidden" data-address>
+        <label class="float-field hidden" data-address>
+          <input id="addCity" type="text" maxlength="80" autocomplete="off" placeholder=" ">
           <span>City</span>
-          <input id="addCity" type="text" maxlength="80">
         </label>
 
-        <label class="add-field hidden" data-address>
-          <span>PIN code</span>
-          <input id="addPin" type="text" inputmode="numeric" maxlength="6">
+        <label class="float-field hidden" data-address>
+          <input id="addPin" type="text" inputmode="numeric" maxlength="6" autocomplete="off" placeholder=" ">
+          <span>PIN Code</span>
         </label>
 
       </div>
 
       <p id="addStudentMessage" class="add-message" role="alert"></p>
 
-      <button id="addStudentSubmit" class="add-submit" type="submit">Add student</button>
+      <button id="addStudentSubmit" class="add-submit" type="submit">Add Student</button>
 
     </form>
 
@@ -259,49 +227,47 @@
 
     <button id="closeNewTuition" class="add-modal-close" type="button" aria-label="Close">×</button>
 
-    <h2 id="newTuitionTitle">Apply for new tuition</h2>
-    <p class="muted add-hint" id="newTuitionFor"></p>
+    <h2 id="newTuitionTitle" class="modal-title">Apply For New Tuition</h2>
+    <p class="modal-subtitle" id="newTuitionFor"></p>
 
     <form id="newTuitionForm" novalidate>
 
       <div class="add-grid">
 
-        <label class="add-field add-wide">
-          <span>Subjects</span>
-          <input id="newSubjects" type="text" maxlength="250" autocomplete="off" placeholder="Mathematics, Physics" required>
-          <small class="muted">Each subject becomes its own tuition request.</small>
+        <label class="float-field add-wide">
+          <input id="newSubjects" type="text" maxlength="250" autocomplete="off" placeholder=" " required>
+          <span>Add subjects separated by commas</span>
         </label>
 
-        <div class="add-field">
-          <span>Preferred tutor</span>
-          <div class="add-options">
-            <label><input type="radio" name="newTutor" value="Male"><span>Male</span></label>
-            <label><input type="radio" name="newTutor" value="Any" checked><span>Any</span></label>
-            <label><input type="radio" name="newTutor" value="Female"><span>Female</span></label>
+        <div class="choice-row choice-3 add-wide" role="radiogroup" aria-label="Preferred tutor">
+          <label><input type="radio" name="newTutor" value="Male"><span>Male</span></label>
+          <label><input type="radio" name="newTutor" value="Any" checked><span>Any</span></label>
+          <label><input type="radio" name="newTutor" value="Female"><span>Female</span></label>
+        </div>
+
+        <div class="choice-row choice-3 add-wide" role="radiogroup" aria-label="Medium">
+          <label><input type="radio" name="newMedium" value="Offline"><span>Offline</span></label>
+          <label><input type="radio" name="newMedium" value="Any" checked><span>Any</span></label>
+          <label><input type="radio" name="newMedium" value="Online"><span>Online</span></label>
+        </div>
+
+        <div class="add-wide timing-block">
+          <span class="timing-title">Preferred timing</span>
+          <div class="choice-row choice-grid-3" id="newTimings">
+            <!-- filled by JS: 8 AM ... 9 PM + Other -->
           </div>
         </div>
 
-        <div class="add-field">
-          <span>Medium</span>
-          <div class="add-options">
-            <label><input type="radio" name="newMedium" value="Offline"><span>Offline</span></label>
-            <label><input type="radio" name="newMedium" value="Any" checked><span>Any</span></label>
-            <label><input type="radio" name="newMedium" value="Online"><span>Online</span></label>
-          </div>
-        </div>
-
-        <div class="add-field add-wide">
-          <span>Preferred timing</span>
-          <div class="add-options add-timings" id="newTimings">
-            <!-- filled by JS -->
-          </div>
-        </div>
+        <label class="float-field add-wide hidden" id="newOtherTimingField">
+          <input id="newOtherTiming" type="text" maxlength="120" autocomplete="off" placeholder=" ">
+          <span>Add your preferred time</span>
+        </label>
 
       </div>
 
       <p id="newTuitionMessage" class="add-message" role="alert"></p>
 
-      <button id="newTuitionSubmit" class="add-submit" type="submit">Post tuition request</button>
+      <button id="newTuitionSubmit" class="add-submit" type="submit">Post Tuition Request</button>
 
     </form>
 
