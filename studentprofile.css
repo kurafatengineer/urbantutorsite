@@ -947,9 +947,9 @@ body.add-modal-open {
 
 /* "(Parent's name)" just above the student's name, tight to it */
 .profile-parent {
-  margin: 2px 0 -6px;
+  margin: 2px 0 -9px;
   font-size: 13.5px;
-  line-height: 1.3;
+  line-height: 1.2;
   overflow-wrap: anywhere;
 }
 
@@ -1248,11 +1248,20 @@ body.add-modal-open {
 /* ---------- close (×) - light lime ---------- */
 
 .add-modal-close {
+  display: grid;
+  place-items: center;
+  padding: 0;
   border-color: var(--lime-line);
   background: var(--lime-dim);
   color: var(--lime);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.add-modal-close svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .add-modal-close:hover {
@@ -1261,36 +1270,21 @@ body.add-modal-open {
 }
 
 
-/* ---------- "Apply For New Tuition": which student ---------- */
+/* ---------- "Apply For New Tuition": which student ----------
+   "Name · SID" under the title uses the same switcher look as the
+   Student ID under the profile photo. */
 
-.student-choice {
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-}
-
-.student-choice.hidden {
-  display: none;
-}
-
-.student-choice label span {
+.modal-subtitle.sid-switch {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  padding: 8px 10px;
+  justify-content: center;
+  margin: 0 auto 22px;
 }
 
-.student-choice strong {
+.modal-subtitle .sid-button {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.student-choice small {
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
-  opacity: 0.8;
+  white-space: nowrap;
 }
 
 
