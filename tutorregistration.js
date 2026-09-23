@@ -1,364 +1,948 @@
-<!DOCTYPE html>
-<html lang="en">
+"use strict";
+
+/************************************************************
+ * URBANTUTORSITE - TUTOR REGISTRATION (front-end)
+ *
+ * FLOW
+ *   1. Email page
+ *        - email already registered -> LOGIN  : OTP  -> welcome page
+ *        - new email                -> REGISTER: form -> OTP -> saved
+ *   2. Registration page (validated in the browser)
+ *   3. OTP page (shared by registration and login)
+ *   4. Success page
+ *
+ * API ACTIONS USED (see API Router.gs / Tutor Registration.gs)
+ *   checkTutorEmail            sendTutorOTP
+ *   resendTutorOTP             verifyTutorOTP
+ *   completeTutorRegistration  getTutorProfile   (NEW)
+ *
+ * UPDATE (Tutor Login / Session):
+ *   A successful login OR a freshly completed registration now
+ *   returns a "sessionToken". showSuccess() stores it in
+ *   localStorage and sends the tutor straight to index.html,
+ *   already logged in, instead of showing a static message.
+ *   The IIFE at the bottom of this file checks for an existing
+ *   session on page load and, if it is still valid, skips the
+ *   login form entirely and goes straight to index.html.
+ ************************************************************/
+
+
+/************************************************************
+ * CONFIGURATION
+ ************************************************************/
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec";
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024;   // 5 MB per document
+
+
+/************************************************************
+ * STATE
+ ************************************************************/
+
+let currentEmail = "";     // email the tutor entered on page 1
+let currentMode = "";      // "register" or "login"
+let currentName = "";      // used only in the OTP e-mail greeting
+let verifiedToken = "";    // received after a correct registration OTP
+let resendTimer = null;    // countdown interval for "Resend OTP"
+
+
+/************************************************************
+ * SMALL HELPERS
+ ************************************************************/
+
+const $ = id => document.getElementById(id);
+
+function val(id) { return ($(id)?.value || "").trim(); }
+
+function cleanText(value) { return String(value || "").trim().replace(/\s+/g, " "); }
+
+function checked(name) {
+  const e = document.querySelector(`input[name="${name}"]:checked`);
+  return e ? e.value : "";
+}
+
+/* Values of all ticked checkboxes inside a container */
+function values(containerId) {
+  return [...document.querySelectorAll(`#${containerId} input:checked`)].map(x => x.value);
+}
+
+function normalizeEmail(email) { return String(email || "").trim().toLowerCase(); }
+
+function isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email); }
+
+/* Inline field error */
+function setError(id, text) { const e = $(id); if (e) e.textContent = text || ""; }
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#050505">
-  <meta name="description" content="Urbantutorsite — Tutor Registration">
-  <title>Urbantutorsite — Tutor Registration</title>
-
-  <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="css/footer.css">
-  <link rel="stylesheet" href="tutorregistration.css">
-</head>
-
-<body data-page="tutorregistration">
+function clearErrors() { document.querySelectorAll(".field-error").forEach(e => e.textContent = ""); }
+
+/* Status message under a form ("info" | "error" | "success") */
+function showMessage(id, text, type = "") {
+  const el = $(id);
+  if (!el) return;
+  el.textContent = text || "";
+  el.className = "message" + (type ? " " + type : "");
+}
+
+function clearMessages() {
+  ["emailMessage", "registrationMessage", "otpMessage"].forEach(id => showMessage(id, ""));
+}
+
+/* Swap a button's label for a spinner */
+function setBusy(button, textId, loaderId, busy) {
+  button.disabled = busy;
+  $(textId).classList.toggle("hidden", busy);
+  $(loaderId).classList.toggle("hidden", !busy);
+}
+
+/* Keep only digits (or digits + one dot when allowDecimal) */
+function digitsOnly(input, allowDecimal = false) {
+  let v = input.value;
+  if (allowDecimal) {
+    v = v.replace(/[^\d.]/g, "");
+    const firstDot = v.indexOf(".");
+    if (firstDot !== -1) {
+      v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, "");
+    }
+  } else {
+    v = v.replace(/\D/g, "");
+  }
+  input.value = v;
+}
 
-<!-- Reusable Header -->
-<div id="site-header"></div>
-
-<!-- =====================================================
-     PAGE 1 : EMAIL  (new tutor -> registration, existing tutor -> login OTP)
-===================================================== -->
+function formatFileSize(bytes) {
+  return bytes >= 1024 * 1024
+    ? (bytes / (1024 * 1024)).toFixed(1) + " MB"
+    : Math.max(1, Math.round(bytes / 1024)) + " KB";
+}
 
-<main id="emailPage" class="page email-page">
-  <div class="container">
-
-    <div class="intro">
-      <h1>Join as a<br><span>tutor.</span></h1>
-    </div>
-
-    <div class="form-card email-card">
-      <div class="section">
-
-        <div class="section-title email-section-title">
-          <div><h2>Login</h2></div>
-        </div>
-
-        <form id="emailForm" novalidate>
-
-          <div class="field">
-            <input id="email" aria-label="Email Address" type="email" maxlength="254" autocomplete="email" placeholder="you@example.com" required>
-            <small id="emailError" class="field-error"></small>
-          </div>
-
-          <div class="submit-area">
-            <button id="continueButton" class="submit" type="submit">
-              <span id="continueText">Continue</span>
-              <span id="continueLoader" class="loader hidden"></span>
-            </button>
-          </div>
-
-          <div id="emailMessage" class="message"></div>
-
-        </form>
-      </div>
-    </div>
-
-  </div>
-</main>
-
-
-<!-- =====================================================
-     PAGE 2 : REGISTRATION
-===================================================== -->
-
-<main id="registrationPage" class="page hidden">
-  <div class="container">
-
-    <div class="intro registration-intro">
-      <h1>Tell us about<br><span>yourself.</span></h1>
-    </div>
-
-    <div class="form-card">
-
-      <button id="registrationBackButton" class="back-link" type="button">← Change email</button>
-
-      <form id="tutorForm" novalidate>
-
-        <section class="section">
-          <div class="section-title centered-section-title"><div><h2>Contact Information</h2></div></div>
-          <div class="vertical-fields">
-            <div class="field email-registration-field"><input id="registrationEmail" type="email" aria-label="Email Address" readonly></div>
-            <div class="field">
-              <div class="phone-input"><span class="country-code">+91</span><input id="mobile" type="tel" aria-label="Mobile Number" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="Mobile Number" required></div>
-              <small id="mobileError" class="field-error"></small>
-            </div>
-            <div class="field">
-              <div class="phone-input"><span class="country-code">+91</span><input id="whatsapp" type="tel" aria-label="WhatsApp Number" inputmode="numeric" maxlength="10" placeholder="WhatsApp Number" required></div>
-              <label class="same-phone"><input id="sameWhatsapp" type="checkbox"><span>Same as Mobile Number</span></label>
-              <small id="whatsappError" class="field-error"></small>
-            </div>
-            <div class="field"><div class="selection-box cols-2 small"><label class="selection-option"><input type="radio" name="registerAs" value="Full Time Tutor" checked><span>Full Time Tutor</span></label><label class="selection-option"><input type="radio" name="registerAs" value="Part Time Tutor"><span>Part Time Tutor</span></label></div></div>
-          </div>
-        </section>
-
-
-        <section class="section">
-          <div class="section-title centered-section-title"><div><h2>Basic Information</h2></div></div>
-          <div class="vertical-fields">
-            <div class="field"><input id="fullName" type="text" aria-label="Full Name" placeholder="Full Name" maxlength="120" autocomplete="name" required><small id="fullNameError" class="field-error"></small></div>
-
-            <!-- Date of birth: a real date input with a custom placeholder on top of it -->
-            <div class="field">
-              <div id="birthDateWrap" class="date-field">
-                <input id="birthDate" type="date" aria-label="Date of Birth" required>
-                <span class="date-placeholder">Choose Date of Birth</span>
-              </div>
-              <small id="birthDateError" class="field-error"></small>
-            </div>
-
-            <div class="field"><div class="selection-box "><label class="selection-option"><input type="radio" name="gender" value="Male" checked><span>Male</span></label><label class="selection-option"><input type="radio" name="gender" value="Female"><span>Female</span></label></div></div>
-          </div>
-        </section>
-
-
-        <section class="section">
-          <div class="section-title centered-section-title"><div><h2>Languages Known</h2></div></div>
-          <div class="field"><div class="selection-box cols-3 small" id="languages"><label class="selection-option"><input type="checkbox" value="Hindi"><span>Hindi</span></label><label class="selection-option"><input type="checkbox" value="English"><span>English</span></label><label class="selection-option"><input type="checkbox" value="Marathi"><span>Marathi</span></label><label class="selection-option"><input type="checkbox" value="Bengali"><span>Bengali</span></label><label class="selection-option"><input type="checkbox" value="Tamil"><span>Tamil</span></label><label class="selection-option"><input type="checkbox" value="Telugu"><span>Telugu</span></label></div><small id="languagesError" class="field-error"></small></div>
-        </section>
-
-
-        <section class="section">
-          <div class="section-title centered-section-title"><div><h2>Identity Proof</h2></div></div>
-          
-          <!-- Upload cards: state (file name, size, preview) is handled in tutorregistration.js -->
-          <div id="identityCard" class="upload-card">
-            <div class="upload-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="11" r="2"/><path d="M6 16c.7-1.5 1.8-2.2 3-2.2s2.3.7 3 2.2M14.5 10h3.5M14.5 13.5h3.5"/></svg></div>
-            <div class="upload-info">
-              <strong>Identity Proof</strong>
-              <span class="upload-hint">PDF, JPG, JPEG or PNG · max 5 MB</span>
-              <span id="identityFile" class="upload-file"></span>
-            </div>
-            <label class="upload-button"><span id="identityBtnText">Upload</span><input id="identityProof" type="file" accept=".pdf,.jpg,.jpeg,.png" required></label>
-          </div>
-          <small id="identityError" class="field-error"></small>
-
-          <div id="profileCard" class="upload-card">
-            <div class="upload-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/></svg><img id="profilePreview" class="upload-preview hidden" alt="Profile preview"></div>
-            <div class="upload-info">
-              <strong>Provide Your Image</strong>
-              <span class="upload-hint">Profile photo for verification · JPG, JPEG or PNG · max 5 MB</span>
-              <span id="profileFile" class="upload-file"></span>
-            </div>
-            <label class="upload-button"><span id="profileBtnText">Upload</span><input id="profileImage" type="file" accept=".jpg,.jpeg,.png" required></label>
-          </div>
-          <small id="profileError" class="field-error"></small>
-        </section>
-
-
-        <section class="section">
-          <div class="section-title centered-section-title"><div><h2>Education & Qualification</h2></div></div>
-          <div class="vertical-fields">
-            <div class="field"><label class="field-label">Class 12th - Stream</label><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthStream" value="Science"><span>Science</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Commerce"><span>Commerce</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Arts"><span>Arts</span></label></div></div>
-            <div class="field"><input id="twelfthYear" type="text" aria-label="Class 12th - Passing Year" placeholder="Class 12th - Passing Year" inputmode="numeric" maxlength="4"></div>
-
-            <!-- 12th result: fill EITHER Percentage OR CGPA (the other box is disabled by JS) -->
-            <div class="field">
-              <div class="two-col">
-                <div class="field"><input id="twelfthPercentage" type="text" aria-label="12th Percentage" placeholder="12th Percentage" inputmode="decimal" maxlength="5"><small id="twelfthPercentageError" class="field-error"></small></div>
-                <div class="field"><input id="twelfthCgpa" type="text" aria-label="12th CGPA" placeholder="12th CGPA" inputmode="decimal" maxlength="5"><small id="twelfthCgpaError" class="field-error"></small></div>
-              </div>
-              <small class="helper-text center">Fill either Percentage or CGPA. The other box is disabled automatically.</small>
-            </div>
-
-            <div class="field"><label class="field-label">Class 12th - Board</label><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthBoard" value="IB"><span>IB</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="ICSE"><span>ICSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="CBSE"><span>CBSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="IGCSE"><span>IGCSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="State Board"><span>State Board</span></label></div></div>
-            <div class="two-col">
-              <div class="field"><input id="graduationCourse" type="text" aria-label="Graduation - Course" placeholder="Graduation - Course" ></div>
-              <div class="field"><input id="graduationSubject" type="text" aria-label="Graduation - Subject" placeholder="Graduation - Subject" ></div>
-            </div>
-            <div class="two-col">
-              <div class="field"><input id="graduationCollege" type="text" aria-label="Graduation - College/University" placeholder="Graduation - College/University" ></div>
-              <div class="field"><input id="graduationYear" type="text" aria-label="Graduation - Passing Year" placeholder="Graduation - Passing Year" inputmode="numeric" maxlength="4"></div>
-            </div>
-            <div class="field"><input id="graduationPercentage" type="text" aria-label="Graduation - Percentage" placeholder="Graduation - Percentage" ></div>
-            <div class="two-col">
-              <div class="field"><input id="pgSubject" type="text" aria-label="Post Graduation Subject" placeholder="Post Graduation Subject" ></div>
-              <div class="field"><input id="pgCollege" type="text" aria-label="Post Graduation College/University" placeholder="Post Graduation College/University" ></div>
-            </div>
-            <div class="two-col">
-              <div class="field"><input id="pgYear" type="text" aria-label="Post Graduation Passing Year" placeholder="Post Graduation Passing Year" inputmode="numeric" maxlength="4"></div>
-              <div class="field"><input id="pgPercentage" type="text" aria-label="Post Graduation Percentage" placeholder="Post Graduation Percentage" ></div>
-            </div>
-            <div class="field"><label class="field-label">Special Courses</label><div class="selection-box cols-3 small" id="specialCourses"><label class="selection-option"><input type="checkbox" value="B. Ed"><span>B. Ed</span></label><label class="selection-option"><input type="checkbox" value="M. Ed"><span>M. Ed</span></label><label class="selection-option"><input type="checkbox" value="D. Ed"><span>D. Ed</span></label><label class="selection-option"><input type="checkbox" value="D. El. Ed."><span>D. El. Ed.</span></label><label class="selection-option"><input type="checkbox" value="D. P. Ed"><span>D. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="M. P. Ed"><span>M. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="B. P. Ed"><span>B. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="NET/IRF"><span>NET/IRF</span></label><label class="selection-option"><input type="checkbox" value="Phd"><span>Phd</span></label><label class="selection-option"><input type="checkbox" value="PHE"><span>PHE</span></label></div></div>
-            <div class="field"><label class="field-label">Special Child Disability</label><div class="selection-box cols-2 small" id="disability"><label class="selection-option"><input type="checkbox" value="Specific Learning Disability (SLD)"><span>Specific Learning Disability (SLD)</span></label><label class="selection-option"><input type="checkbox" value="Health Impairment"><span>Health Impairment</span></label><label class="selection-option"><input type="checkbox" value="Autism Spectrum Disorder"><span>Autism Spectrum Disorder</span></label><label class="selection-option"><input type="checkbox" value="Emotional disturbance"><span>Emotional disturbance</span></label><label class="selection-option"><input type="checkbox" value="Speech or language impairment"><span>Speech or language impairment</span></label><label class="selection-option"><input type="checkbox" value="Shadow Teacher"><span>Shadow Teacher</span></label></div></div>
-          </div>
-        </section>
-
-
-        <section class="section">
-          <div class="section-title centered-section-title"><div><h2>Experience</h2></div></div>
-          <div class="field"><input id="experience" type="number" aria-label="Experience (In Years)" min="0" max="60" step="0.1" placeholder="Experience (In Years)" required><small id="experienceError" class="field-error"></small></div>
-        </section>
-
-
-        <section class="section">
-          <div class="section-title centered-section-title"><div><h2>Teaching Preferences</h2></div></div>
-          <div class="vertical-fields">
-            <div class="field"><label class="field-label">Classes You Teach</label><div class="selection-box cols-2 small" id="classesTeach"><label class="selection-option"><input type="checkbox" value="1st-5th"><span>1st-5th</span></label><label class="selection-option"><input type="checkbox" value="6th-8th"><span>6th-8th</span></label><label class="selection-option"><input type="checkbox" value="9th-10th"><span>9th-10th</span></label><label class="selection-option"><input type="checkbox" value="11th-12th"><span>11th-12th</span></label></div><small id="classesError" class="field-error"></small></div>
-            <div class="field"><label class="field-label">Subject You Teach</label><div class="selection-box cols-3m2 small" id="subjectsTeach"><label class="selection-option"><input type="checkbox" value="Accountancy"><span>Accountancy</span></label><label class="selection-option"><input type="checkbox" value="Arts & Craft"><span>Arts & Craft</span></label><label class="selection-option"><input type="checkbox" value="Biology"><span>Biology</span></label><label class="selection-option"><input type="checkbox" value="Biology/Biotechnology"><span>Biology/Biotechnology</span></label><label class="selection-option"><input type="checkbox" value="Business Administration (BBA/MBA)"><span>Business Administration (BBA/MBA)</span></label><label class="selection-option"><input type="checkbox" value="Business Studies"><span>Business Studies</span></label><label class="selection-option"><input type="checkbox" value="Chemistry"><span>Chemistry</span></label><label class="selection-option"><input type="checkbox" value="Civis"><span>Civis</span></label><label class="selection-option"><input type="checkbox" value="Computer Applications"><span>Computer Applications</span></label><label class="selection-option"><input type="checkbox" value="Computer Science"><span>Computer Science</span></label><label class="selection-option"><input type="checkbox" value="Dance"><span>Dance</span></label><label class="selection-option"><input type="checkbox" value="Economics"><span>Economics</span></label><label class="selection-option"><input type="checkbox" value="English"><span>English</span></label><label class="selection-option"><input type="checkbox" value="Environmental Studies (EVS)"><span>Environmental Studies (EVS)</span></label><label class="selection-option"><input type="checkbox" value="Geography"><span>Geography</span></label><label class="selection-option"><input type="checkbox" value="Hindi"><span>Hindi</span></label><label class="selection-option"><input type="checkbox" value="History"><span>History</span></label><label class="selection-option"><input type="checkbox" value="Home Science"><span>Home Science</span></label><label class="selection-option"><input type="checkbox" value="Informatics Practices"><span>Informatics Practices</span></label><label class="selection-option"><input type="checkbox" value="Information Technology"><span>Information Technology</span></label><label class="selection-option"><input type="checkbox" value="Marathi"><span>Marathi</span></label><label class="selection-option"><input type="checkbox" value="Mathematics"><span>Mathematics</span></label><label class="selection-option"><input type="checkbox" value="Music"><span>Music</span></label><label class="selection-option"><input type="checkbox" value="Philosophy"><span>Philosophy</span></label><label class="selection-option"><input type="checkbox" value="Physical Education"><span>Physical Education</span></label><label class="selection-option"><input type="checkbox" value="Physics"><span>Physics</span></label><label class="selection-option"><input type="checkbox" value="Political Science"><span>Political Science</span></label><label class="selection-option"><input type="checkbox" value="Psychology"><span>Psychology</span></label><label class="selection-option"><input type="checkbox" value="Sanskrit"><span>Sanskrit</span></label><label class="selection-option"><input type="checkbox" value="Sciences"><span>Sciences</span></label><label class="selection-option"><input type="checkbox" value="Sociology"><span>Sociology</span></label><label class="selection-option"><input type="checkbox" value="French"><span>French</span></label><label class="selection-option"><input type="checkbox" value="German"><span>German</span></label><label class="selection-option"><input type="checkbox" value="Spanish"><span>Spanish</span></label><label class="selection-option"><input type="checkbox" value="Korean"><span>Korean</span></label><label class="selection-option"><input type="checkbox" value="Punjabi"><span>Punjabi</span></label><label class="selection-option"><input type="checkbox" value="Yoga & Gymnastics"><span>Yoga & Gymnastics</span></label></div><small id="subjectsError" class="field-error"></small></div>
-            <div class="field"><label class="field-label">Boards You Teach</label><div class="selection-box cols-3 small" id="boardsTeach"><label class="selection-option"><input type="checkbox" value="IB"><span>IB</span></label><label class="selection-option"><input type="checkbox" value="ICSE"><span>ICSE</span></label><label class="selection-option"><input type="checkbox" value="CBSE"><span>CBSE</span></label><label class="selection-option"><input type="checkbox" value="IGCSE"><span>IGCSE</span></label><label class="selection-option"><input type="checkbox" value="State Board"><span>State Board</span></label></div><small id="boardsError" class="field-error"></small></div>
-          </div>
-        </section>
-
-
-        <section class="section">
-          <div class="section-title centered-section-title"><div><h2>Areas You Teach</h2></div></div>
-          <div class="vertical-fields">
-            <div class="field"><select id="location" aria-label="Location"><option value="">Select Location</option><option>New Delhi</option><option>Navi Mumbai</option><option>Mumbai</option><option>Pune</option><option>Faridabad</option><option>Ghaziabad</option><option>Noida</option><option>Gurugram</option></select></div>
-            <div class="field"><input id="city" type="text" aria-label="City" placeholder="City" maxlength="80" required><small id="cityError" class="field-error"></small></div>
-            <div class="field"><textarea id="address" aria-label="Present Address" rows="4" maxlength="400" placeholder="Present Address" required></textarea><small id="addressError" class="field-error"></small></div>
-            <div class="field"><input id="pinCode" type="text" aria-label="Pin Code" inputmode="numeric" maxlength="6" placeholder="Pin Code" required><small id="pinError" class="field-error"></small></div>
-          </div>
-        </section>
-
-        <section class="section last-section">
-
-          <div class="verification-note">Don't forget to upload your profile image for completing the verification process.</div>
-
-          <label class="terms">
-            <input id="terms" type="checkbox" required>
-            <span class="terms-text">
-              I confirm that the information provided by me is accurate and I agree to the
-              <button id="termsButton" type="button" class="inline-link">Terms & Conditions</button>
-              and privacy requirements of Urbantutorsite.
-            </span>
-          </label>
-          <small id="termsError" class="field-error"></small>
-
-          <div class="submit-area">
-            <button id="registerButton" class="submit" type="submit">
-              <span id="registerText">Verify Email & Register</span>
-              <span id="registerLoader" class="loader hidden"></span>
-            </button>
-          </div>
-
-          <div id="registrationMessage" class="message"></div>
-
-        </section>
-
-      </form>
-    </div>
-
-  </div>
-</main>
-
-
-<!-- =====================================================
-     PAGE 3 : OTP  (used for BOTH registration and login)
-===================================================== -->
-
-<main id="otpPage" class="page hidden">
-  <div class="container">
-
-    <div class="intro otp-intro">
-      <h1>Verify your<br><span>email.</span></h1>
-    </div>
-
-    <div class="form-card otp-card">
-
-      <button id="otpBackButton" class="back-link" type="button">← Change email</button>
-
-      <div class="otp-header">
-        <div id="otpEyebrow" class="kicker">EMAIL VERIFICATION</div>
-        <h2 id="otpTitle">Check your email</h2>
-        <p>We sent a 6-digit verification code to <strong id="emailDisplay"></strong></p>
-      </div>
-
-      <form id="otpForm" novalidate>
-
-        <div class="field">
-          <input id="otp" class="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-label="OTP" required>
-          <small id="otpError" class="field-error center"></small>
-        </div>
-
-        <div class="submit-area" id="otpSubmitArea" style="display:none;">
-          <button id="verifyOtpButton" class="submit" type="submit">
-            <span id="verifyOtpText">Verify OTP</span>
-            <span id="verifyOtpLoader" class="loader hidden"></span>
-          </button>
-        </div>
-
-      </form>
-
-      <div class="resend-area">
-        <span>Didn't receive the code?</span>
-        <button id="resendButton" class="resend-button" type="button" disabled>Resend OTP</button>
-      </div>
-
-      <div id="otpMessage" class="message"></div>
-
-    </div>
-
-  </div>
-</main>
-
-
-<!-- =====================================================
-     PAGE 4 : SUCCESS  (registration complete / login complete)
-===================================================== -->
-
-<main id="successPage" class="page hidden">
-  <div class="container">
-    <div class="form-card success-card">
-
-      <div class="success-mark">✓</div>
-
-      <div class="kicker"><span id="successEyebrow">SUCCESS</span></div>
-
-      <h1 id="successTitle">You're verified.</h1>
-
-      <p id="successDescription" class="success-description">Your request has been completed successfully.</p>
-
-      <div class="registered-email">
-        <span>Email</span>
-        <strong id="successEmail"></strong>
-      </div>
-
-      <!-- Shown only after a tutor LOGIN -->
-      <div id="successIdBox" class="registered-email hidden">
-        <span>Tutor ID</span>
-        <strong id="successTutorId"></strong>
-      </div>
-
-      <a class="submit login-button" href="index.html">Continue to Home</a>
-
-    </div>
-  </div>
-</main>
-
-<!-- Reusable Footer -->
-<div id="site-footer"></div>
-
-<!-- =====================================================
-     TERMS MODAL
-===================================================== -->
-
-<div id="termsModal" class="modal hidden">
-  <div class="modal-overlay"></div>
-  <div class="modal-box">
-
-    <button id="closeTerms" class="modal-close" type="button">×</button>
-
-    <div class="kicker">Urbantutorsite</div>
-
-    <h2>Terms & Conditions</h2>
-
-    <p>By registering, you confirm that the information and documents submitted by you are accurate and belong to you or have been provided with appropriate permission.</p>
-
-    <p>Your information and documents may be used for tutor verification, profile creation, tutor matching and communication regarding requested services.</p>
-
-    <p>You agree not to submit misleading, fraudulent or unlawful information.</p>
-
-    <button id="acceptTerms" class="submit" type="button">I Understand</button>
-
-  </div>
-</div>
-
-<script src="js/header.js"></script>
-<script src="js/footer.js"></script>
-<script src="tutorregistration.js" defer></script>
-
-</body>
-</html>
+
+/************************************************************
+ * PAGE MANAGEMENT
+ ************************************************************/
+
+function showPage(name) {
+  ["email", "registration", "otp", "success"].forEach(n =>
+    $(n + "Page").classList.toggle("hidden", n !== name)
+  );
+  window.scrollTo(0, 0);
+}
+
+
+/************************************************************
+ * API REQUEST (with timeout and readable errors)
+ ************************************************************/
+
+async function apiRequest(payload, timeoutMs = 45000) {
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+
+    const response = await fetch(WEB_APP_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+
+    const raw = await response.text();
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      throw new Error("Server returned an invalid response.");
+    }
+
+  } catch (err) {
+
+    if (err.name === "AbortError") throw new Error("Request timed out. Please try again.");
+    if (err instanceof TypeError) throw new Error("Unable to connect to the server. Please try again.");
+    throw err;
+
+  } finally {
+
+    clearTimeout(timer);
+
+  }
+
+}
+
+
+/************************************************************
+ * FORM INPUT BEHAVIOUR
+ ************************************************************/
+
+/* ---- WhatsApp "same as mobile" ---- */
+
+$("sameWhatsapp").addEventListener("change", () => {
+  if ($("sameWhatsapp").checked) {
+    $("whatsapp").value = val("mobile");
+    $("whatsapp").readOnly = true;
+  } else {
+    $("whatsapp").readOnly = false;
+    $("whatsapp").value = "";
+  }
+});
+
+$("mobile").addEventListener("input", () => {
+  digitsOnly($("mobile"));
+  if ($("sameWhatsapp").checked) $("whatsapp").value = val("mobile");
+});
+
+/* ---- digits-only fields ---- */
+
+["whatsapp", "pinCode", "twelfthYear", "graduationYear", "pgYear"].forEach(id =>
+  $(id).addEventListener("input", () => digitsOnly($(id)))
+);
+
+/* ---- OTP: digits only, then auto-verify once 6 digits are entered ---- */
+
+$("otp").addEventListener("input", () => {
+
+  digitsOnly($("otp"));
+
+  const button = $("verifyOtpButton");
+
+  if (/^\d{6}$/.test(val("otp")) && !button.disabled) {
+    verifyOtp();
+  }
+
+});
+
+/* ---- 12th: Percentage OR CGPA (never both) ----
+ * Typing in one box disables the other; clearing it enables it again. */
+
+function syncTwelfthResult() {
+  const percentage = $("twelfthPercentage");
+  const cgpa = $("twelfthCgpa");
+  cgpa.disabled = percentage.value.trim() !== "";
+  percentage.disabled = cgpa.value.trim() !== "";
+}
+
+["twelfthPercentage", "twelfthCgpa"].forEach(id =>
+  $(id).addEventListener("input", () => {
+    digitsOnly($(id), true);
+    setError(id + "Error", "");
+    syncTwelfthResult();
+  })
+);
+
+/* ---- Date of birth ----
+ * The input is a real date field; the "Choose Date of Birth" text is a
+ * placeholder drawn on top. `has-value` hides it once a date is chosen. */
+
+const birthDateInput = $("birthDate");
+const birthDateWrap = $("birthDateWrap");
+
+function syncBirthDate() {
+  birthDateWrap.classList.toggle("has-value", birthDateInput.value !== "");
+}
+
+birthDateInput.max = new Date().toISOString().split("T")[0];   // no future dates
+birthDateInput.addEventListener("input", syncBirthDate);
+birthDateInput.addEventListener("change", syncBirthDate);
+syncBirthDate();
+
+/* ---- Upload cards (file name, size, "Change" button, photo preview) ---- */
+
+function bindUpload(prefix, inputId) {
+
+  const input = $(inputId);
+  const card = $(prefix + "Card");
+  const fileLine = $(prefix + "File");
+  const buttonText = $(prefix + "BtnText");
+  const preview = $(prefix + "Preview");      // only the profile card has one
+  let previewUrl = "";
+
+  input.addEventListener("change", () => {
+
+    setError(prefix + "Error", "");
+
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = ""; }
+
+    const file = input.files[0];
+
+    card.classList.toggle("has-file", !!file);
+    buttonText.textContent = file ? "Change" : "Upload";
+    fileLine.textContent = file ? `✓ ${file.name} · ${formatFileSize(file.size)}` : "";
+
+    if (preview) {
+      if (file && /^image\//.test(file.type)) {
+        previewUrl = URL.createObjectURL(file);
+        preview.src = previewUrl;
+        preview.classList.remove("hidden");
+      } else {
+        preview.classList.add("hidden");
+        preview.removeAttribute("src");
+      }
+    }
+
+  });
+
+}
+
+bindUpload("identity", "identityProof");
+bindUpload("profile", "profileImage");
+
+
+/************************************************************
+ * TERMS MODAL
+ ************************************************************/
+
+$("termsButton").onclick = () => $("termsModal").classList.remove("hidden");
+$("closeTerms").onclick = () => $("termsModal").classList.add("hidden");
+$("acceptTerms").onclick = () => {
+  $("terms").checked = true;
+  $("termsModal").classList.add("hidden");
+  setError("termsError", "");
+};
+$("termsModal").querySelector(".modal-overlay").onclick = () => $("termsModal").classList.add("hidden");
+
+
+/************************************************************
+ * STEP 1 - EMAIL
+ *   existing tutor -> login OTP
+ *   new tutor      -> registration form
+ ************************************************************/
+
+$("emailForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  await checkEmail();
+});
+
+async function checkEmail() {
+
+  clearErrors();
+  clearMessages();
+
+  const email = normalizeEmail($("email").value);
+
+  if (!isValidEmail(email)) {
+    setError("emailError", "Please enter a valid email address.");
+    $("email").focus();
+    return;
+  }
+
+  currentEmail = email;
+  verifiedToken = "";
+
+  const button = $("continueButton");
+  setBusy(button, "continueText", "continueLoader", true);
+  showMessage("emailMessage", "Checking your account...", "info");
+
+  try {
+
+    const result = await apiRequest({ action: "checkTutorEmail", email });
+
+    if (!result.success) {
+      showMessage("emailMessage", result.message || "Unable to check email.", "error");
+      return;
+    }
+
+    /* ---- Existing tutor: LOGIN with OTP ---- */
+
+    if (result.exists) {
+
+      currentMode = "login";
+      currentName = result.name || "";
+
+      showMessage("emailMessage", "Account found. Sending your login code...", "info");
+
+      const otpResult = await apiRequest({
+        action: "sendTutorOTP",
+        email: currentEmail,
+        mode: "login"
+      });
+
+      if (!otpResult.success) {
+        showMessage("emailMessage", otpResult.message || "Unable to send OTP.", "error");
+        return;
+      }
+
+      showMessage("emailMessage", "");
+      openOtpPage("login", otpResult);
+      return;
+
+    }
+
+    /* ---- New tutor: REGISTRATION form ---- */
+
+    currentMode = "register";
+    $("registrationEmail").value = email;
+    showMessage("emailMessage", "");
+    showPage("registration");
+    setTimeout(() => $("mobile").focus(), 250);
+
+  } catch (err) {
+
+    showMessage("emailMessage", err.message, "error");
+
+  } finally {
+
+    setBusy(button, "continueText", "continueLoader", false);
+
+  }
+
+}
+
+
+/************************************************************
+ * STEP 2 - REGISTRATION FORM
+ *   Validate -> send OTP -> OTP page.
+ *   Nothing is saved until the OTP is verified.
+ ************************************************************/
+
+$("registrationBackButton").addEventListener("click", () => {
+  clearErrors();
+  clearMessages();
+  showPage("email");
+});
+
+$("tutorForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  await registerTutor();
+});
+
+/* Client-side validation. Returns true when everything is fine. */
+function validateRegistration() {
+
+  let ok = true;
+
+  const fail = (id, message) => { setError(id, message); ok = false; };
+
+  /* Phone numbers */
+  if (!/^\d{10}$/.test(val("mobile"))) fail("mobileError", "Mobile Number must contain 10 digits.");
+  if (!/^\d{10}$/.test(val("whatsapp"))) fail("whatsappError", "WhatsApp Number must contain 10 digits.");
+
+  /* Full name */
+  if (cleanText($("fullName").value).length < 2) fail("fullNameError", "Please enter your full name.");
+
+  /* Date of birth */
+  if (!val("birthDate")) {
+    fail("birthDateError", "Please choose your date of birth.");
+  } else if (new Date(val("birthDate")) > new Date()) {
+    fail("birthDateError", "Date of birth cannot be in the future.");
+  }
+
+  /* Class 12th result: percentage 0-100 OR CGPA 0-10 */
+  const percentage = val("twelfthPercentage");
+  const cgpa = val("twelfthCgpa");
+  const decimal = /^\d+(\.\d{1,2})?$/;
+
+  if (percentage && (!decimal.test(percentage) || Number(percentage) > 100)) {
+    fail("twelfthPercentageError", "Enter 0 - 100.");
+  }
+  if (cgpa && (!decimal.test(cgpa) || Number(cgpa) > 10)) {
+    fail("twelfthCgpaError", "Enter 0 - 10.");
+  }
+
+  /* Required text fields */
+  ["experience", "city", "address"].forEach(id => {
+    if (!val(id)) fail(id + "Error", "This field is required.");
+  });
+
+  if (!/^\d{6}$/.test(val("pinCode"))) fail("pinError", "Pin Code must contain 6 digits.");
+
+  /* Groups */
+  if (values("languages").length === 0) fail("languagesError", "Select at least one language.");
+  if (values("classesTeach").length === 0) fail("classesError", "Select at least one class range.");
+  if (values("subjectsTeach").length === 0) fail("subjectsError", "Select at least one subject.");
+  if (values("boardsTeach").length === 0) fail("boardsError", "Select at least one board.");
+
+  /* Documents */
+  if (!validateFile("identityProof", "identityError", false)) ok = false;
+  if (!validateFile("profileImage", "profileError", true)) ok = false;
+
+  /* Terms */
+  if (!$("terms").checked) fail("termsError", "Please accept the Terms & Conditions.");
+
+  return ok;
+
+}
+
+function validateFile(id, errorId, imagesOnly) {
+
+  const f = $(id).files[0];
+
+  if (!f) { setError(errorId, "Please upload this file."); return false; }
+  if (f.size > MAX_FILE_SIZE) { setError(errorId, "File must be 5 MB or smaller."); return false; }
+
+  if (imagesOnly && !/^image\/(jpeg|png)$/.test(f.type)) {
+    setError(errorId, "Please upload a JPG or PNG image.");
+    return false;
+  }
+
+  if (!imagesOnly && !["application/pdf", "image/jpeg", "image/png"].includes(f.type)) {
+    setError(errorId, "Please upload PDF, JPG or PNG.");
+    return false;
+  }
+
+  return true;
+
+}
+
+async function registerTutor() {
+
+  clearErrors();
+  clearMessages();
+
+  if (!currentEmail) {
+    showPage("email");
+    showMessage("emailMessage", "Please enter your email first.", "error");
+    return;
+  }
+
+  if (!validateRegistration()) {
+    const first = document.querySelector(".field-error:not(:empty)");
+    if (first) first.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+
+  currentName = cleanText($("fullName").value);
+  verifiedToken = "";
+
+  const button = $("registerButton");
+  setBusy(button, "registerText", "registerLoader", true);
+  showMessage("registrationMessage", "Sending verification OTP...", "info");
+
+  try {
+
+    const result = await apiRequest({
+      action: "sendTutorOTP",
+      email: currentEmail,
+      mode: "register",
+      name: currentName
+    });
+
+    if (!result.success) {
+      showMessage("registrationMessage", result.message || "Unable to send OTP.", "error");
+      return;
+    }
+
+    showMessage("registrationMessage", "");
+    openOtpPage("register", result);
+
+  } catch (err) {
+
+    showMessage("registrationMessage", err.message, "error");
+
+  } finally {
+
+    setBusy(button, "registerText", "registerLoader", false);
+
+  }
+
+}
+
+
+/************************************************************
+ * STEP 3 - OTP (registration and login)
+ ************************************************************/
+
+function openOtpPage(mode, apiResult) {
+
+  currentMode = mode;
+
+  $("emailDisplay").textContent = currentEmail;
+  $("otp").value = "";
+  clearErrors();
+  showMessage("otpMessage", "");
+
+  if (mode === "login") {
+    $("otpEyebrow").textContent = "SECURE LOGIN";
+    $("otpTitle").textContent = "Verify to login";
+    $("verifyOtpText").textContent = "Login";
+    $("otpBackButton").textContent = "← Change email";
+  } else {
+    $("otpEyebrow").textContent = "REGISTRATION VERIFICATION";
+    $("otpTitle").textContent = "Verify your email";
+    $("verifyOtpText").textContent = "Verify & Register";
+    $("otpBackButton").textContent = "← Edit details";
+  }
+
+  showPage("otp");
+  startResendTimer(apiResult.resendAfter || 60);
+  setTimeout(() => $("otp").focus(), 250);
+
+}
+
+/* Back: registration -> form (details kept), login -> email page */
+$("otpBackButton").addEventListener("click", () => {
+
+  clearInterval(resendTimer);
+  resendTimer = null;
+  verifiedToken = "";
+
+  clearErrors();
+  clearMessages();
+  $("otp").value = "";
+
+  showPage(currentMode === "register" ? "registration" : "email");
+
+});
+
+$("otpForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  await verifyOtp();
+});
+
+async function verifyOtp() {
+
+  clearErrors();
+  showMessage("otpMessage", "");
+
+  const otp = val("otp");
+
+  /* If the OTP was already accepted (only the upload failed), skip the OTP check */
+  const needOtp = !(currentMode === "register" && verifiedToken);
+
+  if (needOtp && !/^\d{6}$/.test(otp)) {
+    setError("otpError", "Please enter the 6-digit OTP.");
+    $("otp").focus();
+    return;
+  }
+
+  const button = $("verifyOtpButton");
+  setBusy(button, "verifyOtpText", "verifyOtpLoader", true);
+
+  try {
+
+    /* ---- A. verify the OTP ---- */
+
+    if (needOtp) {
+
+      showMessage("otpMessage", "Verifying your OTP...", "info");
+
+      const result = await apiRequest({
+        action: "verifyTutorOTP",
+        email: currentEmail,
+        otp: otp,
+        mode: currentMode
+      });
+
+      if (!result.success) {
+        showMessage("otpMessage", result.message || "Incorrect OTP.", "error");
+        return;
+      }
+
+      /* LOGIN finished */
+      if (currentMode === "login") {
+        showSuccess("login", result);
+        return;
+      }
+
+      verifiedToken = result.verificationToken || "";
+
+    }
+
+    /* ---- B. registration: OTP is correct -> save the tutor ---- */
+
+    if (!verifiedToken) {
+      showMessage("otpMessage", "Verification failed. Please request a new OTP.", "error");
+      return;
+    }
+
+    showMessage("otpMessage", "Email verified. Saving your registration and documents...", "info");
+
+    const payload = await buildRegistrationPayload();
+    payload.action = "completeTutorRegistration";
+    payload.email = currentEmail;
+    payload.verificationToken = verifiedToken;
+
+    const saved = await apiRequest(payload, 90000);
+
+    if (!saved.success) {
+      showMessage("otpMessage", saved.message || "Registration could not be completed.", "error");
+      return;
+    }
+
+    showSuccess("register", saved);
+
+  } catch (err) {
+
+    showMessage("otpMessage", err.message, "error");
+
+  } finally {
+
+    setBusy(button, "verifyOtpText", "verifyOtpLoader", false);
+
+  }
+
+}
+
+/* Resend OTP (server enforces the 60 second gap) */
+$("resendButton").addEventListener("click", async () => {
+
+  const button = $("resendButton");
+  button.disabled = true;
+  verifiedToken = "";
+  showMessage("otpMessage", "Sending a new OTP...", "info");
+
+  try {
+
+    const result = await apiRequest({
+      action: "resendTutorOTP",
+      email: currentEmail,
+      mode: currentMode,
+      name: currentName
+    });
+
+    if (!result.success) {
+      showMessage("otpMessage", result.message || "Unable to resend OTP.", "error");
+      if (result.resendAfter) startResendTimer(result.resendAfter);
+      else button.disabled = false;
+      return;
+    }
+
+    $("otp").value = "";
+    showMessage("otpMessage", "New OTP sent successfully.", "success");
+    startResendTimer(result.resendAfter || 60);
+
+  } catch (err) {
+
+    button.disabled = false;
+    showMessage("otpMessage", err.message, "error");
+
+  }
+
+});
+
+/* "Resend in 42s" countdown */
+function startResendTimer(seconds) {
+
+  const button = $("resendButton");
+
+  clearInterval(resendTimer);
+
+  let remaining = Math.max(0, Number(seconds) || 60);
+
+  button.disabled = remaining > 0;
+  button.textContent = remaining > 0 ? `Resend in ${remaining}s` : "Resend OTP";
+
+  if (remaining <= 0) return;
+
+  resendTimer = setInterval(() => {
+
+    remaining--;
+
+    if (remaining <= 0) {
+      clearInterval(resendTimer);
+      resendTimer = null;
+      button.disabled = false;
+      button.textContent = "Resend OTP";
+      return;
+    }
+
+    button.textContent = `Resend in ${remaining}s`;
+
+  }, 1000);
+
+}
+
+
+/************************************************************
+ * REGISTRATION PAYLOAD (form + documents)
+ * Built only AFTER the OTP is verified.
+ ************************************************************/
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1]);
+    reader.onerror = () => reject(new Error("Could not read uploaded file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function buildRegistrationPayload() {
+
+  const identity = $("identityProof").files[0];
+  const profile = $("profileImage").files[0];
+
+  const [identityData, profileData] = await Promise.all([
+    fileToBase64(identity),
+    fileToBase64(profile)
+  ]);
+
+  return {
+
+    mobile: val("mobile"),
+    whatsapp: val("whatsapp"),
+    registerAs: checked("registerAs"),
+
+    fullName: cleanText($("fullName").value),
+    birthDate: val("birthDate"),
+    gender: checked("gender"),
+    languages: values("languages"),
+
+    identityProof: { name: identity.name, mimeType: identity.type, size: identity.size, data: identityData },
+    profileImage: { name: profile.name, mimeType: profile.type, size: profile.size, data: profileData },
+
+    twelfthStream: checked("twelfthStream"),
+    twelfthYear: val("twelfthYear"),
+    twelfthPercentage: val("twelfthPercentage"),
+    twelfthCgpa: val("twelfthCgpa"),
+    twelfthBoard: checked("twelfthBoard"),
+
+    graduationCourse: val("graduationCourse"),
+    graduationSubject: val("graduationSubject"),
+    graduationCollege: val("graduationCollege"),
+    graduationYear: val("graduationYear"),
+    graduationPercentage: val("graduationPercentage"),
+
+    pgSubject: val("pgSubject"),
+    pgCollege: val("pgCollege"),
+    pgYear: val("pgYear"),
+    pgPercentage: val("pgPercentage"),
+
+    specialCourses: values("specialCourses"),
+    disability: values("disability"),
+
+    experience: val("experience"),
+
+    classesTeach: values("classesTeach"),
+    subjectsTeach: values("subjectsTeach"),
+    boardsTeach: values("boardsTeach"),
+
+    location: val("location"),
+    city: val("city"),
+    address: val("address"),
+    pinCode: val("pinCode"),
+
+    termsAccepted: $("terms").checked
+
+  };
+
+}
+
+
+/************************************************************
+ * STEP 4 - SUCCESS
+ ************************************************************/
+
+const TUTOR_SESSION_KEY = "urbantutorsite_tutor_session";
+
+function showSuccess(type, result) {
+
+  clearInterval(resendTimer);
+  resendTimer = null;
+
+  /*
+   * NEW: sign the tutor in on this device and go straight to
+   * the home screen, with the header's Tutor toggle already
+   * selected. If, for any reason, the backend did not send a
+   * sessionToken (e.g. an older deployment), fall back to the
+   * original static success screen below instead of breaking.
+   */
+
+  if (result && result.sessionToken) {
+
+    try {
+
+      localStorage.setItem(
+        TUTOR_SESSION_KEY,
+        JSON.stringify({
+          sessionToken: result.sessionToken,
+          profile: result.profile || null
+        })
+      );
+
+    } catch (storageError) {
+      console.error(storageError);
+    }
+
+    // Home reads this once, on the very next load, to pre-select
+    // the "Tutor" toggle instead of the default "Student" one.
+    try {
+      sessionStorage.setItem("urbantutorsite_last_login", "tutor");
+    } catch (ignore) {}
+
+    window.location.href = "index.html";
+    return;
+
+  }
+
+  $("successEmail").textContent = currentEmail;
+
+  if (type === "login") {
+
+    const profile = result.profile || {};
+    const firstName = (profile.fullName || currentName || "").split(" ")[0];
+
+    $("successEyebrow").textContent = "SECURE LOGIN";
+    $("successTitle").textContent = firstName ? `Welcome back, ${firstName}.` : "Welcome back.";
+    $("successDescription").textContent =
+      "Your email is verified and you are signed in as a tutor." +
+      (profile.status ? ` Your profile status is ${profile.status}.` : "");
+
+    $("successTutorId").textContent = profile.tutorId || "";
+    $("successIdBox").classList.toggle("hidden", !profile.tutorId);
+
+  } else {
+
+    $("successEyebrow").textContent = "REGISTRATION COMPLETE";
+    $("successTitle").textContent = "You're registered.";
+    $("successDescription").textContent =
+      "Your email is verified and your profile has been submitted for verification. " +
+      "We will contact you once the review is complete.";
+
+    // The Tutor ID (result.tutorId) is saved in the sheet but not shown here.
+    $("successIdBox").classList.add("hidden");
+
+  }
+
+  showPage("success");
+
+}
+
+
+/************************************************************
+ * INITIAL STATE
+ *
+ * The login/registration form is shown first. Only if a saved
+ * session is confirmed valid by the server is the tutor sent
+ * to index.html. An expired / invalid session is cleared so
+ * the form stays usable.
+ ************************************************************/
+
+showPage("email");
+
+(async function () {
+
+  let existingSession = null;
+
+  try {
+    const raw = localStorage.getItem(TUTOR_SESSION_KEY);
+    existingSession = raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    localStorage.removeItem(TUTOR_SESSION_KEY);
+    return;
+  }
+
+  if (!existingSession || !existingSession.sessionToken) {
+    return;
+  }
+
+  try {
+
+    const result = await apiRequest({
+      action: "getTutorProfile",
+      sessionToken: existingSession.sessionToken
+    });
+
+    if (result.success) {
+      window.location.replace("index.html");
+      return;
+    }
+
+    localStorage.removeItem(TUTOR_SESSION_KEY);
+
+  } catch (error) {
+    console.error(error);
+  }
+
+})();
