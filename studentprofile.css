@@ -462,28 +462,40 @@ body.add-modal-open {
   --tc-left: 6px;
 }
 
-/* top layer: "Applied by" / "Demo Scheduled" / "Your Tutor" (+ note) */
+/* top layer: "Applied by" / "Demo Scheduled" / "Your Tutor" (+ note).
+   Centred, always ONE line - studentprofile.js shrinks the font
+   (fitHeadText) when the text would not fit. */
 .tutor-head {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 4px;
   margin: calc(var(--tc-top) * -1) calc(var(--tc-right) * -1) 0 calc(var(--tc-left) * -1);
-  padding: 11px var(--tc-right) 11px 16px;
+  padding: 11px 16px;
   border-bottom: 1px solid var(--border);
+  text-align: center;
 }
 
 .tutor-head-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-align: center;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
+.tutor-head-title {
+  display: inline;
+}
+
 .tutor-head-note {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-align: center;
   font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0;
@@ -500,12 +512,14 @@ body.add-modal-open {
 }
 
 .tutor-head-badge {
-  flex: 0 0 auto;
-  padding: 3px 10px;
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 10px;
   border-radius: 999px;
   border: 1px solid currentColor;
-  font-size: 10.5px;
+  font-size: 0.88em;
   letter-spacing: 0.06em;
+  vertical-align: middle;
 }
 
 /* third layer: Accept | Reject - 50% each, edge to edge */
@@ -555,19 +569,13 @@ body.add-modal-open {
   background: rgba(255, 104, 104, 0.24);
 }
 
-/* disabled = greyed out (Accept once you have approved, and both
-   buttons whenever they no longer apply) */
+/* disabled = the same grey look on every card, exactly as on a
+   "Your Tutor - Running" card (Accept once you have approved, both
+   buttons once you have answered or another tutor is confirmed) */
 .tutor-btn:disabled {
   background: var(--surface-3);
   color: var(--muted-2);
   cursor: not-allowed;
-}
-
-/* the one answer you gave as Reject stays visibly red */
-.tutor-btn-reject.chosen:disabled {
-  background: rgba(255, 104, 104, 0.22);
-  color: var(--danger);
-  cursor: default;
 }
 
 
@@ -706,15 +714,6 @@ body.add-modal-open {
   outline-offset: -2px;
 }
 
-/* an open card is only closed from its top strip */
-.class-card[data-card]:not(.is-collapsed) {
-  cursor: default;
-}
-
-.class-card[data-card]:not(.is-collapsed) .class-row-top,
-.class-card[data-card]:not(.is-collapsed) .tutor-head {
-  cursor: pointer;
-}
 
 .tutor-mini {
   display: none;
