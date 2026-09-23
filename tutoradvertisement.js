@@ -365,59 +365,88 @@ function toTime(value) {
  * CARD
  ************************************************************/
 
+// A small fixed palette of accent colours (all already defined
+// as CSS variables on :root in tutorprofile.css, which this
+// page loads). The same subject always lands on the same
+// colour, purely for quick visual scanning of the grid - it
+// carries no other meaning.
+const SUBJECT_ACCENTS = [
+  ["--lime", "--lime-dim"],
+  ["--indigo", "--indigo-dim"],
+  ["--amber", "--amber-dim"],
+  ["--cyan", "--cyan-dim"],
+  ["--rose", "--rose-dim"],
+  ["--violet", "--violet-dim"],
+  ["--emerald", "--emerald-dim"],
+  ["--orange", "--orange-dim"]
+];
+
+function subjectAccent(subject) {
+
+  const key = String(subject || "").trim().toLowerCase();
+
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  }
+
+  const [accent, accentDim] = SUBJECT_ACCENTS[hash % SUBJECT_ACCENTS.length];
+
+  return `--accent: var(${accent}); --accent-dim: var(${accentDim});`;
+
+}
+
 function renderTuitionCard(item) {
 
-  const details = [
-    [ICONS.student, "Student", item.studentName],
-    [ICONS.cap, "Class", item.className],
-    [ICONS.file, "Board", item.board],
-    [ICONS.globe, "Medium", item.medium],
-    [ICONS.pin, "City", item.city]
-  ].filter(triple => triple[2] !== undefined && triple[2] !== null && String(triple[2]).trim() !== "");
+  const infoRows = [
+    [ICONS.cap, item.className ? `Class ${item.className}` : ""],
+    [ICONS.pin, item.city],
+    [ICONS.clock, item.preferredTiming]
+  ].filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== "");
+
+  const chips = [item.board, item.medium]
+    .filter(value => value !== undefined && value !== null && String(value).trim() !== "");
 
   const applied = appliedDemoIds.has(item.demoId);
 
   return `
-    <div class="class-card" data-demo-id="${escapeHTML(item.demoId)}">
-      <div class="class-spine">
-        ${item.demoId ? `<span class="class-spine-id">${escapeHTML(item.demoId)}</span><span class="class-spine-label">Demo ID</span>` : ""}
+    <article class="tuition-card" style="${subjectAccent(item.subject)}" data-demo-id="${escapeHTML(item.demoId)}">
+
+      <div class="tuition-top">
+        <span class="tuition-subject">${escapeHTML(item.subject || "Subject")}</span>
+        ${item.demoId ? `<span class="tuition-id">#${escapeHTML(item.demoId)}</span>` : ""}
       </div>
-      <div class="class-body">
 
-        <div class="class-row-top">
-          <span class="status-badge subject-badge">${escapeHTML(item.subject || "Subject")}</span>
-          ${item.preferredTutor ? `<span class="status-badge">Prefers: ${escapeHTML(item.preferredTutor)}</span>` : ""}
+      <h3 class="tuition-student">${escapeHTML(item.studentName || "Student")}</h3>
+
+      ${chips.length || item.preferredTutor ? `
+        <div class="tuition-chips">
+          ${chips.map(value => `<span class="tuition-chip">${escapeHTML(value)}</span>`).join("")}
+          ${item.preferredTutor ? `<span class="tuition-chip preferred">Prefers: ${escapeHTML(item.preferredTutor)}</span>` : ""}
         </div>
+      ` : ""}
 
-        ${details.length ? `
-          <div class="class-detail-grid">
-            ${details.map(([icon, label, value]) => `
-              <div class="class-detail" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
-                <span class="class-detail-icon">${icon}</span>
-                <span class="class-detail-value">${escapeHTML(value)}</span>
-              </div>
-            `).join("")}
-          </div>
-        ` : ""}
-
-        ${item.preferredTiming ? `
-          <div class="timing-chips">
-            <span class="timing-icon">${ICONS.clock}</span>
-            <span class="timing-chip am">${escapeHTML(item.preferredTiming)}</span>
-          </div>
-        ` : ""}
-
-        <div class="apply-row">
-          <button
-            class="apply-button ${applied ? "applied" : ""}"
-            type="button"
-            data-apply="${escapeHTML(item.demoId)}"
-            ${applied ? "disabled" : ""}
-          >${applied ? "Applied ✓" : "Apply for this tuition"}</button>
+      ${infoRows.length ? `
+        <div class="tuition-info-list">
+          ${infoRows.map(([icon, value]) => `
+            <div class="tuition-info-row">
+              <span class="tuition-info-icon">${icon}</span>
+              <span class="tuition-info-value">${escapeHTML(value)}</span>
+            </div>
+          `).join("")}
         </div>
+      ` : ""}
 
+      <div class="apply-row">
+        <button
+          class="apply-button ${applied ? "applied" : ""}"
+          type="button"
+          data-apply="${escapeHTML(item.demoId)}"
+          ${applied ? "disabled" : ""}
+        >${applied ? "Applied ✓" : "Apply for this tuition"}</button>
       </div>
-    </div>
+
+    </article>
   `;
 
 }
