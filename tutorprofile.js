@@ -18,11 +18,13 @@
  *                       headers on the Demos sheet (see
  *                       getDemoDateTime_() in Tutor Session.gs),
  *                       shown in the "Today / 11:00 AM" badge
- *   preferredTiming <- the tutor's general availability slots,
- *                       e.g. "11:00 AM, 6:00 PM" (shown as the
- *                       sun/moon chips at the bottom of a card)
  *   status          <- one of: "Applied", "Demo Scheduled",
- *                       "Running", "Completed", "Declined"
+ *                       "Processing", "Running", "Completed",
+ *                       "Declined"
+ *   tutorAccepted, parentAccepted, tutorRejected, parentRejected
+ *                   <- raw checkbox values, used for the third
+ *                       layer's message
+ *   timestampMs, rowNumber <- for latest-to-oldest sorting
  *   address, city, pinCode <- third row of the middle layer
  *   subject, studentName, className, board, medium, duration
  *   — unchanged from before.
@@ -251,54 +253,9 @@ function stat(value, label, accent) {
  * DATE / TIME HELPERS
  ************************************************************/
 
-function parseWhen(value) {
 
-  if (!value) return null;
 
-  const date = new Date(value);
 
-  if (isNaN(date.getTime())) return null;
-
-  const now = new Date();
-
-  const isSameDay = (a, b) =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
-
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-
-  let day;
-  if (isSameDay(date, now)) {
-    day = "Today";
-  } else if (isSameDay(date, tomorrow)) {
-    day = "Tomorrow";
-  } else {
-    day = date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
-  }
-
-  const hasTime = /\d{1,2}:\d{2}/.test(String(value)) || date.getHours() || date.getMinutes();
-
-  const time = hasTime
-    ? date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
-    : "";
-
-  return { day, time };
-
-}
-
-function timingChips(preferredTiming) {
-
-  if (!preferredTiming) return [];
-
-  return String(preferredTiming)
-    .split(",")
-    .map(part => part.trim())
-    .filter(Boolean)
-    .map(part => ({ label: part, pm: /pm/i.test(part) && !/am/i.test(part) }));
-
-}
 
 
 /************************************************************
@@ -312,8 +269,32 @@ function classifyItem(item) {
   if (s === "completed") return "completed";
   if (s === "running") return "running";
   if (s === "declined") return "declined";
+  if (s === "processing") return "processing";
   if (s === "demo scheduled") return "demo";
   return "applied"; // "Applied" (the starting status)
+}
+
+// Card order: by status group in this order, then latest to
+// oldest within each group.
+const STATUS_ORDER = ["applied", "demo", "processing", "running", "completed", "declined"];
+
+function sortClasses(items) {
+
+  return items.slice().sort((a, b) => {
+
+    const groupDiff =
+      STATUS_ORDER.indexOf(classifyItem(a)) - STATUS_ORDER.indexOf(classifyItem(b));
+
+    if (groupDiff) return groupDiff;
+
+    const timeDiff = (Number(b.timestampMs) || 0) - (Number(a.timestampMs) || 0);
+
+    if (timeDiff) return timeDiff;
+
+    return (Number(b.rowNumber) || 0) - (Number(a.rowNumber) || 0);
+
+  });
+
 }
 
 function initClasses(classes) {
@@ -361,7 +342,7 @@ function renderClasses(classes, filter) {
 
   filterEmpty.classList.add("hidden");
 
-  list.innerHTML = filtered.map(renderClassCard).join("");
+  list.innerHTML = sortClasses(filtered).map(renderClassCard).join("");
 
 }
 
@@ -379,13 +360,87 @@ function joinAddress(address, city) {
 
 }
 
+function isTicked(value) {
+  return value === true || /^(true|yes|y|1)$/i.test(String(value == null ? "" : value).trim());
+}
+
+// "25 September 2026, 11:00 AM" (time left off if there isn't one).
+function formatDemoDateTime(value) {
+
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (isNaN(date.getTime())) return "";
+
+  const months = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"];
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const text = `${day} ${months[date.getMonth()]} ${date.getFullYear()}`;
+
+  const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0;
+
+  if (!hasTime) return text;
+
+  const time = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+  return `${text}, ${time}`;
+
+}
+
+// Third layer of the card: one centred line per status.
+function statusMessage(item) {
+
+  const group = classifyItem(item);
+
+  switch (group) {
+
+    case "applied":
+      return { text: "We will soon schedule your demo" };
+
+    case "demo": {
+      const when = formatDemoDateTime(item.demoDate);
+      return when
+        ? { text: when, icon: ICONS.calendar, strong: true }
+        : { text: "We will soon schedule your demo" };
+    }
+
+    case "processing":
+      if (isTicked(item.tutorAccepted) && !isTicked(item.parentAccepted)) {
+        return { text: "Waiting for parents' approval" };
+      }
+      return { text: "Parents approved, waiting for your approval" };
+
+    case "running":
+      return { text: "This class is running" };
+
+    case "completed":
+      return { text: "You have completed this class" };
+
+    case "declined":
+      if (isTicked(item.tutorRejected) && isTicked(item.parentRejected)) {
+        return { text: "Rejected by you and the parents" };
+      }
+      if (isTicked(item.tutorRejected)) {
+        return { text: "Rejected by you" };
+      }
+      return { text: "Rejected by the parents" };
+
+    default:
+      return { text: "" };
+
+  }
+
+}
+
 function renderClassCard(item) {
 
   const statusClass = "status-" + String(item.status || "")
     .toLowerCase()
     .replace(/\s+/g, "-");
 
-  // Only these four, icon-only, 2x2 — no label text.
+  // First two rows of the middle layer, 2 per row.
   const details = [
     [ICONS.student, "Student", item.studentName],
     [ICONS.cap, "Class", item.className],
@@ -393,79 +448,27 @@ function renderClassCard(item) {
     [ICONS.globe, "Medium", item.medium]
   ].filter(triple => triple[2] !== undefined && triple[2] !== null && String(triple[2]).trim() !== "");
 
-  const when = parseWhen(item.demoDate);
-
-  const chips = timingChips(item.preferredTiming);
-
-  // Date/Time on the card is only meaningful for "Demo
-  // Scheduled" — for every other status (Applied, Running,
-  // Completed, Declined) it's left off the card entirely.
-  const isDemoScheduled = classifyItem(item) === "demo";
-
-  // Third row of the middle layer (same as the Tuitions page):
-  // location icon, address + city (small), then PIN Code (bold).
+  // Third row: the WHOLE line - location (small) + PIN (bold).
   const locationText = joinAddress(item.address, item.city);
   const pinText = String(item.pinCode || "").trim();
 
   const locationRow = (locationText || pinText) ? `
-    <div class="class-detail class-detail-location" title="Location" aria-label="Location: ${escapeHTML([locationText, pinText ? "PIN " + pinText : ""].filter(Boolean).join(" - "))}">
+    <div class="class-detail class-detail-location" title="Location" aria-label="Location: ${escapeHTML([locationText, pinText].filter(Boolean).join(" - "))}">
       <span class="class-detail-icon">${ICONS.pin}</span>
-      <span class="class-detail-value">${locationText ? `<span class="location-address">${escapeHTML(locationText)}</span>` : ""}${pinText ? `<span class="location-pin">PIN ${escapeHTML(pinText)}</span>` : ""}</span>
+      <span class="class-detail-value">${locationText ? `<span class="location-address">${escapeHTML(locationText)}</span>` : ""}${locationText && pinText ? `<span class="location-sep"> - </span>` : ""}${pinText ? `<span class="location-pin">${escapeHTML(pinText)}</span>` : ""}</span>
     </div>
   ` : "";
 
-  const timingBlock = `
-    ${chips.length ? `
-      <div class="timing-chips">
-        <span class="timing-icon">${ICONS.clock}</span>
-        ${chips.map(chip => `
-          <span class="timing-chip ${chip.pm ? "pm" : "am"}">
-            ${chip.pm ? ICONS.moon : ICONS.sun}
-            ${escapeHTML(chip.label)}
-          </span>
-        `).join("")}
-      </div>
-    ` : `
-      <div class="timing-empty muted">
-        <span class="timing-icon">${ICONS.clock}</span>
-        No preferred timing on file
-      </div>
-    `}
-  `;
+  const message = statusMessage(item);
 
-  // Bottom row for a Demo Scheduled card: Date/Time on the
-  // bottom-left, Preferred Timing on the bottom-right, 50/50.
-  // Boxed only when there's an actual date; "Not scheduled" is
-  // just an icon + text, no box around it.
-  const whenBlock = when
-    ? `
-      <div class="class-when">
-        ${ICONS.calendar}
-        <div>
-          <div class="class-when-day">${escapeHTML(when.day)}</div>
-          ${when.time ? `<div class="class-when-time">${escapeHTML(when.time)}</div>` : ""}
-        </div>
+  const bottomRow = message.text ? `
+    <div class="class-row-bottom class-row-message">
+      <div class="class-status-message ${message.strong ? "strong" : ""}">
+        ${message.icon || ""}
+        <span>${escapeHTML(message.text)}</span>
       </div>
-    `
-    : `
-      <div class="class-when-empty muted">
-        ${ICONS.calendar}
-        Not scheduled
-      </div>
-    `;
-
-  const bottomRow = isDemoScheduled
-    ? `
-      <div class="class-row-bottom">
-        <div class="class-when-col">${whenBlock}</div>
-        <div class="timing-col">${timingBlock}</div>
-      </div>
-    `
-    : `
-      <div class="class-row-bottom">
-        <div class="timing-col timing-col-full">${timingBlock}</div>
-      </div>
-    `;
+    </div>
+  ` : "";
 
   return `
     <div class="class-card">
