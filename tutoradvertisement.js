@@ -383,7 +383,7 @@ function toTime(value) {
  * with the content this page needs:
  *   - Top layer: subject only (bold), no status text
  *   - Middle layer: Class | Board, Gender | Medium,
- *     PIN Code | Location (address + city)
+ *     Location (address + city) - PIN Code, full width
  *   - Bottom layer: Apply button only (disabled if this tutor
  *     has already applied for that Demo ID)
  ************************************************************/
@@ -434,16 +434,17 @@ function renderTuitionCard(item) {
   // Middle layer, 2 per row, always in this order:
   //   Class     | Board
   //   Gender    | Medium
-  //   PIN Code  | Location
+  //   Location (address + city, small) - PIN Code (bold)  <- full width
   // Empty values show "—" so every card keeps the same layout.
   const details = [
     [ICONS.cap, "Class", item.className],
     [ICONS.file, "Board", item.board],
     [ICONS.student, "Gender", formatPreferredTutor(item.preferredTutor)],
     [ICONS.globe, "Medium", formatMedium(item.medium)],
-    [ICONS.pin, "PIN Code", item.pinCode],
-    [ICONS.home, "Location", joinAddress(item.address, item.city)]
   ].map(([icon, label, value]) => [icon, label, String(value == null ? "" : value).trim() || "—"]);
+
+  const locationText = joinAddress(item.address, item.city);
+  const pinText = String(item.pinCode || "").trim();
 
   const applied = appliedDemoIds.has(String(item.demoId));
 
@@ -461,11 +462,15 @@ function renderTuitionCard(item) {
         ${details.length ? `
           <div class="class-detail-grid">
             ${details.map(([icon, label, value]) => `
-              <div class="class-detail${label === "Location" ? " class-detail-location" : ""}" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
+              <div class="class-detail" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
                 <span class="class-detail-icon">${icon}</span>
                 <span class="class-detail-value">${escapeHTML(value)}</span>
               </div>
             `).join("")}
+            <div class="class-detail class-detail-location" title="Location" aria-label="Location: ${escapeHTML([locationText, pinText].filter(Boolean).join(" - ") || "—")}">
+              <span class="class-detail-icon">${ICONS.pin}</span>
+              <span class="class-detail-value">${locationText ? `<span class="location-address">${escapeHTML(locationText)}</span>` : ""}${locationText && pinText ? `<span class="location-sep"> - </span>` : ""}${pinText ? `<span class="location-pin">${escapeHTML(pinText)}</span>` : ""}${!locationText && !pinText ? "—" : ""}</span>
+            </div>
           </div>
         ` : ""}
 
