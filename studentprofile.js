@@ -664,77 +664,76 @@ function renderClassCard(item, student) {
  *   layer 3 Accept / Reject
  ************************************************************/
 
-function tutorStatusMessage(tutor, confirmedElsewhere) {
+// THIRD LAYER of a tutor card - only ever one of two things:
+//   - "This tutor has applied, we will schedule your demo soon"
+//   - the demo's date and time
+// Every other message lives in the first layer (tutorHead below).
+function tutorStatusMessage(tutor) {
+
+  const status = String(tutor.status || "").toLowerCase();
+
+  if (status === "applied") {
+    return { text: "This tutor has applied, we will schedule your demo soon" };
+  }
+
+  if (status === "declined") {
+    return { text: "" };
+  }
 
   const when = formatDemoDateTime(tutor.demoDate);
 
-  switch (String(tutor.status || "").toLowerCase()) {
-
-    case "applied":
-      return { text: "This tutor has applied, we will schedule your demo soon" };
-
-    case "demo scheduled":
-      return when
-        ? { text: when, icon: ICONS.calendar, strong: true }
-        : { text: "We will soon schedule your demo" };
-
-    case "processing":
-      return {
-        text: isTicked(tutor.parentAccepted) && !isTicked(tutor.tutorAccepted)
-          ? "You have approved, waiting for the tutor's approval"
-          : "The tutor has approved, waiting for your approval",
-        sub: when
-      };
-
-    case "running":
-      return { text: "This class is running", sub: when };
-
-    case "completed":
-      return { text: "This class has been completed", sub: when };
-
-    case "declined":
-      if (confirmedElsewhere && isTicked(tutor.parentRejected)) {
-        return { text: "Another tutor has been confirmed for this tuition" };
-      }
-      return {
-        text: isTicked(tutor.parentRejected)
-          ? "You have rejected this tutor"
-          : "The tutor has declined this tuition"
-      };
-
-    default:
-      return { text: "" };
-
-  }
+  return when
+    ? { text: when, icon: ICONS.calendar, strong: true }
+    : { text: "" };
 
 }
 
-// Top layer of a tutor card: title + colour for THIS card only.
+// FIRST LAYER of a tutor card: title (+ badge) and, when there is
+// something to tell the parent, one small note line. Colour applies
+// to THIS card only.
 //   applied              -> "Applied by"
-//   demo scheduled       -> "Demo Scheduled"   (also while one side
-//                            has approved and the other is pending)
+//   demo scheduled       -> "Demo Scheduled"
+//   one side approved    -> "Demo Scheduled" + who is being waited for
 //   approved by both     -> "Your Tutor"  + Running badge
 //   completed            -> "Your Tutor"  + Completed badge
-//   rejected             -> "Applied by"  + Rejected badge
-function tutorHead(tutor) {
+//   rejected             -> "Applied by"  + Rejected badge + reason
+function tutorHead(tutor, confirmedElsewhere) {
 
   switch (String(tutor.status || "").toLowerCase()) {
 
     case "demo scheduled":
+      return { title: "Demo Scheduled", badge: "", note: "", cls: "status-demo-scheduled" };
+
     case "processing":
-      return { title: "Demo Scheduled", badge: "", cls: "status-demo-scheduled" };
+      return {
+        title: "Demo Scheduled",
+        badge: "",
+        note: isTicked(tutor.parentAccepted) && !isTicked(tutor.tutorAccepted)
+          ? "You have approved, waiting for the tutor's approval"
+          : "The tutor has approved, waiting for your approval",
+        cls: "status-demo-scheduled"
+      };
 
     case "running":
-      return { title: "Your Tutor", badge: "Running", cls: "status-running" };
+      return { title: "Your Tutor", badge: "Running", note: "", cls: "status-running" };
 
     case "completed":
-      return { title: "Your Tutor", badge: "Completed", cls: "status-completed" };
+      return { title: "Your Tutor", badge: "Completed", note: "", cls: "status-completed" };
 
     case "declined":
-      return { title: "Applied by", badge: "Rejected", cls: "status-declined" };
+      return {
+        title: "Applied by",
+        badge: "Rejected",
+        note: confirmedElsewhere && isTicked(tutor.parentRejected)
+          ? "Another tutor has been confirmed for this tuition"
+          : (isTicked(tutor.parentRejected)
+              ? "You have rejected this tutor"
+              : "The tutor has declined this tuition"),
+        cls: "status-declined"
+      };
 
     default:
-      return { title: "Applied by", badge: "", cls: "status-applied" };
+      return { title: "Applied by", badge: "", note: "", cls: "status-applied" };
 
   }
 
@@ -757,12 +756,12 @@ function sortTutors(tutors) {
 
 function renderTutorCard(tutor, item) {
 
-  const head = tutorHead(tutor);
-
   const confirmedElsewhere = (item.tutors || []).some(t => {
     const s = String(t.status || "").toLowerCase();
     return s === "running" || s === "completed";
   });
+
+  const head = tutorHead(tutor, confirmedElsewhere);
 
   const exp = String(tutor.experience || "").trim();
   const expNumber = Number(exp);
@@ -774,7 +773,7 @@ function renderTutorCard(tutor, item) {
     [ICONS.clock, "Experience", exp ? (isNaN(expNumber) ? exp : `${exp} ${expNumber === 1 ? "yr" : "yrs"}`) : ""]
   ].filter(row => row[2] !== undefined && row[2] !== null && String(row[2]).trim() !== "");
 
-  const message = tutorStatusMessage(tutor, confirmedElsewhere);
+  const message = tutorStatusMessage(tutor);
 
   const acceptedByMe = isTicked(tutor.parentAccepted);
   const rejectedByMe = isTicked(tutor.parentRejected);
@@ -797,8 +796,11 @@ function renderTutorCard(tutor, item) {
       <div class="class-body">
 
         <div class="tutor-head ${head.cls}">
-          <span class="tutor-head-title">${escapeHTML(head.title)}</span>
-          ${head.badge ? `<span class="tutor-head-badge">${escapeHTML(head.badge)}</span>` : ""}
+          <div class="tutor-head-row">
+            <span class="tutor-head-title">${escapeHTML(head.title)}</span>
+            ${head.badge ? `<span class="tutor-head-badge">${escapeHTML(head.badge)}</span>` : ""}
+          </div>
+          ${head.note ? `<div class="tutor-head-note">${escapeHTML(head.note)}</div>` : ""}
         </div>
 
         ${info.length ? `
@@ -816,7 +818,7 @@ function renderTutorCard(tutor, item) {
           <div class="class-row-bottom class-row-message">
             <div class="class-status-message ${message.strong ? "strong" : ""}">
               ${message.icon || ""}
-              <span>${escapeHTML(message.text)}${message.sub ? `<small class="tutor-when">${ICONS.calendar}${escapeHTML(message.sub)}</small>` : ""}</span>
+              <span>${escapeHTML(message.text)}</span>
             </div>
           </div>
         ` : ""}
