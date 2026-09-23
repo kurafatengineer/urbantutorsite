@@ -332,10 +332,10 @@ body.add-modal-open {
 .profile-card {
   /* Padding of .profile-card (tutorprofile.css), kept in one place
      so the "Apply for new tuition" bar can bleed out to the card's
-     top edge and sides exactly. */
+     sides and bottom edge exactly. */
   --pc-x: 28px;
-  --pc-t: 34px;
-  --pc-bar-bottom: 20px;   /* rounded lower corners of the bar */
+  --pc-b: 28px;
+  --pc-top: 22px;      /* top corner radius of the apply bar */
 }
 
 #profileStats.profile-stats {
@@ -345,9 +345,10 @@ body.add-modal-open {
 
 /* =========================================================
    "APPLY FOR NEW TUITION" BAR
-   Sits at the TOP of the profile card: flush with its top edge and
-   both sides, top corners curved upward with the card's own radius
-   (so they follow the card's corners), lower corners softly rounded.
+   Sits at the bottom of the profile card: same width as the card
+   (both sides flush with its sides), bottom edge + bottom corners
+   identical to the card's, and both top corners rounded outwards
+   (normal, positive radius).
 ========================================================= */
 
 .apply-tuition-bar {
@@ -356,11 +357,11 @@ body.add-modal-open {
   justify-content: center;
 
   width: calc(100% + (var(--pc-x) * 2));
-  margin: calc(var(--pc-t) * -1) calc(var(--pc-x) * -1) 26px;
-  padding: 18px 20px;
+  margin: 26px calc(var(--pc-x) * -1) calc(var(--pc-b) * -1);
+  padding: 20px 20px 18px;
 
   border: 0;
-  border-radius: var(--radius) var(--radius) var(--pc-bar-bottom) var(--pc-bar-bottom);
+  border-radius: var(--pc-top) var(--pc-top) var(--radius) var(--radius);
 
   background: var(--lime);
   color: #050505;
@@ -554,19 +555,19 @@ body.add-modal-open {
   background: rgba(255, 104, 104, 0.24);
 }
 
+/* disabled = greyed out (Accept once you have approved, and both
+   buttons whenever they no longer apply) */
 .tutor-btn:disabled {
-  opacity: 0.38;
+  background: var(--surface-3);
+  color: var(--muted-2);
   cursor: not-allowed;
 }
 
-/* the answer the parent already gave stays clearly visible */
-.tutor-btn.chosen:disabled {
-  opacity: 1;
-  cursor: default;
-}
-
+/* the one answer you gave as Reject stays visibly red */
 .tutor-btn-reject.chosen:disabled {
-  background: rgba(255, 104, 104, 0.24);
+  background: rgba(255, 104, 104, 0.22);
+  color: var(--danger);
+  cursor: default;
 }
 
 
@@ -653,8 +654,8 @@ body.add-modal-open {
 
   .profile-card {
     --pc-x: 18px;
-    --pc-t: 24px;
-    --pc-bar-bottom: 16px;
+    --pc-b: 20px;
+    --pc-top: 18px;
   }
 
   .tutor-card {
@@ -665,9 +666,134 @@ body.add-modal-open {
   }
 
   .apply-tuition-bar {
-    margin-bottom: 22px;
-    padding: 16px;
+    margin-top: 22px;
+    padding: 18px 16px 16px;
     font-size: 15px;
   }
 
+}
+
+
+/* =========================================================
+   "Rejected" tuition status (every applicant turned down)
+========================================================= */
+
+.status-rejected,
+.class-spine.status-rejected {
+  background: var(--danger-dim);
+  color: var(--danger);
+  border-color: rgba(255, 104, 104, 0.3);
+}
+
+.class-spine.status-rejected {
+  border-color: transparent;
+}
+
+
+/* =========================================================
+   COLLAPSED / EXPANDED CARDS
+   Every card starts collapsed and opens when clicked.
+     tuition card -> subject + status only
+     tutor card   -> name + gender only, coloured by its status
+========================================================= */
+
+.class-card[data-card] {
+  cursor: pointer;
+}
+
+.class-card[data-card]:focus-visible {
+  outline: 2px solid var(--lime);
+  outline-offset: -2px;
+}
+
+/* an open card is only closed from its top strip */
+.class-card[data-card]:not(.is-collapsed) {
+  cursor: default;
+}
+
+.class-card[data-card]:not(.is-collapsed) .class-row-top,
+.class-card[data-card]:not(.is-collapsed) .tutor-head {
+  cursor: pointer;
+}
+
+.tutor-mini {
+  display: none;
+}
+
+.class-card.is-collapsed .class-body > *:not(.class-row-top):not(.tutor-mini) {
+  display: none !important;
+}
+
+.class-card.is-collapsed .tutor-mini {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.tutor-mini-name {
+  min-width: 0;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tutor-mini-gender {
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.class-card.is-collapsed .class-body {
+  padding: 14px 16px 14px 14px;
+}
+
+.class-card.is-collapsed .class-spine {
+  width: 10px;
+  padding: 0;
+}
+
+.class-card.is-collapsed .class-spine > * {
+  display: none;
+}
+
+/* collapsed tutor card: the whole card takes its status colour */
+.tuition-stack > .tutor-card.is-collapsed.tone-applied {
+  background: var(--lime-dim);
+  color: var(--lime);
+  border-left-color: var(--lime-line);
+  border-right-color: var(--lime-line);
+  border-bottom-color: var(--lime-line);
+}
+
+.tuition-stack > .tutor-card.is-collapsed.tone-demo-scheduled {
+  background: var(--violet-dim);
+  color: var(--violet);
+  border-left-color: rgba(180, 144, 255, 0.3);
+  border-right-color: rgba(180, 144, 255, 0.3);
+  border-bottom-color: rgba(180, 144, 255, 0.3);
+}
+
+.tuition-stack > .tutor-card.is-collapsed.tone-running {
+  background: var(--success-dim);
+  color: var(--success);
+  border-left-color: rgba(114, 227, 154, 0.3);
+  border-right-color: rgba(114, 227, 154, 0.3);
+  border-bottom-color: rgba(114, 227, 154, 0.3);
+}
+
+.tuition-stack > .tutor-card.is-collapsed.tone-completed {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.tuition-stack > .tutor-card.is-collapsed.tone-declined {
+  background: var(--danger-dim);
+  color: var(--danger);
+  border-left-color: rgba(255, 104, 104, 0.3);
+  border-right-color: rgba(255, 104, 104, 0.3);
+  border-bottom-color: rgba(255, 104, 104, 0.3);
 }
