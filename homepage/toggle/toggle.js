@@ -117,6 +117,12 @@ function isLoggedInTutor_() {
       return true;
     }
 
+    // NEW: a student just logged in on this tab -> open on
+    // "Student", even if a tutor is also signed in here.
+    if (sessionStorage.getItem("urbantutorsite_last_login") === "student") {
+      return false;
+    }
+
     return !!localStorage.getItem("urbantutorsite_tutor_session");
 
   } catch (error) {
