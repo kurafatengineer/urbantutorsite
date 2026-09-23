@@ -243,7 +243,10 @@ function stat(value, label, accent) {
 // sometimes land on the same colour as a status pill (e.g.
 // "Demo Scheduled"). A single fixed colour removes that risk
 // entirely instead of just avoiding one specific collision.
-const SUBJECT_ACCENT = "cyan";
+// "rose" was picked because it doesn't overlap with any of the
+// status colours (violet/success/warn/danger/muted), unlike the
+// previous "cyan" which read too close to the surface colours.
+const SUBJECT_ACCENT = "rose";
 
 
 /************************************************************
@@ -382,6 +385,53 @@ function renderClassCard(item) {
 
   const chips = timingChips(item.preferredTiming);
 
+  // Date/Time only ever applies to a demo that is still in the
+  // "Demo Scheduled" state — Processing/Running/Completed/Declined
+  // don't carry a meaningful demo date, so the badge (or its empty
+  // state) is skipped entirely for those instead of showing a
+  // "Not scheduled" box that doesn't apply to them.
+  const isDemoScheduled = classifyItem(item) === "demo";
+
+  const whenBlock = !isDemoScheduled
+    ? ""
+    : when
+      ? `
+        <div class="class-when">
+          ${ICONS.calendar}
+          <div>
+            <div class="class-when-day">${escapeHTML(when.day)}</div>
+            ${when.time ? `<div class="class-when-time">${escapeHTML(when.time)}</div>` : ""}
+          </div>
+        </div>
+      `
+      : `
+        <div class="class-when-empty muted">
+          <span class="timing-icon">${ICONS.calendar}</span>
+          Not scheduled
+        </div>
+      `;
+
+  const timingBlock = `
+    <div class="timing-col">
+      ${chips.length ? `
+        <div class="timing-chips">
+          <span class="timing-icon">${ICONS.clock}</span>
+          ${chips.map(chip => `
+            <span class="timing-chip ${chip.pm ? "pm" : "am"}">
+              ${chip.pm ? ICONS.moon : ICONS.sun}
+              ${escapeHTML(chip.label)}
+            </span>
+          `).join("")}
+        </div>
+      ` : `
+        <div class="timing-empty muted">
+          <span class="timing-icon">${ICONS.clock}</span>
+          No preferred timing on file
+        </div>
+      `}
+    </div>
+  `;
+
   return `
     <div class="class-card">
       <div class="class-spine ${statusClass}">
@@ -405,32 +455,9 @@ function renderClassCard(item) {
           </div>
         ` : ""}
 
-        <div class="class-row-bottom">
-          <div class="timing-col">
-            ${chips.length ? `
-              <div class="timing-chips">
-                <span class="timing-icon">${ICONS.clock}</span>
-                ${chips.map(chip => `
-                  <span class="timing-chip ${chip.pm ? "pm" : "am"}">
-                    ${chip.pm ? ICONS.moon : ICONS.sun}
-                    ${escapeHTML(chip.label)}
-                  </span>
-                `).join("")}
-              </div>
-            ` : `
-              <div class="timing-empty muted">
-                <span class="timing-icon">${ICONS.clock}</span>
-                No preferred timing on file
-              </div>
-            `}
-          </div>
-          <div class="class-when">
-            ${ICONS.calendar}
-            <div>
-              <div class="class-when-day">${escapeHTML(when ? when.day : "Not scheduled")}</div>
-              ${when && when.time ? `<div class="class-when-time">${escapeHTML(when.time)}</div>` : ""}
-            </div>
-          </div>
+        <div class="class-row-bottom${whenBlock ? "" : " timing-only"}">
+          ${whenBlock}
+          ${timingBlock}
         </div>
 
       </div>
