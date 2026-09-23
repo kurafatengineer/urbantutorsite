@@ -20,6 +20,8 @@
  *
  * API ACTIONS USED (see API Router.gs / Student Session.gs)
  *   getStudentProfile    addStudent    logoutStudent
+ *   respondToDemo        (Accept / Reject on a tutor card)
+ *   addTuition           ("Apply for new tuition" button)
  *
  * FIELDS THE BACKEND SENDS PER TUITION (one card per Demo ID)
  *   demoId, subject, medium, preferredTutor, preferredTiming,
@@ -29,7 +31,10 @@
  *              "Completed"
  *   tutorsApplied, demoDate, parentAccepted, tutorAccepted,
  *   price, duration, classes,
- *   tutor   <- { fullName, qualification, experience }
+ *   tutors  <- one entry per tutor who applied:
+ *              { tutorId, fullName, gender, degree, experience,
+ *                status, demoDate, parentAccepted, parentRejected,
+ *                tutorAccepted, tutorRejected, canAccept, canReject }
  *
  * PRIVACY: no email or mobile number (the parent's or the
  * tutor's) is sent to or shown on this page.
@@ -156,6 +161,7 @@ const ICONS = {
   code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
   book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>'
 };
+ICONS.user2 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M12 12v9"/><path d="M8 17h8"/></svg>';
 ICONS.phone = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg>';
 
 
@@ -306,8 +312,11 @@ function renderProfile(student) {
     $("profileKicker").textContent = "Student Profile";
     ["profileClass", "profileBoard", "profileCity"].forEach(id => $(id).classList.add("hidden"));
     $("profileStats").innerHTML = "";
+    $("applyTuitionButton").classList.add("hidden");
     return;
   }
+
+  $("applyTuitionButton").classList.remove("hidden");
 
   const name = student.studentName || "Student";
 
@@ -319,24 +328,10 @@ function renderProfile(student) {
   setChip("profileBoard", student.board);
   setChip("profileCity", student.city);
 
-  const tuitions = student.tuitions || [];
-
-  const subjects = tuitions
-    .map(t => t.subject)
-    .filter(Boolean)
-    .filter((value, i, list) => list.indexOf(value) === i)
-    .join(", ");
-
-  const activeClassCount = tuitions.filter(t => {
-    const s = String(t.status || "").toLowerCase();
-    return s === "running" || s === "completed";
-  }).length;
-
+  // Location on its own line, School directly below it.
   $("profileStats").innerHTML = [
-    stat(student.school || "—", "School", "green"),
-    stat(subjects || "—", "Subjects", "blue"),
-    stat(String(activeClassCount || "—"), "Classes", "gold"),
-    stat(student.city || student.pinCode || "—", "Location", "purple")
+    stat(student.city || student.pinCode || "—", "Location", "purple"),
+    stat(student.school || "—", "School", "green")
   ].join("");
 
 }
@@ -536,27 +531,38 @@ function timingChips(value) {
 
 }
 
+// "Any" is shown as the two real options, anything else as chosen.
+function isAny(value) {
+  return /^any$/i.test(String(value == null ? "" : value).trim());
+}
+
+function mediumText(value) {
+  const v = String(value == null ? "" : value).trim();
+  return isAny(v) ? "Online | Offline" : v;
+}
+
+function preferredTutorText(value) {
+  const v = String(value == null ? "" : value).trim();
+  if (!v) return "";
+  return isAny(v) ? "Male | Female" : `${v} tutor`;
+}
+
 function renderClassCard(item, student) {
 
   const statusClass = "status-" + String(item.status || "")
     .toLowerCase()
     .replace(/\s+/g, "-");
 
-  const tutor = item.tutor || null;
+  const tutors = Array.isArray(item.tutors) ? item.tutors : [];
 
-  // First rows of the middle layer, 2 per row.
+  // Second layer, 2 per row. (The tutor's own details now live on
+  // the tutor cards stacked underneath this card.)
   const details = [
-    [ICONS.globe, "Medium", item.medium],
-    [ICONS.student, "Preferred tutor", item.preferredTutor ? `${item.preferredTutor} tutor` : ""],
-    [ICONS.cap, "Tutor", tutor && tutor.fullName],
-    [ICONS.book, "Qualification", tutor && [tutor.qualification, tutor.experience ? `${tutor.experience} yrs` : ""].filter(Boolean).join(", ")],
+    [ICONS.globe, "Medium", mediumText(item.medium)],
+    [ICONS.student, "Preferred tutor", preferredTutorText(item.preferredTutor)],
     [ICONS.file, "Fee", item.price ? `₹${item.price}` : ""],
     [ICONS.clock, "Duration", item.duration]
   ].filter(triple => triple[2] !== undefined && triple[2] !== null && String(triple[2]).trim() !== "");
-
-  // Privacy: no phone / email row - the tutor's contact details
-  // are never shown on the Student Profile.
-  const phoneRow = "";
 
   // Last row: the student's location (small) + PIN (bold).
   const locationText = joinAddress(student && student.address, student && student.city);
@@ -569,7 +575,11 @@ function renderClassCard(item, student) {
     </div>
   ` : "";
 
-  const message = statusMessage(item);
+  // Fourth layer: while nobody is actively applied it stays here;
+  // once tutors have applied, each tutor card carries its own line.
+  const message = (Number(item.tutorsApplied) || 0) === 0
+    ? statusMessage(item)
+    : { text: "" };
 
   const messageRow = message.text ? `
     <div class="class-row-bottom class-row-message">
@@ -580,8 +590,8 @@ function renderClassCard(item, student) {
     </div>
   ` : "";
 
-  return `
-    <div class="class-card">
+  const studentCard = `
+    <div class="class-card${tutors.length ? " has-tutors" : ""}">
       <div class="class-spine ${statusClass}">
         ${item.demoId ? `<span class="class-spine-id">${escapeHTML(item.demoId)}</span><span class="class-spine-label">Demo ID</span>` : ""}
       </div>
@@ -592,7 +602,7 @@ function renderClassCard(item, student) {
           <span class="status-badge ${statusClass}">${escapeHTML(item.status || "")}</span>
         </div>
 
-        ${(details.length || phoneRow || locationRow) ? `
+        ${(details.length || locationRow) ? `
           <div class="class-detail-grid">
             ${details.map(([icon, label, value]) => `
               <div class="class-detail" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
@@ -600,7 +610,6 @@ function renderClassCard(item, student) {
                 <span class="class-detail-value">${escapeHTML(value)}</span>
               </div>
             `).join("")}
-            ${phoneRow}
             ${locationRow}
           </div>
         ` : ""}
@@ -612,6 +621,226 @@ function renderClassCard(item, student) {
       </div>
     </div>
   `;
+
+  if (!tutors.length) return studentCard;
+
+  return `
+    <div class="tuition-stack">
+      ${studentCard}
+      ${tutors.map(tutor => renderTutorCard(tutor, item)).join("")}
+    </div>
+  `;
+
+}
+
+
+/************************************************************
+ * TUTOR CARD  (stacked under the tuition card it applied to)
+ *
+ *   spine   Tutor ID
+ *   layer 1 Name / Gender / Degree / Experience
+ *   layer 2 status text (+ demo date & time)
+ *   layer 3 Accept / Reject
+ ************************************************************/
+
+function tutorStatusMessage(tutor) {
+
+  const when = formatDemoDateTime(tutor.demoDate);
+
+  switch (String(tutor.status || "").toLowerCase()) {
+
+    case "applied":
+      return { text: "This tutor has applied, we will schedule your demo soon" };
+
+    case "demo scheduled":
+      return when
+        ? { text: when, icon: ICONS.calendar, strong: true }
+        : { text: "We will soon schedule your demo" };
+
+    case "processing":
+      return {
+        text: isTicked(tutor.parentAccepted) && !isTicked(tutor.tutorAccepted)
+          ? "You have approved, waiting for the tutor's approval"
+          : "The tutor has approved, waiting for your approval",
+        sub: when
+      };
+
+    case "running":
+      return { text: "This class is running", sub: when };
+
+    case "completed":
+      return { text: "This class has been completed", sub: when };
+
+    case "declined":
+      return {
+        text: isTicked(tutor.parentRejected)
+          ? "You have rejected this tutor"
+          : "The tutor has declined this tuition"
+      };
+
+    default:
+      return { text: "" };
+
+  }
+
+}
+
+function renderTutorCard(tutor, item) {
+
+  const statusClass = "status-" + String(tutor.status || "")
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+
+  const exp = String(tutor.experience || "").trim();
+  const expNumber = Number(exp);
+
+  const info = [
+    [ICONS.student, "Name", tutor.fullName],
+    [ICONS.user2, "Gender", tutor.gender],
+    [ICONS.cap, "Degree", tutor.degree],
+    [ICONS.clock, "Experience", exp ? (isNaN(expNumber) ? exp : `${exp} ${expNumber === 1 ? "yr" : "yrs"}`) : ""]
+  ].filter(row => row[2] !== undefined && row[2] !== null && String(row[2]).trim() !== "");
+
+  const message = tutorStatusMessage(tutor);
+
+  const acceptedByMe = isTicked(tutor.parentAccepted);
+  const rejectedByMe = isTicked(tutor.parentRejected);
+
+  const showButtons =
+    tutor.canAccept || tutor.canReject || acceptedByMe || rejectedByMe;
+
+  const acceptTitle = tutor.canAccept
+    ? "Accept this tutor"
+    : (acceptedByMe ? "You accepted this tutor" : "You can accept once the demo is scheduled");
+
+  const data = `data-demo="${escapeHTML(item.demoId)}" data-tutor="${escapeHTML(tutor.tutorId)}"`;
+
+  return `
+    <div class="class-card tutor-card">
+      <div class="class-spine ${statusClass}">
+        ${tutor.tutorId ? `<span class="class-spine-id">${escapeHTML(tutor.tutorId)}</span><span class="class-spine-label">Tutor ID</span>` : ""}
+      </div>
+      <div class="class-body">
+
+        ${info.length ? `
+          <div class="class-detail-grid tutor-info-grid">
+            ${info.map(([icon, label, value]) => `
+              <div class="class-detail" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
+                <span class="class-detail-icon">${icon}</span>
+                <span class="class-detail-value">${escapeHTML(value)}</span>
+              </div>
+            `).join("")}
+          </div>
+        ` : ""}
+
+        ${message.text ? `
+          <div class="class-row-bottom class-row-message">
+            <div class="class-status-message ${message.strong ? "strong" : ""}">
+              ${message.icon || ""}
+              <span>${escapeHTML(message.text)}${message.sub ? `<small class="tutor-when">${ICONS.calendar}${escapeHTML(message.sub)}</small>` : ""}</span>
+            </div>
+          </div>
+        ` : ""}
+
+        ${showButtons ? `
+          <div class="class-row-bottom tutor-actions">
+            <button type="button" class="tutor-btn tutor-btn-accept${acceptedByMe ? " chosen" : ""}"
+              data-respond="accept" ${data}
+              title="${escapeHTML(acceptTitle)}"
+              ${tutor.canAccept ? "" : "disabled"}>Accept</button>
+            <button type="button" class="tutor-btn tutor-btn-reject${rejectedByMe ? " chosen" : ""}"
+              data-respond="reject" ${data}
+              title="${rejectedByMe ? "You rejected this tutor" : "Reject this tutor"}"
+              ${tutor.canReject ? "" : "disabled"}>Reject</button>
+          </div>
+        ` : ""}
+
+      </div>
+    </div>
+  `;
+
+}
+
+
+/************************************************************
+ * ACCEPT / REJECT  (parent's answer for one tutor)
+ ************************************************************/
+
+let toastTimer = null;
+
+function showToast(text, isError) {
+
+  let el = $("profileToast");
+
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "profileToast";
+    el.setAttribute("role", "status");
+    document.body.appendChild(el);
+  }
+
+  el.textContent = text;
+  el.className = "profile-toast show" + (isError ? " error" : "");
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 4000);
+
+}
+
+async function respondToTutor(button) {
+
+  const decision = button.dataset.respond;
+  const demoId = button.dataset.demo;
+  const tutorId = button.dataset.tutor;
+
+  const question = decision === "accept"
+    ? "Accept this tutor for the tuition?"
+    : "Reject this tutor? This cannot be undone here.";
+
+  if (!window.confirm(question)) return;
+
+  const session = getStudentSession();
+
+  if (!session || !session.sessionToken) {
+    showError("You are not logged in.");
+    return;
+  }
+
+  const buttons = button.closest(".tutor-actions").querySelectorAll("button");
+  buttons.forEach(b => { b.disabled = true; });
+
+  const label = button.textContent;
+  button.textContent = "Saving...";
+
+  try {
+
+    const result = await apiRequest({
+      action: "respondToDemo",
+      sessionToken: session.sessionToken,
+      demoId,
+      tutorId,
+      decision
+    });
+
+    if (!result.success) {
+      showToast(result.message || "Your response could not be saved.", true);
+      button.textContent = label;
+      buttons.forEach(b => { b.disabled = false; });
+      return;
+    }
+
+    await loadProfile(STATE.selectedId);
+
+    showToast(result.message || "Saved.");
+
+  } catch (error) {
+
+    console.error(error);
+    showToast("Unable to connect to the server. Please try again.", true);
+    button.textContent = label;
+    buttons.forEach(b => { b.disabled = false; });
+
+  }
 
 }
 
@@ -655,8 +884,34 @@ function wireStaticEvents() {
 
   });
 
+  // Accept / Reject on a tutor card
+  $("classesList").addEventListener("click", (event) => {
+
+    const button = event.target.closest("[data-respond]");
+
+    if (!button || button.disabled) return;
+
+    respondToTutor(button);
+
+  });
+
   // Logout
   $("logoutButton").addEventListener("click", logout);
+
+  // Apply for new tuition (button at the bottom of the profile card)
+  $("applyTuitionButton").addEventListener("click", openNewTuition);
+
+  $("newTimings").innerHTML = TIMING_OPTIONS.map(t => `
+    <label><input type="checkbox" name="newTiming" value="${t}"><span>${t}</span></label>
+  `).join("");
+
+  $("closeNewTuition").addEventListener("click", closeNewTuition);
+
+  $("newTuitionModal").addEventListener("click", (event) => {
+    if (event.target.hasAttribute("data-close-new")) closeNewTuition();
+  });
+
+  $("newTuitionForm").addEventListener("submit", submitNewTuition);
 
   // Add student modal
   $("addTimings").innerHTML = TIMING_OPTIONS.map(t => `
@@ -672,6 +927,9 @@ function wireStaticEvents() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !$("addStudentModal").classList.contains("hidden")) {
       closeAddStudent();
+    }
+    if (event.key === "Escape" && !$("newTuitionModal").classList.contains("hidden")) {
+      closeNewTuition();
     }
   });
 
@@ -821,6 +1079,116 @@ async function submitAddStudent(event) {
   } finally {
     button.disabled = false;
     button.textContent = "Add student";
+  }
+
+}
+
+
+/************************************************************
+ * APPLY FOR NEW TUITION  (for the selected student)
+ ************************************************************/
+
+function openNewTuition() {
+
+  const student = selectedStudent();
+
+  if (!student) return;
+
+  $("newTuitionForm").reset();
+  $("newTuitionMessage").textContent = "";
+  $("newTuitionFor").textContent =
+    `${student.studentName || "Student"} · ${student.studentId}`;
+
+  $("newTuitionModal").classList.remove("hidden");
+  $("newTuitionModal").setAttribute("aria-hidden", "false");
+  document.body.classList.add("add-modal-open");
+
+  setTimeout(() => $("newSubjects").focus(), 50);
+
+}
+
+function closeNewTuition() {
+
+  $("newTuitionModal").classList.add("hidden");
+  $("newTuitionModal").setAttribute("aria-hidden", "true");
+  document.body.classList.remove("add-modal-open");
+
+}
+
+async function submitNewTuition(event) {
+
+  event.preventDefault();
+
+  const message = $("newTuitionMessage");
+  message.textContent = "";
+
+  const student = selectedStudent();
+
+  if (!student) return;
+
+  const tuition = {
+    subjects: clean($("newSubjects").value),
+    preferredTutor: radioValue("newTutor") || "Any",
+    medium: radioValue("newMedium") || "Any",
+    preferredTiming: Array.from(document.querySelectorAll('input[name="newTiming"]:checked'))
+      .map(input => input.value)
+      .join(", ")
+  };
+
+  if (tuition.subjects.length < 2) {
+    message.textContent = "Enter at least one subject.";
+    $("newSubjects").focus();
+    return;
+  }
+
+  if (!tuition.preferredTiming) {
+    message.textContent = "Select at least one preferred timing.";
+    return;
+  }
+
+  const session = getStudentSession();
+
+  if (!session || !session.sessionToken) {
+    closeNewTuition();
+    showError("You are not logged in.");
+    return;
+  }
+
+  const button = $("newTuitionSubmit");
+  button.disabled = true;
+  button.textContent = "Posting...";
+
+  try {
+
+    const result = await apiRequest({
+      action: "addTuition",
+      sessionToken: session.sessionToken,
+      studentId: student.studentId,
+      tuition
+    });
+
+    if (!result.success) {
+      message.textContent = result.message || "The tuition could not be added.";
+      return;
+    }
+
+    closeNewTuition();
+
+    STATE.filter = "all";
+    $("filterTabs").querySelectorAll(".filter-tab").forEach(t =>
+      t.classList.toggle("active", t.dataset.filter === "all")
+    );
+
+    await loadProfile(student.studentId);
+
+    showToast(result.message || "Your tuition request has been posted.");
+
+  } catch (error) {
+    console.error(error);
+    message.textContent = "Unable to connect to the server. Please try again.";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Post tuition request";
   }
 
 }
