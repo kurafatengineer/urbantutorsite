@@ -1435,3 +1435,68 @@ body.add-modal-open {
   }
 
 }
+
+
+/* =========================================================
+   CARD LAYOUT FIXES
+========================================================= */
+
+/* The body is a one-column grid. Without an explicit column, a long
+   row inside (timing chips, long subject) could widen the column past
+   the card and push the status pill off to the right when expanded. */
+.class-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Subject always hugs the left, status always hugs the right. */
+.class-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.class-row-top .subject-badge {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.class-row-top .status-badge:not(.subject-badge) {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* Tutor card: the first layer spans the WHOLE card width and sits
+   above the Tutor ID spine, so the spine only runs alongside the
+   layers below it. */
+.tutor-card {
+  flex-wrap: wrap;
+}
+
+.tutor-card > .tutor-head {
+  flex: 0 0 100%;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 11px 20px;
+}
+
+.tutor-card > .class-body {
+  flex: 1 1 0;
+}
+
+/* layer below the head no longer needs to pull itself up */
+.tutor-card > .class-body {
+  padding-top: 14px;
+}
+
+.class-card.is-collapsed > .tutor-head {
+  display: none;
+}
+
+/* collapsed tutor card: gender in bold */
+.tutor-mini-gender {
+  font-weight: 800;
+  opacity: 1;
+}
