@@ -150,7 +150,7 @@
 
   <section class="add-modal-box" role="dialog" aria-modal="true" aria-labelledby="addStudentTitle">
 
-    <button id="closeAddStudent" class="add-modal-close" type="button" aria-label="Close">×</button>
+    <button id="closeAddStudent" class="add-modal-close" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
 
     <h2 id="addStudentTitle" class="modal-title">Add a Student</h2>
 
@@ -169,13 +169,13 @@
         </div>
 
         <label class="float-field add-wide">
-          <input id="addSchool" type="text" maxlength="150" autocomplete="off" placeholder=" " required>
-          <span>School / College Name</span>
+          <input id="addClass" type="text" maxlength="80" autocomplete="off" placeholder=" " required>
+          <span>Class / Course</span>
         </label>
 
         <label class="float-field add-wide">
-          <input id="addClass" type="text" maxlength="80" autocomplete="off" placeholder=" " required>
-          <span>Class / Course</span>
+          <input id="addSchool" type="text" maxlength="150" autocomplete="off" placeholder=" " required>
+          <span>School / College Name</span>
         </label>
 
         <label class="float-field add-wide">
@@ -227,19 +227,23 @@
 
   <section class="add-modal-box" role="dialog" aria-modal="true" aria-labelledby="newTuitionTitle">
 
-    <button id="closeNewTuition" class="add-modal-close" type="button" aria-label="Close">×</button>
+    <button id="closeNewTuition" class="add-modal-close" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
 
     <h2 id="newTuitionTitle" class="modal-title">Apply For New Tuition</h2>
-    <p class="modal-subtitle" id="newTuitionFor"></p>
+    <!-- "Student Name · SID". With more than one student on this account
+         it works like the Student ID under the profile photo: tap it to
+         pick which student this tuition is for. -->
+    <div class="modal-subtitle sid-switch">
+      <button id="newTuitionFor" class="profile-kicker sid-button" type="button"
+              aria-haspopup="listbox" aria-expanded="false" aria-controls="newStudentMenu" disabled></button>
+      <div id="newStudentMenu" class="sid-menu hidden" role="listbox" aria-label="Choose student">
+        <!-- filled by JS -->
+      </div>
+    </div>
 
     <form id="newTuitionForm" novalidate>
 
       <div class="add-grid">
-
-        <!-- More than one student on this account: pick who the tuition is for -->
-        <div class="choice-row student-choice add-wide hidden" id="newStudentChoice" role="radiogroup" aria-label="Student">
-          <!-- filled by JS: one option per student -->
-        </div>
 
         <label class="float-field add-wide">
           <input id="newSubjects" type="text" maxlength="250" autocomplete="off" placeholder=" " required>
