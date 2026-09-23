@@ -21,8 +21,9 @@
  *   preferredTiming <- the tutor's general availability slots,
  *                       e.g. "11:00 AM, 6:00 PM" (shown as the
  *                       sun/moon chips at the bottom of a card)
- *   status          <- one of: "Demo Scheduled", "Processing",
+ *   status          <- one of: "Applied", "Demo Scheduled",
  *                       "Running", "Completed", "Declined"
+ *   address, city, pinCode <- third row of the middle layer
  *   subject, studentName, className, board, medium, duration
  *   — unchanged from before.
  ************************************************************/
@@ -108,6 +109,7 @@ const ICONS = {
   cap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/></svg>',
   file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>',
   globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg>',
+  pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
   calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
   sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>',
@@ -310,8 +312,8 @@ function classifyItem(item) {
   if (s === "completed") return "completed";
   if (s === "running") return "running";
   if (s === "declined") return "declined";
-  if (s === "processing") return "processing";
-  return "demo"; // "Demo Scheduled" (the default/starting status)
+  if (s === "demo scheduled") return "demo";
+  return "applied"; // "Applied" (the starting status)
 }
 
 function initClasses(classes) {
@@ -363,6 +365,20 @@ function renderClasses(classes, filter) {
 
 }
 
+// Address with the city added at the end if the address doesn't
+// already mention it (same as the Tuitions Available page).
+function joinAddress(address, city) {
+
+  const a = String(address || "").trim();
+  const c = String(city || "").trim();
+
+  if (!a) return c;
+  if (!c || a.toLowerCase().includes(c.toLowerCase())) return a;
+
+  return `${a}, ${c}`;
+
+}
+
 function renderClassCard(item) {
 
   const statusClass = "status-" + String(item.status || "")
@@ -382,9 +398,21 @@ function renderClassCard(item) {
   const chips = timingChips(item.preferredTiming);
 
   // Date/Time on the card is only meaningful for "Demo
-  // Scheduled" — for every other status (Processing, Running,
+  // Scheduled" — for every other status (Applied, Running,
   // Completed, Declined) it's left off the card entirely.
   const isDemoScheduled = classifyItem(item) === "demo";
+
+  // Third row of the middle layer (same as the Tuitions page):
+  // location icon, address + city (small), then PIN Code (bold).
+  const locationText = joinAddress(item.address, item.city);
+  const pinText = String(item.pinCode || "").trim();
+
+  const locationRow = (locationText || pinText) ? `
+    <div class="class-detail class-detail-location" title="Location" aria-label="Location: ${escapeHTML([locationText, pinText].filter(Boolean).join(" - "))}">
+      <span class="class-detail-icon">${ICONS.pin}</span>
+      <span class="class-detail-value">${locationText ? `<span class="location-address">${escapeHTML(locationText)}</span>` : ""}${locationText && pinText ? `<span class="location-sep"> - </span>` : ""}${pinText ? `<span class="location-pin">${escapeHTML(pinText)}</span>` : ""}</span>
+    </div>
+  ` : "";
 
   const timingBlock = `
     ${chips.length ? `
@@ -451,7 +479,7 @@ function renderClassCard(item) {
           <span class="status-badge ${statusClass}">${escapeHTML(item.status || "")}</span>
         </div>
 
-        ${details.length ? `
+        ${(details.length || locationRow) ? `
           <div class="class-detail-grid">
             ${details.map(([icon, label, value]) => `
               <div class="class-detail" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
@@ -459,6 +487,7 @@ function renderClassCard(item) {
                 <span class="class-detail-value">${escapeHTML(value)}</span>
               </div>
             `).join("")}
+            ${locationRow}
           </div>
         ` : ""}
 
