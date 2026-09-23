@@ -210,13 +210,8 @@
   padding: 14px 18px 16px 14px;
 }
 
-/* Address gets its own full-width line in the middle layer. */
-.tuitions-grid .class-detail-full {
-  grid-column: 1 / -1;
-}
-
-/* Address text: smaller and regular weight (not bold). */
-.tuitions-grid .class-detail-full .class-detail-value {
+/* Location (address + city): smaller and regular weight. */
+.tuitions-grid .class-detail-location .class-detail-value {
   font-size: 12.5px;
   font-weight: 400;
   color: var(--muted);
