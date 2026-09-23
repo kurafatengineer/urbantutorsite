@@ -640,11 +640,14 @@ svg {
   word-break: break-word;
 }
 
-/* BOTTOM ROW: preferred-timing (left half) + the demo date/time
-   badge (right half). Always a fixed 50/50 split regardless of
-   how much content either side has — a long timing list scrolls
-   sideways inside its own half (with a visible slim scrollbar,
-   the "slider") instead of pushing into the date badge's half. */
+/* BOTTOM ROW: the demo date/time badge (left) + preferred-timing
+   (right, fills whatever space is left). The date badge only ever
+   appears for a "Demo Scheduled" card (see tutorprofile.js), so it
+   sizes to its own content instead of claiming a fixed half — when
+   it's absent, "timing-only" lets the timing column take the full
+   row. A long timing list scrolls sideways inside its own column
+   (with a visible slim scrollbar, the "slider") instead of pushing
+   the date badge out of the row. */
 .class-row-bottom {
   display: flex;
   align-items: center;
@@ -655,9 +658,12 @@ svg {
 }
 
 .timing-col {
-  flex: 0 1 50%;
-  max-width: 50%;
+  flex: 1 1 auto;
   min-width: 0;
+}
+
+.class-row-bottom.timing-only .timing-col {
+  flex: 1 1 100%;
 }
 
 .timing-empty {
@@ -729,8 +735,8 @@ svg {
 .timing-chip.pm { background: var(--indigo-dim); color: var(--indigo); }
 
 .class-when {
-  flex: 0 1 50%;
-  max-width: 50%;
+  flex: 0 0 auto;
+  max-width: 60%;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -740,6 +746,18 @@ svg {
   border-radius: 12px;
   background: var(--surface-2);
   border: 1px solid var(--border);
+}
+
+/* The "not scheduled" state is intentionally NOT a box like
+   .class-when above — just an icon + text, matching how
+   .timing-empty already handles "no preferred timing on file". */
+.class-when-empty {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  white-space: nowrap;
 }
 
 .class-when svg {
@@ -818,6 +836,41 @@ svg {
     font-size: 21px;
   }
 
+  /* The rotated vertical-text rail ("Experience" / "Classes" /
+     "Location" / "Teaches") needs more height than these narrower
+     mobile tiles give it, so it overflows the tile edge. Rather
+     than fight vertical-text sizing at small widths, drop the
+     rail on mobile and show the same label horizontally under the
+     value instead — a coloured left border keeps the per-stat
+     colour coding the rail used to carry. */
+  .stat {
+    min-height: 0;
+    border-left: 3px solid var(--border-light);
+  }
+
+  .stat-rail {
+    display: none;
+  }
+
+  .stat[data-accent="green"]  { border-left-color: var(--success); }
+  .stat[data-accent="blue"]   { border-left-color: var(--info); }
+  .stat[data-accent="gold"]   { border-left-color: var(--amber); }
+  .stat[data-accent="purple"] { border-left-color: var(--violet); }
+
+  .stat > div:last-child {
+    padding: 12px 14px;
+  }
+
+  .stat-label {
+    display: block;
+    margin-top: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
   .class-body {
     padding: 16px 14px 16px 4px;
     gap: 12px;
@@ -849,6 +902,10 @@ svg {
 
   .class-when-time {
     font-size: 12.5px;
+  }
+
+  .class-when-empty {
+    font-size: 11.5px;
   }
 }
 
