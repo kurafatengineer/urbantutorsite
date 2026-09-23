@@ -195,6 +195,9 @@ function renderProfile(profile, classes) {
 
   $("profileName").textContent = fullName;
 
+  // Header avatar shows this tutor's initials.
+  if (window.UrbanSession) window.UrbanSession.rememberName("tutor", fullName);
+
   const initials = fullName
     .split(" ")
     .filter(Boolean)
@@ -214,8 +217,17 @@ function renderProfile(profile, classes) {
   $("profileCity").textContent = profile.city || "";
   $("profileCity").classList.toggle("hidden", !profile.city);
 
+  // Every tutor action waits for a Verified profile.
+  const verified = String(profile.verificationStatus || "").trim().toLowerCase() === "verified";
+  $("verifyNotice")?.classList.toggle("hidden", verified);
+
+  if (!verified && String(profile.verificationStatus || "").trim().toLowerCase() === "rejected") {
+    $("verifyNotice").textContent =
+      "Your profile verification was rejected. Please contact us to update your details.";
+  }
+
   const statusEl = $("profileStatus");
-  const status = (profile.verificationStatus || "Pending");
+  const status = (profile.verificationStatus || "Pending for Verification");
   statusEl.textContent = status;
   statusEl.className = "chip " + statusChipClass(status);
 

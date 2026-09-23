@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050505">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Urbantutorsite — Admin Panel</title>
+
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+
+<body data-page="admin">
+
+<!-- Reusable Header -->
+<div id="site-header"></div>
+
+<!-- =====================================================
+     LOGIN
+===================================================== -->
+
+<main id="loginPage" class="admin-page hidden">
+  <div class="admin-container admin-login-wrap">
+
+    <section class="admin-login">
+      <div class="admin-login-badge" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      </div>
+      <h1>Admin Panel</h1>
+      <p class="muted">Office access only.</p>
+
+      <form id="loginForm" novalidate>
+        <label class="admin-float">
+          <input id="adminPassword" type="password" autocomplete="current-password" placeholder=" " required>
+          <span>Admin password</span>
+        </label>
+        <p id="loginMessage" class="admin-message" role="alert"></p>
+        <button id="loginButton" class="admin-primary" type="submit">Log in</button>
+      </form>
+    </section>
+
+  </div>
+</main>
+
+<!-- =====================================================
+     LOADING
+===================================================== -->
+
+<main id="loadingPage" class="admin-page">
+  <div class="admin-container admin-center">
+    <div class="admin-spinner" aria-hidden="true"></div>
+    <p class="muted">Loading...</p>
+  </div>
+</main>
+
+<!-- =====================================================
+     PANEL
+===================================================== -->
+
+<main id="panelPage" class="admin-page hidden">
+  <div class="admin-container">
+
+    <header class="admin-top">
+      <div>
+        <p class="admin-kicker">Urbantutorsite</p>
+        <h1>Admin Panel</h1>
+      </div>
+      <div class="admin-top-actions">
+        <button id="refreshButton" class="admin-ghost" type="button">Refresh</button>
+        <button id="logoutButton" class="admin-ghost admin-danger" type="button">Log out</button>
+      </div>
+    </header>
+
+    <!-- counts -->
+    <section class="admin-stats" id="adminStats"></section>
+
+    <!-- main tabs -->
+    <div class="admin-tabs" id="mainTabs" role="tablist">
+      <button class="admin-tab active" data-tab="tutors" type="button" role="tab">Tutors</button>
+      <button class="admin-tab" data-tab="tuitions" type="button" role="tab">Tuitions</button>
+      <button class="admin-tab" data-tab="students" type="button" role="tab">Students</button>
+    </div>
+
+    <!-- ================= TUTORS ================= -->
+    <section id="tab-tutors" class="admin-panel">
+      <div class="admin-tools">
+        <input id="tutorSearch" class="admin-search" type="search" placeholder="Search name, ID, city, subject">
+        <div class="admin-chips" id="tutorFilter">
+          <button class="admin-chip active" data-value="all" type="button">All</button>
+          <button class="admin-chip" data-value="pending" type="button">Pending</button>
+          <button class="admin-chip" data-value="verified" type="button">Verified</button>
+          <button class="admin-chip" data-value="rejected" type="button">Rejected</button>
+        </div>
+      </div>
+      <div id="tutorList" class="admin-list"></div>
+    </section>
+
+    <!-- ================= TUITIONS ================= -->
+    <section id="tab-tuitions" class="admin-panel hidden">
+      <div class="admin-tools">
+        <input id="tuitionSearch" class="admin-search" type="search" placeholder="Search Demo ID, student, subject, tutor">
+        <div class="admin-chips" id="tuitionFilter">
+          <button class="admin-chip active" data-value="all" type="button">All</button>
+          <button class="admin-chip" data-value="schedule" type="button">To schedule</button>
+          <button class="admin-chip" data-value="scheduled" type="button">Scheduled</button>
+          <button class="admin-chip" data-value="running" type="button">Running</button>
+          <button class="admin-chip" data-value="completed" type="button">Completed</button>
+        </div>
+      </div>
+      <div id="tuitionList" class="admin-list"></div>
+    </section>
+
+    <!-- ================= STUDENTS ================= -->
+    <section id="tab-students" class="admin-panel hidden">
+      <div class="admin-tools">
+        <input id="studentSearch" class="admin-search" type="search" placeholder="Search name, ID, parent, school, city">
+      </div>
+      <div id="studentList" class="admin-list"></div>
+    </section>
+
+  </div>
+</main>
+
+<div id="adminToast" class="admin-toast" role="status"></div>
+
+<script src="js/header.js"></script>
+<script src="admin.js" defer></script>
+
+</body>
+</html>

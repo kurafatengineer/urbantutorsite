@@ -360,6 +360,9 @@ function renderProfile(student) {
 
   $("profileName").textContent = name;
   $("profileAvatarInitials").textContent = initialsOf(name, "S");
+
+  // Header avatar shows this student's initials.
+  if (window.UrbanSession) window.UrbanSession.rememberName("student", name);
   $("profileKicker").textContent = student.studentId || "Student Profile";
 
   setChip("profileClass", student.className);

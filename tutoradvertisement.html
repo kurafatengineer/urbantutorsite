@@ -12,6 +12,21 @@
   <link rel="stylesheet" href="css/footer.css">
   <link rel="stylesheet" href="tutorprofile.css">
   <link rel="stylesheet" href="tutoradvertisement.css">
+
+  <!-- Embedded on the homepage for logged-in tutors
+       (index.html -> tutoradvertisement.html?embed=1):
+       no header / footer / floating buttons inside the frame. -->
+  <script>
+    (function () {
+      try {
+        if (/[?&]embed=1(&|$)/.test(location.search) || window.self !== window.top) {
+          document.documentElement.classList.add("embed");
+        }
+      } catch (e) {
+        document.documentElement.classList.add("embed");
+      }
+    })();
+  </script>
 </head>
 
 <body data-page="tutoradvertisement">
@@ -85,6 +100,12 @@
         Clear
       </button>
 
+    </div>
+
+    <!-- Shown only to a logged-in tutor whose profile is not
+         verified yet (Apply stays locked until it is). -->
+    <div id="verifyNotice" class="verify-notice hidden" role="status">
+      Your profile is pending verification. You can apply for tuitions once it is verified.
     </div>
 
     <!-- ================= LIST ================= -->

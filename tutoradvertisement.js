@@ -98,7 +98,20 @@ async function apiRequest(payload, timeoutMs = 45000) {
 
 }
 
+// Embedded on the homepage (see index.html)?
+const EMBEDDED = document.documentElement.classList.contains("embed");
+
+// false = a tutor is logged in but NOT verified yet -> Apply locked.
+let tutorVerified = null;
+
 function showToast(message, isError) {
+
+  // Inside the homepage frame the toast would sit at the bottom of a
+  // tall frame, off screen - let the homepage show it instead.
+  if (EMBEDDED && window.parent !== window) {
+    window.parent.postMessage({ type: "urbantutor-embed-toast", message: message, isError: !!isError }, "*");
+    return;
+  }
 
   const toast = $("applyToast");
 
@@ -186,6 +199,11 @@ function buildListRequest() {
 function applyListResult(result) {
 
   allTuitions = result.tuitions || [];
+
+  // Every tutor action needs a VERIFIED profile (checked again on
+  // the server when Apply is pressed).
+  tutorVerified = result.tutorVerified === undefined ? null : result.tutorVerified;
+  $("verifyNotice")?.classList.toggle("hidden", tutorVerified !== false);
 
   // Merge (never drop) - keeps anything applied for in this visit
   // disabled even if the server list comes back a moment later.
@@ -479,8 +497,8 @@ function renderTuitionCard(item) {
             class="apply-button ${applied ? "applied" : ""}"
             type="button"
             data-apply="${escapeHTML(item.demoId)}"
-            ${applied ? 'disabled aria-disabled="true"' : ""}
-          >${applied ? "Already Applied" : "Apply"}</button>
+            ${applied || tutorVerified === false ? 'disabled aria-disabled="true"' : ""}
+          >${applied ? "Already Applied" : (tutorVerified === false ? "Verification Pending" : "Apply")}</button>
         </div>
 
       </div>
@@ -499,7 +517,13 @@ async function applyForTuition(demoId, button) {
   const session = getTutorSession();
 
   if (!session || !session.sessionToken) {
-    window.location.href = "tutorregistration.html";
+    // Leave the homepage frame too, not just the frame.
+    (EMBEDDED ? window.top : window).location.href = "tutorregistration.html";
+    return;
+  }
+
+  if (tutorVerified === false) {
+    showToast("Your profile is not verified yet. You can apply once it is verified.", true);
     return;
   }
 
@@ -519,6 +543,14 @@ async function applyForTuition(demoId, button) {
 
       // This tutor had already applied for this Demo ID -
       // just lock the button.
+      if (result.notVerified) {
+        tutorVerified = false;
+        $("verifyNotice")?.classList.remove("hidden");
+        render();
+        showToast(result.message || "Your profile is not verified yet.", true);
+        return;
+      }
+
       if (result.alreadyApplied) {
         appliedDemoIds.add(String(demoId));
         render();
@@ -568,5 +600,31 @@ async function refreshList() {
   } catch (error) {
     console.error(error);
   }
+
+}
+
+
+
+/************************************************************
+ * EMBEDDED ON THE HOMEPAGE: report height to the homepage
+ ************************************************************/
+
+if (EMBEDDED && window.parent !== window) {
+
+  const reportHeight = () => {
+    window.parent.postMessage({
+      type: "urbantutor-embed-height",
+      height: document.documentElement.scrollHeight
+    }, "*");
+  };
+
+  if ("ResizeObserver" in window) {
+    new ResizeObserver(reportHeight).observe(document.body);
+  }
+
+  window.addEventListener("load", reportHeight);
+  window.addEventListener("resize", reportHeight);
+
+  reportHeight();
 
 }

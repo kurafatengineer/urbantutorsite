@@ -78,6 +78,17 @@
   >
 
 
+
+  <!-- -----------------------------------------------------
+       05. TUITIONS AVAILABLE (logged-in tutors only)
+       ----------------------------------------------------- -->
+
+  <link
+    rel="stylesheet"
+    href="homepage/tuitions/tuitions.css"
+  >
+
+
 </head>
 
 
@@ -113,6 +124,19 @@
          =================================================== -->
 
     <div id="home-hero"></div>
+
+
+
+    <!-- ===================================================
+         02b. TUITIONS AVAILABLE   (NEW)
+         ===================================================
+         Only for a logged-in tutor: the "Tuitions Available"
+         page (tutoradvertisement.html) is shown right below
+         the hero, embedded in its own frame so its styles and
+         scripts stay independent of the homepage.
+         =================================================== -->
+
+    <div id="home-tuitions"></div>
 
 
 
@@ -344,15 +368,44 @@
 
 
         /* =================================================
-           01. LOAD TOGGLE
+           WHO IS LOGGED IN
+           =================================================
+           ""        -> nobody: Student / Tutor toggle shown,
+                        exactly as before.
+           "student" -> no toggle; student hero; "Meet our
+                        Tutors" shown.
+           "tutor"   -> no toggle; tutor hero; Tuitions
+                        Available right below it; "Meet our
+                        Students" shown.
+           The toggle comes back as soon as they log out.
            ================================================= */
 
-        await loadComponent(
-          "home-toggle",
-          "homepage/toggle/toggle.html",
-          window.ToggleComponent,
-          "Toggle"
-        );
+        const role =
+          window.UrbanSession ? window.UrbanSession.role() : "";
+
+        document.body.dataset.role = role || "guest";
+
+
+
+        /* =================================================
+           01. LOAD TOGGLE  (logged-out visitors only)
+           ================================================= */
+
+        if (!role) {
+
+          await loadComponent(
+            "home-toggle",
+            "homepage/toggle/toggle.html",
+            window.ToggleComponent,
+            "Toggle"
+          );
+
+        } else {
+
+          const toggleBox = document.getElementById("home-toggle");
+          if (toggleBox) toggleBox.remove();
+
+        }
 
 
 
@@ -367,38 +420,120 @@
           "Hero"
         );
 
+        if (role && window.HeroComponent) {
+          window.HeroComponent.update(role);
+        }
+
 
 
         /* =================================================
-           03. LOAD TUTORS
+           02b. TUITIONS AVAILABLE  (logged-in tutor only)
            ================================================= */
 
-        await loadComponent(
-          "home-tutors",
-          "homepage/tutors/tutors.html",
-          window.TutorsComponent,
-          "Tutors"
-        );
+        if (role === "tutor") {
+          mountTuitions();
+        } else {
+          const tuitionsBox = document.getElementById("home-tuitions");
+          if (tuitionsBox) tuitionsBox.remove();
+        }
 
 
 
         /* =================================================
-           04. LOAD STUDENTS
+           03. LOAD TUTORS  (not for a logged-in tutor)
+           ================================================= */
+
+        if (role !== "tutor") {
+
+          await loadComponent(
+            "home-tutors",
+            "homepage/tutors/tutors.html",
+            window.TutorsComponent,
+            "Tutors"
+          );
+
+        } else {
+
+          const tutorsBox = document.getElementById("home-tutors");
+          if (tutorsBox) tutorsBox.remove();
+
+        }
+
+
+
+        /* =================================================
+           04. LOAD STUDENTS  (not for a logged-in student)
+           ================================================= */
+
+        if (role !== "student") {
+
+          await loadComponent(
+            "home-students",
+            "homepage/students/students.html",
+            window.StudentsComponent,
+            "Students"
+          );
+
+        } else {
+
+          const studentsBox = document.getElementById("home-students");
+          if (studentsBox) studentsBox.remove();
+
+        }
+
+
+
+        /* =================================================
+           TUITIONS FRAME
            =================================================
-           
-           New:
-           Meet our Students
-
-           This is loaded AFTER Tutors so the two sections
-           remain completely independent.
+           The embedded page reports its own height (so the
+           frame never scrolls on its own) and hands its
+           toasts to this page so they appear on screen.
            ================================================= */
 
-        await loadComponent(
-          "home-students",
-          "homepage/students/students.html",
-          window.StudentsComponent,
-          "Students"
-        );
+        function mountTuitions() {
+
+          const box = document.getElementById("home-tuitions");
+
+          if (!box) return;
+
+          box.innerHTML = `
+            <section class="home-tuitions" aria-label="Tuitions available">
+              <iframe
+                id="tuitionsFrame"
+                class="home-tuitions-frame"
+                src="tutoradvertisement.html?embed=1"
+                title="Tuitions available"
+                scrolling="no"
+              ></iframe>
+            </section>
+            <div id="homeToast" class="home-toast" role="status"></div>
+          `;
+
+          const frame = document.getElementById("tuitionsFrame");
+
+          window.addEventListener("message", function (event) {
+
+            if (event.source !== frame.contentWindow) return;
+
+            const data = event.data || {};
+
+            if (data.type === "urbantutor-embed-height") {
+              frame.style.height = Math.max(200, Math.ceil(Number(data.height) || 0)) + "px";
+            }
+
+            if (data.type === "urbantutor-embed-toast") {
+              const toast = document.getElementById("homeToast");
+              toast.textContent = data.message || "";
+              toast.classList.toggle("error", !!data.isError);
+              toast.classList.add("show");
+              clearTimeout(mountTuitions._t);
+              mountTuitions._t = setTimeout(() => toast.classList.remove("show"), 3200);
+            }
+
+          });
+
+        }
 
 
       }

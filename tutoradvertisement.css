@@ -351,3 +351,61 @@
   }
 
 }
+
+
+
+/* =========================================================
+   VERIFICATION NOTICE
+========================================================= */
+
+.verify-notice {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 209, 102, 0.35);
+  background: rgba(255, 209, 102, 0.12);
+  color: #ffd166;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.verify-notice.hidden {
+  display: none;
+}
+
+
+/* =========================================================
+   EMBEDDED ON THE HOMEPAGE  (html.embed)
+   No header / footer / floating buttons, no full-screen
+   heights (the frame grows to fit the content instead).
+========================================================= */
+
+html.embed,
+html.embed body {
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: hidden;
+}
+
+html.embed #site-header,
+html.embed #site-footer,
+html.embed .site-header,
+html.embed .site-footer,
+html.embed .floating-contact,
+html.embed .floating-whatsapp,
+html.embed .floating-call {
+  display: none !important;
+}
+
+html.embed .page,
+html.embed .loading-page .container,
+html.embed .error-page .container {
+  min-height: 0 !important;
+}
+
+html.embed .loading-page .container,
+html.embed .error-page .container {
+  padding-top: 40px;
+  padding-bottom: 40px;
+}
