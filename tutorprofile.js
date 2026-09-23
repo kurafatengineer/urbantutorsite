@@ -410,7 +410,7 @@ function statusMessage(item) {
       if (isTicked(item.tutorAccepted) && !isTicked(item.parentAccepted)) {
         return { text: "Waiting for parents' approval" };
       }
-      return { text: "Parents approved, waiting for your approval" };
+      return { text: "Parents have approved, waiting for your approval" };
 
     case "running":
       return { text: "This class is running" };
