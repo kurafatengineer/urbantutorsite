@@ -25,11 +25,12 @@ const WEB_APP_URL =
 const TUTOR_SESSION_KEY = "urbantutorsite_tutor_session";
 
 // Each filter select id -> the tuition field it filters on.
-// Filters shown: Subject, Class, Medium, PIN Code, City.
-// (Board and Sort by were removed - list is always newest first.)
+// Filters shown: Subject, Class, Board, Medium, PIN Code, City.
+// (Sort by was removed - see sortTuitions() for the fixed order.)
 const FILTER_FIELDS = {
   subjectFilter: "subject",
   classFilter: "className",
+  boardFilter: "board",
   mediumFilter: "medium",
   pinFilter: "pinCode",
   cityFilter: "city"
@@ -354,7 +355,15 @@ function sortTuitions(items, sortBy) {
 
     case "newest":
     default:
-      return copy.sort((a, b) => toTime(b.postedOn) - toTime(a.postedOn));
+      // Logged-in tutor: tuitions they've applied for (still open,
+      // not yet assigned) come first, then everything else - each
+      // group newest to oldest.
+      return copy.sort((a, b) => {
+        const aApplied = appliedDemoIds.has(String(a.demoId)) ? 1 : 0;
+        const bApplied = appliedDemoIds.has(String(b.demoId)) ? 1 : 0;
+        if (aApplied !== bApplied) return bApplied - aApplied;
+        return toTime(b.postedOn) - toTime(a.postedOn);
+      });
 
   }
 
@@ -373,8 +382,8 @@ function toTime(value) {
  * .class-row-top / .class-detail-grid / .class-row-bottom),
  * with the content this page needs:
  *   - Top layer: subject only (bold), no status text
- *   - Middle layer: Class, Medium, Preferred Tutor, PIN Code,
- *     then Address (with City) on its own full-width line
+ *   - Middle layer: Class | Board, Gender | Medium,
+ *     PIN Code | Location (address + city)
  *   - Bottom layer: Apply button only (disabled if this tutor
  *     has already applied for that Demo ID)
  ************************************************************/
@@ -422,13 +431,19 @@ function joinAddress(address, city) {
 
 function renderTuitionCard(item) {
 
+  // Middle layer, 2 per row, always in this order:
+  //   Class     | Board
+  //   Gender    | Medium
+  //   PIN Code  | Location
+  // Empty values show "—" so every card keeps the same layout.
   const details = [
     [ICONS.cap, "Class", item.className],
+    [ICONS.file, "Board", item.board],
+    [ICONS.student, "Gender", formatPreferredTutor(item.preferredTutor)],
     [ICONS.globe, "Medium", formatMedium(item.medium)],
-    [ICONS.student, "Preferred Tutor", formatPreferredTutor(item.preferredTutor)],
     [ICONS.pin, "PIN Code", item.pinCode],
-    [ICONS.home, "Address", joinAddress(item.address, item.city)]
-  ].filter(triple => triple[2] !== undefined && triple[2] !== null && String(triple[2]).trim() !== "");
+    [ICONS.home, "Location", joinAddress(item.address, item.city)]
+  ].map(([icon, label, value]) => [icon, label, String(value == null ? "" : value).trim() || "—"]);
 
   const applied = appliedDemoIds.has(String(item.demoId));
 
@@ -446,7 +461,7 @@ function renderTuitionCard(item) {
         ${details.length ? `
           <div class="class-detail-grid">
             ${details.map(([icon, label, value]) => `
-              <div class="class-detail${label === "Address" ? " class-detail-full" : ""}" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
+              <div class="class-detail${label === "Location" ? " class-detail-location" : ""}" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
                 <span class="class-detail-icon">${icon}</span>
                 <span class="class-detail-value">${escapeHTML(value)}</span>
               </div>
