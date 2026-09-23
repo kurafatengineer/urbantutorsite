@@ -61,9 +61,9 @@
           </div>
         </div>
 
-        <h1 id="profileName">—</h1>
-
         <p id="accountLine" class="profile-parent muted"></p>
+
+        <h1 id="profileName">—</h1>
 
         <div class="profile-meta">
           <span id="profileClass" class="chip chip-muted"></span>
@@ -183,10 +183,12 @@
           <span>Board / University</span>
         </label>
 
-        <label class="premium-check add-wide">
+        <label class="pill-check add-wide">
           <input type="checkbox" id="addSameAddress" checked>
-          <span class="premium-check-box" aria-hidden="true"></span>
-          <span class="premium-check-text">Same address as my other student</span>
+          <span class="pill-check-text">Same address as my other student</span>
+          <span class="pill-check-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
         </label>
 
         <label class="float-field add-wide hidden" data-address>
@@ -233,6 +235,11 @@
     <form id="newTuitionForm" novalidate>
 
       <div class="add-grid">
+
+        <!-- More than one student on this account: pick who the tuition is for -->
+        <div class="choice-row student-choice add-wide hidden" id="newStudentChoice" role="radiogroup" aria-label="Student">
+          <!-- filled by JS: one option per student -->
+        </div>
 
         <label class="float-field add-wide">
           <input id="newSubjects" type="text" maxlength="250" autocomplete="off" placeholder=" " required>
