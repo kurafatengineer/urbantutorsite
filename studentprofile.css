@@ -1350,3 +1350,88 @@ body.add-modal-open {
   }
 
 }
+
+
+/* =========================================================
+   FILTER - ICON TAB BAR (one line)
+   Normal screens: six equal-width tabs, icon on top and the
+   short label centred below it.
+   Small screens: icons only.
+========================================================= */
+
+.filter-tabs.icon-tabs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  padding: 6px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.icon-tabs .filter-tab {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 9px 2px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  box-shadow: none;
+  color: var(--muted-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+  cursor: pointer;
+}
+
+.icon-tabs .filter-tab svg {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-tabs .filter-tab-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-tabs .filter-tab:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.icon-tabs .filter-tab.active {
+  color: var(--lime);
+  background: var(--lime-dim);
+  box-shadow: inset 0 0 0 1px var(--lime-line);
+}
+
+/* small screens: icon only */
+@media (max-width: 420px) {
+
+  .filter-tabs.icon-tabs {
+    padding: 5px;
+  }
+
+  .icon-tabs .filter-tab {
+    padding: 11px 0;
+  }
+
+  .icon-tabs .filter-tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+}
