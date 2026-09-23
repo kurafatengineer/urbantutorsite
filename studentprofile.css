@@ -335,7 +335,7 @@ body.add-modal-open {
      sides and bottom edge exactly. */
   --pc-x: 28px;
   --pc-b: 28px;
-  --pc-notch: 22px;
+  --pc-top: 22px;      /* top corner radius of the apply bar */
 }
 
 #profileStats.profile-stats {
@@ -347,22 +347,20 @@ body.add-modal-open {
    "APPLY FOR NEW TUITION" BAR
    Same width as the profile card (both sides flush with its
    sides), bottom edge + bottom corners identical to the card's,
-   and both TOP corners cut the other way (concave / reverse
-   radius) so they sweep vertically out to the card's edges.
+   and both top corners rounded outwards (normal, positive radius).
 ========================================================= */
 
 .apply-tuition-bar {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
 
   width: calc(100% + (var(--pc-x) * 2));
   margin: 26px calc(var(--pc-x) * -1) calc(var(--pc-b) * -1);
   padding: 20px 20px 18px;
 
   border: 0;
-  border-radius: 0 0 var(--radius) var(--radius);
+  border-radius: var(--pc-top) var(--pc-top) var(--radius) var(--radius);
 
   background: var(--lime);
   color: #050505;
@@ -371,15 +369,6 @@ body.add-modal-open {
   font-weight: 800;
   letter-spacing: 0.01em;
   cursor: pointer;
-
-  /* Reverse-radius top corners: a quarter circle is cut out of each
-     top corner, so the card's own background curves down into them. */
-  -webkit-mask:
-    radial-gradient(circle at 0 0, transparent var(--pc-notch), #000 calc(var(--pc-notch) + 0.5px)) left top / 50% 100% no-repeat,
-    radial-gradient(circle at 100% 0, transparent var(--pc-notch), #000 calc(var(--pc-notch) + 0.5px)) right top / 50% 100% no-repeat;
-          mask:
-    radial-gradient(circle at 0 0, transparent var(--pc-notch), #000 calc(var(--pc-notch) + 0.5px)) left top / 50% 100% no-repeat,
-    radial-gradient(circle at 100% 0, transparent var(--pc-notch), #000 calc(var(--pc-notch) + 0.5px)) right top / 50% 100% no-repeat;
 
   transition: background 0.15s ease;
 }
@@ -399,19 +388,6 @@ body.add-modal-open {
 
 .apply-tuition-bar.hidden {
   display: none;
-}
-
-.apply-plus {
-  display: inline-grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #050505;
-  color: var(--lime);
-  font-size: 18px;
-  line-height: 1;
-  font-weight: 700;
 }
 
 
@@ -472,22 +448,78 @@ body.add-modal-open {
   flex: 0 0 auto;
 }
 
-/* third layer: Accept / Reject */
-.tutor-actions {
+/* ---------------------------------------------------------
+   Tutor card: paddings of .class-body, kept in variables so the
+   top strip and the bottom Accept / Reject layer can run flush to
+   the card's edges.
+--------------------------------------------------------- */
+
+.tutor-card {
+  --tc-top: 18px;
+  --tc-right: 20px;
+  --tc-bottom: 18px;
+  --tc-left: 6px;
+}
+
+/* top layer: "Applied by" / "Demo Scheduled" / "Your Tutor" */
+.tutor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
+  margin: calc(var(--tc-top) * -1) calc(var(--tc-right) * -1) 0 calc(var(--tc-left) * -1);
+  padding: 11px var(--tc-right) 11px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* the colour classes (.status-*) are the shared ones and also
+   draw a 1px outline - not wanted on a full-width strip */
+.tutor-head[class*="status-"] {
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+}
+
+.tutor-head-badge {
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+}
+
+/* third layer: Accept | Reject - 50% each, edge to edge */
+.tutor-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin: 0 calc(var(--tc-right) * -1) calc(var(--tc-bottom) * -1) calc(var(--tc-left) * -1);
+  padding: 0;
+  border-top: 1px solid var(--border);
 }
 
 .tutor-btn {
-  flex: 1 1 0;
+  flex: 0 0 50%;
+  width: 50%;
   min-width: 0;
-  padding: 11px 14px;
-  border-radius: 12px;
-  border: 1px solid transparent;
+  padding: 15px 10px;
+  border: 0;
+  border-radius: 0;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 800;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.tutor-btn + .tutor-btn {
+  border-left: 1px solid var(--border);
 }
 
 .tutor-btn-accept {
@@ -500,14 +532,12 @@ body.add-modal-open {
 }
 
 .tutor-btn-reject {
-  background: transparent;
+  background: var(--danger-dim);
   color: var(--danger);
-  border-color: rgba(255, 104, 104, 0.45);
 }
 
 .tutor-btn-reject:hover:not(:disabled) {
-  background: var(--danger-dim);
-  border-color: var(--danger);
+  background: rgba(255, 104, 104, 0.24);
 }
 
 .tutor-btn:disabled {
@@ -522,8 +552,58 @@ body.add-modal-open {
 }
 
 .tutor-btn-reject.chosen:disabled {
-  background: var(--danger-dim);
-  border-color: var(--danger);
+  background: rgba(255, 104, 104, 0.24);
+}
+
+
+/* ---------------------------------------------------------
+   Semicircular cut-outs at every seam of a stack: between the
+   tuition card and its first tutor, and between one tutor and
+   the next. A half circle (filled with the page background and
+   outlined like the cards) bites into each side of the seam.
+--------------------------------------------------------- */
+
+.tuition-stack > .class-card {
+  --cut: 11px;
+}
+
+.tuition-stack > .class-card:not(:last-child)::after,
+.tuition-stack > .class-card:not(:first-child)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--cut);
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* lower half of the notch - bottom corners of the upper card */
+.tuition-stack > .class-card:not(:last-child)::after {
+  bottom: 0;
+  background:
+    radial-gradient(circle at 0 100%,
+      var(--bg) 0, var(--bg) calc(var(--cut) - 1px),
+      var(--border-light) calc(var(--cut) - 1px), var(--border-light) var(--cut),
+      transparent calc(var(--cut) + 0.5px)) left bottom / var(--cut) var(--cut) no-repeat,
+    radial-gradient(circle at 100% 100%,
+      var(--bg) 0, var(--bg) calc(var(--cut) - 1px),
+      var(--border-light) calc(var(--cut) - 1px), var(--border-light) var(--cut),
+      transparent calc(var(--cut) + 0.5px)) right bottom / var(--cut) var(--cut) no-repeat;
+}
+
+/* upper half of the notch - top corners of the lower card */
+.tuition-stack > .class-card:not(:first-child)::before {
+  top: 0;
+  background:
+    radial-gradient(circle at 0 0,
+      var(--bg) 0, var(--bg) calc(var(--cut) - 1px),
+      var(--border-light) calc(var(--cut) - 1px), var(--border-light) var(--cut),
+      transparent calc(var(--cut) + 0.5px)) left top / var(--cut) var(--cut) no-repeat,
+    radial-gradient(circle at 100% 0,
+      var(--bg) 0, var(--bg) calc(var(--cut) - 1px),
+      var(--border-light) calc(var(--cut) - 1px), var(--border-light) var(--cut),
+      transparent calc(var(--cut) + 0.5px)) right top / var(--cut) var(--cut) no-repeat;
 }
 
 
@@ -566,7 +646,14 @@ body.add-modal-open {
   .profile-card {
     --pc-x: 18px;
     --pc-b: 20px;
-    --pc-notch: 18px;
+    --pc-top: 18px;
+  }
+
+  .tutor-card {
+    --tc-top: 16px;
+    --tc-right: 14px;
+    --tc-bottom: 16px;
+    --tc-left: 4px;
   }
 
   .apply-tuition-bar {
