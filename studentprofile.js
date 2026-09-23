@@ -812,9 +812,11 @@ function tutorStatusMessage(tutor) {
 //   demo scheduled       -> "Demo Scheduled"
 //   one side approved    -> only "You have approved, waiting for the
 //                           tutor's approval" (or the tutor's version)
-//   approved by both     -> "Your Tutor"  + Running badge
-//   completed            -> "Your Tutor"  + Completed badge
-//   rejected             -> "Applied by"  + Rejected badge
+//   approved by both     -> "Your Tutor"  (green)
+//   completed            -> "Your Tutor"  (grey)
+//   rejected             -> "Applied by"  (red; the reason is in the
+//                           third row)
+// One centred line only - no second item.
 function tutorHead(tutor) {
 
   switch (String(tutor.status || "").toLowerCase()) {
@@ -834,13 +836,13 @@ function tutorHead(tutor) {
       };
 
     case "running":
-      return { title: "Your Tutor", badge: "Running", note: "", cls: "status-running" };
+      return { title: "Your Tutor", badge: "", note: "", cls: "status-running" };
 
     case "completed":
-      return { title: "Your Tutor", badge: "Completed", note: "", cls: "status-completed" };
+      return { title: "Your Tutor", badge: "", note: "", cls: "status-completed" };
 
     case "declined":
-      return { title: "Applied by", badge: "Rejected", note: "", cls: "status-declined" };
+      return { title: "Applied by", badge: "", note: "", cls: "status-declined" };
 
     default:
       return { title: "Applied by", badge: "", note: "", cls: "status-applied" };
