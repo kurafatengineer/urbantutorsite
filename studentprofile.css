@@ -1,5 +1,5 @@
 /* =========================================================
-   URBANTUTORSITE - STUDENT PROFILEe
+   URBANTUTORSITE - STUDENT PROFILE
    ---------------------------------------------------------
    Loaded AFTER tutorprofile.css, which supplies every shared
    style (profile card, stats, filter tabs, class cards). This
@@ -335,7 +335,7 @@ body.add-modal-open {
      sides and bottom edge exactly. */
   --pc-x: 28px;
   --pc-b: 28px;
-  --pc-top: 22px;      /* top corner radius of the apply bar */
+  --pc-top: 28px;      /* radius of the concave curves at the bar's ends */
 }
 
 #profileStats.profile-stats {
@@ -345,37 +345,51 @@ body.add-modal-open {
 
 /* =========================================================
    "APPLY FOR NEW TUITION" BAR
-   Sits at the bottom of the profile card: same width as the card
-   (both sides flush with its sides), bottom edge + bottom corners
-   identical to the card's, and both top corners rounded outwards
-   (normal, positive radius).
+   Fused to the bottom of the profile card: same width (both sides
+   flush with the card's sides), bottom edge + bottom corners identical
+   to the card's. The card's dark inside keeps ROUNDED bottom corners
+   that sink into the bar, so at each end the lime climbs up the card's
+   edge in a concave curve.
+
+   The curve is part of the bar's own background: its top --pc-top px
+   are transparent in the middle (the card shows through) and lime at
+   the two ends, with a quarter circle cut out of each end.
 ========================================================= */
 
 .apply-tuition-bar {
+  --bar-bg: var(--lime);
+
   display: flex;
   align-items: center;
   justify-content: center;
 
   width: calc(100% + (var(--pc-x) * 2));
-  margin: 26px calc(var(--pc-x) * -1) calc(var(--pc-b) * -1);
-  padding: 20px 20px 18px;
+  margin: 10px calc(var(--pc-x) * -1) calc(var(--pc-b) * -1);
+  padding: calc(var(--pc-top) + 18px) 20px 18px;
 
   border: 0;
-  border-radius: var(--pc-top) var(--pc-top) var(--radius) var(--radius);
+  border-radius: 0 0 var(--radius) var(--radius);
 
-  background: var(--lime);
+  background:
+    radial-gradient(circle at 100% 0,
+      transparent var(--pc-top), var(--bar-bg) calc(var(--pc-top) + 0.5px))
+      left top / var(--pc-top) var(--pc-top) no-repeat,
+    radial-gradient(circle at 0 0,
+      transparent var(--pc-top), var(--bar-bg) calc(var(--pc-top) + 0.5px))
+      right top / var(--pc-top) var(--pc-top) no-repeat,
+    linear-gradient(var(--bar-bg), var(--bar-bg))
+      left bottom / 100% calc(100% - var(--pc-top) + 1px) no-repeat;
+
   color: #050505;
   font: inherit;
   font-size: 15.5px;
   font-weight: 800;
   letter-spacing: 0.01em;
   cursor: pointer;
-
-  transition: background 0.15s ease;
 }
 
 .apply-tuition-bar:hover {
-  background: var(--lime-hover);
+  --bar-bg: var(--lime-hover);
 }
 
 .apply-tuition-bar:active {
@@ -416,14 +430,14 @@ body.add-modal-open {
 
 /* dashed seam between the tuition and each tutor attached to it */
 .tuition-stack > .tutor-card {
-  border-top: 1px dashed var(--border-light);
+  border-top: 2px dashed var(--border-light);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 60%),
     var(--surface);
 }
 
 .tuition-stack > .tutor-card + .tutor-card {
-  border-top: 1px dashed var(--border);
+  border-top: 2px dashed var(--border-light);
 }
 
 /* first layer of a tutor card has nothing above it */
@@ -471,9 +485,10 @@ body.add-modal-open {
   align-items: stretch;
   gap: 4px;
   margin: calc(var(--tc-top) * -1) calc(var(--tc-right) * -1) 0 calc(var(--tc-left) * -1);
-  /* extra room on the right: a single, centred line never runs
-     up to the container's edge */
-  padding: 11px 28px 11px 16px;
+  /* same left / right insets as the tuition card's row of
+     Subject | Status (.class-body padding), so both rows line up;
+     the single title is centred between the two insets */
+  padding: 11px var(--tc-right);
   border-bottom: 1px solid var(--border);
   text-align: center;
 }
@@ -677,7 +692,7 @@ body.add-modal-open {
   .profile-card {
     --pc-x: 18px;
     --pc-b: 20px;
-    --pc-top: 18px;
+    --pc-top: 20px;
   }
 
   .tutor-card {
@@ -688,8 +703,8 @@ body.add-modal-open {
   }
 
   .apply-tuition-bar {
-    margin-top: 22px;
-    padding: 18px 16px 16px;
+    margin-top: 10px;
+    padding: calc(var(--pc-top) + 16px) 16px 16px;
     font-size: 15px;
   }
 
@@ -809,4 +824,11 @@ body.add-modal-open {
   border-left-color: rgba(255, 104, 104, 0.3);
   border-right-color: rgba(255, 104, 104, 0.3);
   border-bottom-color: rgba(255, 104, 104, 0.3);
+}
+
+
+/* text that comes from the data (name, gender, degree, experience)
+   is regular weight, not bold */
+.tutor-info-grid .class-detail-value {
+  font-weight: 400;
 }
