@@ -39,21 +39,6 @@
 <main id="profilePage" class="page profile-page hidden">
   <div class="container">
 
-    <!-- ================= STUDENTS ON THIS ACCOUNT ================= -->
-
-    <section class="student-switcher" aria-labelledby="switcherTitle">
-
-      <div class="switcher-head">
-        <h2 id="switcherTitle">Students on this account</h2>
-        <p id="accountLine" class="muted"></p>
-      </div>
-
-      <div class="switcher-list" id="studentTabs" role="tablist" aria-labelledby="switcherTitle">
-        <!-- filled by JS: one pill per Student ID + "Add student" -->
-      </div>
-
-    </section>
-
     <!-- ================= PROFILE HEADER CARD ================= -->
 
     <section class="profile-card" id="studentPanel" role="tabpanel">
@@ -64,8 +49,21 @@
           <span id="profileAvatarInitials"></span>
         </div>
 
-        <div class="profile-kicker" id="profileKicker">Student Profile</div>
+        <!-- Student ID. With more than one student on this account it
+             opens a list to switch between them; with one it is plain. -->
+        <div class="sid-switch">
+          <button id="profileKicker" class="profile-kicker sid-button" type="button"
+                  aria-haspopup="listbox" aria-expanded="false" aria-controls="sidMenu" disabled>
+            Student Profile
+          </button>
+          <div id="sidMenu" class="sid-menu hidden" role="listbox" aria-label="Switch student">
+            <!-- filled by JS: one option per Student ID on this account -->
+          </div>
+        </div>
+
         <h1 id="profileName">—</h1>
+
+        <p id="accountLine" class="profile-parent muted"></p>
 
         <div class="profile-meta">
           <span id="profileClass" class="chip chip-muted"></span>
@@ -73,9 +71,14 @@
           <span id="profileCity" class="chip chip-muted"></span>
         </div>
 
-        <button id="logoutButton" class="logout-button" type="button">
-          Log out
-        </button>
+        <div class="profile-actions">
+          <button id="addStudentButton" class="add-student-button" type="button">
+            + Add Student
+          </button>
+          <button id="logoutButton" class="logout-button" type="button">
+            Log out
+          </button>
+        </div>
 
       </div>
 
@@ -87,7 +90,6 @@
       <button id="applyTuitionButton" class="apply-tuition-bar hidden" type="button">
         <span>Apply for new tuition</span>
       </button>
-
 
     </section>
 
