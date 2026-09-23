@@ -602,6 +602,45 @@ svg {
 .class-spine.status-running               { background: var(--success-dim); color: var(--success); }
 .class-spine.status-demo-scheduled        { background: var(--violet-dim);  color: var(--violet); }
 .class-spine.status-processing            { background: var(--warn-dim);    color: var(--warn); }
+
+/* "Applied" - the tutor has applied, nothing scheduled yet. */
+.status-applied                           { background: var(--cyan-dim);    color: var(--cyan);    border-color: var(--cyan-line); }
+.class-spine.status-applied               { background: var(--cyan-dim);    color: var(--cyan); }
+
+/* Third row: uses the FULL width of the card - address on the
+   left (small, regular), "PIN 700091" pushed to the right edge
+   (bold, "PIN" in capitals). */
+.class-detail-location {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.class-detail-location .class-detail-value {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.location-address {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.location-pin {
+  flex: 0 0 auto;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
 .class-spine.status-completed             { background: var(--surface-2);   color: var(--muted); }
 .class-spine.status-declined              { background: var(--danger-dim);  color: var(--danger); }
 
