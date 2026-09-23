@@ -1196,6 +1196,8 @@ function wireStaticEvents() {
 
   $("closeNewTuition").addEventListener("click", closeNewTuition);
 
+  $("newStudentChoice").addEventListener("change", updateNewTuitionFor);
+
   $("newTuitionModal").addEventListener("click", (event) => {
     if (event.target.hasAttribute("data-close-new")) closeNewTuition();
   });
@@ -1382,14 +1384,49 @@ function openNewTuition() {
   $("newTuitionForm").reset();
   $("newTuitionMessage").textContent = "";
   setOtherTiming(false);
-  $("newTuitionFor").textContent =
-    `${student.studentName || "Student"} · ${student.studentId}`;
+
+  // Several students on this account -> let the parent pick which
+  // one this tuition is for (the one on screen is pre-selected).
+  const many = STATE.students.length > 1;
+
+  $("newStudentChoice").classList.toggle("hidden", !many);
+  $("newStudentChoice").innerHTML = many
+    ? STATE.students.map(s => `
+        <label>
+          <input type="radio" name="newStudent" value="${escapeHTML(s.studentId)}"${s.studentId === student.studentId ? " checked" : ""}>
+          <span><strong>${escapeHTML(s.studentName || "Student")}</strong><small>${escapeHTML(s.studentId)}</small></span>
+        </label>
+      `).join("")
+    : "";
+
+  updateNewTuitionFor();
 
   $("newTuitionModal").classList.remove("hidden");
   $("newTuitionModal").setAttribute("aria-hidden", "false");
   document.body.classList.add("add-modal-open");
 
   setTimeout(() => $("newSubjects").focus(), 50);
+
+}
+
+// The student this tuition is for: the one picked in the modal, or the
+// student on screen when there is only one.
+function newTuitionStudent() {
+
+  const picked = radioValue("newStudent");
+
+  return (picked && STATE.students.find(s => s.studentId === picked)) ||
+    selectedStudent();
+
+}
+
+function updateNewTuitionFor() {
+
+  const student = newTuitionStudent();
+
+  $("newTuitionFor").textContent = student
+    ? `${student.studentName || "Student"} · ${student.studentId}`
+    : "";
 
 }
 
@@ -1421,7 +1458,7 @@ async function submitNewTuition(event) {
   const message = $("newTuitionMessage");
   message.textContent = "";
 
-  const student = selectedStudent();
+  const student = newTuitionStudent();
 
   if (!student) return;
 
