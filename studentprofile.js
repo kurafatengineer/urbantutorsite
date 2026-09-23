@@ -1103,9 +1103,10 @@ function wireStaticEvents() {
   // Click anywhere else closes the list
   document.addEventListener("click", (event) => {
 
-    if (!event.target.closest || !event.target.closest(".sid-switch")) {
-      closeSidMenu();
-    }
+    const inside = event.target.closest && event.target.closest(".sid-switch");
+
+    if (!inside || !inside.contains($("sidMenu"))) closeSidMenu();
+    if (!inside || !inside.contains($("newStudentMenu"))) closeNewStudentMenu();
 
   });
 
@@ -1196,7 +1197,30 @@ function wireStaticEvents() {
 
   $("closeNewTuition").addEventListener("click", closeNewTuition);
 
-  $("newStudentChoice").addEventListener("change", updateNewTuitionFor);
+  // "Name · SID" under the title -> list of this account's students
+  $("newTuitionFor").addEventListener("click", (event) => {
+
+    event.stopPropagation();
+
+    if ($("newTuitionFor").disabled) return;
+
+    const open = $("newStudentMenu").classList.contains("hidden");
+
+    $("newStudentMenu").classList.toggle("hidden", !open);
+    $("newTuitionFor").setAttribute("aria-expanded", open ? "true" : "false");
+
+  });
+
+  $("newStudentMenu").addEventListener("click", (event) => {
+
+    const option = event.target.closest("[data-student-id]");
+
+    if (!option) return;
+
+    STATE.newTuitionId = option.dataset.studentId;
+    updateNewTuitionFor();
+
+  });
 
   $("newTuitionModal").addEventListener("click", (event) => {
     if (event.target.hasAttribute("data-close-new")) closeNewTuition();
@@ -1213,6 +1237,11 @@ function wireStaticEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !$("newStudentMenu").classList.contains("hidden")) {
+      closeNewStudentMenu();
+      $("newTuitionFor").focus();
+      return;
+    }
     if (event.key === "Escape" && !$("sidMenu").classList.contains("hidden")) {
       closeSidMenu();
       $("profileKicker").focus();
@@ -1385,19 +1414,15 @@ function openNewTuition() {
   $("newTuitionMessage").textContent = "";
   setOtherTiming(false);
 
-  // Several students on this account -> let the parent pick which
-  // one this tuition is for (the one on screen is pre-selected).
+  // Several students on this account -> "Name · SID" under the title
+  // becomes a switcher (same as the Student ID under the profile photo).
+  // The student on screen is pre-selected.
+  STATE.newTuitionId = student.studentId;
+
   const many = STATE.students.length > 1;
 
-  $("newStudentChoice").classList.toggle("hidden", !many);
-  $("newStudentChoice").innerHTML = many
-    ? STATE.students.map(s => `
-        <label>
-          <input type="radio" name="newStudent" value="${escapeHTML(s.studentId)}"${s.studentId === student.studentId ? " checked" : ""}>
-          <span><strong>${escapeHTML(s.studentName || "Student")}</strong><small>${escapeHTML(s.studentId)}</small></span>
-        </label>
-      `).join("")
-    : "";
+  $("newTuitionFor").disabled = !many;
+  $("newTuitionFor").classList.toggle("is-switchable", many);
 
   updateNewTuitionFor();
 
@@ -1413,7 +1438,7 @@ function openNewTuition() {
 // student on screen when there is only one.
 function newTuitionStudent() {
 
-  const picked = radioValue("newStudent");
+  const picked = STATE.newTuitionId;
 
   return (picked && STATE.students.find(s => s.studentId === picked)) ||
     selectedStudent();
@@ -1427,6 +1452,28 @@ function updateNewTuitionFor() {
   $("newTuitionFor").textContent = student
     ? `${student.studentName || "Student"} · ${student.studentId}`
     : "";
+
+  $("newStudentMenu").innerHTML = STATE.students.map(s => `
+    <button
+      class="sid-option${student && s.studentId === student.studentId ? " active" : ""}"
+      type="button"
+      role="option"
+      data-student-id="${escapeHTML(s.studentId)}"
+      aria-selected="${student && s.studentId === student.studentId ? "true" : "false"}"
+    >
+      <span class="sid-option-id">${escapeHTML(s.studentId)}</span>
+      <span class="sid-option-name">${escapeHTML(s.studentName || "Student")}</span>
+    </button>
+  `).join("");
+
+  closeNewStudentMenu();
+
+}
+
+function closeNewStudentMenu() {
+
+  $("newStudentMenu").classList.add("hidden");
+  $("newTuitionFor").setAttribute("aria-expanded", "false");
 
 }
 
