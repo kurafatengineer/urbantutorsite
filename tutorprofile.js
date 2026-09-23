@@ -11,6 +11,7 @@
  *
  * API ACTIONS USED (see API Router.gs / Tutor Session.gs)
  *   getTutorProfile      logoutTutor
+ *   respondToDemoTutor   (NEW - Accept / Reject on a tuition card)
  *
  * FIELDS THE BACKEND (Tutor Session.gs) MUST SEND PER CLASS:
  *   demoId          <- "Demo ID" header on the Demos sheet
@@ -28,6 +29,12 @@
  *   address, city, pinCode <- third row of the middle layer
  *   subject, studentName, className, board, medium, duration
  *   — unchanged from before.
+ *   preferredTutor           <- NEW, shown next to Medium
+ *   canAccept, canReject     <- NEW, switch the Accept / Reject buttons
+ *
+ * CARDS: collapsed by default (Subject left, Medium right); a tap
+ * anywhere on a card opens / closes it, and only one card is open at
+ * a time - same behaviour as the Student Profile.
  ************************************************************/
 
 const WEB_APP_URL =
@@ -121,6 +128,7 @@ const ICONS = {
   leaf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13c0-6 8-11 16-11 0 8-5 16-11 16-1.5 0-2.5-.5-3.5-1Z"/><path d="M4 20 12 12"/></svg>',
   ruler: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16.24 3.56 4.2 4.2a1 1 0 0 1 0 1.42l-11.46 11.46a1 1 0 0 1-1.42 0l-4.2-4.2a1 1 0 0 1 0-1.42L14.82 3.56a1 1 0 0 1 1.42 0Z"/><path d="m9 8 1 1"/><path d="m12 5 1 1"/><path d="m6 11 1 1"/><path d="m15 2 1 1"/></svg>',
   code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  user2: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M12 12v9"/><path d="M8 17h8"/></svg>',
   book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>'
 };
 
@@ -130,6 +138,14 @@ const ICONS = {
  ************************************************************/
 
 (async function init() {
+
+  wireClassEvents();
+
+  await loadProfile();
+
+})();
+
+async function loadProfile() {
 
   const session = getTutorSession();
 
@@ -161,7 +177,7 @@ const ICONS = {
     showError("Unable to connect to the server. Please try again.");
   }
 
-})();
+}
 
 function showError(message) {
   $("errorMessage").textContent = message;
@@ -263,6 +279,8 @@ function stat(value, label, accent) {
  ************************************************************/
 
 let ALL_CLASSES = [];
+let CURRENT_FILTER = "all";
+let OPEN_CARD = "";   // the one open card (Demo ID); "" = all collapsed
 
 function classifyItem(item) {
   const s = String(item.status || "").toLowerCase();
@@ -301,6 +319,13 @@ function initClasses(classes) {
 
   ALL_CLASSES = classes;
 
+  renderClasses(ALL_CLASSES, CURRENT_FILTER);
+
+}
+
+// Wired once: filter tabs, open / close cards, Accept / Reject.
+function wireClassEvents() {
+
   $("filterTabs").addEventListener("click", (event) => {
     const btn = event.target.closest(".filter-tab");
     if (!btn) return;
@@ -308,10 +333,70 @@ function initClasses(classes) {
     $("filterTabs").querySelectorAll(".filter-tab").forEach(t => t.classList.remove("active"));
     btn.classList.add("active");
 
-    renderClasses(ALL_CLASSES, btn.dataset.filter);
+    CURRENT_FILTER = btn.dataset.filter;
+    renderClasses(ALL_CLASSES, CURRENT_FILTER);
   });
 
-  renderClasses(ALL_CLASSES, "all");
+  $("classesList").addEventListener("click", (event) => {
+
+    const button = event.target.closest("[data-respond]");
+
+    if (button) {
+      if (!button.disabled) respondToTuition(button);
+      return;
+    }
+
+    toggleCard(event.target);
+
+  });
+
+  $("classesList").addEventListener("keydown", (event) => {
+
+    if (event.key !== "Enter" && event.key !== " ") return;
+
+    const card = event.target.closest && event.target.closest("[data-card]");
+
+    if (!card || event.target !== card) return;
+
+    event.preventDefault();
+    toggleCard(card, true);
+
+  });
+
+}
+
+// Cards are collapsed by default. A tap anywhere on a card opens it,
+// a tap anywhere on an open card closes it (an enabled Accept / Reject
+// keeps its own job; selecting text never collapses a card). Only one
+// card is open at a time.
+function toggleCard(target, force) {
+
+  const card = target.closest && target.closest("[data-card]");
+
+  if (!card) return;
+
+  if (target.closest("button:not(:disabled)")) return;
+
+  if (!force) {
+    const selected = window.getSelection ? String(window.getSelection()) : "";
+    if (selected.trim()) return;
+  }
+
+  const collapsed = card.classList.contains("is-collapsed");
+
+  if (collapsed) {
+    $("classesList").querySelectorAll("[data-card]").forEach(other => {
+      if (other !== card && !other.classList.contains("is-collapsed")) {
+        other.classList.add("is-collapsed");
+        other.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
+  card.classList.toggle("is-collapsed", !collapsed);
+  card.setAttribute("aria-expanded", collapsed ? "true" : "false");
+
+  OPEN_CARD = collapsed ? card.dataset.card : "";
 
 }
 
@@ -440,13 +525,36 @@ function renderClassCard(item) {
     .toLowerCase()
     .replace(/\s+/g, "-");
 
-  // First two rows of the middle layer, 2 per row.
+  // First two rows of the middle layer, 2 per row:
+  // Student, Class, Gender (preferred tutor), Medium.
+  // "Any" is shown as both real options.
   const details = [
     [ICONS.student, "Student", item.studentName],
     [ICONS.cap, "Class", item.className],
-    [ICONS.file, "Board", item.board],
-    [ICONS.globe, "Medium", item.medium]
+    [ICONS.user2, "Gender", genderText(item.preferredTutor)],
+    [ICONS.globe, "Medium", mediumText(item.medium)]
   ].filter(triple => triple[2] !== undefined && triple[2] !== null && String(triple[2]).trim() !== "");
+
+  const key = String(item.demoId || item.rowNumber || "");
+  const open = OPEN_CARD !== "" && OPEN_CARD === key;
+
+  // Fourth layer: Accept | Reject, 50% each (same as the Student
+  // Profile). Always shown; greyed out when they don't apply.
+  const acceptedByMe = isTicked(item.tutorAccepted);
+  const rejectedByMe = isTicked(item.tutorRejected);
+
+  const actionsRow = item.demoId ? `
+    <div class="tutor-actions">
+      <button type="button" class="tutor-btn tutor-btn-accept${acceptedByMe ? " chosen" : ""}"
+        data-respond="accept" data-demo="${escapeHTML(item.demoId)}"
+        title="${escapeHTML(item.canAccept ? "Accept this tuition" : (acceptedByMe ? "You accepted this tuition" : "Accept is not available right now"))}"
+        ${item.canAccept ? "" : "disabled"}>Accept</button>
+      <button type="button" class="tutor-btn tutor-btn-reject${rejectedByMe ? " chosen" : ""}"
+        data-respond="reject" data-demo="${escapeHTML(item.demoId)}"
+        title="${escapeHTML(rejectedByMe ? "You rejected this tuition" : "Reject this tuition")}"
+        ${item.canReject ? "" : "disabled"}>Reject</button>
+    </div>
+  ` : "";
 
   // Third row: the WHOLE line - location (small) + PIN (bold).
   const locationText = joinAddress(item.address, item.city);
@@ -471,11 +579,17 @@ function renderClassCard(item) {
   ` : "";
 
   return `
-    <div class="class-card">
+    <div class="class-card${open ? "" : " is-collapsed"}"
+         data-card="${escapeHTML(key)}" tabindex="0" aria-expanded="${open ? "true" : "false"}">
       <div class="class-spine ${statusClass}">
         ${item.demoId ? `<span class="class-spine-id">${escapeHTML(item.demoId)}</span><span class="class-spine-label">Demo ID</span>` : ""}
       </div>
       <div class="class-body">
+
+        <div class="class-mini">
+          <span class="class-mini-subject">${escapeHTML(item.subject || "Subject")}</span>
+          <span class="class-mini-medium">${escapeHTML(mediumText(item.medium))}</span>
+        </div>
 
         <div class="class-row-top">
           <span class="status-badge subject-badge">${escapeHTML(item.subject || "Subject")}</span>
@@ -496,9 +610,111 @@ function renderClassCard(item) {
 
         ${bottomRow}
 
+        ${actionsRow}
+
       </div>
     </div>
   `;
+
+}
+
+
+/************************************************************
+ * "ANY" -> BOTH OPTIONS
+ ************************************************************/
+
+function isAny(value) {
+  return /^any$/i.test(String(value == null ? "" : value).trim());
+}
+
+function mediumText(value) {
+  const v = String(value == null ? "" : value).trim();
+  return isAny(v) ? "Online | Offline" : v;
+}
+
+function genderText(value) {
+  const v = String(value == null ? "" : value).trim();
+  return isAny(v) ? "Male | Female" : v;
+}
+
+
+/************************************************************
+ * ACCEPT / REJECT  (tutor's answer for one tuition)
+ ************************************************************/
+
+let toastTimer = null;
+
+function showToast(text, isError) {
+
+  let el = $("profileToast");
+
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "profileToast";
+    el.setAttribute("role", "status");
+    document.body.appendChild(el);
+  }
+
+  el.textContent = text;
+  el.className = "profile-toast show" + (isError ? " error" : "");
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 4000);
+
+}
+
+async function respondToTuition(button) {
+
+  const decision = button.dataset.respond;
+  const demoId = button.dataset.demo;
+
+  const question = decision === "accept"
+    ? "Accept this tuition?"
+    : "Reject this tuition? This cannot be undone here.";
+
+  if (!window.confirm(question)) return;
+
+  const session = getTutorSession();
+
+  if (!session || !session.sessionToken) {
+    showError("You are not logged in.");
+    return;
+  }
+
+  const buttons = button.closest(".tutor-actions").querySelectorAll("button");
+  buttons.forEach(b => { b.disabled = true; });
+
+  const label = button.textContent;
+  button.textContent = "Saving...";
+
+  try {
+
+    const result = await apiRequest({
+      action: "respondToDemoTutor",
+      sessionToken: session.sessionToken,
+      demoId,
+      decision
+    });
+
+    if (!result.success) {
+      showToast(result.message || "Your response could not be saved.", true);
+      button.textContent = label;
+      buttons.forEach(b => { b.disabled = false; });
+      return;
+    }
+
+    await loadProfile();
+
+    showToast(result.message || "Saved.");
+
+  } catch (error) {
+
+    console.error(error);
+    showToast("Unable to connect to the server. Please try again.", true);
+    button.textContent = label;
+    buttons.forEach(b => { b.disabled = false; });
+
+  }
 
 }
 
