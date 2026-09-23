@@ -1,0 +1,345 @@
+/* =========================================================
+   URBANTUTORSITE
+   TUITIONS AVAILABLE
+   Reuses the design tokens, .page/.container, .spinner,
+   .class-card and .filter-empty styles that already live in
+   tutorprofile.css. Only what's new to this page (hero copy,
+   filter sidebar, grid, apply toast) lives here.
+========================================================= */
+
+.tuitions-hero {
+  text-align: center;
+  padding: 40px 0 20px;
+}
+
+.tuitions-kicker {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lime);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.tuitions-hero h1 {
+  font-size: clamp(28px, 4vw, 40px);
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.tuitions-sub {
+  color: var(--muted);
+  max-width: 520px;
+  margin: 0 auto;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* ================= MOBILE FILTER TOGGLE ================= */
+/* Hidden entirely on desktop - the sidebar is always visible
+   there, so there is nothing to toggle. */
+
+.filter-toggle-button {
+  display: none;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 14px;
+}
+
+.filter-toggle-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--lime);
+}
+
+.filter-toggle-button span:nth-of-type(1) {
+  flex: 1;
+  text-align: left;
+}
+
+.filter-badge {
+  background: var(--lime);
+  color: #0a0a0a;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 999px;
+  padding: 4px 8px;
+}
+
+.filter-toggle-chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+
+.filter-toggle-button[aria-expanded="true"] .filter-toggle-chevron {
+  transform: rotate(180deg);
+}
+
+/* ================= LAYOUT: SIDEBAR + MAIN ================= */
+
+.tuitions-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 26px;
+}
+
+.tuitions-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ================= FILTER SIDEBAR ================= */
+
+.filter-sidebar {
+  flex: 0 0 260px;
+  width: 260px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 90px;
+}
+
+.filter-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-sidebar-head h2 {
+  font-size: 15px;
+  margin: 0;
+  color: var(--text);
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-field label {
+  font-size: 12px;
+  color: var(--muted-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.filter-field select {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+
+.filter-field select:focus {
+  outline: none;
+  border-color: var(--lime-line);
+}
+
+.filter-field select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.clear-filters-button {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.clear-filters-button:hover {
+  border-color: var(--lime-line);
+  color: var(--text);
+}
+
+.tuitions-count {
+  color: var(--muted-2);
+  font-size: 13px;
+  margin: 0 2px 14px;
+}
+
+/* ================= TUITIONS GRID ================= */
+/* 1 column by default (small screens), scaling up to 3-4
+   columns on wide screens. min() keeps cards from stretching
+   too wide on very large monitors. */
+
+.tuitions-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.tuitions-grid .class-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.tuitions-grid .class-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.apply-row {
+  margin-top: auto;
+  padding-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (min-width: 700px) {
+  .tuitions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1080px) {
+  .tuitions-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1440px) {
+  .tuitions-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ================= APPLY BUTTON ================= */
+
+.apply-button {
+  background: var(--lime);
+  color: #0a0a0a;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.apply-button:hover {
+  background: var(--lime-hover);
+}
+
+.apply-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.apply-button.applied {
+  background: var(--success-dim);
+  color: var(--success);
+}
+
+/* ================= TOAST ================= */
+
+.apply-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--surface-3);
+  border: 1px solid var(--border-light);
+  color: var(--text);
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 50;
+  max-width: min(90vw, 380px);
+  text-align: center;
+}
+
+.apply-toast.error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.apply-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ================= MOBILE: SIDEBAR BECOMES A DRAWER ================= */
+
+@media (max-width: 899px) {
+
+  .filter-toggle-button {
+    display: flex;
+  }
+
+  .tuitions-layout {
+    flex-direction: column;
+  }
+
+  .filter-sidebar {
+    width: 100%;
+    flex: 1 1 auto;
+    position: static;
+
+    /* Collapsed by default on mobile; JS toggles .open. */
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+    opacity: 0;
+    margin-bottom: 0;
+    overflow: hidden;
+    transition: max-height 0.28s ease, opacity 0.2s ease,
+                padding 0.28s ease, border-width 0.28s ease,
+                margin 0.28s ease;
+  }
+
+  .filter-sidebar.open {
+    max-height: 900px;
+    padding: 18px;
+    border-width: 1px;
+    opacity: 1;
+    margin-bottom: 4px;
+  }
+
+}
+
+@media (max-width: 420px) {
+
+  .filter-sidebar-head h2 {
+    font-size: 14px;
+  }
+
+}
