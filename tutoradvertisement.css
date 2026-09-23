@@ -134,10 +134,15 @@
   height: 100%;
 }
 
+/* Body has NO outer padding here so the Subject bar (top) and
+   the Apply bar (bottom) can sit flush against the card's
+   edges and the Demo ID spine. Only the middle layer is padded. */
 .tuitions-grid .class-body {
   flex: 1;
   display: flex;
   flex-direction: column;
+  padding: 0;
+  gap: 0;
 }
 
 @media (min-width: 700px) {
@@ -166,26 +171,44 @@
   color: var(--lime);
 }
 
-/* Top layer: subject only (no status pill), bold and a touch
-   larger since it's the only thing on that row now. */
+/* ================= TOP LAYER: SUBJECT BAR =================
+   Full-width bar, flush with:
+     left   -> right after the Demo ID spine
+     top    -> the card's top edge
+     right  -> the card's right edge
+     bottom -> the divider line of the middle layer
+   Only the top-right corner is curved (matches the card's own
+   corner); the other three are square. */
+
 .tuitions-grid .class-row-top {
-  justify-content: flex-start;
-}
-
-/* Subject tag: square top-left, bottom-left and bottom-right
-   corners; only the top-right corner is curved. */
-.tuitions-grid .subject-badge {
-  font-weight: 800;
-  font-size: 12.5px;
-  border-radius: 0 12px 0 0;
-  padding: 6px 14px 6px 12px;
-}
-
-/* Bottom layer: Apply button only. Pushed to the bottom of the
-   card so buttons line up across a row of cards. */
-.tuitions-grid .class-row-bottom {
   display: flex;
-  margin-top: auto;
+  padding: 0;
+  margin: 0;
+}
+
+.tuitions-grid .class-row-top .subject-badge {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: #000;
+  color: var(--text);
+  border: none;
+  border-radius: 0 15px 0 0;
+  padding: 11px 16px 11px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ================= MIDDLE LAYER ================= */
+/* Divider line on top (touching the subject bar) - the line is
+   the grid's own border-top from tutorprofile.css. */
+
+.tuitions-grid .class-detail-grid {
+  margin: 0;
+  padding: 14px 18px 16px 14px;
 }
 
 /* Address gets its own full-width line in the middle layer. */
@@ -193,21 +216,38 @@
   grid-column: 1 / -1;
 }
 
+/* ================= BOTTOM LAYER: APPLY BAR =================
+   Pushed to the bottom of the card so the buttons line up
+   across a row. Its border-top is the divider line; the button
+   touches that line, the card's bottom edge, the card's right
+   edge and the Demo ID spine on the left. */
+
+.tuitions-grid .class-row-bottom {
+  display: flex;
+  margin-top: auto;
+  padding: 0;
+  gap: 0;
+  border-top: 1px solid var(--border);
+}
+
 /* ================= APPLY BUTTON ================= */
-/* Mirror of the subject tag: same compact size, square top-left,
-   bottom-left and top-right corners; only the bottom-right
-   corner is curved. */
+/* Mirror of the subject bar: only the bottom-right corner is
+   curved (matches the card's own corner); the other three are
+   square. */
 
 .apply-button {
-  display: inline-flex;
+  flex: 1 1 auto;
+  width: 100%;
+  display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   background: var(--lime);
   color: #0a0a0a;
-  border: 1px solid transparent;
-  border-radius: 0 0 12px 0;
-  padding: 6px 16px;
-  font-size: 12.5px;
+  border: none;
+  border-radius: 0 0 15px 0;
+  padding: 12px 16px;
+  font-size: 13px;
   font-weight: 800;
   font-family: inherit;
   line-height: 1.4;
@@ -229,7 +269,6 @@
 .apply-button.applied:hover {
   background: var(--surface-2);
   color: var(--muted);
-  border-color: var(--border-light);
 }
 
 /* ================= TOAST ================= */
@@ -265,5 +304,29 @@
 }
 
 /* ================= MOBILE ================= */
-/* Filters deliberately stay on one line (the bar scrolls
-   sideways) - nothing to override here. */
+/* tutorprofile.css re-pads .class-body and shrinks the status
+   badge under 560px - undo that here so the Subject and Apply
+   bars stay flush with the card edges on phones too. Filters
+   stay on one line (the bar scrolls sideways). */
+
+@media (max-width: 560px) {
+
+  .tuitions-grid .class-body {
+    padding: 0;
+    gap: 0;
+  }
+
+  .tuitions-grid .class-row-top .subject-badge {
+    font-size: 12.5px;
+    padding: 10px 14px 10px 12px;
+  }
+
+  .tuitions-grid .class-detail-grid {
+    padding: 12px 14px 14px 12px;
+  }
+
+  .tuitions-grid .class-row-bottom {
+    gap: 0;
+  }
+
+}
