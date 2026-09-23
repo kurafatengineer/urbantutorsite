@@ -323,3 +323,256 @@ body.add-modal-open {
   }
 
 }
+
+
+/* =========================================================
+   PROFILE CARD - LOCATION / SCHOOL (one per line)
+========================================================= */
+
+.profile-card {
+  /* Padding of .profile-card (tutorprofile.css), kept in one place
+     so the "Apply for new tuition" bar can bleed out to the card's
+     sides and bottom edge exactly. */
+  --pc-x: 28px;
+  --pc-b: 28px;
+  --pc-notch: 22px;
+}
+
+#profileStats.profile-stats {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+
+/* =========================================================
+   "APPLY FOR NEW TUITION" BAR
+   Same width as the profile card (both sides flush with its
+   sides), bottom edge + bottom corners identical to the card's,
+   and both TOP corners cut the other way (concave / reverse
+   radius) so they sweep vertically out to the card's edges.
+========================================================= */
+
+.apply-tuition-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  width: calc(100% + (var(--pc-x) * 2));
+  margin: 26px calc(var(--pc-x) * -1) calc(var(--pc-b) * -1);
+  padding: 20px 20px 18px;
+
+  border: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+
+  background: var(--lime);
+  color: #050505;
+  font: inherit;
+  font-size: 15.5px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+
+  /* Reverse-radius top corners: a quarter circle is cut out of each
+     top corner, so the card's own background curves down into them. */
+  -webkit-mask:
+    radial-gradient(circle at 0 0, transparent var(--pc-notch), #000 calc(var(--pc-notch) + 0.5px)) left top / 50% 100% no-repeat,
+    radial-gradient(circle at 100% 0, transparent var(--pc-notch), #000 calc(var(--pc-notch) + 0.5px)) right top / 50% 100% no-repeat;
+          mask:
+    radial-gradient(circle at 0 0, transparent var(--pc-notch), #000 calc(var(--pc-notch) + 0.5px)) left top / 50% 100% no-repeat,
+    radial-gradient(circle at 100% 0, transparent var(--pc-notch), #000 calc(var(--pc-notch) + 0.5px)) right top / 50% 100% no-repeat;
+
+  transition: background 0.15s ease;
+}
+
+.apply-tuition-bar:hover {
+  background: var(--lime-hover);
+}
+
+.apply-tuition-bar:active {
+  filter: brightness(0.94);
+}
+
+.apply-tuition-bar:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: -4px;
+}
+
+.apply-tuition-bar.hidden {
+  display: none;
+}
+
+.apply-plus {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #050505;
+  color: var(--lime);
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   TUITION CARD + TUTOR CARDS, STACKED AS ONE UNIT
+========================================================= */
+
+.tuition-stack {
+  display: grid;
+  gap: 0;
+}
+
+.tuition-stack > .class-card {
+  border-radius: 0;
+}
+
+.tuition-stack > .class-card:first-child {
+  border-radius: 16px 16px 0 0;
+  border-bottom: 0;
+}
+
+.tuition-stack > .class-card:last-child {
+  border-radius: 0 0 16px 16px;
+}
+
+/* dashed seam between the tuition and each tutor attached to it */
+.tuition-stack > .tutor-card {
+  border-top: 1px dashed var(--border-light);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 60%),
+    var(--surface);
+}
+
+.tuition-stack > .tutor-card + .tutor-card {
+  border-top: 1px dashed var(--border);
+}
+
+/* first layer of a tutor card has nothing above it */
+.tutor-info-grid {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.tutor-when {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.tutor-when svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+
+/* third layer: Accept / Reject */
+.tutor-actions {
+  gap: 10px;
+}
+
+.tutor-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.tutor-btn-accept {
+  background: var(--lime);
+  color: #050505;
+}
+
+.tutor-btn-accept:hover:not(:disabled) {
+  background: var(--lime-hover);
+}
+
+.tutor-btn-reject {
+  background: transparent;
+  color: var(--danger);
+  border-color: rgba(255, 104, 104, 0.45);
+}
+
+.tutor-btn-reject:hover:not(:disabled) {
+  background: var(--danger-dim);
+  border-color: var(--danger);
+}
+
+.tutor-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+/* the answer the parent already gave stays clearly visible */
+.tutor-btn.chosen:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.tutor-btn-reject.chosen:disabled {
+  background: var(--danger-dim);
+  border-color: var(--danger);
+}
+
+
+/* ---------------- toast ---------------- */
+
+.profile-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 1100;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--lime-line);
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 12px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.profile-toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.profile-toast.error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+
+@media (max-width: 560px) {
+
+  .profile-card {
+    --pc-x: 18px;
+    --pc-b: 20px;
+    --pc-notch: 18px;
+  }
+
+  .apply-tuition-bar {
+    margin-top: 22px;
+    padding: 18px 16px 16px;
+    font-size: 15px;
+  }
+
+}
