@@ -1245,8 +1245,9 @@ function showSuccess(type, result) {
   localStorage.setItem(
     "urbantutorsite_student_session",
     JSON.stringify({
-      sessionToken: result.sessionToken,
-      profile: result.profile || null
+      // Privacy: only the token is kept in the browser - no
+      // email / mobile number is stored here.
+      sessionToken: result.sessionToken
     })
   );
 
