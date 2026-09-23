@@ -463,27 +463,84 @@ function renderClasses() {
     .map(item => renderClassCard(item, student))
     .join("");
 
+  fitHeadText();
+
 }
 
-// Cards are collapsed by default. A collapsed card opens on a click
-// anywhere on it; an open card closes again when its top strip is
-// clicked (so selecting text inside it never collapses it).
+// Cards are collapsed by default. A click anywhere on a card opens it,
+// and a click anywhere on an open card closes it again (Accept / Reject
+// keep their own job, and selecting text never collapses a card).
+//
+// Only ONE tuition - its own card plus its tutor cards - can be open at
+// a time: opening a card closes every card that belongs to another
+// tuition.
 function toggleCard(target, force) {
 
   const card = target.closest && target.closest("[data-card]");
 
   if (!card) return;
 
+  if (target.closest(".tutor-actions")) return;
+
+  if (!force) {
+    const selected = window.getSelection ? String(window.getSelection()) : "";
+    if (selected.trim()) return;
+  }
+
+  const group = card.dataset.group;
   const collapsed = card.classList.contains("is-collapsed");
 
-  if (!collapsed && !force && !target.closest(".class-row-top, .tutor-head")) return;
+  if (collapsed) {
+
+    // close everything that belongs to a different tuition
+    $("classesList").querySelectorAll("[data-card]").forEach(other => {
+      if (other.dataset.group !== group && !other.classList.contains("is-collapsed")) {
+        other.classList.add("is-collapsed");
+        other.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    Array.from(STATE.expanded).forEach(key => {
+      if (key.split(":")[1] !== group) STATE.expanded.delete(key);
+    });
+
+    STATE.expanded.add(card.dataset.card);
+
+  } else {
+
+    STATE.expanded.delete(card.dataset.card);
+
+  }
 
   card.classList.toggle("is-collapsed", !collapsed);
   card.setAttribute("aria-expanded", collapsed ? "true" : "false");
 
-  const key = card.dataset.card;
+  fitHeadText();
 
-  if (collapsed) STATE.expanded.add(key); else STATE.expanded.delete(key);
+}
+
+// First-layer text of an open tutor card stays on ONE line: if it does
+// not fit, the font size is reduced until it does.
+function fitHeadText() {
+
+  const list = $("classesList");
+
+  if (!list || !list.querySelectorAll) return;
+
+  list
+    .querySelectorAll(".tutor-card:not(.is-collapsed) .tutor-head-row, .tutor-card:not(.is-collapsed) .tutor-head-note")
+    .forEach(el => {
+
+      el.style.fontSize = "";
+
+      let size = parseFloat(window.getComputedStyle(el).fontSize) || 12;
+
+      while (el.scrollWidth > el.clientWidth + 0.5 && size > 8) {
+        size -= 0.5;
+        el.style.fontSize = size + "px";
+      }
+
+    });
 
 }
 
@@ -664,7 +721,7 @@ function renderClassCard(item, student) {
 
   const studentCard = `
     <div class="class-card${tutors.length ? " has-tutors" : ""}${cardOpen ? "" : " is-collapsed"}"
-         data-card="${escapeHTML(cardKey)}" tabindex="0" aria-expanded="${cardOpen ? "true" : "false"}">
+         data-card="${escapeHTML(cardKey)}" data-group="${escapeHTML(item.demoId)}" tabindex="0" aria-expanded="${cardOpen ? "true" : "false"}">
       <div class="class-spine ${statusClass}">
         ${item.demoId ? `<span class="class-spine-id">${escapeHTML(item.demoId)}</span><span class="class-spine-label">Demo ID</span>` : ""}
       </div>
@@ -839,7 +896,7 @@ function renderTutorCard(tutor, item) {
 
   return `
     <div class="class-card tutor-card tone-${head.cls.slice(7)}${open ? "" : " is-collapsed"}"
-         data-card="${escapeHTML(key)}" tabindex="0" aria-expanded="${open ? "true" : "false"}">
+         data-card="${escapeHTML(key)}" data-group="${escapeHTML(item.demoId)}" tabindex="0" aria-expanded="${open ? "true" : "false"}">
       <div class="class-spine ${head.cls}">
         ${tutor.tutorId ? `<span class="class-spine-id">${escapeHTML(tutor.tutorId)}</span><span class="class-spine-label">Tutor ID</span>` : ""}
       </div>
@@ -903,6 +960,7 @@ function renderTutorCard(tutor, item) {
  ************************************************************/
 
 let toastTimer = null;
+let fitTimer = null;
 
 function showToast(text, isError) {
 
@@ -1045,6 +1103,11 @@ function wireStaticEvents() {
     event.preventDefault();
     toggleCard(card, true);
 
+  });
+
+  window.addEventListener("resize", () => {
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(fitHeadText, 120);
   });
 
   // Logout
