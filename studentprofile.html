@@ -80,8 +80,14 @@
       </div>
 
       <div class="profile-stats" id="profileStats">
-        <!-- filled by JS: School / Subjects / Classes / Location -->
+        <!-- filled by JS: Location, then School below it -->
       </div>
+
+      <!-- Full-width tab fused to the bottom of this card -->
+      <button id="applyTuitionButton" class="apply-tuition-bar hidden" type="button">
+        <span class="apply-plus" aria-hidden="true">+</span>
+        <span>Apply for new tuition</span>
+      </button>
 
     </section>
 
@@ -239,7 +245,69 @@
   </section>
 </div>
 
+<!-- =====================================================
+     NEW TUITION MODAL
+     Adds new tuition requests for the student on screen.
+===================================================== -->
+
+<div id="newTuitionModal" class="add-modal hidden" aria-hidden="true">
+  <div class="add-modal-overlay" data-close-new></div>
+
+  <section class="add-modal-box" role="dialog" aria-modal="true" aria-labelledby="newTuitionTitle">
+
+    <button id="closeNewTuition" class="add-modal-close" type="button" aria-label="Close">×</button>
+
+    <h2 id="newTuitionTitle">Apply for new tuition</h2>
+    <p class="muted add-hint" id="newTuitionFor"></p>
+
+    <form id="newTuitionForm" novalidate>
+
+      <div class="add-grid">
+
+        <label class="add-field add-wide">
+          <span>Subjects</span>
+          <input id="newSubjects" type="text" maxlength="250" autocomplete="off" placeholder="Mathematics, Physics" required>
+          <small class="muted">Each subject becomes its own tuition request.</small>
+        </label>
+
+        <div class="add-field">
+          <span>Preferred tutor</span>
+          <div class="add-options">
+            <label><input type="radio" name="newTutor" value="Male"><span>Male</span></label>
+            <label><input type="radio" name="newTutor" value="Any" checked><span>Any</span></label>
+            <label><input type="radio" name="newTutor" value="Female"><span>Female</span></label>
+          </div>
+        </div>
+
+        <div class="add-field">
+          <span>Medium</span>
+          <div class="add-options">
+            <label><input type="radio" name="newMedium" value="Offline"><span>Offline</span></label>
+            <label><input type="radio" name="newMedium" value="Any" checked><span>Any</span></label>
+            <label><input type="radio" name="newMedium" value="Online"><span>Online</span></label>
+          </div>
+        </div>
+
+        <div class="add-field add-wide">
+          <span>Preferred timing</span>
+          <div class="add-options add-timings" id="newTimings">
+            <!-- filled by JS -->
+          </div>
+        </div>
+
+      </div>
+
+      <p id="newTuitionMessage" class="add-message" role="alert"></p>
+
+      <button id="newTuitionSubmit" class="add-submit" type="submit">Post tuition request</button>
+
+    </form>
+
+  </section>
+</div>
+
 <!-- Reusable Footer -->
+
 <div id="site-footer"></div>
 
 <script src="js/header.js"></script>
