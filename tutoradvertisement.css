@@ -11,32 +11,24 @@
    toast) lives here.
 ========================================================= */
 
+/* Page heading - same two-colour treatment as the homepage
+   "Meet our tutors." / "Meet our students." headings. */
 .tuitions-hero {
   text-align: center;
-  padding: 40px 0 20px;
-}
-
-.tuitions-kicker {
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--lime);
-  font-weight: 600;
-  margin-bottom: 10px;
+  padding: 24px 0 32px;
 }
 
 .tuitions-hero h1 {
-  font-size: clamp(28px, 4vw, 40px);
-  margin: 0 0 10px;
-  color: var(--text);
+  margin: 0;
+  color: #f5f5f5;
+  font-size: clamp(34px, 5vw, 56px);
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -2px;
 }
 
-.tuitions-sub {
-  color: var(--muted);
-  max-width: 520px;
-  margin: 0 auto;
-  font-size: 15px;
-  line-height: 1.5;
+.tuitions-hero h1 span {
+  color: #b7ff00;
 }
 
 /* ================= WIDER PAGE CONTAINER ================= */
@@ -115,9 +107,11 @@
 }
 
 .tuitions-count {
-  color: var(--muted-2);
-  font-size: 13px;
-  margin: 0 2px 14px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  margin: 0 0 16px;
 }
 
 /* ================= TUITIONS GRID ================= */
