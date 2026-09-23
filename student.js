@@ -437,6 +437,39 @@ async function checkEmail() {
       currentMode = "login";
       currentName = result.name || "";
 
+      /*
+       * NEW: actually e-mail the login OTP (the backend's
+       * "sendLoginOTP" action). Previously the OTP page was
+       * shown without any OTP ever being sent.
+       */
+
+      showMessage(
+        "emailMessage",
+        "Sending your login OTP...",
+        "info"
+      );
+
+      const otpResult = await apiRequest({
+        action: "sendLoginOTP",
+        email: email
+      });
+
+      if (!otpResult.success) {
+
+        showMessage(
+          "emailMessage",
+          otpResult.message || "Unable to send login OTP.",
+          "error"
+        );
+
+        return;
+
+      }
+
+      clearMessage("emailMessage");
+
+      result.resendAfter = otpResult.resendAfter;
+
       emailDisplay.textContent = email;
 
       document.getElementById("otpEyebrow").textContent =
@@ -1119,7 +1152,12 @@ async function resendOTP() {
 
     const payload = {
 
-      action: "resendOTP",
+      // NEW: a login OTP is re-sent with the login action, so
+      // the backend doesn't treat it as a new registration.
+      action:
+        currentMode === "login"
+          ? "sendLoginOTP"
+          : "resendOTP",
 
       email: currentEmail
 
@@ -1212,6 +1250,12 @@ function showSuccess(type, result) {
     })
   );
 
+  // NEW: the homepage toggle / header open on "Student" right
+  // after a student logs in (mirrors the tutor side).
+  try {
+    sessionStorage.setItem("urbantutorsite_last_login", "student");
+  } catch (ignore) {}
+
   if (continueHomeButton) {
     continueHomeButton.href = "index.html";
   }
@@ -1250,6 +1294,11 @@ async function openStudentProfile() {
   if (!session || !session.sessionToken) {
     return;
   }
+
+  // NEW: the full Student Profile page (all students on this
+  // account) replaces the old single-student modal.
+  window.location.href = "studentprofile.html";
+  return;
 
   try {
 
