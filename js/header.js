@@ -248,8 +248,14 @@ function handleHeaderClick(event) {
 
   if (studentButton) {
 
+    // NEW: logged-in student -> Student Profile page.
     loginButton.href =
-      "student.html";
+      isLoggedInStudent_()
+        ? "studentprofile.html"
+        : "student.html";
+
+    loginButton.title =
+      isLoggedInStudent_() ? "My Profile" : "Login";
 
     return;
   }
@@ -351,19 +357,43 @@ function updateLoginDestination() {
     )
   ) {
 
+    // NEW: logged-in student -> Student Profile page.
     loginButton.href =
-      "student.html";
+      isLoggedInStudent_()
+        ? "studentprofile.html"
+        : "student.html";
+
+    loginButton.title =
+      isLoggedInStudent_() ? "My Profile" : "Login";
 
     return;
   }
 
 
   /*
-   * Default
+   * Default (pages without the Student / Tutor toggle).
+   * NEW: a logged-in student goes to their Student Profile.
+   * If both a tutor and a student are signed in on this
+   * device, the most recent login wins.
    */
 
-  loginButton.href =
-    isLoggedInTutor_() ? "tutorprofile.html" : "student.html";
+  const lastLogin = lastLoginType_();
+
+  if (isLoggedInStudent_() && (lastLogin === "student" || !isLoggedInTutor_())) {
+
+    loginButton.href = "studentprofile.html";
+    loginButton.title = "My Profile";
+
+  } else if (isLoggedInTutor_()) {
+
+    loginButton.href = "tutorprofile.html";
+    loginButton.title = "My Profile";
+
+  } else {
+
+    loginButton.href = "student.html";
+
+  }
 
 }
 
@@ -382,6 +412,36 @@ function isLoggedInTutor_() {
     return !!localStorage.getItem("urbantutorsite_tutor_session");
   } catch (error) {
     return false;
+  }
+
+}
+
+
+/* =========================================================
+   NEW: STUDENT SESSION CHECK
+   =========================================================
+   Read-only, same as the tutor check above. student.js and
+   studentprofile.js remain the only places that create,
+   verify, or clear a student session.
+   ========================================================= */
+
+function isLoggedInStudent_() {
+
+  try {
+    return !!localStorage.getItem("urbantutorsite_student_session");
+  } catch (error) {
+    return false;
+  }
+
+}
+
+
+function lastLoginType_() {
+
+  try {
+    return sessionStorage.getItem("urbantutorsite_last_login") || "";
+  } catch (error) {
+    return "";
   }
 
 }
