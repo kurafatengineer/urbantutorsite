@@ -1,0 +1,111 @@
+<!-- =====================================================
+     HOMEPAGE LANDING  (visitors who are NOT logged in)
+     Every figure, chart and card is filled from your sheets
+     by landing.js  ->  API action "getHomeStats".
+===================================================== -->
+
+<div class="landing">
+
+  <div class="ld-hero">
+    <svg class="ld-rings" viewBox="0 0 520 520" aria-hidden="true"><circle cx="260" cy="260" r="120"/><circle cx="260" cy="260" r="180"/><circle cx="260" cy="260" r="250"/></svg>
+    <div class="ld-wrap">
+      <span class="ld-kick">HOME TUITION, MATCHED</span>
+      <h1 class="ld-h1">The right tutor, <em>right around</em> the corner.</h1>
+      <p class="ld-lead">Verified tutors at home or online. A free demo first, always.</p>
+      <div class="ld-btns">
+        <a class="ld-btn ld-p" href="student.html">I'm a student <svg class="ld-ico"><use href="#ld-arrow"/></svg></a>
+        <a class="ld-btn ld-g" href="tutorregistration.html">I'm a tutor</a>
+      </div>
+
+      <div class="ld-kpis" id="ldKpis">
+        <div class="ld-kpi"><b data-k="tutors">—</b><span>Verified tutors <i data-d="tutors"></i></span></div>
+        <div class="ld-kpi"><b data-k="students">—</b><span>Students <i data-d="students"></i></span></div>
+        <div class="ld-kpi"><b data-k="tuitions">—</b><span>Tuitions this month <i data-d="tuitions"></i></span></div>
+        <div class="ld-kpi"><b data-k="demos">—</b><span>Demos this week <i data-d="demos"></i></span></div>
+      </div>
+
+      <div class="ld-ticker ld-hidden" id="ldTicker" aria-live="polite"><span class="ld-pulse" aria-hidden="true"></span><span class="ld-tk" id="ldTk"></span></div>
+    </div>
+  </div>
+
+  <div class="ld-wrap">
+
+    <section class="ld-sec ld-reveal" id="ldHow">
+      <div class="ld-sh">
+        <span class="ld-num">01 · HOW IT WORKS</span>
+        <h2 class="ld-h2">Three steps. <em>Zero guesswork.</em></h2>
+      </div>
+      <div class="ld-steps">
+        <div class="ld-step"><div class="ld-n">01</div><b>Tell us what you need</b><p>Subject, class, timing and area. One minute.</p></div>
+        <div class="ld-step"><div class="ld-n">02</div><b>Meet verified tutors</b><p>Checked ID and qualifications. Compare them calmly.</p></div>
+        <div class="ld-step"><div class="ld-n">03</div><b>Free demo, then begin</b><p>Only continue with the tutor you like.</p></div>
+      </div>
+    </section>
+
+    <section class="ld-sec ld-reveal ld-hidden" id="ldDemand">
+      <div class="ld-sh">
+        <span class="ld-num">02 · WHAT STUDENTS NEED</span>
+        <h2 class="ld-h2" id="ldDemandH">What students need.</h2>
+        <p>Tuition requests by subject over the last 30 days.</p>
+      </div>
+      <div class="ld-chips" id="ldCities"></div>
+      <div class="ld-demand">
+        <div class="ld-card"><div class="ld-chart"><canvas id="ldSubjects"></canvas></div></div>
+        <div class="ld-card ld-side">
+          <div><div class="ld-big ld-lime" id="ldTopShare">0%</div><small id="ldTopShareTxt"></small></div>
+          <div><div class="ld-big" id="ldCityReq">0</div><small id="ldCityReqTxt"></small><div class="ld-bar"><i id="ldCityBar"></i></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ld-sec ld-reveal ld-hidden" id="ldGrowth">
+      <div class="ld-sh">
+        <span class="ld-num">03 · GROWTH</span>
+        <h2 class="ld-h2">Every month, <em>more matches.</em></h2>
+      </div>
+      <div class="ld-growth">
+        <div class="ld-card ld-side">
+          <div id="ldRateBox"><div class="ld-big ld-lime" id="ldRate">0%</div><small>of requests turned into regular classes</small></div>
+          <div id="ldGrowthBox"><div class="ld-big" id="ldGrowthPct">0%</div><small id="ldGrowthTxt">tuitions compared with the 3 months before</small></div>
+        </div>
+        <div class="ld-card">
+          <div class="ld-legend"><span><i style="background:#c8ff2e"></i>Tuitions posted</span><span><i style="background:#9486ff"></i>Classes started</span></div>
+          <div class="ld-chart"><canvas id="ldGrowthChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ld-sec ld-reveal ld-hidden" id="ldOpen">
+      <div class="ld-sh">
+        <span class="ld-num">04 · FOR TUTORS</span>
+        <h2 class="ld-h2">Open tuitions, <em>near you.</em></h2>
+        <p>New requests from parents. Names and addresses stay private until you are matched.</p>
+      </div>
+      <div class="ld-tuitions" id="ldTuitions"></div>
+      <a class="ld-more" href="tutoradvertisement.html">See all open tuitions <svg class="ld-ico"><use href="#ld-arrow"/></svg></a>
+    </section>
+
+    <section class="ld-sec ld-reveal ld-hidden" id="ldTutors">
+      <div class="ld-sh">
+        <span class="ld-num">05 · FOR STUDENTS</span>
+        <h2 class="ld-h2">Tutors worth <em>meeting.</em></h2>
+      </div>
+      <div class="ld-tutors" id="ldTutorGrid"></div>
+    </section>
+
+    <div class="ld-cta ld-reveal">
+      <h3>Your next <b>great class</b> starts here.</h3>
+      <div class="ld-btns">
+        <a class="ld-btn ld-p" href="student.html">I'm a student</a>
+        <a class="ld-btn ld-g" href="tutorregistration.html">I'm a tutor</a>
+      </div>
+    </div>
+
+  </div>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="ld-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+    <symbol id="ld-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  </svg>
+
+</div>
