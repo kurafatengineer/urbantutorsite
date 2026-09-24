@@ -89,6 +89,27 @@
   >
 
 
+
+  <!-- -----------------------------------------------------
+       06. LANDING (visitors who are NOT logged in)
+       -----------------------------------------------------
+       Live figures and charts from the Students, Tutors and
+       Demos sheets (Apps Script action "getHomeStats").
+       ----------------------------------------------------- -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Inter:wght@400;500;600&display=swap"
+  >
+
+  <link
+    rel="stylesheet"
+    href="homepage/landing/landing.css"
+  >
+
+
 </head>
 
 
@@ -109,6 +130,13 @@
        ===================================================== -->
 
   <main id="homepage">
+
+
+    <!-- ===================================================
+         00. LANDING  (NEW - only when nobody is logged in)
+         =================================================== -->
+
+    <div id="home-landing"></div>
 
 
     <!-- ===================================================
@@ -234,6 +262,16 @@
        ----------------------------------------------------- -->
 
   <script src="homepage/students/students.js"></script>
+
+
+
+  <!-- -----------------------------------------------------
+       06. LANDING JAVASCRIPT (+ Chart.js for its charts)
+       ----------------------------------------------------- -->
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <script src="homepage/landing/landing.js"></script>
 
 
 
@@ -384,6 +422,38 @@
           window.UrbanSession ? window.UrbanSession.role() : "";
 
         document.body.dataset.role = role || "guest";
+
+
+
+        /* =================================================
+           00. NOBODY LOGGED IN -> NEW LANDING PAGE
+           =================================================
+           Visitors see the landing page (live figures from
+           the sheets). The logged-in student / tutor views
+           below are unchanged.
+           ================================================= */
+
+        if (!role) {
+
+          ["home-toggle", "home-hero", "home-tuitions", "home-tutors", "home-students"]
+            .forEach(function (id) {
+              const box = document.getElementById(id);
+              if (box) box.remove();
+            });
+
+          await loadComponent(
+            "home-landing",
+            "homepage/landing/landing.html",
+            window.LandingComponent,
+            "Landing"
+          );
+
+          return;
+
+        }
+
+        const landingBox = document.getElementById("home-landing");
+        if (landingBox) landingBox.remove();
 
 
 
