@@ -435,6 +435,12 @@
 
         if (!role) {
 
+          // Visitors always get the DESKTOP layout of the homepage
+          // (phones and tablets show it scaled to fit, like the
+          // Admin Panel). Logged-in views keep the normal layout.
+          const viewport = document.querySelector('meta[name="viewport"]');
+          if (viewport) viewport.setAttribute("content", "width=1200");
+
           ["home-toggle", "home-hero", "home-tuitions", "home-tutors", "home-students"]
             .forEach(function (id) {
               const box = document.getElementById(id);
