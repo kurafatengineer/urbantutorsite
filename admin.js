@@ -365,6 +365,8 @@ function wireEvents() {
     $(id).addEventListener("click", onListClick)
   );
 
+  $("tuitionList").addEventListener("input", onAssignInput);
+
 }
 
 function chipGroup(id, onChange) {
@@ -383,6 +385,8 @@ function rerenderCurrent() {
 }
 
 async function onListClick(event) {
+
+  if (onSuggestPick(event)) return;
 
   const actionEl = event.target.closest("[data-action]");
 
@@ -467,7 +471,7 @@ async function saveRecord(box, button) {
 
   const changes = {};
 
-  box.querySelectorAll("[data-field]").forEach(input => {
+  box.querySelectorAll("[data-field]:not([readonly])").forEach(input => {
     const field = input.dataset.field;
     const value = input.value.trim();
     if (value !== String(record.values[field] || "").trim()) changes[field] = value;
@@ -515,13 +519,15 @@ async function saveTuition(box, button) {
 async function assignTutor(box, button) {
 
   const input = box.querySelector("[data-assign]");
-  const tutor = input.value.trim();
+  const found = exactTutor(input.value.trim());
 
-  if (!tutor) {
-    toast("Enter a Tutor ID or mobile number.", true);
+  if (!found) {
+    toast("No tutor found with that Tutor ID or mobile number.", true);
     input.focus();
     return;
   }
+
+  const tutor = found.id;
 
   const ok = await save({ action: "adminAssignTutor", demoId: box.dataset.demo, tutor }, button);
 
@@ -584,7 +590,7 @@ function rowState(row) {
 }
 
 const ROW_LABELS = {
-  open: "Open", schedule: "Needs demo", scheduled: "Demo scheduled",
+  open: "Open", schedule: "Schedule Demo", scheduled: "Demo Scheduled",
   processing: "Processing", running: "Running", completed: "Completed",
   declined: "Declined", terminated: "Terminated"
 };
@@ -600,7 +606,7 @@ function groupState(group) {
 }
 
 const GROUP_LABELS = {
-  new: "New", schedule: "To schedule", scheduled: "Demo scheduled",
+  new: "Find Tutors", schedule: "Schedule Demo", scheduled: "Demo Scheduled",
   running: "Running", completed: "Completed", terminated: "Terminated"
 };
 
@@ -633,18 +639,35 @@ function demoGroups() {
 
 }
 
+// Today as "dd/mm/yyyy" and "yyyy-mm-dd", to compare with Demo Date.
+function isToday(text) {
+  const iso = toDateInput(text);
+  if (!iso) return false;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return iso === today;
+}
+
 function renderStats() {
 
   const groups = demoGroups();
   const tutors = STATE.data.tutors.rows;
-
   const count = s => groups.filter(g => groupState(g) === s).length;
 
+  const todaysDemos = (STATE.data.demos || []).filter(r => {
+    const s = rowState(r);
+    return r.hasTutor && isToday(r.demoDate) && s !== "declined" && s !== "terminated";
+  }).length;
+
   const stats = [
-    ["New tuitions", count("new"), "lime"],
-    ["To schedule", count("schedule"), "violet"],
-    ["Running", count("running"), "green"],
-    ["Tutors pending", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "pending").length, "amber"]
+    ["Find Tutors", count("new"), "lime"],
+    ["Demo to Schedule", count("schedule"), "violet"],
+    ["Running Classes", count("running"), "green"],
+    ["Tutor Verification Pending", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "pending").length, "amber"],
+    ["Classes Completed", count("completed"), "grey"],
+    ["Terminated", count("terminated"), "red"],
+    ["Today's Demo", todaysDemos, "violet"],
+    ["Verified Tutors", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "verified").length, "green"]
   ];
 
   $("adminStats").innerHTML = stats.map(([label, value, tone]) => `
@@ -657,68 +680,82 @@ function renderStats() {
 }
 
 
-/* ---------------- generic record (tutor / student) ---------------- */
+/* ---------------- data boxes ----------------
+   Every value sits in a box with its name on the top border.
+   View mode: read-only.  Edit mode: editable fields turn lime. */
 
-function fieldsView(kind, record) {
+function box(label, value, opts = {}) {
 
-  const data = STATE.data[kind];
+  const editable = !!opts.editable;
+  const attr = opts.attr || "";
+  const cls = `admin-box${editable ? " is-edit" : ""}${opts.wide ? " wide" : ""}`;
 
-  return `
-    <dl class="admin-facts">
-      ${data.headers.map(h => {
-        const value = record.values[h] || "";
-        if (!value) return "";
-        const shown = LINK_FIELDS.includes(h) && /^https?:\/\//i.test(value)
-          ? `<a href="${esc(value)}" target="_blank" rel="noopener">Open</a>`
-          : esc(value);
-        return `<div><dt>${esc(h)}</dt><dd>${shown}</dd></div>`;
-      }).join("")}
-    </dl>
-  `;
+  let control;
+
+  if (opts.options && editable) {
+    const current = opts.options.find(o => lower(o) === lower(value)) || opts.options[0];
+    control = `<select ${attr}>${opts.options.map(o => `<option${o === current ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+  } else if (opts.link && /^https?:\/\//i.test(value)) {
+    control = `<a class="admin-box-link" href="${esc(value)}" target="_blank" rel="noopener">Open ${esc(label)}</a>`;
+  } else if (opts.multiline) {
+    control = `<textarea ${attr} rows="2"${editable ? "" : " readonly"}>${esc(value)}</textarea>`;
+  } else {
+    control = `<input ${attr} type="${opts.type || "text"}" value="${esc(value)}"${editable ? "" : " readonly"}${opts.placeholder ? ` placeholder="${esc(opts.placeholder)}"` : ""}>`;
+  }
+
+  return `<label class="${cls}">${control}<span>${esc(label)}</span></label>`;
 
 }
 
-function fieldsForm(kind, record) {
+function fieldsBoxes(kind, record, editing) {
 
   const data = STATE.data[kind];
   const readOnly = (data.readOnly || []).map(lower);
 
   return `
-    <div class="admin-form">
+    <div class="admin-boxes">
       ${data.headers.map(h => {
 
         const value = record.values[h] || "";
-
-        if (readOnly.includes(lower(h))) {
-          return `<div class="admin-field is-readonly"><span>${esc(h)}</span><p>${esc(value) || "—"}</p></div>`;
-        }
+        const canEdit = editing && !readOnly.includes(lower(h));
+        const long = value.length > 48 || /address|subject you teach|classes you teach|boards you teach|languages|special/i.test(h);
 
         if (lower(h) === "verification status") {
-          const values = STATE.data.verificationValues;
-          const current = values.find(v => lower(v) === lower(value)) || "Pending for Verification";
-          return `
-            <label class="admin-field">
-              <span>${esc(h)}</span>
-              <select data-field="${esc(h)}">
-                ${values.map(v => `<option${v === current ? " selected" : ""}>${esc(v)}</option>`).join("")}
-              </select>
-            </label>`;
+          return box(h, value || "Pending for Verification", {
+            editable: canEdit,
+            options: STATE.data.verificationValues,
+            attr: canEdit ? `data-field="${esc(h)}"` : ""
+          });
         }
 
-        const long = value.length > 60 || /address|subject you teach|classes you teach|boards you teach|languages|special/i.test(h);
-
-        return `
-          <label class="admin-field${long ? " wide" : ""}">
-            <span>${esc(h)}</span>
-            ${long
-              ? `<textarea data-field="${esc(h)}" rows="2">${esc(value)}</textarea>`
-              : `<input data-field="${esc(h)}" type="text" value="${esc(value)}">`}
-          </label>`;
+        return box(h, value, {
+          editable: canEdit,
+          wide: long,
+          multiline: long,
+          link: LINK_FIELDS.includes(h),
+          attr: canEdit ? `data-field="${esc(h)}"` : ""
+        });
 
       }).join("")}
     </div>
   `;
 
+}
+
+// "Edit details" (full width) / "Save changes" + "Cancel" joined.
+function editButtons(key, editing, saveAction, editLabel) {
+
+  return editing
+    ? `<div class="admin-pair">
+         <button class="admin-primary" data-action="${saveAction}" type="button">Save changes</button>
+         <button class="admin-ghost" data-action="cancel" data-key="${esc(key)}" type="button">Cancel</button>
+       </div>`
+    : `<button class="admin-ghost admin-wide" data-action="edit" data-key="${esc(key)}" type="button">${esc(editLabel)}</button>`;
+
+}
+
+function note(text) {
+  return `<p class="admin-note">${esc(text)}</p>`;
 }
 
 function recordCard(kind, record, opts) {
@@ -728,7 +765,7 @@ function recordCard(kind, record, opts) {
   const editing = STATE.editing.has(key);
 
   return `
-    <article class="admin-card${open ? " is-open" : ""}" data-tone="${opts.tone || ""}"
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="${opts.tone || ""}"
       data-box data-kind="${kind}" data-row="${record.rowNumber}" data-id="${esc(record.id)}" data-key="${esc(key)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
@@ -741,31 +778,41 @@ function recordCard(kind, record, opts) {
         <span class="admin-caret" aria-hidden="true"></span>
       </div>
 
-      
-        <div class="admin-card-body">
-          ${editing ? fieldsForm(kind, record) : fieldsView(kind, record)}
-          ${opts.extra || ""}
-          <div class="admin-actions">
-            ${editing
-              ? `<button class="admin-primary small" data-action="save-record" type="button">Save changes</button>
-                 <button class="admin-ghost small" data-action="cancel" data-key="${esc(key)}" type="button">Cancel</button>`
-              : `<button class="admin-ghost small" data-action="edit" data-key="${esc(key)}" type="button">Edit details</button>`}
-          </div>
-          ${editing && kind === "students" ? `<p class="admin-note">Changing the Email moves this student to that login. Brothers / sisters share one Email and Phone.</p>` : ""}
-          ${editing && kind === "tutors" ? `<p class="admin-note">Changing the Mobile Number also moves this tutor's tuitions to the new number.</p>` : ""}
-        </div>
+      <div class="admin-card-body">
+        ${fieldsBoxes(kind, record, editing)}
+        ${opts.extra || ""}
+        ${editButtons(key, editing, "save-record", "Edit Details")}
+        ${editing && kind === "students" ? note("Changing the Email moves this student to that login. Brothers / sisters share one Email and Phone.") : ""}
+        ${editing && kind === "tutors" ? note("Changing the Mobile Number also moves this tutor's tuitions to the new number.") : ""}
+      </div>
 
     </article>
   `;
 
 }
 
+
+/* ---------------- search (every field, every word) ---------------- */
+
+function haystackOfRecord(record) {
+  return record ? Object.values(record.values || {}).join(" ") : "";
+}
+
+function matchesAll(query, text) {
+  const words = lower(query).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = lower(text);
+  return words.every(w => hay.includes(w));
+}
+
+
+/* ---------------- tutors ---------------- */
+
 function renderTutors() {
 
   const rows = STATE.data.tutors.rows
     .filter(r => STATE.tutorFilter === "all" || statusGroup(r.values["Verification Status"]) === STATE.tutorFilter)
-    .filter(r => matches($("tutorSearch").value, [r.id, r.values["Full Name"], r.values["Mobile Number"],
-      r.values["City"], r.values["Subject You Teach"], r.values["E-mail Address"]]))
+    .filter(r => matchesAll($("tutorSearch").value, haystackOfRecord(r)))
     .slice()
     .sort((a, b) => {
       const order = { pending: 0, rejected: 1, verified: 2 };
@@ -785,15 +832,18 @@ function renderTutors() {
 
 }
 
+
+/* ---------------- students ---------------- */
+
 function renderStudents() {
 
+  const groups = demoGroups();
+
   const rows = STATE.data.students.rows
-    .filter(r => matches($("studentSearch").value, [r.id, r.values["Student Name"], r.values["Parents Name"],
-      r.values["Phone"], r.values["School"], r.values["City"], r.values["Email"]]))
+    .filter(r => matchesAll($("studentSearch").value,
+      haystackOfRecord(r) + " " + groups.filter(g => g.first.studentId === r.id).map(g => g.demoId + " " + g.first.subject).join(" ")))
     .slice()
     .reverse();
-
-  const groups = demoGroups();
 
   $("studentList").innerHTML = rows.length ? rows.map(r => {
 
@@ -826,13 +876,15 @@ function renderTuitions() {
   const list = demoGroups().filter(g => {
 
     const student = STUDENT_BY_ID[g.first.studentId];
-    const tutorNames = g.rows.map(r => {
-      const t = TUTOR_BY_MOBILE[r.mobileKey];
-      return t ? `${t.values["Full Name"]} ${t.id}` : "";
-    });
 
-    if (!matches(query, [g.demoId, g.first.subject, g.first.studentId,
-      student && student.values["Student Name"], student && student.values["City"], ...tutorNames])) return false;
+    const text = [
+      g.demoId, g.first.subject, g.first.medium, g.first.preferredTutor, g.first.preferredTiming,
+      GROUP_LABELS[groupState(g)],
+      haystackOfRecord(student),
+      ...g.rows.map(r => haystackOfRecord(TUTOR_BY_MOBILE[r.mobileKey]) + " " + (r.mobile || ""))
+    ].join(" ");
+
+    if (!matchesAll(query, text)) return false;
 
     return filter === "all" || groupState(g) === filter;
 
@@ -854,8 +906,27 @@ function tuitionStack(g) {
   const tutorRows = g.rows.filter(r => r.hasTutor);
   const terminated = state === "terminated";
 
+  const tuitionBoxes = `
+    <div class="admin-boxes">
+      ${box("Demo ID", g.demoId)}
+      ${box("Subject", f.subject, { editable: editing, attr: editing ? `data-tfield="Subject"` : "" })}
+      ${box("Medium", editing ? (f.medium || "Any") : mediumText(f.medium), { editable: editing, options: ["Any", "Online", "Offline"], attr: editing ? `data-tfield="Medium"` : "" })}
+      ${box("Preferred Tutor", editing ? (f.preferredTutor || "Any") : genderText(f.preferredTutor), { editable: editing, options: ["Any", "Male", "Female"], attr: editing ? `data-tfield="Preferred Tutor"` : "" })}
+      ${box("Preferred Timing", f.preferredTiming, { editable: editing, wide: true, attr: editing ? `data-tfield="Preferred Timing"` : "" })}
+      ${box("Posted On", f.postedOn)}
+    </div>`;
+
+  const tuitionButtons = editing
+    ? editButtons(key, true, "save-tuition", "Edit Tuition")
+    : `<div class="admin-split">
+         <button class="admin-ghost" data-action="edit" data-key="${esc(key)}" type="button">Edit Tuition</button>
+         ${terminated
+           ? `<button class="admin-ghost" data-action="reopen" type="button">Reopen Tuition</button>`
+           : `<button class="admin-ghost admin-danger" data-action="terminate" type="button">Terminate Tuition</button>`}
+       </div>`;
+
   const head = `
-    <article class="admin-card tuition-card${open ? " is-open" : ""}" data-box data-demo="${esc(g.demoId)}">
+    <article class="admin-card tuition-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-demo="${esc(g.demoId)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-card-title">
@@ -866,41 +937,26 @@ function tuitionStack(g) {
         <span class="admin-caret" aria-hidden="true"></span>
       </div>
 
-      
-        <div class="admin-card-body">
+      <div class="admin-card-body">
 
-          <h3 class="admin-section-title">Tuition</h3>
-          ${editing ? tuitionForm(f) : `
-            <dl class="admin-facts">
-              ${fact("Demo ID", g.demoId)}
-              ${fact("Subject", f.subject)}
-              ${fact("Medium", mediumText(f.medium))}
-              ${fact("Preferred tutor", genderText(f.preferredTutor))}
-              ${fact("Preferred timing", f.preferredTiming)}
-              ${fact("Posted on", f.postedOn)}
-            </dl>`}
+        <h3 class="admin-section-title">Tuition</h3>
+        ${tuitionBoxes}
+        ${tuitionButtons}
 
-          <div class="admin-actions">
-            ${editing
-              ? `<button class="admin-primary small" data-action="save-tuition" type="button">Save tuition</button>
-                 <button class="admin-ghost small" data-action="cancel" data-key="${esc(key)}" type="button">Cancel</button>`
-              : `<button class="admin-ghost small" data-action="edit" data-key="${esc(key)}" type="button">Edit tuition</button>`}
-            ${terminated
-              ? `<button class="admin-ghost small" data-action="reopen" type="button">Reopen tuition</button>`
-              : `<button class="admin-ghost small admin-danger" data-action="terminate" type="button">Terminate tuition</button>`}
-          </div>
+        <h3 class="admin-section-title">Student</h3>
+        ${student ? fieldsBoxes("students", student, false) : note(`Student ${f.studentId} was not found in the Students sheet.`)}
 
-          <h3 class="admin-section-title">Student</h3>
-          ${student ? fieldsView("students", student) : `<p class="admin-note">Student ${esc(f.studentId)} was not found in the Students sheet.</p>`}
+        ${terminated ? "" : `
+          <div class="admin-assign">
+            <label class="admin-float">
+              <input data-assign type="text" placeholder=" " autocomplete="off">
+              <span>Enter Tutor ID to assign a tutor</span>
+            </label>
+            <div class="admin-suggest hidden" data-suggest></div>
+            <button class="admin-primary admin-wide" data-action="assign" type="button" disabled>Assign Tutor</button>
+          </div>`}
 
-          ${terminated ? "" : `
-            <h3 class="admin-section-title">Assign a tutor</h3>
-            <div class="admin-assign">
-              <input data-assign type="text" placeholder="Tutor ID or mobile number" autocomplete="off">
-              <button class="admin-primary small" data-action="assign" type="button">Assign</button>
-            </div>`}
-
-        </div>
+      </div>
 
     </article>
   `;
@@ -919,33 +975,6 @@ function tutorOrder(state) {
   return { running: 0, completed: 1, processing: 2, scheduled: 3, schedule: 4, declined: 5, terminated: 6 }[state] ?? 9;
 }
 
-function tuitionForm(f) {
-
-  const select = (field, options, value) => `
-    <label class="admin-field">
-      <span>${esc(field)}</span>
-      <select data-tfield="${esc(field)}">
-        ${options.map(o => `<option${lower(o) === lower(value) ? " selected" : ""}>${esc(o)}</option>`).join("")}
-      </select>
-    </label>`;
-
-  return `
-    <div class="admin-form">
-      <label class="admin-field">
-        <span>Subject</span>
-        <input data-tfield="Subject" type="text" value="${esc(f.subject)}">
-      </label>
-      ${select("Preferred Tutor", ["Any", "Male", "Female"], f.preferredTutor || "Any")}
-      ${select("Medium", ["Any", "Online", "Offline"], f.medium || "Any")}
-      <label class="admin-field wide">
-        <span>Preferred Timing</span>
-        <input data-tfield="Preferred Timing" type="text" value="${esc(f.preferredTiming)}" placeholder="8 AM, 5 PM">
-      </label>
-    </div>
-  `;
-
-}
-
 function tutorRowCard(row, terminated) {
 
   const tutor = TUTOR_BY_MOBILE[row.mobileKey];
@@ -955,6 +984,7 @@ function tutorRowCard(row, terminated) {
   const name = tutor ? tutor.values["Full Name"] : "Unknown tutor";
   const gender = tutor ? tutor.values["Gender"] : "";
   const verification = tutor ? tutor.values["Verification Status"] : "";
+  const off = terminated ? " disabled" : "";
 
   const parent = row.parentAccepted ? "accepted" : row.parentRejected ? "rejected" : "pending";
   const tut = row.tutorAccepted ? "accepted" : row.tutorRejected ? "rejected" : "pending";
@@ -963,10 +993,16 @@ function tutorRowCard(row, terminated) {
     <div class="admin-seg" role="radiogroup" aria-label="${who === "parent" ? "Parent" : "Tutor"}">
       ${["pending", "accepted", "rejected"].map(v => `
         <label>
-          <input type="radio" name="${who}-${row.rowNumber}" value="${v}"${v === value ? " checked" : ""}${terminated ? " disabled" : ""}>
+          <input type="radio" name="${who}-${row.rowNumber}" value="${v}"${v === value ? " checked" : ""}${off}>
           <span data-v="${v}">${v === "pending" ? "Pending" : v === "accepted" ? "Accepted" : "Rejected"}</span>
         </label>`).join("")}
     </div>`;
+
+  const input = (field, label, value, type) => `
+    <label class="admin-box is-edit${type ? " is-picker" : ""}">
+      <input data-rfield="${field}" type="${type || "text"}" value="${esc(value)}"${off}>
+      <span>${esc(label)}</span>
+    </label>`;
 
   return `
     <article class="admin-card tutor-row-card${open ? " is-open" : ""}" data-tone="${state}"
@@ -982,50 +1018,140 @@ function tutorRowCard(row, terminated) {
         <span class="admin-caret" aria-hidden="true"></span>
       </div>
 
-      
-        <div class="admin-card-body">
+      <div class="admin-card-body">
 
-          <h3 class="admin-section-title">Tutor</h3>
-          ${tutor ? fieldsView("tutors", tutor) : `<p class="admin-note">No tutor in the Tutors sheet has mobile ${esc(row.mobile)}.</p>`}
+        <h3 class="admin-section-title">Tutor</h3>
+        ${tutor ? fieldsBoxes("tutors", tutor, false) : note(`No tutor in the Tutors sheet has mobile ${row.mobile}.`)}
 
-          <h3 class="admin-section-title">Demo</h3>
-          <div class="admin-form">
-            <label class="admin-field"><span>Demo date</span><input data-rfield="date" type="date" value="${esc(toDateInput(row.demoDate))}"${terminated ? " disabled" : ""}></label>
-            <label class="admin-field"><span>Demo time</span><input data-rfield="time" type="time" value="${esc(toTimeInput(row.demoTime))}"${terminated ? " disabled" : ""}></label>
-            <label class="admin-field"><span>Price</span><input data-rfield="price" type="text" value="${esc(row.price)}"${terminated ? " disabled" : ""}></label>
-            <label class="admin-field"><span>Duration</span><input data-rfield="duration" type="text" value="${esc(row.duration)}"${terminated ? " disabled" : ""}></label>
-            <label class="admin-field"><span>Percentage</span><input data-rfield="percentage" type="text" value="${esc(row.percentage)}"${terminated ? " disabled" : ""}></label>
-          </div>
-
-          <h3 class="admin-section-title">Parent</h3>
-          ${segmented("parent", parent)}
-
-          <h3 class="admin-section-title">Tutor</h3>
-          ${segmented("tutor", tut)}
-
-          <label class="admin-check">
-            <input data-rfield="completed" type="checkbox"${row.classesCompleted ? " checked" : ""}${terminated ? " disabled" : ""}>
-            <span>Classes completed</span>
-          </label>
-
-          ${terminated
-            ? `<p class="admin-note">This tuition is terminated. Reopen it to make changes.</p>`
-            : `<div class="admin-actions">
-                 <button class="admin-primary small" data-action="save-row" type="button">Save</button>
-               </div>`}
-
+        <div class="admin-boxes admin-demo">
+          ${input("date", "Demo Date", toDateInput(row.demoDate), "date")}
+          ${input("time", "Demo Time", toTimeInput(row.demoTime), "time")}
+          ${input("price", "Price", row.price)}
+          ${input("duration", "Duration", row.duration)}
+          ${input("percentage", "Percentage", row.percentage)}
         </div>
+
+        <h3 class="admin-section-title">Parent</h3>
+        ${segmented("parent", parent)}
+
+        <h3 class="admin-section-title">Tutor</h3>
+        ${segmented("tutor", tut)}
+
+        <label class="pill-check">
+          <input data-rfield="completed" type="checkbox"${row.classesCompleted ? " checked" : ""}${off}>
+          <span class="pill-check-text">Classes Completed</span>
+          <span class="pill-check-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+        </label>
+
+        ${terminated
+          ? note("This tuition is terminated. Reopen it to make changes.")
+          : `<button class="admin-primary admin-wide" data-action="save-row" type="button">Save</button>`}
+
+      </div>
 
     </article>
   `;
 
 }
 
-function fact(label, value) {
-  if (value === undefined || value === null || String(value).trim() === "") return "";
-  return `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`;
-}
-
 function empty(text) {
   return `<div class="admin-empty">${esc(text)}</div>`;
+}
+
+
+/************************************************************
+ * ASSIGN - suggestions while typing
+ *
+ * Suggests tutors whose Tutor ID or mobile number contains what
+ * was typed (name too, to help find them). Assign only unlocks
+ * when the box holds an EXACT Tutor ID or 10-digit mobile of a
+ * tutor who isn't already on this tuition.
+ ************************************************************/
+
+function exactTutor(text) {
+
+  const t = lower(text);
+  const key = mobileKey(text);
+
+  if (!t) return null;
+
+  return STATE.data.tutors.rows.find(r =>
+    lower(r.id) === t || (key.length === 10 && mobileKey(r.values["Mobile Number"]) === key)
+  ) || null;
+
+}
+
+function onAssignInput(event) {
+
+  const input = event.target.closest && event.target.closest("[data-assign]");
+
+  if (!input) return;
+
+  const card = input.closest("[data-box]");
+  const list = card.querySelector("[data-suggest]");
+  const button = card.querySelector("[data-action='assign']");
+  const demoId = card.dataset.demo;
+
+  const onThis = new Set(
+    (STATE.data.demos || []).filter(r => r.demoId === demoId && r.hasTutor).map(r => r.mobileKey)
+  );
+
+  const text = input.value.trim();
+  const t = lower(text);
+  const digits = text.replace(/\D/g, "");
+
+  const found = exactTutor(text);
+  const ok = !!found && !onThis.has(mobileKey(found.values["Mobile Number"])) &&
+    lower(found.values["Verification Status"]) === "verified";
+
+  button.disabled = !ok;
+  button.dataset.tutor = ok ? found.id : "";
+
+  if (t.length < 2) {
+    list.classList.add("hidden");
+    list.innerHTML = "";
+    return;
+  }
+
+  const hits = STATE.data.tutors.rows.filter(r =>
+    lower(r.id).includes(t) ||
+    (digits.length >= 3 && String(r.values["Mobile Number"] || "").replace(/\D/g, "").includes(digits)) ||
+    lower(r.values["Full Name"]).includes(t)
+  ).slice(0, 6);
+
+  list.innerHTML = hits.length ? hits.map(r => {
+    const already = onThis.has(mobileKey(r.values["Mobile Number"]));
+    const verified = lower(r.values["Verification Status"]) === "verified";
+    const why = already ? "Already on this tuition" : (verified ? "" : (r.values["Verification Status"] || "Not verified"));
+    return `
+      <button type="button" class="admin-suggest-item" data-pick="${esc(r.id)}"${already || !verified ? " disabled" : ""}>
+        <strong>${esc(r.id)}</strong>
+        <span>${esc(r.values["Full Name"] || "")} · ${esc(r.values["Mobile Number"] || "")}</span>
+        ${why ? `<em>${esc(why)}</em>` : ""}
+      </button>`;
+  }).join("") : `<p class="admin-suggest-empty">No tutor matches “${esc(text)}”.</p>`;
+
+  list.classList.remove("hidden");
+
+}
+
+function onSuggestPick(event) {
+
+  const pick = event.target.closest && event.target.closest("[data-pick]");
+
+  if (!pick || pick.disabled) return false;
+
+  const card = pick.closest("[data-box]");
+  const input = card.querySelector("[data-assign]");
+
+  input.value = pick.dataset.pick;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+
+  const list = card.querySelector("[data-suggest]");
+  list.classList.add("hidden");
+
+  return true;
+
 }
