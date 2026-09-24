@@ -1,0 +1,95 @@
+<!-- =====================================================
+     LOGGED-IN HOMEPAGE (student or tutor)
+     Filled by dashboard.js from the user's own data.
+===================================================== -->
+
+<div class="dash">
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="db-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+    <symbol id="db-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="db-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="db-verified" viewBox="0 0 24 24"><path fill="#1d9bf0" stroke="none" d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81C14.67 2.63 13.43 1.75 12 1.75s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91C2.63 9.33 1.75 10.57 1.75 12s.88 2.67 2.2 3.34c-.46 1.39-.21 2.9.8 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.68-.88 3.34-2.19c1.39.45 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34Z"/><path fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m8 12.3 2.7 2.7L16.2 9.5"/></symbol>
+  </svg>
+
+  <!-- loading -->
+  <div class="db-loading" id="dbLoading"><span class="db-spin" aria-hidden="true"></span></div>
+
+  <!-- ================= STUDENT ================= -->
+  <div class="db-view db-hidden" id="dbStudent">
+
+    <div class="db-hero">
+      <div class="db-wrap">
+        <span class="db-kick">STUDENT DASHBOARD</span>
+        <h1 class="db-h1">Welcome back, <em id="dbSName">there.</em></h1>
+        <p class="db-lead">Here's where your tuitions stand today.</p>
+        <div class="db-chips" id="dbSChips"></div>
+        <div class="db-btns">
+          <a class="db-btn db-p" href="studentprofile.html#apply"><svg class="db-ico"><use href="#db-plus"/></svg>Apply for New Tuition</a>
+        </div>
+      </div>
+      <div class="db-wrap">
+        <div class="db-kpis">
+          <div class="db-kpi"><b id="dbS1">0</b><span><i class="db-dot" style="background:#c8ff2e"></i>Finding tutor</span></div>
+          <div class="db-kpi"><b id="dbS2">0</b><span><i class="db-dot" style="background:#9486ff"></i>Demo scheduled</span></div>
+          <div class="db-kpi"><b id="dbS3">0</b><span><i class="db-dot" style="background:#5ee39a"></i>Running</span></div>
+          <div class="db-kpi"><b id="dbS4">0</b><span><i class="db-dot" style="background:#5b5b66"></i>Completed</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="db-wrap">
+
+      <section class="db-sec db-hidden" id="dbSNextSec">
+        <div class="db-sh"><span class="db-num">01 · UP NEXT</span><h2 class="db-h2">Your next <em>demo class.</em></h2></div>
+        <div id="dbSNext"></div>
+      </section>
+
+      <section class="db-sec" id="dbSListSec">
+        <div class="db-sh"><span class="db-num" id="dbSListNum">02 · YOUR TUITIONS</span><h2 class="db-h2">Every request, <em>at a glance.</em></h2><p>Each bar shows how far a tuition has come: posted, tutors applied, demo, running.</p></div>
+        <div class="db-list" id="dbSList"></div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ================= TUTOR ================= -->
+  <div class="db-view db-hidden" id="dbTutor">
+
+    <div class="db-hero">
+      <div class="db-wrap">
+        <span class="db-kick">TUTOR DASHBOARD</span>
+        <h1 class="db-h1">Welcome back, <em id="dbTName">there.</em></h1>
+        <p class="db-lead" id="dbTLead">New tuitions that match your subjects are waiting.</p>
+        <div class="db-chips" id="dbTStatus"></div>
+        <div class="db-btns">
+          <a class="db-btn db-p" href="tutoradvertisement.html"><svg class="db-ico"><use href="#db-search"/></svg>Find Tuitions</a>
+        </div>
+      </div>
+      <div class="db-wrap">
+        <div class="db-kpis">
+          <div class="db-kpi"><b id="dbT1">0</b><span><i class="db-dot" style="background:#c8ff2e"></i>Applied</span></div>
+          <div class="db-kpi"><b id="dbT2">0</b><span><i class="db-dot" style="background:#9486ff"></i>Demos scheduled</span></div>
+          <div class="db-kpi"><b id="dbT3">0</b><span><i class="db-dot" style="background:#5ee39a"></i>Running classes</span></div>
+          <div class="db-kpi"><b id="dbT4">0</b><span><i class="db-dot" style="background:#5b5b66"></i>Completed</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="db-wrap">
+
+      <section class="db-sec db-hidden" id="dbTNextSec">
+        <div class="db-sh"><span class="db-num">01 · UP NEXT</span><h2 class="db-h2">Your next <em>demo class.</em></h2></div>
+        <div id="dbTNext"></div>
+      </section>
+
+      <section class="db-sec" id="dbTMatchSec">
+        <div class="db-sh"><span class="db-num" id="dbTMatchNum">02 · MATCHING YOU</span><h2 class="db-h2">Tuitions for <em>your subjects.</em></h2><p>Open requests for the subjects you teach, nearest to you first.</p></div>
+        <div class="db-list" id="dbTMatch"></div>
+        <a class="db-more" href="tutoradvertisement.html">See all open tuitions <svg class="db-ico"><use href="#db-arrow"/></svg></a>
+      </section>
+
+    </div>
+  </div>
+
+</div>
