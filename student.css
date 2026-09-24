@@ -228,7 +228,7 @@ a {
   width: 100%;
 }
 
-.field label:not(.selection-option):not(.time-option):not(.same-phone):not(.terms) {
+.field label:not(.selection-option):not(.time-option):not(.same-phone):not(.terms):not(.float-field):not(.pill-check) {
   display: block;
 
   margin-bottom: 10px;
@@ -1863,4 +1863,218 @@ textarea:focus {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
   }
+}
+
+
+
+/* =========================================================
+   REGISTRATION FORM - NEW LOOK
+   (same text boxes as "Add a Student" on the Student Profile)
+========================================================= */
+
+/* "Tell us about yourself." on one line, centred */
+.registration-intro {
+  text-align: center;
+}
+
+.intro h1.one-line-title {
+  white-space: nowrap;
+  font-size: clamp(26px, 7.2vw, 80px);
+  letter-spacing: -0.04em;
+}
+
+@media (max-width: 760px) {
+  .intro h1.one-line-title {
+    font-size: clamp(24px, 8.4vw, 56px);
+    letter-spacing: -0.035em;
+  }
+}
+
+
+/* ---------- floating-label text boxes ----------
+   The label sits inside the box. When the box is tapped or has
+   text, it moves up onto the top border, left-aligned. */
+
+.float-field {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0;
+}
+
+.field .float-field input[type="text"],
+.field .float-field input[type="email"],
+.field .float-field input[type="tel"],
+.field .float-field textarea {
+  border-radius: 999px;
+  padding: 18px 22px 16px;
+}
+
+.field .float-field.is-area textarea {
+  border-radius: 24px;
+  padding-top: 20px;
+}
+
+.float-field > span {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  max-width: calc(100% - 36px);
+  padding: 0 5px;
+  transform: translateY(-50%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #5c5c5c;
+  pointer-events: none;
+  border-radius: 4px;
+  /* upper half = card colour, lower half = box colour, so the
+     label cleanly covers the border line */
+  background: linear-gradient(to bottom, var(--surface) 50%, #050505 50%);
+  transition: top 0.15s ease, font-size 0.15s ease, color 0.15s ease;
+}
+
+.float-field.is-area > span {
+  top: 28px;
+}
+
+.float-field input:focus + span,
+.float-field input:not(:placeholder-shown) + span,
+.float-field textarea:focus + span,
+.float-field textarea:not(:placeholder-shown) + span {
+  top: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.float-field input:focus + span,
+.float-field textarea:focus + span {
+  color: var(--lime);
+}
+
+/* read-only email box keeps its darker look */
+.float-field input[readonly] + span {
+  background: linear-gradient(to bottom, var(--surface) 50%, #090909 50%);
+}
+
+
+/* ---------- mobile / WhatsApp: flag + floating label ---------- */
+
+.phone-input {
+  position: relative;
+  border-radius: 999px;
+  overflow: visible;
+}
+
+.phone-input .flag-code {
+  padding: 0 14px 0 20px;
+  border-right: 1px solid #282828;
+}
+
+.in-flag {
+  display: block;
+  width: 28px;
+  height: 19px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.float-field.in-phone {
+  flex: 1;
+  min-width: 0;
+}
+
+.field .float-field.in-phone input[type="tel"] {
+  padding: 18px 20px 16px 14px;
+  border-radius: 0 999px 999px 0 !important;
+}
+
+.float-field.in-phone > span {
+  left: 10px;
+}
+
+/* inside the phone box the border belongs to the outer box,
+   2px above the input */
+.float-field.in-phone input:focus + span,
+.float-field.in-phone input:not(:placeholder-shown) + span {
+  top: -2px;
+}
+
+
+/* ---------- "Same as Phone Number" - full-width pill ---------- */
+
+.pill-check {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 12px 12px 22px;
+  border-radius: 999px;
+  border: 2px solid var(--border);
+  background: #050505;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.pill-check input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pill-check-text {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pill-check-icon {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-light);
+  display: grid;
+  place-items: center;
+  color: #050505;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.pill-check-icon svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.pill-check:hover {
+  border-color: var(--border-light);
+}
+
+.pill-check:has(input:checked) {
+  border-color: rgba(202, 255, 61, 0.45);
+  background: rgba(202, 255, 61, 0.1);
+}
+
+.pill-check input:checked ~ .pill-check-icon {
+  background: var(--lime);
+  border-color: var(--lime);
+}
+
+.pill-check input:checked ~ .pill-check-icon svg {
+  opacity: 1;
+}
+
+.pill-check input:focus-visible ~ .pill-check-icon {
+  outline: 2px solid var(--lime);
+  outline-offset: 3px;
 }
