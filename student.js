@@ -1095,11 +1095,7 @@ async function verifyOTP() {
 
       if (!result.success) {
 
-        showMessage(
-          "otpMessage",
-          result.message || "Incorrect OTP.",
-          "error"
-        );
+        otpWrong(result.message || "Incorrect OTP.");
 
         return;
 
@@ -1127,11 +1123,7 @@ async function verifyOTP() {
 
       if (!result.success) {
 
-        showMessage(
-          "otpMessage",
-          result.message || "Unable to complete registration.",
-          "error"
-        );
+        otpWrong(result.message || "Incorrect OTP.");
 
         return;
 
@@ -1605,9 +1597,27 @@ function startResendTimer(seconds) {
  * LOADING
  ************************************************************/
 
+// Wrong OTP: empty the box and give it the light red border.
+function otpWrong(message) {
+
+  otpInput.value = "";
+
+  setFieldError("otpError", message);
+
+  otpInput.focus();
+
+}
+
 function setLoading(button, loading) {
 
   button.disabled = loading;
+
+  // The OTP page has no visible button: show the spinner in the box.
+  if (button === verifyOtpButton) {
+    const field = otpInput.closest(".field");
+    if (field) field.classList.toggle("is-busy", loading);
+    otpInput.readOnly = loading;
+  }
 
   let textElement = null;
   let loaderElement = null;
@@ -1913,3 +1923,17 @@ ensureMediumOptions();
   form.addEventListener("change", clearHost);
 
 })();
+
+
+/************************************************************
+ * EMAIL + OTP BOXES: red border clears once you type again
+ ************************************************************/
+
+["emailForm", "otpForm"].forEach(function (formId) {
+  const form = document.getElementById(formId);
+  if (!form) return;
+  form.addEventListener("input", function (event) {
+    const field = event.target.closest(".field");
+    if (field) field.classList.remove("has-error");
+  });
+});

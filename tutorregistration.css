@@ -2862,3 +2862,195 @@ a.submit {
   .selection-box.small .selection-option { border-radius: 999px; }
   .upload-button { border-radius: 999px; }
 }
+
+
+/* =========================================================
+   EMAIL PAGE + OTP PAGE - CLEAN LOOK
+   (no card, same boxes and buttons as the registration form)
+========================================================= */
+
+/* one-line, centred headings ("Find your perfect tutor." /
+   "Join as a tutor.") */
+#emailPage .intro {
+  text-align: center;
+}
+
+/* the card blends into the page: no border, no colour */
+#emailPage .email-card,
+#otpPage .otp-card {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#emailPage .email-card .section {
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+/* labels on the page background */
+#emailPage .float-field > span {
+  background: linear-gradient(to bottom, var(--bg) 50%, var(--surface-2) 50%);
+}
+
+#emailPage .field .float-field input[type="email"] {
+  padding: 15px 20px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 15px;
+}
+
+#emailPage .field .float-field input[type="email"]:focus {
+  border-color: rgba(202, 255, 61, 0.35);
+}
+
+#emailPage .submit-area {
+  margin-top: 20px;
+}
+
+/* status texts ("Checking your account...", "Sending OTP...",
+   "Verifying...", "New OTP sent") are not shown - the buttons
+   and boxes show a spinner instead. Real errors still show. */
+.message.info,
+.message.success {
+  display: none !important;
+}
+
+/* errors: light red border, no text (email + OTP pages) */
+#emailPage .field-error,
+#otpPage .field-error {
+  display: none !important;
+}
+
+#emailPage .field.has-error .float-field input,
+#otpPage .field.has-error .otp-input {
+  border-color: rgba(255, 104, 104, 0.65) !important;
+}
+
+#emailPage .field.has-error .float-field > span {
+  color: #ff9b9b;
+}
+
+
+/* ---------- OTP page: six centred lines ---------- */
+
+#otpPage .container {
+  text-align: center;
+}
+
+#otpPage .otp-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding-top: 40px;
+}
+
+.otp-hidden {
+  display: none !important;
+}
+
+/* 1. Change Email */
+#otpPage .back-link {
+  margin: 0 0 6px;
+}
+
+/* 2. We have sent a 6-digit verification code to */
+.otp-sent {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+/* 3. the email */
+.otp-email {
+  display: block;
+  margin: -6px 0 6px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* 4. OTP box (same pill as the other boxes) */
+#otpPage form {
+  width: 100%;
+}
+
+#otpPage .field {
+  position: relative;
+}
+
+#otpPage .otp-input {
+  display: block;
+  width: 100%;
+  padding: 15px 20px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.45em;
+  text-align: center;
+  outline: none;
+}
+
+#otpPage .otp-input::placeholder {
+  letter-spacing: 0.02em;
+  font-size: 15px;
+  font-weight: 500;
+  color: #6f6f6f;
+}
+
+#otpPage .otp-input:focus {
+  border-color: rgba(202, 255, 61, 0.35);
+}
+
+/* spinner inside the OTP box while checking / saving */
+#otpPage .field.is-busy::after {
+  content: "";
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: 50%;
+  border: 2px solid rgba(202, 255, 61, 0.25);
+  border-top-color: var(--lime);
+  animation: spin 0.7s linear infinite;
+}
+
+#otpPage .field.is-busy .otp-input {
+  opacity: 0.6;
+}
+
+/* 5. Resend OTP  6. Didn't receive the code? */
+#otpPage .resend-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  text-align: center;
+}
+
+#otpPage .resend-area span {
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+
+/* ---------- registration: no double gap under the mobile box ---------- */
+
+#registrationPage .field > .pill-check:first-child {
+  margin-top: 0;
+}
+
+#emailPage .float-field input[type="email"] { text-align: left; }

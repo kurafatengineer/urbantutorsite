@@ -41,9 +41,8 @@
 
     <div class="intro">
 
-      <h1>
-        Find your<br>
-        <span>perfect tutor.</span>
+      <h1 class="one-line-title">
+        Find your <span>perfect tutor.</span>
       </h1>
 
     </div>
@@ -52,25 +51,22 @@
 
       <div class="section">
 
-        <div class="section-title email-section-title">
-          <div>
-            <h2>Login</h2>
-          </div>
-        </div>
-
         <form id="emailForm" novalidate>
 
           <div class="field">
 
-            <input
-              id="email"
-              aria-label="Email Address"
-              type="email"
-              maxlength="254"
-              autocomplete="email"
-              placeholder="you@example.com"
-              required
-            >
+            <label class="float-field">
+              <input
+                id="email"
+                aria-label="Email Address"
+                type="email"
+                maxlength="254"
+                autocomplete="email"
+                placeholder=" "
+                required
+              >
+              <span>Enter Your Email</span>
+            </label>
 
             <small id="emailError" class="field-error"></small>
 
@@ -932,18 +928,6 @@
 
   <div class="container">
 
-    <div class="intro otp-intro">
-
-      <div class="kicker">
-      </div>
-
-      <h1>
-        Verify your<br>
-        <span>email.</span>
-      </h1>
-
-    </div>
-
     <div class="form-card otp-card">
 
       <button
@@ -953,24 +937,15 @@
         ← Change Email
       </button>
 
-      <div class="otp-header">
-
-        <div
-          id="otpEyebrow"
-          class="kicker">
-          EMAIL VERIFICATION
-        </div>
-
-        <h2 id="otpTitle">
-          Check your email
-        </h2>
-
-        <p>
-          We sent a 6-digit verification code to
-          <strong id="emailDisplay"></strong>
-        </p>
-
+      <!-- kept for the script, never shown -->
+      <div class="otp-hidden" aria-hidden="true">
+        <div id="otpEyebrow"></div>
+        <h2 id="otpTitle"></h2>
       </div>
+
+      <p class="otp-sent">We have sent a 6-digit verification code to</p>
+
+      <strong id="emailDisplay" class="otp-email"></strong>
 
       <form
         id="otpForm"
@@ -985,7 +960,7 @@
             inputmode="numeric"
             autocomplete="one-time-code"
             maxlength="6"
-            placeholder="000000"
+            placeholder="Enter OTP"
             required
           >
 
@@ -1020,10 +995,6 @@
 
       <div class="resend-area">
 
-        <span>
-          Didn't receive the code?
-        </span>
-
         <button
           id="resendButton"
           class="resend-button"
@@ -1031,6 +1002,10 @@
           disabled>
           Resend OTP
         </button>
+
+        <span>
+          Didn't receive the code?
+        </span>
 
       </div>
 

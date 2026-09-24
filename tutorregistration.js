@@ -111,6 +111,13 @@ function clearMessages() {
 /* Swap a button's label for a spinner */
 function setBusy(button, textId, loaderId, busy) {
   button.disabled = busy;
+  // The OTP page has no visible button: show the spinner in the box
+  // (it stays there while the documents upload, too).
+  if (textId === "verifyOtpText") {
+    const field = $("otp").closest(".field");
+    if (field) field.classList.toggle("is-busy", busy);
+    $("otp").readOnly = busy;
+  }
   $(textId).classList.toggle("hidden", busy);
   $(loaderId).classList.toggle("hidden", !busy);
 }
@@ -656,7 +663,10 @@ async function verifyOtp() {
       });
 
       if (!result.success) {
-        showMessage("otpMessage", result.message || "Incorrect OTP.", "error");
+        // wrong OTP: empty the box and give it the light red border
+        $("otp").value = "";
+        setError("otpError", result.message || "Incorrect OTP.");
+        $("otp").focus();
         return;
       }
 
@@ -994,3 +1004,17 @@ showPage("email");
   form.addEventListener("input", clear);
   form.addEventListener("change", clear);
 })();
+
+
+/************************************************************
+ * EMAIL + OTP BOXES: red border clears once you type again
+ ************************************************************/
+
+["emailForm", "otpForm"].forEach(function (formId) {
+  const form = document.getElementById(formId);
+  if (!form) return;
+  form.addEventListener("input", function (event) {
+    const field = event.target.closest(".field");
+    if (field) field.classList.remove("has-error");
+  });
+});
