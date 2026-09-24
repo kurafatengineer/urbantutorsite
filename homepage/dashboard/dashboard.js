@@ -241,7 +241,7 @@
       }
 
       return `
-        <a class="db-tc" href="studentprofile.html">
+        <a class="db-tc" href="studentprofile.html#tuition-${encodeURIComponent(t.demoId)}">
           <div class="db-tc-top"><div><b>${esc(t.subject)}</b> <span>· ${esc(t.demoId)} · ${esc(mediumText(t.medium))}</span></div><span class="db-state" style="background:${bg};color:${fg}">${label}</span></div>
           <div class="db-steps">${bars}</div>
           <div class="db-steps-l">${labels}</div>
@@ -279,6 +279,183 @@
 
   }
 
+
+
+
+  /* =======================================================
+     APPLY FOR NEW TUITION  (right here on the dashboard -
+     the same form and rules as on the Student Profile)
+     ======================================================= */
+
+  const TIMINGS = ["8 AM", "9 AM", "10 AM", "11 AM", "12 PM", "1 PM", "2 PM",
+    "3 PM", "4 PM", "5 PM", "6 PM", "7 PM", "8 PM", "9 PM"];
+
+  let applyStudentId = "";
+  let applyWired = false;
+
+  function radioValue(name) {
+    const el = document.querySelector(`input[name="${name}"]:checked`);
+    return el ? el.value : "";
+  }
+
+  function setOther(show) {
+    show ? $("dbOtherWrap").classList.remove("db-hidden") : $("dbOtherWrap").classList.add("db-hidden");
+    if (!show) $("dbOtherTiming").value = "";
+    else setTimeout(() => $("dbOtherTiming").focus(), 30);
+  }
+
+  function renderApplyStudents() {
+    const students = (SDATA && SDATA.students) || [];
+    $("dbApplyStudents").innerHTML = students.length > 1
+      ? students.map((s, i) => `
+          <button class="db-chip${s.studentId === applyStudentId ? " on" : ""}" type="button" data-apply-sid="${esc(s.studentId)}">
+            <i style="background:${COLORS[i % COLORS.length]}">${esc(initials(s.studentName, "S"))}</i>${esc(s.studentName || "Student")} · ${esc(s.studentId)}
+          </button>`).join("")
+      : students.map(s => `<p class="db-modal-sub">${esc(s.studentName || "Student")} · ${esc(s.studentId)}</p>`).join("");
+  }
+
+  function wireApply() {
+
+    if (applyWired) return;
+    applyWired = true;
+
+    $("dbTimings").innerHTML = TIMINGS.map(t =>
+      `<label><input type="checkbox" name="dbTiming" value="${t}"><span>${t}</span></label>`).join("") +
+      `<label><input type="checkbox" id="dbTimingOther" value="Other"><span>Other</span></label>`;
+
+    // "Other" and the fixed times exclude each other
+    $("dbTimings").addEventListener("change", e => {
+      const box = e.target;
+      if (box.id === "dbTimingOther") {
+        if (box.checked) document.querySelectorAll('input[name="dbTiming"]').forEach(t => { t.checked = false; });
+        setOther(box.checked);
+      } else if (box.name === "dbTiming" && box.checked) {
+        $("dbTimingOther").checked = false;
+        setOther(false);
+      }
+      $("dbApplyMsg").textContent = "";
+    });
+
+    $("dbApplyModal").addEventListener("click", e => {
+      if (e.target.closest("[data-db-close]")) { closeApply(); return; }
+      const chip = e.target.closest("[data-apply-sid]");
+      if (chip) { applyStudentId = chip.dataset.applySid; renderApplyStudents(); }
+    });
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && !$("dbApplyModal").classList.contains("db-hidden")) closeApply();
+    });
+
+    $("dbApplyForm").addEventListener("submit", submitApply);
+
+    $("dbApplyForm").addEventListener("input", e => {
+      const f = e.target.closest(".db-float");
+      if (f) f.classList.remove("has-error");
+    });
+
+  }
+
+  function openApply() {
+
+    wireApply();
+
+    const students = (SDATA && SDATA.students) || [];
+    const wanted = readSelected();
+    const current = students.find(s => s.studentId === wanted) || students[0];
+
+    if (!current) {
+      window.location.href = "studentprofile.html";
+      return;
+    }
+
+    applyStudentId = current.studentId;
+
+    $("dbApplyForm").reset();
+    $("dbApplyMsg").textContent = "";
+    document.querySelectorAll("#dbApplyForm .has-error").forEach(el => el.classList.remove("has-error"));
+    setOther(false);
+    renderApplyStudents();
+
+    $("dbApplyModal").classList.remove("db-hidden");
+    $("dbApplyModal").setAttribute("aria-hidden", "false");
+    document.body.classList.add("add-modal-open");
+
+    setTimeout(() => $("dbSubjects").focus(), 50);
+
+  }
+
+  function closeApply() {
+    $("dbApplyModal").classList.add("db-hidden");
+    $("dbApplyModal").setAttribute("aria-hidden", "true");
+    document.body.classList.remove("add-modal-open");
+  }
+
+  // "17:30" style entries stay as typed; nothing else is changed.
+  async function submitApply(event) {
+
+    event.preventDefault();
+
+    const msg = $("dbApplyMsg");
+    msg.textContent = "";
+
+    const subjects = String($("dbSubjects").value || "").replace(/\s+/g, " ").trim();
+    const other = $("dbTimingOther").checked;
+    const timing = other
+      ? String($("dbOtherTiming").value || "").trim()
+      : Array.from(document.querySelectorAll('input[name="dbTiming"]:checked')).map(i => i.value).join(", ");
+
+    if (subjects.length < 2) {
+      $("dbSubjects").closest(".db-float").classList.add("has-error");
+      $("dbSubjects").focus();
+      return;
+    }
+
+    if (!timing) {
+      if (other) {
+        $("dbOtherWrap").classList.add("has-error");
+        $("dbOtherTiming").focus();
+      } else {
+        msg.textContent = "Select at least one preferred timing.";
+      }
+      return;
+    }
+
+    const session = readSession(STUDENT_KEY);
+    const button = $("dbApplySubmit");
+    button.disabled = true;
+    button.textContent = "Posting...";
+
+    try {
+
+      const result = await api({
+        action: "addTuition",
+        sessionToken: session && session.sessionToken,
+        studentId: applyStudentId,
+        tuition: {
+          subjects,
+          preferredTutor: radioValue("dbTutor") || "Any",
+          medium: radioValue("dbMedium") || "Any",
+          preferredTiming: timing
+        }
+      });
+
+      if (!result.success) {
+        msg.textContent = result.message || "The tuition could not be added.";
+        return;
+      }
+
+      closeApply();
+      writeSelected(applyStudentId);
+      await loadStudent(session);
+
+    } catch (error) {
+      msg.textContent = "Unable to connect to the server. Please try again.";
+    } finally {
+      button.disabled = false;
+      button.textContent = "Post Tuition Request";
+    }
+
+  }
 
   /* =======================================================
      TUTOR
@@ -448,6 +625,8 @@
       if (!root || !role) return;
 
       root.addEventListener("click", event => {
+
+        if (event.target.closest("#dbApplyBtn")) { openApply(); return; }
 
         const chip = event.target.closest("[data-sid]");
         if (chip) {

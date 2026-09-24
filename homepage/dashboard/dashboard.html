@@ -25,7 +25,7 @@
         <p class="db-lead">Here's where your tuitions stand today.</p>
         <div class="db-chips" id="dbSChips"></div>
         <div class="db-btns">
-          <a class="db-btn db-p" href="studentprofile.html#apply"><svg class="db-ico"><use href="#db-plus"/></svg>Apply for New Tuition</a>
+          <button class="db-btn db-p" type="button" id="dbApplyBtn"><svg class="db-ico"><use href="#db-plus"/></svg>Apply for New Tuition</button>
         </div>
       </div>
       <div class="db-wrap">
@@ -90,6 +90,57 @@
       </section>
 
     </div>
+  </div>
+
+
+  <!-- ================= APPLY FOR NEW TUITION (same form as the Student Profile) ================= -->
+  <div class="db-modal db-hidden" id="dbApplyModal" aria-hidden="true">
+    <div class="db-modal-overlay" data-db-close></div>
+
+    <section class="db-modal-box" role="dialog" aria-modal="true" aria-labelledby="dbApplyTitle">
+
+      <button class="db-modal-close" type="button" aria-label="Close" data-db-close>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+
+      <h2 class="db-modal-title" id="dbApplyTitle">Apply For New Tuition</h2>
+      <div class="db-modal-students" id="dbApplyStudents"></div>
+
+      <form id="dbApplyForm" novalidate>
+
+        <label class="db-float">
+          <input id="dbSubjects" type="text" maxlength="250" autocomplete="off" placeholder=" ">
+          <span>Add subjects separated by commas</span>
+        </label>
+
+        <div class="db-choice db-choice-3" role="radiogroup" aria-label="Preferred tutor">
+          <label><input type="radio" name="dbTutor" value="Male"><span>Male</span></label>
+          <label><input type="radio" name="dbTutor" value="Any" checked><span>Any</span></label>
+          <label><input type="radio" name="dbTutor" value="Female"><span>Female</span></label>
+        </div>
+
+        <div class="db-choice db-choice-3" role="radiogroup" aria-label="Medium">
+          <label><input type="radio" name="dbMedium" value="Offline"><span>Offline</span></label>
+          <label><input type="radio" name="dbMedium" value="Any" checked><span>Any</span></label>
+          <label><input type="radio" name="dbMedium" value="Online"><span>Online</span></label>
+        </div>
+
+        <div class="db-timing">
+          <span class="db-timing-title">Preferred timing</span>
+          <div class="db-choice db-choice-3" id="dbTimings"></div>
+        </div>
+
+        <label class="db-float db-hidden" id="dbOtherWrap">
+          <input id="dbOtherTiming" type="text" maxlength="120" autocomplete="off" placeholder=" ">
+          <span>Add your preferred time</span>
+        </label>
+
+        <p class="db-modal-msg" id="dbApplyMsg" role="alert"></p>
+
+        <button class="db-submit" id="dbApplySubmit" type="submit">Post Tuition Request</button>
+
+      </form>
+    </section>
   </div>
 
 </div>
