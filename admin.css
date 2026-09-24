@@ -1549,3 +1549,81 @@ button.admin-stat:focus-visible {
   border-top-color: var(--lime);
   animation: admin-spin 0.8s linear infinite;
 }
+
+
+
+/* =========================================================
+   V6 - TWO-LAYER SUMMARIES, STATUS COLOURS, DESKTOP MODE
+========================================================= */
+
+/* the admin page is always laid out as a desktop page */
+body[data-page="admin"] {
+  min-width: 1200px;
+}
+
+.admin-hl {
+  display: grid;
+  gap: 2px;              /* the thin gap between the two layers */
+  padding: 0;
+  background: none;
+}
+
+.admin-hl-top,
+.admin-hl-small {
+  border: 0;
+  border-radius: 0;
+  padding: 7px 10px;
+}
+
+.admin-hl-top {
+  background: rgba(202, 255, 61, 0.08);
+}
+
+.admin-hl-top .admin-info {
+  margin: 0;
+  font-size: 14px;
+}
+
+.admin-hl-small {
+  margin: 0;
+  background: rgba(255, 255, 255, 0.06);   /* light grey */
+  color: var(--muted);
+}
+
+/* top layer colour = status */
+.admin-hl-top[data-tone="blue"]       { background: rgba(110, 170, 255, 0.14); }
+.admin-hl-top[data-tone="verified"],
+.admin-hl-top[data-tone="running"]    { background: rgba(114, 227, 154, 0.13); }
+.admin-hl-top[data-tone="pending"],
+.admin-hl-top[data-tone="schedule"]   { background: rgba(255, 209, 102, 0.13); }
+.admin-hl-top[data-tone="rejected"],
+.admin-hl-top[data-tone="declined"],
+.admin-hl-top[data-tone="terminated"] { background: rgba(255, 104, 104, 0.13); }
+.admin-hl-top[data-tone="scheduled"],
+.admin-hl-top[data-tone="processing"] { background: rgba(180, 144, 255, 0.14); }
+.admin-hl-top[data-tone="completed"]  { background: rgba(255, 255, 255, 0.08); }
+.admin-hl-top[data-tone="new"],
+.admin-hl-top[data-tone="open"]       { background: rgba(202, 255, 61, 0.1); }
+
+
+/* ---------- top bar: Refresh | Admin Panel | Log out ---------- */
+
+.admin-top.admin-top-3 {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.admin-top-3 h1 {
+  margin: 0;
+}
+
+.admin-top-3 #refreshButton {
+  justify-self: start;
+}
+
+.admin-top-3 #logoutButton {
+  justify-self: end;
+}

@@ -356,6 +356,7 @@ function wireEvents() {
   $("mainTabs").addEventListener("click", (event) => {
     const tab = event.target.closest(".admin-tab");
     if (!tab) return;
+    resetFilter(tab.dataset.tab);
     showTab(tab.dataset.tab);
   });
 
@@ -377,6 +378,21 @@ function wireEvents() {
   );
 
   $("tuitionList").addEventListener("input", onAssignInput);
+
+}
+
+// Choosing a tab always starts from the "All" filter.
+function resetFilter(tab) {
+
+  if (tab === "tuitions") {
+    STATE.tuitionFilter = "all";
+    $("tuitionFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === "all"));
+  }
+
+  if (tab === "tutors") {
+    STATE.tutorFilter = "all";
+    $("tutorFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === "all"));
+  }
 
 }
 
@@ -859,12 +875,17 @@ function infoLine(values, separator = "|") {
   return `<div class="admin-info">${parts.map(v => `<b>${esc(v)}</b>`).join(`<i aria-hidden="true">${esc(separator)}</i>`)}</div>`;
 }
 
-// The highlighted summary of a collapsed card: a bold line and an
-// optional small line under it, on a light band (no border, square).
-function highlight(boldValues, smallText, separator) {
+// The summary of a collapsed card, in two layers with a thin gap:
+//   top    - bold values, coloured by the card's status (tone)
+//   bottom - small text, light grey (left out when empty)
+// Light colour, no border, square corners.
+function highlight(boldValues, smallText, separator, tone) {
   const line = infoLine(boldValues, separator);
   const small = String(smallText || "").trim();
-  return `<div class="admin-hl">${line}${small ? `<p class="admin-hl-small">${small}</p>` : ""}</div>`;
+  return `<div class="admin-hl">
+    <div class="admin-hl-top" data-tone="${esc(tone || "")}">${line}</div>
+    ${small ? `<p class="admin-hl-small">${small}</p>` : ""}
+  </div>`;
 }
 
 // "Address, City - PIN" without repeating the city.
@@ -952,7 +973,9 @@ function renderTutors() {
       titleHtml: highlight(
         [v("Full Name") || r.id, v("WhatsApp Number") || v("Mobile Number"),
          [v("Graduation - Course"), v("Graduation - Subject")].filter(Boolean).join(" - "), r.id],
-        esc(fullAddress(v("Present Address"), v("City"), v("Pin Code")))
+        esc(fullAddress(v("Present Address"), v("City"), v("Pin Code"))),
+        "|",
+        statusGroup(status)
       ),
       pill: status,
       tone: statusGroup(status)
@@ -993,7 +1016,7 @@ function renderStudents() {
         r.values["Class"],
         r.values["Board"],
         fullAddress(r.values["Address"], r.values["City"], r.values["PIN Code"])
-      ]),
+      ], "", "|", "blue"),
       extra
     });
 
@@ -1082,7 +1105,8 @@ function tuitionStack(g) {
              esc(fullAddress(sv("Address"), sv("City"), sv("PIN Code"))),
              `<span class="admin-hl-count">${tutorRows.length} tutor${tutorRows.length === 1 ? "" : "s"} applied</span>`
             ].filter(Boolean).join(" · "),
-            "·"
+            "·",
+            state
           )}
         </div>
         <span class="admin-pill" data-tone="${state}">${esc(GROUP_LABELS[state])}</span>
@@ -1164,9 +1188,16 @@ function tutorRowCard(row, terminated) {
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">${esc(initials(name, "T"))}</div>
         <div class="admin-card-title">
-          <strong>${esc(name)}</strong>
-          <small>${esc(gender)}${tutor ? " · " + esc(tutor.id) : " · " + esc(row.mobile)}${lower(verification) === "verified" ? "" : ` · <span class="warn">${esc(verification || "Not verified")}</span>`}</small>
-          ${highlight([tv("WhatsApp Number") || tv("Mobile Number") || row.mobile], esc(fullAddress(tv("Present Address"), tv("City"), tv("Pin Code"))))}
+          ${highlight(
+            [name, tv("WhatsApp Number") || tv("Mobile Number") || row.mobile,
+             tv("Graduation - Course"), tv("Graduation - Subject")],
+            [esc(gender),
+             esc(fullAddress(tv("Present Address"), tv("City"), tv("Pin Code"))),
+             lower(verification) === "verified" ? "" : `<span class="warn">${esc(verification || "Not verified")}</span>`
+            ].filter(Boolean).join(" · "),
+            "|",
+            state
+          )}
         </div>
         <span class="admin-pill" data-tone="${state}">${esc(ROW_LABELS[state])}</span>
         <span class="admin-caret" aria-hidden="true"></span>

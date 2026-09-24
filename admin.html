@@ -3,7 +3,9 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Desktop mode on every device: phones / tablets show the full
+       1200px desktop layout, scaled to fit (pinch to zoom). -->
+  <meta name="viewport" content="width=1200">
   <meta name="theme-color" content="#050505">
   <meta name="robots" content="noindex, nofollow">
   <title>Urbantutorsite — Admin Panel</title>
@@ -62,14 +64,11 @@
 <main id="panelPage" class="admin-page hidden">
   <div class="admin-container">
 
-    <header class="admin-top">
-      <div>
-        <h1>Admin Panel</h1>
-      </div>
-      <div class="admin-top-actions">
-        <button id="refreshButton" class="admin-ghost" type="button">Refresh</button>
-        <button id="logoutButton" class="admin-ghost admin-danger" type="button">Log out</button>
-      </div>
+    <!-- Refresh (left) | Admin Panel (centre) | Log out (right) -->
+    <header class="admin-top admin-top-3">
+      <button id="refreshButton" class="admin-ghost" type="button">Refresh</button>
+      <h1>Admin Panel</h1>
+      <button id="logoutButton" class="admin-ghost admin-danger" type="button">Log out</button>
     </header>
 
     <!-- counts -->
