@@ -18,10 +18,13 @@
  * back to student.html. The session is the one student.js
  * saves after a successful OTP ("urbantutorsite_student_session").
  *
- * API ACTIONS USED (see API Router.gs / Student Session.gs)
- *   getStudentProfile    addStudent    logoutStudent
- *   respondToDemo        (Accept / Reject on a tutor card)
- *   addTuition           ("Apply for new tuition" button)
+ * SUPABASE FUNCTIONS USED (see supabase-setup-3/4-*.sql)
+ *   get_student_profile()      addStudent -> register_student(p)
+ *   respond_to_demo(demoId, tutorId, decision)  (Accept / Reject)
+ *   add_tuition(p)              ("Apply for new tuition" button)
+ *   All calls go through window.sbCall(fnName, args) (js/supabase-client.js),
+ *   which is authenticated by the signed-in Supabase session - no
+ *   sessionToken is sent by this page any more.
  *
  * FIELDS THE BACKEND SENDS PER TUITION (one card per Demo ID)
  *   demoId, subject, medium, preferredTutor, preferredTiming,
@@ -39,9 +42,6 @@
  * PRIVACY: no email or mobile number (the parent's or the
  * tutor's) is sent to or shown on this page.
  ************************************************************/
-
-const WEB_APP_URL =
-  "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec";
 
 const STUDENT_SESSION_KEY = "urbantutorsite_student_session";
 const SELECTED_STUDENT_KEY = "urbantutorsite_selected_student";
@@ -109,34 +109,17 @@ function initialsOf(name, fallback) {
     .join("") || fallback;
 }
 
-async function apiRequest(payload, timeoutMs = 45000) {
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
+// Is there a real, signed-in Supabase session right now? (The
+// localStorage flag saved by student.js can go stale - e.g. the tab was
+// left open across a sign-out on another tab - so this is the check
+// that actually decides whether a Supabase RPC will succeed.)
+async function hasSession() {
   try {
-
-    const response = await fetch(WEB_APP_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    });
-
-    const raw = await response.text();
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    try {
-      return JSON.parse(raw);
-    } catch (parseError) {
-      throw new Error("Invalid server response.");
-    }
-
-  } finally {
-    clearTimeout(timer);
+    const { data } = await window.sb.auth.getSession();
+    return !!(data && data.session);
+  } catch (error) {
+    return false;
   }
-
 }
 
 
@@ -186,46 +169,25 @@ const STATE = {
 
   wireStaticEvents();
 
-  const session = getStudentSession();
-
-  if (!session || !session.sessionToken) {
+  if (!(await hasSession())) {
     showError("You are not logged in.");
     return;
   }
 
   await loadProfile();
 
-  // Homepage "Apply for New Tuition" -> studentprofile.html#apply
-  // opens the new-tuition form straight away.
-  if (location.hash === "#apply" && STATE.students.length) {
-    history.replaceState(null, "", location.pathname + location.search);
-    openNewTuition();
-  }
-
-  // Homepage tuition card -> studentprofile.html#tuition-<Demo ID>
-  // opens that student, expands that tuition and scrolls to it.
-  if (location.hash.indexOf("#tuition-") === 0) {
-    openLinkedTuition(decodeURIComponent(location.hash.slice(9)));
-    history.replaceState(null, "", location.pathname + location.search);
-  }
-
 })();
 
 async function loadProfile(selectAfter) {
 
-  const session = getStudentSession();
-
-  if (!session || !session.sessionToken) {
+  if (!(await hasSession())) {
     showError("You are not logged in.");
     return;
   }
 
   try {
 
-    const result = await apiRequest({
-      action: "getStudentProfile",
-      sessionToken: session.sessionToken
-    });
+    const result = await window.sbCall("get_student_profile", {});
 
     if (!result.success) {
       clearStudentSession();
@@ -1043,9 +1005,7 @@ async function respondToTutor(button) {
 
   if (!window.confirm(question)) return;
 
-  const session = getStudentSession();
-
-  if (!session || !session.sessionToken) {
+  if (!(await hasSession())) {
     showError("You are not logged in.");
     return;
   }
@@ -1058,12 +1018,10 @@ async function respondToTutor(button) {
 
   try {
 
-    const result = await apiRequest({
-      action: "respondToDemo",
-      sessionToken: session.sessionToken,
-      demoId,
-      tutorId,
-      decision
+    const result = await window.sbCall("respond_to_demo", {
+      p_demo_id: demoId,
+      p_tutor_id: tutorId,
+      p_decision: decision
     });
 
     if (!result.success) {
@@ -1341,6 +1299,13 @@ async function submitAddStudent(event) {
   message.textContent = "";
 
   const student = {
+    // Same parent + same mobile number as this account - register_student
+    // requires both, and they must match the account these students live
+    // under (the account is identified by e-mail, not by these fields).
+    parentsName: STATE.account.parentsName || "",
+    phone: STATE.account.phone || "",
+    whatsapp: STATE.account.phone || "",
+    termsAccepted: true,
     studentName: clean($("addStudentName").value),
     gender: radioValue("addGender"),
     school: clean($("addSchool").value),
@@ -1376,9 +1341,7 @@ async function submitAddStudent(event) {
     return;
   }
 
-  const session = getStudentSession();
-
-  if (!session || !session.sessionToken) {
+  if (!(await hasSession())) {
     closeAddStudent();
     showError("You are not logged in.");
     return;
@@ -1390,11 +1353,7 @@ async function submitAddStudent(event) {
 
   try {
 
-    const result = await apiRequest({
-      action: "addStudent",
-      sessionToken: session.sessionToken,
-      student: student
-    });
+    const result = await window.sbCall("register_student", { p: student });
 
     if (!result.success) {
       message.textContent = result.message || "The student could not be added.";
@@ -1559,9 +1518,7 @@ async function submitNewTuition(event) {
     return;
   }
 
-  const session = getStudentSession();
-
-  if (!session || !session.sessionToken) {
+  if (!(await hasSession())) {
     closeNewTuition();
     showError("You are not logged in.");
     return;
@@ -1573,11 +1530,8 @@ async function submitNewTuition(event) {
 
   try {
 
-    const result = await apiRequest({
-      action: "addTuition",
-      sessionToken: session.sessionToken,
-      studentId: student.studentId,
-      tuition
+    const result = await window.sbCall("add_tuition", {
+      p: Object.assign({ studentId: student.studentId }, tuition)
     });
 
     if (!result.success) {
@@ -1617,17 +1571,10 @@ async function logout() {
   button.disabled = true;
   button.textContent = "Logging out...";
 
-  const session = getStudentSession();
-
-  if (session && session.sessionToken) {
-    try {
-      await apiRequest({
-        action: "logoutStudent",
-        sessionToken: session.sessionToken
-      });
-    } catch (error) {
-      console.error(error);
-    }
+  try {
+    await window.sb.auth.signOut();
+  } catch (error) {
+    console.error(error);
   }
 
   clearStudentSession();
@@ -1635,47 +1582,5 @@ async function logout() {
   try { localStorage.removeItem(SELECTED_STUDENT_KEY); } catch (e) {}
 
   window.location.href = "index.html";
-
-}
-
-
-
-/************************************************************
- * OPEN A TUITION LINKED FROM THE HOMEPAGE
- ************************************************************/
-
-function openLinkedTuition(demoId) {
-
-  if (!demoId) return;
-
-  const owner = STATE.students.find(st =>
-    (st.tuitions || []).some(t => String(t.demoId) === demoId));
-
-  if (!owner) return;
-
-  if (owner.studentId !== STATE.selectedId) {
-    STATE.selectedId = owner.studentId;
-    writeSelected(owner.studentId);
-  }
-
-  STATE.filter = "all";
-  $("filterTabs").querySelectorAll(".filter-tab").forEach(t =>
-    t.classList.toggle("active", t.dataset.filter === "all"));
-
-  STATE.expanded.clear();
-  STATE.expanded.add("d:" + demoId);
-
-  renderAll();
-
-  const card = Array.from(document.querySelectorAll("[data-card]"))
-    .find(el => el.dataset.card === "d:" + demoId);
-
-  if (!card) return;
-
-  setTimeout(() => {
-    card.scrollIntoView({ behavior: "smooth", block: "center" });
-    card.classList.add("is-linked");
-    setTimeout(() => card.classList.remove("is-linked"), 2600);
-  }, 150);
 
 }
