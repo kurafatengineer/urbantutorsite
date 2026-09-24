@@ -342,3 +342,18 @@
 .header-login.has-initials:hover .header-initials {
   color: #050505;
 }
+
+
+/* Admin Panel: "AD" badge - a label, not a button */
+.header-login.header-login-static,
+.header-login.header-login-static:hover {
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+  background: #101010;
+  border-color: var(--header-green);
+}
+
+.header-login.header-login-static:hover .header-initials {
+  color: var(--header-green);
+}
