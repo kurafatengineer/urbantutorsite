@@ -479,3 +479,72 @@
   }
 
 }
+
+
+/* =========================================================
+   FOOTER - TIGHTER, CLEANER
+   ========================================================= */
+
+/* 1. less space between the footer's top edge and the brand */
+.footer-main {
+  min-height: 0;
+  padding: 24px 0 14px;
+}
+
+/* 2. social icons without their outer box */
+.social-link {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.social-link:hover {
+  border: 0;
+  background: transparent;
+  color: var(--footer-green);
+}
+
+.social-link svg {
+  width: 19px;
+  height: 19px;
+}
+
+/* 3. smaller gap between the icons and the line below them */
+.footer-socials {
+  margin-top: 16px;
+  gap: 18px;
+}
+
+/* 4. "© 2026 Urbantutorsite" centred */
+.footer-bottom {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 12px 0 16px;
+  text-align: center !important;
+}
+
+@media (max-width: 699px) {
+
+  .footer-main {
+    min-height: 0;
+    padding: 20px 0 12px;
+  }
+
+  .footer-socials {
+    gap: 16px;
+  }
+
+  .social-link {
+    width: 24px;
+    height: 24px;
+    border-radius: 0;
+  }
+
+  .footer-bottom {
+    padding: 12px 0 16px;
+  }
+
+}
