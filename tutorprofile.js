@@ -516,6 +516,9 @@ function statusMessage(item) {
       return { text: "You have completed this class" };
 
     case "declined":
+      if (item.terminated) {
+        return { text: "This tuition has been closed by the office" };
+      }
       if (isTicked(item.tutorRejected) && isTicked(item.parentRejected)) {
         return { text: "Rejected by you and the parents" };
       }

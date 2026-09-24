@@ -229,7 +229,7 @@ async function loadProfile(selectAfter) {
     STATE.students.forEach(st => (st.tuitions || []).forEach(t => {
       t.detailStatus = t.status;
       const key = String(t.status || "").toLowerCase();
-      if (key === "running" || key === "completed") return;
+      if (key === "running" || key === "completed" || key === "terminated") return;
       // Every tutor who applied has been rejected -> "Rejected"
       // (it goes back to "Finding Tutor" as soon as a new tutor applies).
       t.status = ((Number(t.tutorsApplied) || 0) === 0 && (Number(t.declinedCount) || 0) > 0)
@@ -401,6 +401,7 @@ function stat(value, label, accent) {
 
 function classifyItem(item) {
   const s = String(item.status || "").toLowerCase();
+  if (s === "terminated" || s === "rejected") return "closed"; // "All" tab only
   if (s === "completed") return "completed";
   if (s === "running") return "running";
   if (s === "processing") return "processing";
@@ -430,7 +431,7 @@ function tuitionRank(item) {
 
   if (s === "running") return 2;
   if (s === "completed") return 3;
-  if (s === "rejected") return 4;
+  if (s === "rejected" || s === "terminated") return 4;
 
   return (item.tutors || []).some(t => tutorGroup(t)) ? 0 : 1;
 
@@ -624,6 +625,9 @@ function statusMessage(item) {
 
     case "rejected":
       return { text: "The tutors who applied were rejected, we are finding another tutor for you" };
+
+    case "terminated":
+      return { text: "This tuition requirement has been closed" };
 
     case "tutors applied": {
       const n = Number(item.tutorsApplied) || 0;

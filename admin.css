@@ -575,3 +575,282 @@ button { cursor: pointer; }
   .admin-schedule { grid-template-columns: 1fr; }
 
 }
+
+
+/* =========================================================
+   V2 - COLLAPSIBLE CARDS, FULL DETAILS, EDIT FORMS, STACKS
+========================================================= */
+
+.admin-stack-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-card-head {
+  cursor: pointer;
+  user-select: none;
+}
+
+.admin-caret {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  margin: 0 4px 4px 2px;
+  transition: transform 0.15s ease;
+}
+
+.admin-card.is-open > .admin-card-head .admin-caret {
+  transform: rotate(-135deg);
+  margin-bottom: -4px;
+}
+
+.admin-card:not(.is-open) > .admin-card-body {
+  display: none;
+}
+
+.admin-card-body {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-section-title {
+  margin: 6px 0 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lime);
+}
+
+.admin-facts dd a {
+  color: var(--lime);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--warn);
+}
+
+
+/* ---------- edit forms ---------- */
+
+.admin-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.admin-field.wide {
+  grid-column: 1 / -1;
+}
+
+.admin-field > span {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.admin-field input,
+.admin-field select,
+.admin-field textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  color-scheme: dark;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.admin-field input:focus,
+.admin-field select:focus,
+.admin-field textarea:focus {
+  outline: none;
+  border-color: var(--lime-line);
+}
+
+.admin-field input:disabled,
+.admin-field select:disabled {
+  opacity: 0.5;
+}
+
+.admin-field.is-readonly p {
+  margin: 0;
+  padding: 10px 0;
+  font-size: 14px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+
+/* ---------- tuition + tutor stack ---------- */
+
+.admin-stack {
+  display: grid;
+  gap: 0;
+}
+
+.admin-stack.has-tutors > .admin-card {
+  border-radius: 0;
+}
+
+.admin-stack.has-tutors > .admin-card:first-child {
+  border-radius: 18px 18px 0 0;
+}
+
+.admin-stack.has-tutors > .admin-card:last-child {
+  border-radius: 0 0 18px 18px;
+}
+
+.admin-stack > .tutor-row-card {
+  border-top: 2px dashed var(--border-light);
+  background: var(--surface-2);
+  margin-left: 14px;
+}
+
+.admin-stack > .tutor-row-card:last-child {
+  border-radius: 0 0 18px 18px;
+}
+
+.admin-stack > .tuition-card {
+  border-color: var(--border-light);
+}
+
+.tutor-row-card[data-tone="running"] { box-shadow: inset 3px 0 0 var(--success); }
+.tutor-row-card[data-tone="scheduled"],
+.tutor-row-card[data-tone="processing"] { box-shadow: inset 3px 0 0 var(--violet); }
+.tutor-row-card[data-tone="schedule"] { box-shadow: inset 3px 0 0 var(--warn); }
+.tutor-row-card[data-tone="declined"],
+.tutor-row-card[data-tone="terminated"] { box-shadow: inset 3px 0 0 var(--danger); }
+.tutor-row-card[data-tone="completed"] { box-shadow: inset 3px 0 0 var(--muted-2); }
+
+.admin-pill[data-tone="new"],
+.admin-pill[data-tone="open"] { color: var(--lime); background: var(--lime-dim); border-color: var(--lime-line); }
+.admin-pill[data-tone="processing"] { color: var(--violet); background: var(--violet-dim); border-color: rgba(180, 144, 255, 0.3); }
+.admin-pill[data-tone="terminated"] { color: var(--danger); background: var(--danger-dim); border-color: rgba(255, 104, 104, 0.3); }
+
+.admin-assign {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-assign input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.admin-assign input:focus {
+  outline: none;
+  border-color: var(--lime-line);
+}
+
+
+/* ---------- Pending / Accepted / Rejected ---------- */
+
+.admin-seg {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-3);
+}
+
+.admin-seg label {
+  position: relative;
+  cursor: pointer;
+}
+
+.admin-seg input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-seg span {
+  display: block;
+  padding: 9px 4px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.admin-seg input:checked + span[data-v="pending"] { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-light); }
+.admin-seg input:checked + span[data-v="accepted"] { background: var(--lime); color: #050505; }
+.admin-seg input:checked + span[data-v="rejected"] { background: var(--danger-dim); color: var(--danger); box-shadow: inset 0 0 0 1px rgba(255, 104, 104, 0.4); }
+.admin-seg input:disabled + span { opacity: 0.5; cursor: default; }
+.admin-seg input:focus-visible + span { outline: 2px solid var(--lime); outline-offset: 2px; }
+
+.admin-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--lime);
+}
+
+.admin-mini-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-mini-title {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+  margin-right: 4px;
+}
+
+@media (max-width: 520px) {
+
+  .admin-form { grid-template-columns: 1fr; }
+
+  .admin-stack > .tutor-row-card { margin-left: 8px; }
+
+  .admin-tabs .admin-tab { font-size: 13px; }
+
+}

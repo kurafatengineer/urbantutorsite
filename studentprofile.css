@@ -716,13 +716,16 @@ body.add-modal-open {
 ========================================================= */
 
 .status-rejected,
-.class-spine.status-rejected {
+.class-spine.status-rejected,
+.status-terminated,
+.class-spine.status-terminated {
   background: var(--danger-dim);
   color: var(--danger);
   border-color: rgba(255, 104, 104, 0.3);
 }
 
-.class-spine.status-rejected {
+.class-spine.status-rejected,
+.class-spine.status-terminated {
   border-color: transparent;
 }
 

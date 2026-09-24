@@ -78,15 +78,32 @@
 
     <!-- main tabs -->
     <div class="admin-tabs" id="mainTabs" role="tablist">
-      <button class="admin-tab active" data-tab="tutors" type="button" role="tab">Tutors</button>
-      <button class="admin-tab" data-tab="tuitions" type="button" role="tab">Tuitions</button>
+      <button class="admin-tab active" data-tab="tuitions" type="button" role="tab">Tuitions</button>
+      <button class="admin-tab" data-tab="tutors" type="button" role="tab">Tutors</button>
       <button class="admin-tab" data-tab="students" type="button" role="tab">Students</button>
     </div>
 
-    <!-- ================= TUTORS ================= -->
-    <section id="tab-tutors" class="admin-panel">
+    <!-- ================= TUITIONS ================= -->
+    <section id="tab-tuitions" class="admin-panel">
       <div class="admin-tools">
-        <input id="tutorSearch" class="admin-search" type="search" placeholder="Search name, ID, city, subject">
+        <input id="tuitionSearch" class="admin-search" type="search" placeholder="Search Demo ID, student, subject, tutor">
+        <div class="admin-chips" id="tuitionFilter">
+          <button class="admin-chip active" data-value="all" type="button">All</button>
+          <button class="admin-chip" data-value="new" type="button">New</button>
+          <button class="admin-chip" data-value="schedule" type="button">To schedule</button>
+          <button class="admin-chip" data-value="scheduled" type="button">Demo scheduled</button>
+          <button class="admin-chip" data-value="running" type="button">Running</button>
+          <button class="admin-chip" data-value="completed" type="button">Completed</button>
+          <button class="admin-chip" data-value="terminated" type="button">Terminated</button>
+        </div>
+      </div>
+      <div id="tuitionList" class="admin-stack-list"></div>
+    </section>
+
+    <!-- ================= TUTORS ================= -->
+    <section id="tab-tutors" class="admin-panel hidden">
+      <div class="admin-tools">
+        <input id="tutorSearch" class="admin-search" type="search" placeholder="Search name, ID, mobile, city, subject">
         <div class="admin-chips" id="tutorFilter">
           <button class="admin-chip active" data-value="all" type="button">All</button>
           <button class="admin-chip" data-value="pending" type="button">Pending</button>
@@ -94,30 +111,15 @@
           <button class="admin-chip" data-value="rejected" type="button">Rejected</button>
         </div>
       </div>
-      <div id="tutorList" class="admin-list"></div>
-    </section>
-
-    <!-- ================= TUITIONS ================= -->
-    <section id="tab-tuitions" class="admin-panel hidden">
-      <div class="admin-tools">
-        <input id="tuitionSearch" class="admin-search" type="search" placeholder="Search Demo ID, student, subject, tutor">
-        <div class="admin-chips" id="tuitionFilter">
-          <button class="admin-chip active" data-value="all" type="button">All</button>
-          <button class="admin-chip" data-value="schedule" type="button">To schedule</button>
-          <button class="admin-chip" data-value="scheduled" type="button">Scheduled</button>
-          <button class="admin-chip" data-value="running" type="button">Running</button>
-          <button class="admin-chip" data-value="completed" type="button">Completed</button>
-        </div>
-      </div>
-      <div id="tuitionList" class="admin-list"></div>
+      <div id="tutorList" class="admin-stack-list"></div>
     </section>
 
     <!-- ================= STUDENTS ================= -->
     <section id="tab-students" class="admin-panel hidden">
       <div class="admin-tools">
-        <input id="studentSearch" class="admin-search" type="search" placeholder="Search name, ID, parent, school, city">
+        <input id="studentSearch" class="admin-search" type="search" placeholder="Search name, ID, parent, phone, school, city">
       </div>
-      <div id="studentList" class="admin-list"></div>
+      <div id="studentList" class="admin-stack-list"></div>
     </section>
 
   </div>
