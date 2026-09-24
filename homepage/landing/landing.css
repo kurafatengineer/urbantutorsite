@@ -108,17 +108,19 @@
 .ld-tu { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 18px; border-radius: 22px; background: var(--ld-surface); border: 1px solid var(--ld-line); }
 .ld-sj { width: 48px; height: 48px; border-radius: 16px; display: grid; place-items: center; font-family: Sora, Inter, sans-serif; font-weight: 600; background: rgba(200, 255, 46, 0.1); color: var(--ld-lime); }
 .ld-tu b { display: block; font-size: 15px; font-weight: 600; }
-.ld-tu span { display: block; font-size: 12.5px; color: var(--ld-muted); margin-top: 2px; }
+.ld-tu > div > span { display: block; font-size: 12.5px; color: var(--ld-muted); margin-top: 2px; }
+.ld-tu > .ld-sj { display: grid; place-items: center; margin: 0; font-size: 15px; line-height: 1; }
 .ld-tu a { font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.18); white-space: nowrap; }
 .ld-more { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; color: var(--ld-lime) !important; font-weight: 600; font-size: 14px; }
 
-/* tutors */
+/* tutors: avatar, name + verified badge, experience */
 .ld-tutors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.ld-tt { padding: 20px 16px; border-radius: 24px; background: var(--ld-surface); border: 1px solid var(--ld-line); text-align: center; }
-.ld-av { width: 62px; height: 62px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; font-family: Sora, Inter, sans-serif; font-weight: 600; font-size: 19px; color: #08080b; }
-.ld-tt b { display: block; margin-top: 12px; font-size: 15px; }
-.ld-tt span { display: block; font-size: 12.5px; color: var(--ld-muted); margin-top: 2px; }
-.ld-vf { display: inline-flex !important; align-items: center; gap: 5px; margin-top: 10px !important; font-size: 11.5px !important; color: var(--ld-lime) !important; }
+.ld-tt { padding: 22px 14px; border-radius: 24px; background: var(--ld-surface); border: 1px solid var(--ld-line); text-align: center; }
+.ld-av { width: 64px; height: 64px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; font-family: Sora, Inter, sans-serif; font-weight: 600; font-size: 20px; color: #08080b; }
+.ld-name { display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 14px; min-width: 0; }
+.ld-name b { font-size: 15.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ld-badge { width: 18px; height: 18px; flex: 0 0 auto; }
+.ld-exp { display: block; margin-top: 4px; font-size: 13px; color: var(--ld-muted); }
 
 /* CTA */
 .ld-cta { margin-top: 100px; padding: 48px 22px; border-radius: 32px; text-align: center; background: var(--ld-lime); color: #08080b; position: relative; overflow: hidden; }

@@ -337,15 +337,16 @@
     $("ldTutors").classList.remove("ld-hidden");
 
     $("ldTutorGrid").innerHTML = list.map((t, i) => {
-      const exp = String(t.experience || "").trim();
-      const info = [t.degree, exp ? `${exp} yr${exp === "1" ? "" : "s"}` : ""].filter(Boolean).join(" · ");
+      const years = parseFloat(String(t.experience || "").replace(/[^\d.]/g, ""));
+      const exp = isNaN(years) ? "" : `${years} ${years === 1 ? "Year" : "Years"}`;
       return `
         <div class="ld-tt">
           <div class="ld-av" style="background:${AVATAR_COLORS[i % AVATAR_COLORS.length]}">${esc(initials(t.name))}</div>
-          <b>${esc(t.name)}</b>
-          ${info ? `<span>${esc(info)}</span>` : ""}
-          ${t.city ? `<span>${esc(t.city)}</span>` : ""}
-          <span class="ld-vf"><svg class="ld-ico"><use href="#ld-check"/></svg>Verified</span>
+          <div class="ld-name">
+            <b>${esc(t.name)}</b>
+            <svg class="ld-badge" viewBox="0 0 24 24" role="img" aria-label="Verified"><use href="#ld-verified"/></svg>
+          </div>
+          ${exp ? `<span class="ld-exp">${esc(exp)}</span>` : ""}
         </div>`;
     }).join("");
 
