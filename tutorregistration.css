@@ -3065,3 +3065,52 @@ a.submit {
 #emailPage .field .float-field input[type="email"] {
   text-align: center;
 }
+
+
+/* =========================================================
+   NO BIG EMPTY SPACE UNDER THE EMAIL / OTP PAGES
+   Every page used to be at least one full screen tall
+   (min-height: 100vh), so a short page like the email or OTP
+   step left a large blank area before the footer. Now the
+   header, the current page and the footer share the screen:
+   the page takes only the space left over, with its content
+   centred in it, and the footer follows right after.
+========================================================= */
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.page {
+  min-height: 0;
+  flex: 0 0 auto;
+}
+
+#emailPage:not(.hidden):not([hidden]),
+#otpPage:not(.hidden):not([hidden]) {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+#emailPage .container,
+#otpPage .container {
+  padding: 32px 0 48px;
+}
+
+#emailPage .intro {
+  padding: 28px 0 30px;
+}
+
+#otpPage .otp-card {
+  padding-top: 0;
+}
+
+/* empty status lines take no space */
+.message:empty {
+  display: none;
+}
