@@ -567,6 +567,17 @@ async function renderHeaderAvatar() {
   // Admin Panel: always "AD", not clickable.
   if (isAdminPage_()) {
 
+    // the UrbanTutorSite logo does nothing on the Admin Panel
+    document.querySelectorAll(".site-logo").forEach(function (logo) {
+      logo.removeAttribute("href");
+      logo.setAttribute("aria-disabled", "true");
+      logo.style.cursor = "default";
+      logo.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }, true);
+    });
+
     setHeaderInitials_(button, "AD");
 
     button.removeAttribute("href");
