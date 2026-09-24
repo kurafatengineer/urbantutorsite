@@ -1937,3 +1937,48 @@ ensureMediumOptions();
     if (field) field.classList.remove("has-error");
   });
 });
+
+
+/************************************************************
+ * "Find your perfect tutor." = the width of the email box
+ * The heading's font size is set so its width matches the email
+ * box / Continue button, on every screen size.
+ ************************************************************/
+
+(function () {
+
+  const heading = document.querySelector("#emailPage .intro h1");
+  const box = document.getElementById("emailForm");
+
+  if (!heading || !box) return;
+
+  function fit() {
+
+    if (emailPage.classList.contains("hidden")) return;
+
+    const target = box.getBoundingClientRect().width;
+
+    if (!target) return;
+
+    heading.style.fontSize = "40px";
+
+    const width = heading.getBoundingClientRect().width;
+
+    if (!width) return;
+
+    heading.style.fontSize = (40 * target / width).toFixed(2) + "px";
+
+  }
+
+  fit();
+
+  window.addEventListener("resize", fit);
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(fit);
+  }
+
+  // re-fit when the email page is shown again ("Change Email")
+  new MutationObserver(fit).observe(emailPage, { attributes: true, attributeFilter: ["class"] });
+
+})();
