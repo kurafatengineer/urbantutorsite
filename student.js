@@ -4,8 +4,8 @@
  * CONFIGURATION
  ************************************************************/
 
-const WEB_APP_URL =
-  "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec";
+// This page now talks to Supabase directly (see js/supabase-client.js
+// for the connection). The Apps Script web app is no longer used here.
 
 
 /************************************************************
@@ -16,6 +16,11 @@ let currentEmail = "";
 let currentName = "";
 let currentMode = "";
 let resendTimer = null;
+
+// Registration form data, held here between "Register" and a
+// correct OTP - only saved to the database once the email is
+// actually verified.
+let pendingRegistration = null;
 
 
 /************************************************************
@@ -431,25 +436,18 @@ async function checkEmail() {
 
   setLoading(continueButton, true);
 
-  showMessage(
-    "emailMessage",
-    "Checking your account...",
-    "info"
-  );
+  clearMessage("emailMessage");
 
   try {
 
-    const result = await apiRequest({
-      action: "checkEmail",
-      email: email
-    });
+    // Does this email already belong to a student?
+    const status = await window.sbCall("email_status", { p_email: email });
 
-
-    if (!result.success) {
+    if (status.tutor && !status.student) {
 
       showMessage(
         "emailMessage",
-        result.message || "Unable to check email.",
+        "This email is registered as a tutor. Please use the tutor login.",
         "error"
       );
 
@@ -457,34 +455,20 @@ async function checkEmail() {
 
     }
 
-
-    if (result.exists) {
+    if (status.student) {
 
       currentMode = "login";
-      currentName = result.name || "";
 
-      /*
-       * NEW: actually e-mail the login OTP (the backend's
-       * "sendLoginOTP" action). Previously the OTP page was
-       * shown without any OTP ever being sent.
-       */
-
-      showMessage(
-        "emailMessage",
-        "Sending your login OTP...",
-        "info"
-      );
-
-      const otpResult = await apiRequest({
-        action: "sendLoginOTP",
-        email: email
+      const { error } = await window.sb.auth.signInWithOtp({
+        email: email,
+        options: { shouldCreateUser: true }
       });
 
-      if (!otpResult.success) {
+      if (error) {
 
         showMessage(
           "emailMessage",
-          otpResult.message || "Unable to send login OTP.",
+          error.message || "Unable to send login OTP.",
           "error"
         );
 
@@ -492,26 +476,17 @@ async function checkEmail() {
 
       }
 
-      clearMessage("emailMessage");
-
-      result.resendAfter = otpResult.resendAfter;
-
       emailDisplay.textContent = email;
 
-      document.getElementById("otpEyebrow").textContent =
-        "SECURE LOGIN";
-
-      document.getElementById("otpTitle").textContent =
-        "Verify to login";
-
-      document.getElementById("verifyOtpText").textContent =
-        "Login";
+      document.getElementById("otpEyebrow").textContent = "SECURE LOGIN";
+      document.getElementById("otpTitle").textContent = "Verify to login";
+      document.getElementById("verifyOtpText").textContent = "Login";
 
       otpInput.value = "";
 
       showPage("otp");
 
-      startResendTimer(result.resendAfter || 60);
+      startResendTimer(60);
 
       focusOTP();
 
@@ -519,18 +494,13 @@ async function checkEmail() {
 
     }
 
-
     currentMode = "register";
 
     registrationEmail.value = email;
 
     showPage("registration");
 
-    setTimeout(
-      () => phoneInput.focus(),
-      250
-    );
-
+    setTimeout(() => phoneInput.focus(), 250);
 
   } catch (error) {
 
@@ -570,34 +540,27 @@ async function registerUser() {
 
   currentName = data.studentName;
 
+  // The form's own field names already match what the database
+  // function expects (see collectRegistrationData()), so this is
+  // saved as-is once the OTP is verified.
+  pendingRegistration = data;
+
   setLoading(registerButton, true);
 
-  showMessage(
-    "registrationMessage",
-    "Sending verification OTP...",
-    "info"
-  );
+  clearMessage("registrationMessage");
 
   try {
 
-    const result = await apiRequest({
-
-      action: "sendOTP",
-
-      name: currentName,
-
+    const { error } = await window.sb.auth.signInWithOtp({
       email: currentEmail,
-
-      registration: data
-
+      options: { shouldCreateUser: true }
     });
 
-
-    if (!result.success) {
+    if (error) {
 
       showMessage(
         "registrationMessage",
-        result.message || "Unable to send OTP.",
+        error.message || "Unable to send OTP.",
         "error"
       );
 
@@ -605,28 +568,21 @@ async function registerUser() {
 
     }
 
-
     currentMode = "register";
 
     emailDisplay.textContent = currentEmail;
 
-    document.getElementById("otpEyebrow").textContent =
-      "REGISTRATION VERIFICATION";
-
-    document.getElementById("otpTitle").textContent =
-      "Verify your email";
-
-    document.getElementById("verifyOtpText").textContent =
-      "Verify & Register";
+    document.getElementById("otpEyebrow").textContent = "REGISTRATION VERIFICATION";
+    document.getElementById("otpTitle").textContent = "Verify your email";
+    document.getElementById("verifyOtpText").textContent = "Verify & Register";
 
     otpInput.value = "";
 
     showPage("otp");
 
-    startResendTimer(result.resendAfter || 60);
+    startResendTimer(60);
 
     focusOTP();
-
 
   } catch (error) {
 
@@ -1071,69 +1027,50 @@ async function verifyOTP() {
 
   setLoading(verifyOtpButton, true);
 
-  showMessage(
-    "otpMessage",
-    "Verifying your OTP...",
-    "info"
-  );
-
+  clearMessage("otpMessage");
 
   try {
 
-    if (currentMode === "login") {
+    const { error } = await window.sb.auth.verifyOtp({
+      email: currentEmail,
+      token: otp,
+      type: "email"
+    });
 
-      const result = await apiRequest({
+    if (error) {
 
-        action: "verifyLoginOTP",
-
-        email: currentEmail,
-
-        otp: otp
-
-      });
-
-
-      if (!result.success) {
-
-        otpWrong(result.message || "Incorrect OTP.");
-
-        return;
-
-      }
-
-      showSuccess("login", result);
+      otpWrong(error.message || "Incorrect OTP.");
 
       return;
 
     }
 
-
     if (currentMode === "register") {
 
-      const result = await apiRequest({
-
-        action: "verifyOTP",
-
-        email: currentEmail,
-
-        otp: otp
-
-      });
-
+      const result = await window.sbCall("register_student", { p: pendingRegistration });
 
       if (!result.success) {
 
-        otpWrong(result.message || "Incorrect OTP.");
+        // The email is verified but the details could not be
+        // saved (e.g. that mobile number is already registered) -
+        // sign back out so a fresh attempt starts cleanly.
+        await window.sb.auth.signOut();
+
+        showMessage("otpMessage", result.message || "Unable to complete registration.", "error");
 
         return;
 
       }
 
+      pendingRegistration = null;
 
       showSuccess("register", result);
 
+      return;
+
     }
 
+    showSuccess("login", {});
 
   } catch (error) {
 
@@ -1162,70 +1099,26 @@ async function resendOTP() {
 
   resendButton.disabled = true;
 
-  showMessage(
-    "otpMessage",
-    "Sending a new OTP...",
-    "info"
-  );
-
+  clearMessage("otpMessage");
 
   try {
 
-    const payload = {
+    const { error } = await window.sb.auth.signInWithOtp({
+      email: currentEmail,
+      options: { shouldCreateUser: true }
+    });
 
-      // NEW: a login OTP is re-sent with the login action, so
-      // the backend doesn't treat it as a new registration.
-      action:
-        currentMode === "login"
-          ? "sendLoginOTP"
-          : "resendOTP",
+    if (error) {
 
-      email: currentEmail
+      showMessage("otpMessage", error.message || "Unable to resend OTP.", "error");
 
-    };
-
-
-    if (currentMode === "register") {
-
-      payload.name = currentName;
-
-    }
-
-
-    const result = await apiRequest(payload);
-
-
-    if (!result.success) {
-
-      showMessage(
-        "otpMessage",
-        result.message || "Unable to resend OTP.",
-        "error"
-      );
-
-
-      if (result.resendAfter) {
-
-        startResendTimer(result.resendAfter);
-
-      } else {
-
-        resendButton.disabled = false;
-
-      }
+      resendButton.disabled = false;
 
       return;
 
     }
 
-
-    showMessage(
-      "otpMessage",
-      "New OTP sent successfully.",
-      "success"
-    );
-
-    startResendTimer(result.resendAfter || 60);
+    startResendTimer(60);
 
 
   } catch (error) {
@@ -1251,25 +1144,14 @@ async function resendOTP() {
 
 function showSuccess(type, result) {
 
-  if (!result || !result.sessionToken) {
-
-    showMessage(
-      "otpMessage",
-      "Verification succeeded, but the student session could not be created. Please try again.",
-      "error"
-    );
-
-    return;
-
-  }
-
+  // Supabase itself already keeps the real, secure login in the
+  // browser. This flag only tells the rest of the site (header,
+  // homepage) "a student is logged in here" - it holds no personal
+  // data. Pages not yet updated for Supabase (Student Profile,
+  // dashboard) will be connected in the next step.
   localStorage.setItem(
     "urbantutorsite_student_session",
-    JSON.stringify({
-      // Privacy: only the token is kept in the browser - no
-      // email / mobile number is stored here.
-      sessionToken: result.sessionToken
-    })
+    JSON.stringify({ sessionToken: "supabase" })
   );
 
   // NEW: the homepage toggle / header open on "Student" right
@@ -1417,17 +1299,10 @@ function closeStudentProfileModal() {
 
 async function logoutStudent() {
 
-  const session = getStudentSession();
-
-  if (session && session.sessionToken) {
-    try {
-      await apiRequest({
-        action: "logoutStudent",
-        sessionToken: session.sessionToken
-      });
-    } catch (error) {
-      console.error(error);
-    }
+  try {
+    await window.sb.auth.signOut();
+  } catch (error) {
+    console.error(error);
   }
 
   localStorage.removeItem(
@@ -1867,28 +1742,21 @@ ensureMediumOptions();
 
 (async function () {
 
-  const existingSession = getStudentSession();
-
-  if (!existingSession || !existingSession.sessionToken) {
-    return;
-  }
-
+  // Already logged in (a real Supabase session, not just the local
+  // flag) -> skip straight to the homepage instead of the email form.
   try {
 
-    const result = await apiRequest({
-      action: "getStudentProfile",
-      sessionToken: existingSession.sessionToken
-    });
+    const { data } = await window.sb.auth.getSession();
 
-    if (result.success) {
+    if (data && data.session) {
 
       window.location.replace("index.html");
 
-      return;
+    } else {
+
+      localStorage.removeItem("urbantutorsite_student_session");
 
     }
-
-    localStorage.removeItem("urbantutorsite_student_session");
 
   } catch (error) {
 
