@@ -160,26 +160,52 @@ if (studentLogoutButton) {
  * SAME AS PHONE
  ************************************************************/
 
+// Ticked (default): WhatsApp = mobile number, and its box is hidden.
+// Unticked: the WhatsApp box is shown so a different number can be typed.
+const whatsappWrap = document.getElementById("whatsappWrap");
+
+function syncWhatsApp() {
+
+  if (sameAsPhoneInput.checked) {
+
+    whatsappInput.value = phoneInput.value;
+
+    whatsappInput.readOnly = true;
+
+    if (whatsappWrap) whatsappWrap.classList.add("hidden");
+
+  } else {
+
+    whatsappInput.readOnly = false;
+
+    if (whatsappWrap) whatsappWrap.classList.remove("hidden");
+
+  }
+
+}
+
 sameAsPhoneInput.addEventListener(
   "change",
   () => {
 
-    if (sameAsPhoneInput.checked) {
-
-      whatsappInput.value = phoneInput.value;
-
-      whatsappInput.readOnly = true;
-
-    } else {
-
-      whatsappInput.readOnly = false;
+    if (!sameAsPhoneInput.checked) {
 
       whatsappInput.value = "";
 
     }
 
+    syncWhatsApp();
+
+    if (!sameAsPhoneInput.checked) {
+
+      whatsappInput.focus();
+
+    }
+
   }
 );
+
+syncWhatsApp();
 
 
 phoneInput.addEventListener(
@@ -732,7 +758,9 @@ function collectRegistrationData() {
 
     phone: cleanText(phoneInput.value),
 
-    whatsapp: cleanText(whatsappInput.value),
+    whatsapp: cleanText(
+      sameAsPhoneInput.checked ? phoneInput.value : whatsappInput.value
+    ),
 
     parentsName: cleanText(parentsNameInput.value),
 

@@ -2078,3 +2078,220 @@ textarea:focus {
   outline: 2px solid var(--lime);
   outline-offset: 3px;
 }
+
+
+/* =========================================================
+   MATCH "ADD A STUDENT" (Student Profile) - boxes, buttons
+========================================================= */
+
+/* ---------- text boxes: same size, border and colour ---------- */
+
+.field .float-field input[type="text"],
+.field .float-field input[type="email"],
+.field .float-field input[type="tel"],
+.field .float-field textarea {
+  padding: 15px 20px 13px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 15px;
+}
+
+.field .float-field input[type="text"]:focus,
+.field .float-field input[type="email"]:focus,
+.field .float-field input[type="tel"]:focus,
+.field .float-field textarea:focus {
+  border-color: rgba(202, 255, 61, 0.35);
+}
+
+.float-field > span {
+  left: 16px;
+  font-size: 14.5px;
+  color: #6f6f6f;
+  background: linear-gradient(to bottom, var(--surface) 50%, var(--surface-2) 50%);
+}
+
+.float-field input:focus + span,
+.float-field input:not(:placeholder-shown) + span,
+.float-field textarea:focus + span,
+.float-field textarea:not(:placeholder-shown) + span {
+  font-size: 11.5px;
+}
+
+.float-field input[readonly] + span {
+  background: linear-gradient(to bottom, var(--surface) 50%, #090909 50%);
+}
+
+/* mobile / WhatsApp box (flag + number) */
+.phone-input {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.phone-input:focus-within {
+  border-color: rgba(202, 255, 61, 0.35);
+}
+
+.phone-input .flag-code {
+  padding: 0 12px 0 18px;
+}
+
+.field .float-field.in-phone input[type="tel"] {
+  padding: 15px 20px 13px 12px;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.float-field.in-phone input:focus + span,
+.float-field.in-phone input:not(:placeholder-shown) + span {
+  top: -1px;
+}
+
+.whatsapp-box {
+  margin-top: 12px;
+}
+
+
+/* ---------- "WhatsApp same as mobile number" ---------- */
+
+.pill-check {
+  margin-top: 12px;
+  padding: 11px 12px 11px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.pill-check-text {
+  font-size: 14px;
+}
+
+
+/* ---------- choice buttons (gender, tutor, medium, timing) ----------
+   Same pill shape as the text boxes, same size and font. */
+
+.selection-box,
+.timing-options {
+  gap: 8px;
+}
+
+.selection-option,
+.time-option {
+  padding: 13px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+.selection-option:hover,
+.time-option:hover {
+  border-color: var(--border-light);
+}
+
+.selection-option:has(input:checked),
+.time-option:has(input:checked) {
+  color: #050505;
+  background: var(--lime);
+  border-color: var(--lime);
+}
+
+.other-time input {
+  padding: 15px 20px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 15px;
+}
+
+
+/* ---------- main buttons (Continue, Register, Verify ...) ---------- */
+
+button.submit,
+a.submit {
+  min-height: 0;
+  padding: 14px 20px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+
+/* ---------- Terms: justified text + verified-style tick ---------- */
+
+.terms {
+  align-items: center !important;
+  gap: 14px;
+}
+
+.terms-text {
+  text-align: justify;
+  hyphens: auto;
+}
+
+/* the real checkbox stays for the form, but is invisible */
+.terms input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  flex: 0 0 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.terms-badge {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.terms-badge svg {
+  width: 30px;
+  height: 30px;
+  overflow: visible;
+}
+
+.terms-badge .seal {
+  fill: transparent;
+  stroke: #4a4a4a;
+  stroke-width: 1.4;
+  transition: fill 0.2s ease, stroke 0.2s ease, transform 0.2s ease;
+  transform-origin: 12px 12px;
+}
+
+.terms-badge .tick {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 14;
+  stroke-dashoffset: 14;
+  transition: stroke-dashoffset 0.25s ease 0.08s;
+}
+
+.terms:hover .terms-badge .seal {
+  stroke: #6a6a6a;
+}
+
+.terms input:checked + .terms-badge .seal {
+  fill: #1d9bf0;
+  stroke: #1d9bf0;
+  transform: scale(1.06);
+}
+
+.terms input:checked + .terms-badge .tick {
+  stroke-dashoffset: 0;
+}
+
+.terms input:focus-visible + .terms-badge {
+  outline: 2px solid var(--lime);
+  outline-offset: 3px;
+  border-radius: 50%;
+}
+
+.terms { position: relative; }
