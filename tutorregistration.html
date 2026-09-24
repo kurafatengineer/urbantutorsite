@@ -68,26 +68,27 @@
   <div class="container">
 
     <div class="intro registration-intro">
-      <h1>Tell us about<br><span>yourself.</span></h1>
+      <h1 class="one-line-title">Tell us about <span>yourself.</span></h1>
     </div>
 
     <div class="form-card">
 
-      <button id="registrationBackButton" class="back-link" type="button">← Change email</button>
+      <button id="registrationBackButton" class="back-link" type="button">← Change Email</button>
 
       <form id="tutorForm" novalidate>
 
         <section class="section">
           <div class="section-title centered-section-title"><div><h2>Contact Information</h2></div></div>
           <div class="vertical-fields">
-            <div class="field email-registration-field"><input id="registrationEmail" type="email" aria-label="Email Address" readonly></div>
+            <div class="field email-registration-field"><label class="float-field"><input id="registrationEmail" type="email" aria-label="Email Address" placeholder=" " readonly><span>Email Address</span></label></div>
             <div class="field">
-              <div class="phone-input"><span class="country-code">+91</span><input id="mobile" type="tel" aria-label="Mobile Number" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="Mobile Number" required></div>
+              <div class="phone-input"><span class="country-code flag-code" aria-label="India (+91)"><svg class="in-flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" rx="3" fill="#fff"/><path d="M3 0h24a3 3 0 0 1 3 3v3.67H0V3a3 3 0 0 1 3-3Z" fill="#FF9933"/><path d="M0 13.33h30V17a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3Z" fill="#138808"/><circle cx="15" cy="10" r="2.6" fill="none" stroke="#000080" stroke-width=".7"/><circle cx="15" cy="10" r=".55" fill="#000080"/></svg></span><label class="float-field in-phone"><input id="mobile" type="tel" aria-label="Mobile Number" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder=" " required><span>Enter Your Mobile Number</span></label></div>
               <small id="mobileError" class="field-error"></small>
             </div>
             <div class="field">
-              <div class="phone-input"><span class="country-code">+91</span><input id="whatsapp" type="tel" aria-label="WhatsApp Number" inputmode="numeric" maxlength="10" placeholder="WhatsApp Number" required></div>
-              <label class="same-phone"><input id="sameWhatsapp" type="checkbox"><span>Same as Mobile Number</span></label>
+              <!-- Ticked (default): WhatsApp = mobile number, box hidden. Unticked: box shown. -->
+              <label class="pill-check"><input id="sameWhatsapp" type="checkbox" checked><span class="pill-check-text">WhatsApp same as mobile number</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
+              <div class="phone-input whatsapp-box hidden" id="whatsappWrap"><span class="country-code flag-code" aria-label="India (+91)"><svg class="in-flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" rx="3" fill="#fff"/><path d="M3 0h24a3 3 0 0 1 3 3v3.67H0V3a3 3 0 0 1 3-3Z" fill="#FF9933"/><path d="M0 13.33h30V17a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3Z" fill="#138808"/><circle cx="15" cy="10" r="2.6" fill="none" stroke="#000080" stroke-width=".7"/><circle cx="15" cy="10" r=".55" fill="#000080"/></svg></span><label class="float-field in-phone"><input id="whatsapp" type="tel" aria-label="WhatsApp Number" inputmode="numeric" maxlength="10" placeholder=" " required><span>Enter Your WhatsApp Number</span></label></div>
               <small id="whatsappError" class="field-error"></small>
             </div>
             <div class="field"><div class="selection-box cols-2 small"><label class="selection-option"><input type="radio" name="registerAs" value="Full Time Tutor" checked><span>Full Time Tutor</span></label><label class="selection-option"><input type="radio" name="registerAs" value="Part Time Tutor"><span>Part Time Tutor</span></label></div></div>
@@ -98,7 +99,7 @@
         <section class="section">
           <div class="section-title centered-section-title"><div><h2>Basic Information</h2></div></div>
           <div class="vertical-fields">
-            <div class="field"><input id="fullName" type="text" aria-label="Full Name" placeholder="Full Name" maxlength="120" autocomplete="name" required><small id="fullNameError" class="field-error"></small></div>
+            <div class="field"><label class="float-field"><input id="fullName" type="text" aria-label="Full Name" placeholder=" " maxlength="120" autocomplete="name" required><span>Full Name</span></label><small id="fullNameError" class="field-error"></small></div>
 
             <!-- Date of birth: a real date input with a custom placeholder on top of it -->
             <div class="field">
@@ -152,34 +153,34 @@
           <div class="section-title centered-section-title"><div><h2>Education & Qualification</h2></div></div>
           <div class="vertical-fields">
             <div class="field"><label class="field-label">Class 12th - Stream</label><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthStream" value="Science"><span>Science</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Commerce"><span>Commerce</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Arts"><span>Arts</span></label></div></div>
-            <div class="field"><input id="twelfthYear" type="text" aria-label="Class 12th - Passing Year" placeholder="Class 12th - Passing Year" inputmode="numeric" maxlength="4"></div>
+            <div class="field"><label class="float-field"><input id="twelfthYear" type="text" aria-label="Class 12th - Passing Year" placeholder=" " inputmode="numeric" maxlength="4"><span>Class 12th - Passing Year</span></label></div>
 
             <!-- 12th result: fill EITHER Percentage OR CGPA (the other box is disabled by JS) -->
             <div class="field">
               <div class="two-col">
-                <div class="field"><input id="twelfthPercentage" type="text" aria-label="12th Percentage" placeholder="12th Percentage" inputmode="decimal" maxlength="5"><small id="twelfthPercentageError" class="field-error"></small></div>
-                <div class="field"><input id="twelfthCgpa" type="text" aria-label="12th CGPA" placeholder="12th CGPA" inputmode="decimal" maxlength="5"><small id="twelfthCgpaError" class="field-error"></small></div>
+                <div class="field"><label class="float-field"><input id="twelfthPercentage" type="text" aria-label="12th Percentage" placeholder=" " inputmode="decimal" maxlength="5"><span>12th Percentage</span></label><small id="twelfthPercentageError" class="field-error"></small></div>
+                <div class="field"><label class="float-field"><input id="twelfthCgpa" type="text" aria-label="12th CGPA" placeholder=" " inputmode="decimal" maxlength="5"><span>12th CGPA</span></label><small id="twelfthCgpaError" class="field-error"></small></div>
               </div>
               <small class="helper-text center">Fill either Percentage or CGPA. The other box is disabled automatically.</small>
             </div>
 
             <div class="field"><label class="field-label">Class 12th - Board</label><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthBoard" value="IB"><span>IB</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="ICSE"><span>ICSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="CBSE"><span>CBSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="IGCSE"><span>IGCSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="State Board"><span>State Board</span></label></div></div>
             <div class="two-col">
-              <div class="field"><input id="graduationCourse" type="text" aria-label="Graduation - Course" placeholder="Graduation - Course" ></div>
-              <div class="field"><input id="graduationSubject" type="text" aria-label="Graduation - Subject" placeholder="Graduation - Subject" ></div>
+              <div class="field"><label class="float-field"><input id="graduationCourse" type="text" aria-label="Graduation - Course" placeholder=" " ><span>Graduation - Course</span></label></div>
+              <div class="field"><label class="float-field"><input id="graduationSubject" type="text" aria-label="Graduation - Subject" placeholder=" " ><span>Graduation - Subject</span></label></div>
             </div>
             <div class="two-col">
-              <div class="field"><input id="graduationCollege" type="text" aria-label="Graduation - College/University" placeholder="Graduation - College/University" ></div>
-              <div class="field"><input id="graduationYear" type="text" aria-label="Graduation - Passing Year" placeholder="Graduation - Passing Year" inputmode="numeric" maxlength="4"></div>
+              <div class="field"><label class="float-field"><input id="graduationCollege" type="text" aria-label="Graduation - College/University" placeholder=" " ><span>Graduation - College/University</span></label></div>
+              <div class="field"><label class="float-field"><input id="graduationYear" type="text" aria-label="Graduation - Passing Year" placeholder=" " inputmode="numeric" maxlength="4"><span>Graduation - Passing Year</span></label></div>
             </div>
-            <div class="field"><input id="graduationPercentage" type="text" aria-label="Graduation - Percentage" placeholder="Graduation - Percentage" ></div>
+            <div class="field"><label class="float-field"><input id="graduationPercentage" type="text" aria-label="Graduation - Percentage" placeholder=" " ><span>Graduation - Percentage</span></label></div>
             <div class="two-col">
-              <div class="field"><input id="pgSubject" type="text" aria-label="Post Graduation Subject" placeholder="Post Graduation Subject" ></div>
-              <div class="field"><input id="pgCollege" type="text" aria-label="Post Graduation College/University" placeholder="Post Graduation College/University" ></div>
+              <div class="field"><label class="float-field"><input id="pgSubject" type="text" aria-label="Post Graduation Subject" placeholder=" " ><span>Post Graduation Subject</span></label></div>
+              <div class="field"><label class="float-field"><input id="pgCollege" type="text" aria-label="Post Graduation College/University" placeholder=" " ><span>Post Graduation College/University</span></label></div>
             </div>
             <div class="two-col">
-              <div class="field"><input id="pgYear" type="text" aria-label="Post Graduation Passing Year" placeholder="Post Graduation Passing Year" inputmode="numeric" maxlength="4"></div>
-              <div class="field"><input id="pgPercentage" type="text" aria-label="Post Graduation Percentage" placeholder="Post Graduation Percentage" ></div>
+              <div class="field"><label class="float-field"><input id="pgYear" type="text" aria-label="Post Graduation Passing Year" placeholder=" " inputmode="numeric" maxlength="4"><span>Post Graduation Passing Year</span></label></div>
+              <div class="field"><label class="float-field"><input id="pgPercentage" type="text" aria-label="Post Graduation Percentage" placeholder=" " ><span>Post Graduation Percentage</span></label></div>
             </div>
             <div class="field"><label class="field-label">Special Courses</label><div class="selection-box cols-3 small" id="specialCourses"><label class="selection-option"><input type="checkbox" value="B. Ed"><span>B. Ed</span></label><label class="selection-option"><input type="checkbox" value="M. Ed"><span>M. Ed</span></label><label class="selection-option"><input type="checkbox" value="D. Ed"><span>D. Ed</span></label><label class="selection-option"><input type="checkbox" value="D. El. Ed."><span>D. El. Ed.</span></label><label class="selection-option"><input type="checkbox" value="D. P. Ed"><span>D. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="M. P. Ed"><span>M. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="B. P. Ed"><span>B. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="NET/IRF"><span>NET/IRF</span></label><label class="selection-option"><input type="checkbox" value="Phd"><span>Phd</span></label><label class="selection-option"><input type="checkbox" value="PHE"><span>PHE</span></label></div></div>
             <div class="field"><label class="field-label">Special Child Disability</label><div class="selection-box cols-2 small" id="disability"><label class="selection-option"><input type="checkbox" value="Specific Learning Disability (SLD)"><span>Specific Learning Disability (SLD)</span></label><label class="selection-option"><input type="checkbox" value="Health Impairment"><span>Health Impairment</span></label><label class="selection-option"><input type="checkbox" value="Autism Spectrum Disorder"><span>Autism Spectrum Disorder</span></label><label class="selection-option"><input type="checkbox" value="Emotional disturbance"><span>Emotional disturbance</span></label><label class="selection-option"><input type="checkbox" value="Speech or language impairment"><span>Speech or language impairment</span></label><label class="selection-option"><input type="checkbox" value="Shadow Teacher"><span>Shadow Teacher</span></label></div></div>
@@ -189,7 +190,7 @@
 
         <section class="section">
           <div class="section-title centered-section-title"><div><h2>Experience</h2></div></div>
-          <div class="field"><input id="experience" type="number" aria-label="Experience (In Years)" min="0" max="60" step="0.1" placeholder="Experience (In Years)" required><small id="experienceError" class="field-error"></small></div>
+          <div class="field"><label class="float-field"><input id="experience" type="number" aria-label="Experience (In Years)" min="0" max="60" step="0.1" placeholder=" " required><span>Experience (In Years)</span></label><small id="experienceError" class="field-error"></small></div>
         </section>
 
 
@@ -207,9 +208,9 @@
           <div class="section-title centered-section-title"><div><h2>Areas You Teach</h2></div></div>
           <div class="vertical-fields">
             <div class="field"><select id="location" aria-label="Location"><option value="">Select Location</option><option>New Delhi</option><option>Navi Mumbai</option><option>Mumbai</option><option>Pune</option><option>Faridabad</option><option>Ghaziabad</option><option>Noida</option><option>Gurugram</option></select></div>
-            <div class="field"><input id="city" type="text" aria-label="City" placeholder="City" maxlength="80" required><small id="cityError" class="field-error"></small></div>
-            <div class="field"><textarea id="address" aria-label="Present Address" rows="4" maxlength="400" placeholder="Present Address" required></textarea><small id="addressError" class="field-error"></small></div>
-            <div class="field"><input id="pinCode" type="text" aria-label="Pin Code" inputmode="numeric" maxlength="6" placeholder="Pin Code" required><small id="pinError" class="field-error"></small></div>
+            <div class="field"><label class="float-field"><input id="city" type="text" aria-label="City" placeholder=" " maxlength="80" required><span>City</span></label><small id="cityError" class="field-error"></small></div>
+            <div class="field"><label class="float-field is-area"><textarea id="address" aria-label="Present Address" rows="4" maxlength="400" placeholder=" " required></textarea><span>Present Address</span></label><small id="addressError" class="field-error"></small></div>
+            <div class="field"><label class="float-field"><input id="pinCode" type="text" aria-label="Pin Code" inputmode="numeric" maxlength="6" placeholder=" " required><span>Pin Code</span></label><small id="pinError" class="field-error"></small></div>
           </div>
         </section>
 
@@ -219,6 +220,7 @@
 
           <label class="terms">
             <input id="terms" type="checkbox" required>
+            <span class="terms-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path class="seal" d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81C14.67 2.63 13.43 1.75 12 1.75s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91C2.63 9.33 1.75 10.57 1.75 12s.88 2.67 2.2 3.34c-.46 1.39-.21 2.9.8 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.68-.88 3.34-2.19c1.39.45 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34Z"/><path class="tick" d="m8 12.3 2.7 2.7L16.2 9.5"/></svg></span>
             <span class="terms-text">
               I confirm that the information provided by me is accurate and I agree to the
               <button id="termsButton" type="button" class="inline-link">Terms & Conditions</button>
@@ -229,7 +231,7 @@
 
           <div class="submit-area">
             <button id="registerButton" class="submit" type="submit">
-              <span id="registerText">Verify Email & Register</span>
+              <span id="registerText">Register</span>
               <span id="registerLoader" class="loader hidden"></span>
             </button>
           </div>
@@ -258,7 +260,7 @@
 
     <div class="form-card otp-card">
 
-      <button id="otpBackButton" class="back-link" type="button">← Change email</button>
+      <button id="otpBackButton" class="back-link" type="button">← Change Email</button>
 
       <div class="otp-header">
         <div id="otpEyebrow" class="kicker">EMAIL VERIFICATION</div>

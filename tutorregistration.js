@@ -71,10 +71,30 @@ function normalizeEmail(email) { return String(email || "").trim().toLowerCase()
 
 function isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email); }
 
-/* Inline field error */
-function setError(id, text) { const e = $(id); if (e) e.textContent = text || ""; }
+/* Inline field error.
+   On the registration form the box (or buttons / upload card / terms
+   tick) of the field gets a light red border; the message text stays
+   hidden there. The email and OTP pages still show their messages. */
+function errorHost(e) {
+  if (!e) return null;
+  const field = e.closest(".field");
+  if (field) return field;
+  const before = e.previousElementSibling;
+  return before && (before.classList.contains("terms") || before.classList.contains("upload-card")) ? before : null;
+}
 
-function clearErrors() { document.querySelectorAll(".field-error").forEach(e => e.textContent = ""); }
+function setError(id, text) {
+  const e = $(id);
+  if (!e) return;
+  e.textContent = text || "";
+  const host = errorHost(e);
+  if (host) host.classList.toggle("has-error", !!text);
+}
+
+function clearErrors() {
+  document.querySelectorAll(".field-error").forEach(e => e.textContent = "");
+  document.querySelectorAll(".has-error").forEach(e => e.classList.remove("has-error"));
+}
 
 /* Status message under a form ("info" | "error" | "success") */
 function showMessage(id, text, type = "") {
@@ -178,15 +198,23 @@ async function apiRequest(payload, timeoutMs = 45000) {
 
 /* ---- WhatsApp "same as mobile" ---- */
 
+/* Ticked (default): WhatsApp = mobile number, its box hidden.
+   Unticked: the WhatsApp box appears for a different number. */
+function syncWhatsApp() {
+  const same = $("sameWhatsapp").checked;
+  if (same) $("whatsapp").value = val("mobile");
+  $("whatsapp").readOnly = same;
+  const wrap = $("whatsappWrap");
+  if (wrap) wrap.classList.toggle("hidden", same);
+}
+
 $("sameWhatsapp").addEventListener("change", () => {
-  if ($("sameWhatsapp").checked) {
-    $("whatsapp").value = val("mobile");
-    $("whatsapp").readOnly = true;
-  } else {
-    $("whatsapp").readOnly = false;
-    $("whatsapp").value = "";
-  }
+  if (!$("sameWhatsapp").checked) $("whatsapp").value = "";
+  syncWhatsApp();
+  if (!$("sameWhatsapp").checked) $("whatsapp").focus();
 });
+
+syncWhatsApp();
 
 $("mobile").addEventListener("input", () => {
   digitsOnly($("mobile"));
@@ -416,6 +444,7 @@ function validateRegistration() {
 
   /* Phone numbers */
   if (!/^\d{10}$/.test(val("mobile"))) fail("mobileError", "Mobile Number must contain 10 digits.");
+  if ($("sameWhatsapp").checked) $("whatsapp").value = val("mobile");
   if (!/^\d{10}$/.test(val("whatsapp"))) fail("whatsappError", "WhatsApp Number must contain 10 digits.");
 
   /* Full name */
@@ -497,7 +526,9 @@ async function registerTutor() {
   }
 
   if (!validateRegistration()) {
-    const first = document.querySelector(".field-error:not(:empty)");
+    // error texts are hidden on this form -> scroll to the red box
+    const first = document.querySelector("#registrationPage .has-error") ||
+      document.querySelector(".field-error:not(:empty)");
     if (first) first.scrollIntoView({ behavior: "smooth", block: "center" });
     return;
   }
@@ -945,4 +976,21 @@ showPage("email");
     console.error(error);
   }
 
+})();
+
+
+
+/************************************************************
+ * RED BORDER CLEARS AS SOON AS THE FIELD IS FIXED
+ ************************************************************/
+
+(function () {
+  const form = $("tutorForm");
+  if (!form) return;
+  const clear = event => {
+    const host = event.target.closest(".field") || event.target.closest(".terms") || event.target.closest(".upload-card");
+    if (host) host.classList.remove("has-error");
+  };
+  form.addEventListener("input", clear);
+  form.addEventListener("change", clear);
 })();
