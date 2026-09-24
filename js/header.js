@@ -320,6 +320,13 @@ function updateLoginDestination() {
   }
 
 
+  // Admin Panel: the header badge is a plain "AD" label, never a link.
+  if (isAdminPage_()) {
+    loginButton.removeAttribute("href");
+    return;
+  }
+
+
   const studentButton =
     document.getElementById(
       "studentButton"
@@ -522,6 +529,10 @@ window.UrbanSession = {
    NEW: HEADER AVATAR  (logged-in user's initials)
    ========================================================= */
 
+function isAdminPage_() {
+  return !!(document.body && document.body.dataset.page === "admin");
+}
+
 function initialsFromName_(name) {
 
   return String(name || "")
@@ -552,6 +563,27 @@ async function renderHeaderAvatar() {
   const button = document.getElementById("headerLogin");
 
   if (!button) return;
+
+  // Admin Panel: always "AD", not clickable.
+  if (isAdminPage_()) {
+
+    setHeaderInitials_(button, "AD");
+
+    button.removeAttribute("href");
+    button.setAttribute("aria-label", "Admin");
+    button.setAttribute("aria-disabled", "true");
+    button.setAttribute("tabindex", "-1");
+    button.removeAttribute("title");
+    button.classList.add("header-login-static");
+
+    button.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }, true);
+
+    return;
+
+  }
 
   const role = window.UrbanSession.role();
 
@@ -606,6 +638,9 @@ async function renderHeaderAvatar() {
 }
 
 function setHeaderInitials_(button, initials) {
+
+  if (isAdminPage_() && initials !== "AD") return;
+
 
   let badge = button.querySelector(".header-initials");
   const icon = button.querySelector(".header-login-icon");
