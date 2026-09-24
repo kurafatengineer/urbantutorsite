@@ -341,21 +341,32 @@ function wireEvents() {
   });
 
   $("refreshButton").addEventListener("click", async () => {
-    if (await loadOverview(true)) toast("Updated.");
+    const button = $("refreshButton");
+    if (button.classList.contains("is-loading")) return;
+    button.classList.add("is-loading");
+    button.disabled = true;
+    try {
+      if (await loadOverview(true)) toast("Updated.");
+    } finally {
+      button.classList.remove("is-loading");
+      button.disabled = false;
+    }
   });
 
   $("mainTabs").addEventListener("click", (event) => {
     const tab = event.target.closest(".admin-tab");
     if (!tab) return;
-    STATE.tab = tab.dataset.tab;
-    $("mainTabs").querySelectorAll(".admin-tab").forEach(t => t.classList.toggle("active", t === tab));
-    ["tuitions", "tutors", "students"].forEach(name =>
-      $("tab-" + name).classList.toggle("hidden", name !== STATE.tab)
-    );
+    showTab(tab.dataset.tab);
   });
 
-  chipGroup("tutorFilter", v => { STATE.tutorFilter = v; renderTutors(); });
-  chipGroup("tuitionFilter", v => { STATE.tuitionFilter = v; renderTuitions(); });
+  chipGroup("tutorFilter", v => { collapseAll(); STATE.tutorFilter = v; renderTutors(); });
+  chipGroup("tuitionFilter", v => { collapseAll(); STATE.tuitionFilter = v; renderTuitions(); });
+
+  // The 8 count tiles work as shortcuts to their filter.
+  $("adminStats").addEventListener("click", (event) => {
+    const tile = event.target.closest("[data-go]");
+    if (tile) goToFilter(tile.dataset.go, tile.dataset.filter);
+  });
 
   $("tutorSearch").addEventListener("input", renderTutors);
   $("tuitionSearch").addEventListener("input", renderTuitions);
@@ -369,6 +380,44 @@ function wireEvents() {
 
 }
 
+function showTab(name) {
+
+  if (name !== STATE.tab) collapseAll();
+
+  STATE.tab = name;
+
+  $("mainTabs").querySelectorAll(".admin-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+
+  ["tuitions", "tutors", "students"].forEach(n =>
+    $("tab-" + n).classList.toggle("hidden", n !== name)
+  );
+
+  rerenderCurrent();
+
+}
+
+// Tile click: open that tab with that filter (search cleared so the
+// whole group shows). "today" has no chip of its own.
+function goToFilter(tab, filter) {
+
+  collapseAll();
+
+  if (tab === "tuitions") {
+    STATE.tuitionFilter = filter;
+    $("tuitionSearch").value = "";
+    $("tuitionFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === filter));
+  } else if (tab === "tutors") {
+    STATE.tutorFilter = filter;
+    $("tutorSearch").value = "";
+    $("tutorFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === filter));
+  }
+
+  showTab(tab);
+
+  $("mainTabs").scrollIntoView({ behavior: "smooth", block: "start" });
+
+}
+
 function chipGroup(id, onChange) {
   $(id).addEventListener("click", (event) => {
     const chip = event.target.closest(".admin-chip");
@@ -376,6 +425,61 @@ function chipGroup(id, onChange) {
     $(id).querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c === chip));
     onChange(chip.dataset.value);
   });
+}
+
+// Only ONE card is open at a time. A tuition keeps its own tutor
+// cards (same stack) open with it; every other card collapses.
+// A card that collapses while in edit mode drops its unsaved edits
+// and goes back to normal.
+function toggleCard(head) {
+
+  const key = head.dataset.toggle;
+  const list = head.closest(".admin-stack-list");
+  const stack = head.closest(".admin-stack");
+  const opening = !STATE.open.has(key);
+
+  if (opening) {
+
+    const heads = Array.from(list.querySelectorAll("[data-toggle]"));
+
+    Array.from(STATE.open).forEach(openKey => {
+      const other = heads.find(h => h.dataset.toggle === openKey);
+      if (!other || !stack || other.closest(".admin-stack") !== stack) STATE.open.delete(openKey);
+    });
+
+    STATE.open.add(key);
+
+  } else {
+
+    STATE.open.delete(key);
+
+  }
+
+  let editDropped = false;
+
+  Array.from(STATE.editing).forEach(editKey => {
+    if (!STATE.open.has(editKey)) {
+      STATE.editing.delete(editKey);
+      editDropped = true;
+    }
+  });
+
+  if (editDropped) {
+    rerenderCurrent();
+    return;
+  }
+
+  // Show / hide only - no re-render, so typing in the open card is kept.
+  list.querySelectorAll("[data-toggle]").forEach(h => {
+    h.closest(".admin-card").classList.toggle("is-open", STATE.open.has(h.dataset.toggle));
+  });
+
+}
+
+// Filter / tab change: everything collapses, unsaved edits are dropped.
+function collapseAll() {
+  STATE.open.clear();
+  STATE.editing.clear();
 }
 
 function rerenderCurrent() {
@@ -394,13 +498,7 @@ async function onListClick(event) {
   if (!actionEl) {
     const head = event.target.closest("[data-toggle]");
     if (!head) return;
-    const key = head.dataset.toggle;
-    const card = head.closest(".admin-card");
-    const opening = !STATE.open.has(key);
-    if (opening) STATE.open.add(key); else STATE.open.delete(key);
-    // Show / hide only - never re-render, so anything typed in another
-    // open card is kept.
-    card.classList.toggle("is-open", opening);
+    toggleCard(head);
     return;
   }
 
@@ -660,21 +758,21 @@ function renderStats() {
   }).length;
 
   const stats = [
-    ["Find Tutors", count("new"), "lime"],
-    ["Demo to Schedule", count("schedule"), "violet"],
-    ["Running Classes", count("running"), "green"],
-    ["Tutor Verification Pending", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "pending").length, "amber"],
-    ["Classes Completed", count("completed"), "grey"],
-    ["Terminated", count("terminated"), "red"],
-    ["Today's Demo", todaysDemos, "violet"],
-    ["Verified Tutors", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "verified").length, "green"]
+    ["Find Tutors", count("new"), "lime", "tuitions", "new"],
+    ["Demo to Schedule", count("schedule"), "violet", "tuitions", "schedule"],
+    ["Running Classes", count("running"), "green", "tuitions", "running"],
+    ["Tutor Verification Pending", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "pending").length, "amber", "tutors", "pending"],
+    ["Classes Completed", count("completed"), "grey", "tuitions", "completed"],
+    ["Terminated", count("terminated"), "red", "tuitions", "terminated"],
+    ["Today's Demo", todaysDemos, "violet", "tuitions", "today"],
+    ["Verified Tutors", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "verified").length, "green", "tutors", "verified"]
   ];
 
-  $("adminStats").innerHTML = stats.map(([label, value, tone]) => `
-    <div class="admin-stat" data-tone="${tone}">
-      <div class="admin-stat-value">${esc(value)}</div>
-      <div class="admin-stat-label">${esc(label)}</div>
-    </div>
+  $("adminStats").innerHTML = stats.map(([label, value, tone, tab, filter]) => `
+    <button class="admin-stat" type="button" data-tone="${tone}" data-go="${tab}" data-filter="${filter}">
+      <span class="admin-stat-value">${esc(value)}</span>
+      <span class="admin-stat-label">${esc(label)}</span>
+    </button>
   `).join("");
 
 }
@@ -761,6 +859,14 @@ function infoLine(values, separator = "|") {
   return `<div class="admin-info">${parts.map(v => `<b>${esc(v)}</b>`).join(`<i aria-hidden="true">${esc(separator)}</i>`)}</div>`;
 }
 
+// The highlighted summary of a collapsed card: a bold line and an
+// optional small line under it, on a light band (no border, square).
+function highlight(boldValues, smallText, separator) {
+  const line = infoLine(boldValues, separator);
+  const small = String(smallText || "").trim();
+  return `<div class="admin-hl">${line}${small ? `<p class="admin-hl-small">${small}</p>` : ""}</div>`;
+}
+
 // "Address, City - PIN" without repeating the city.
 function fullAddress(address, city, pin) {
   const a = String(address || "").trim();
@@ -839,9 +945,15 @@ function renderTutors() {
 
   $("tutorList").innerHTML = rows.length ? rows.map(r => {
     const status = r.values["Verification Status"] || "Pending for Verification";
+    const v = f => r.values[f] || "";
     return recordCard("tutors", r, {
-      name: r.values["Full Name"],
-      sub: [r.id, r.values["Mobile Number"], r.values["City"]].filter(Boolean).join(" · "),
+      name: v("Full Name"),
+      // Name | WhatsApp | Graduation | Tutor ID, address small below
+      titleHtml: highlight(
+        [v("Full Name") || r.id, v("WhatsApp Number") || v("Mobile Number"),
+         [v("Graduation - Course"), v("Graduation - Subject")].filter(Boolean).join(" - "), r.id],
+        esc(fullAddress(v("Present Address"), v("City"), v("Pin Code")))
+      ),
       pill: status,
       tone: statusGroup(status)
     });
@@ -875,7 +987,13 @@ function renderStudents() {
     return recordCard("students", r, {
       name: r.values["Student Name"],
       // Name | WhatsApp Number | Class | Board - all bold, one line
-      titleHtml: infoLine([r.values["Student Name"] || r.id, r.values["WhatsApp"] || r.values["Phone"], r.values["Class"], r.values["Board"]]),
+      titleHtml: highlight([
+        r.values["Student Name"] || r.id,
+        r.values["WhatsApp"] || r.values["Phone"],
+        r.values["Class"],
+        r.values["Board"],
+        fullAddress(r.values["Address"], r.values["City"], r.values["PIN Code"])
+      ]),
       extra
     });
 
@@ -903,6 +1021,13 @@ function renderTuitions() {
     ].join(" ");
 
     if (!matchesAll(query, text)) return false;
+
+    if (filter === "today") {
+      return g.rows.some(r => {
+        const st = rowState(r);
+        return r.hasTutor && isToday(r.demoDate) && st !== "declined" && st !== "terminated";
+      });
+    }
 
     return filter === "all" || groupState(g) === filter;
 
@@ -947,21 +1072,21 @@ function tuitionStack(g) {
   const head = `
     <article class="admin-card tuition-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-demo="${esc(g.demoId)}">
 
-      <div class="admin-card-head admin-card-head-tall" data-toggle="${esc(key)}">
-        <div class="admin-head-top">
-          <div class="admin-avatar">${esc(initials(studentName, "S"))}</div>
-          <div class="admin-card-title">
-            <strong>${esc(studentName)}</strong>
-            <small>${esc(sv("Gender"))}</small>
-          </div>
-          <span class="admin-pill" data-tone="${state}">${esc(GROUP_LABELS[state])}</span>
-          <span class="admin-caret" aria-hidden="true"></span>
+      <div class="admin-card-head" data-toggle="${esc(key)}">
+        <div class="admin-avatar">${esc(initials(studentName, "S"))}</div>
+        <div class="admin-card-title">
+          ${highlight(
+            [studentName, sv("WhatsApp") || sv("Phone"), g.demoId, f.subject, sv("Class"),
+             genderText(f.preferredTutor), mediumText(f.medium)],
+            [esc(sv("Gender")),
+             esc(fullAddress(sv("Address"), sv("City"), sv("PIN Code"))),
+             `<span class="admin-hl-count">${tutorRows.length} tutor${tutorRows.length === 1 ? "" : "s"} applied</span>`
+            ].filter(Boolean).join(" · "),
+            "·"
+          )}
         </div>
-        ${infoLine([g.demoId, f.subject, sv("Class"), sv("WhatsApp") || sv("Phone"), genderText(f.preferredTutor), mediumText(f.medium)], "·")}
-        <p class="admin-address">
-          ${esc(fullAddress(sv("Address"), sv("City"), sv("PIN Code")) || "No address")}
-          <span>· ${tutorRows.length} tutor${tutorRows.length === 1 ? "" : "s"} applied</span>
-        </p>
+        <span class="admin-pill" data-tone="${state}">${esc(GROUP_LABELS[state])}</span>
+        <span class="admin-caret" aria-hidden="true"></span>
       </div>
 
       <div class="admin-card-body">
@@ -1041,8 +1166,7 @@ function tutorRowCard(row, terminated) {
         <div class="admin-card-title">
           <strong>${esc(name)}</strong>
           <small>${esc(gender)}${tutor ? " · " + esc(tutor.id) : " · " + esc(row.mobile)}${lower(verification) === "verified" ? "" : ` · <span class="warn">${esc(verification || "Not verified")}</span>`}</small>
-          ${infoLine([tv("WhatsApp Number") || tv("Mobile Number") || row.mobile])}
-          ${fullAddress(tv("Present Address"), tv("City"), tv("Pin Code")) ? `<p class="admin-address">${esc(fullAddress(tv("Present Address"), tv("City"), tv("Pin Code")))}</p>` : ""}
+          ${highlight([tv("WhatsApp Number") || tv("Mobile Number") || row.mobile], esc(fullAddress(tv("Present Address"), tv("City"), tv("Pin Code"))))}
         </div>
         <span class="admin-pill" data-tone="${state}">${esc(ROW_LABELS[state])}</span>
         <span class="admin-caret" aria-hidden="true"></span>
