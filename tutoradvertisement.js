@@ -7,9 +7,9 @@
  * as the homepage "Meet our Tutors" / "Meet our Students"
  * carousels. Only APPLYING requires a logged-in tutor session.
  *
- * API ACTIONS USED (see API Router.gs / Tutor Advertisement.gs)
- *   getAvailableTuitions   (GET or POST, no session needed)
- *   applyForTuition        (POST, needs sessionToken)
+ * RPC FUNCTIONS USED (see supabase-setup-4-apply-accept.sql)
+ *   get_available_tuitions  (window.sbCall, no session needed)
+ *   apply_for_tuition       (window.sbCall, needs Supabase session)
  *
  * FILTERS ARE "SMART" / CASCADING:
  *   Each dropdown's option list is rebuilt from whatever the
@@ -18,9 +18,6 @@
  *   actually available for that subject. Every list stays
  *   sorted A-Z.
  ************************************************************/
-
-const WEB_APP_URL =
-  "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec";
 
 const TUTOR_SESSION_KEY = "urbantutorsite_tutor_session";
 
@@ -58,44 +55,14 @@ function escapeHTML(value) {
     .replace(/'/g, "&#039;");
 }
 
-function getTutorSession() {
+async function hasSession() {
   try {
-    const raw = localStorage.getItem(TUTOR_SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const { data: { session } } = await window.sb.auth.getSession();
+    return !!session;
   } catch (error) {
-    localStorage.removeItem(TUTOR_SESSION_KEY);
-    return null;
+    console.error("Session check error:", error);
+    return false;
   }
-}
-
-async function apiRequest(payload, timeoutMs = 45000) {
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-
-    const response = await fetch(WEB_APP_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    });
-
-    const raw = await response.text();
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    try {
-      return JSON.parse(raw);
-    } catch (parseError) {
-      throw new Error("Invalid server response.");
-    }
-
-  } finally {
-    clearTimeout(timer);
-  }
-
 }
 
 // Embedded on the homepage (see index.html)?
@@ -159,10 +126,10 @@ let appliedDemoIds = new Set();
 
   try {
 
-    const result = await apiRequest(buildListRequest());
+    const result = await window.sbCall("get_available_tuitions", {});
 
-    if (!result.success) {
-      showError(result.message || "Unable to load open tuitions.");
+    if (!result || !result.success) {
+      showError((result && result.message) || "Unable to load open tuitions.");
       return;
     }
 
@@ -178,23 +145,11 @@ let appliedDemoIds = new Set();
 })();
 
 /*
- * getAvailableTuitions is public, but if a tutor is logged in we
- * also send the session token (POST body, never a URL) so the
- * server can return the Demo IDs this tutor has already applied
- * for - those cards are then shown with a disabled button.
+ * get_available_tuitions is public via RLS - if a tutor is logged in,
+ * the server will return the Demo IDs this tutor has already applied
+ * for, which are then shown with a disabled button. Session is checked
+ * via window.sb.auth.getSession() in the RPC function.
  */
-function buildListRequest() {
-
-  const payload = { action: "getAvailableTuitions" };
-  const session = getTutorSession();
-
-  if (session && session.sessionToken) {
-    payload.sessionToken = session.sessionToken;
-  }
-
-  return payload;
-
-}
 
 function applyListResult(result) {
 
@@ -350,8 +305,6 @@ function render() {
   list.querySelectorAll("[data-apply]").forEach(button => {
     button.addEventListener("click", () => applyForTuition(button.dataset.apply, button));
   });
-
-  focusLinkedTuition();
 
 }
 
@@ -516,9 +469,7 @@ function renderTuitionCard(item) {
 
 async function applyForTuition(demoId, button) {
 
-  const session = getTutorSession();
-
-  if (!session || !session.sessionToken) {
+  if (!(await hasSession())) {
     // Leave the homepage frame too, not just the frame.
     (EMBEDDED ? window.top : window).location.href = "tutorregistration.html";
     return;
@@ -535,17 +486,15 @@ async function applyForTuition(demoId, button) {
 
   try {
 
-    const result = await apiRequest({
-      action: "applyForTuition",
-      sessionToken: session.sessionToken,
-      demoId: demoId
+    const result = await window.sbCall("apply_for_tuition", {
+      p_demo_id: demoId
     });
 
-    if (!result.success) {
+    if (!result || !result.success) {
 
       // This tutor had already applied for this Demo ID -
       // just lock the button.
-      if (result.notVerified) {
+      if (result && result.notVerified) {
         tutorVerified = false;
         $("verifyNotice")?.classList.remove("hidden");
         render();
@@ -553,14 +502,14 @@ async function applyForTuition(demoId, button) {
         return;
       }
 
-      if (result.alreadyApplied) {
+      if (result && result.alreadyApplied) {
         appliedDemoIds.add(String(demoId));
         render();
         showToast(result.message || "You have already applied for this tuition.", true);
         return;
       }
 
-      showToast(result.message || "Unable to apply for this tuition.", true);
+      showToast((result && result.message) || "Unable to apply for this tuition.", true);
       button.disabled = false;
       button.textContent = originalText;
 
@@ -593,9 +542,9 @@ async function refreshList() {
 
   try {
 
-    const result = await apiRequest(buildListRequest());
+    const result = await window.sbCall("get_available_tuitions", {});
 
-    if (result.success) {
+    if (result && result.success) {
       applyListResult(result);
     }
 
@@ -628,37 +577,5 @@ if (EMBEDDED && window.parent !== window) {
   window.addEventListener("resize", reportHeight);
 
   reportHeight();
-
-}
-
-
-
-/************************************************************
- * LINK FROM THE TUTOR HOMEPAGE: tutoradvertisement.html#<DemoID>
- * scrolls to that tuition card and highlights it (once).
- ************************************************************/
-
-let linkedTuitionDone = false;
-
-function focusLinkedTuition() {
-
-  if (linkedTuitionDone) return;
-
-  const id = decodeURIComponent((location.hash || "").slice(1));
-
-  if (!id) return;
-
-  const card = Array.from(document.querySelectorAll("[data-demo-id]"))
-    .find(el => el.getAttribute("data-demo-id") === id);
-
-  if (!card) return;
-
-  linkedTuitionDone = true;
-
-  setTimeout(() => {
-    card.scrollIntoView({ behavior: "smooth", block: "center" });
-    card.classList.add("is-linked");
-    setTimeout(() => card.classList.remove("is-linked"), 2600);
-  }, 150);
 
 }

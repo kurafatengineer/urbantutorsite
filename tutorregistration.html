@@ -26,16 +26,20 @@
   <div class="container">
 
     <div class="intro">
-      <h1 class="one-line-title">Join as a <span>tutor.</span></h1>
+      <h1>Join as a<br><span>tutor.</span></h1>
     </div>
 
     <div class="form-card email-card">
       <div class="section">
 
+        <div class="section-title email-section-title">
+          <div><h2>Login</h2></div>
+        </div>
+
         <form id="emailForm" novalidate>
 
           <div class="field">
-            <label class="float-field"><input id="email" aria-label="Email Address" type="email" maxlength="254" autocomplete="email" placeholder=" " required><span>Enter Your Email</span></label>
+            <input id="email" aria-label="Email Address" type="email" maxlength="254" autocomplete="email" placeholder="you@example.com" required>
             <small id="emailError" class="field-error"></small>
           </div>
 
@@ -250,20 +254,24 @@
 <main id="otpPage" class="page hidden">
   <div class="container">
 
+    <div class="intro otp-intro">
+      <h1>Verify your<br><span>email.</span></h1>
+    </div>
+
     <div class="form-card otp-card">
 
       <button id="otpBackButton" class="back-link" type="button">← Change Email</button>
 
-      <!-- kept for the script, never shown -->
-      <div class="otp-hidden" aria-hidden="true"><div id="otpEyebrow"></div><h2 id="otpTitle"></h2></div>
-
-      <p class="otp-sent">We have sent a 6-digit verification code to</p>
-      <strong id="emailDisplay" class="otp-email"></strong>
+      <div class="otp-header">
+        <div id="otpEyebrow" class="kicker">EMAIL VERIFICATION</div>
+        <h2 id="otpTitle">Check your email</h2>
+        <p>We sent a 6-digit verification code to <strong id="emailDisplay"></strong></p>
+      </div>
 
       <form id="otpForm" novalidate>
 
         <div class="field">
-          <input id="otp" class="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Enter OTP" aria-label="OTP" required>
+          <input id="otp" class="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-label="OTP" required>
           <small id="otpError" class="field-error center"></small>
         </div>
 
@@ -277,8 +285,8 @@
       </form>
 
       <div class="resend-area">
-        <button id="resendButton" class="resend-button" type="button" disabled>Resend OTP</button>
         <span>Didn't receive the code?</span>
+        <button id="resendButton" class="resend-button" type="button" disabled>Resend OTP</button>
       </div>
 
       <div id="otpMessage" class="message"></div>
@@ -350,6 +358,8 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
 <script src="js/header.js"></script>
 <script src="js/footer.js"></script>
 <script src="tutorregistration.js" defer></script>

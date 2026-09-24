@@ -5,19 +5,19 @@
  *
  * Guards itself: no valid session -> sent back to
  * tutorregistration.html. Valid session -> calls
- * "getTutorProfile" and renders ONLY the data that comes back
- * for this tutor (see Tutor Session.gs for how privacy is
- * enforced server-side).
+ * "get_tutor_profile" and renders ONLY the data that comes back
+ * for this tutor (see supabase-setup-3-register-profile.sql for how
+ * privacy is enforced server-side via RLS and auth checks).
  *
- * API ACTIONS USED (see API Router.gs / Tutor Session.gs)
- *   getTutorProfile      logoutTutor
- *   respondToDemoTutor   (NEW - Accept / Reject on a tuition card)
+ * RPC FUNCTIONS USED (see supabase-setup-3/4-*.sql)
+ *   get_tutor_profile      (window.sbCall)
+ *   respond_to_demo_tutor  (window.sbCall)
+ *   signOut                (window.sb.auth.signOut)
  *
- * FIELDS THE BACKEND (Tutor Session.gs) MUST SEND PER CLASS:
+ * FIELDS THE BACKEND (get_tutor_profile RPC) MUST SEND PER CLASS:
  *   demoId          <- "Demo ID" header on the Demos sheet
  *   demoDate        <- merged from the "Demo Date" + "Demo Time"
- *                       headers on the Demos sheet (see
- *                       getDemoDateTime_() in Tutor Session.gs),
+ *                       headers on the Demos sheet,
  *                       shown in the "Today / 11:00 AM" badge
  *   status          <- one of: "Applied", "Demo Scheduled",
  *                       "Processing", "Running", "Completed",
@@ -29,16 +29,13 @@
  *   address, city, pinCode <- third row of the middle layer
  *   subject, studentName, className, board, medium, duration
  *   — unchanged from before.
- *   preferredTutor           <- NEW, shown next to Medium
- *   canAccept, canReject     <- NEW, switch the Accept / Reject buttons
+ *   preferredTutor           <- shown next to Medium
+ *   canAccept, canReject     <- switch the Accept / Reject buttons
  *
  * CARDS: collapsed by default (Subject left, Medium right); a tap
  * anywhere on a card opens / closes it, and only one card is open at
  * a time - same behaviour as the Student Profile.
  ************************************************************/
-
-const WEB_APP_URL =
-  "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec";
 
 const TUTOR_SESSION_KEY = "urbantutorsite_tutor_session";
 
@@ -78,34 +75,14 @@ function clearTutorSession() {
   localStorage.removeItem(TUTOR_SESSION_KEY);
 }
 
-async function apiRequest(payload, timeoutMs = 45000) {
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
+async function hasSession() {
   try {
-
-    const response = await fetch(WEB_APP_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    });
-
-    const raw = await response.text();
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    try {
-      return JSON.parse(raw);
-    } catch (parseError) {
-      throw new Error("Invalid server response.");
-    }
-
-  } finally {
-    clearTimeout(timer);
+    const { data: { session } } = await window.sb.auth.getSession();
+    return !!session;
+  } catch (error) {
+    console.error("Session check error:", error);
+    return false;
   }
-
 }
 
 
@@ -147,23 +124,18 @@ const ICONS = {
 
 async function loadProfile() {
 
-  const session = getTutorSession();
-
-  if (!session || !session.sessionToken) {
+  if (!(await hasSession())) {
     showError("You are not logged in.");
     return;
   }
 
   try {
 
-    const result = await apiRequest({
-      action: "getTutorProfile",
-      sessionToken: session.sessionToken
-    });
+    const result = await window.sbCall("get_tutor_profile", {});
 
-    if (!result.success) {
+    if (!result || !result.success) {
       clearTutorSession();
-      showError(result.message || "Your session has expired. Please log in again.");
+      showError((result && result.message) || "Your session has expired. Please log in again.");
       return;
     }
 
@@ -689,9 +661,7 @@ async function respondToTuition(button) {
 
   if (!window.confirm(question)) return;
 
-  const session = getTutorSession();
-
-  if (!session || !session.sessionToken) {
+  if (!(await hasSession())) {
     showError("You are not logged in.");
     return;
   }
@@ -704,15 +674,13 @@ async function respondToTuition(button) {
 
   try {
 
-    const result = await apiRequest({
-      action: "respondToDemoTutor",
-      sessionToken: session.sessionToken,
-      demoId,
-      decision
+    const result = await window.sbCall("respond_to_demo_tutor", {
+      p_demo_id: demoId,
+      p_decision: decision
     });
 
-    if (!result.success) {
-      showToast(result.message || "Your response could not be saved.", true);
+    if (!result || !result.success) {
+      showToast((result && result.message) || "Your response could not be saved.", true);
       button.textContent = label;
       buttons.forEach(b => { b.disabled = false; });
       return;
@@ -740,17 +708,10 @@ async function respondToTuition(button) {
 
 $("logoutButton")?.addEventListener("click", async () => {
 
-  const session = getTutorSession();
-
-  if (session && session.sessionToken) {
-    try {
-      await apiRequest({
-        action: "logoutTutor",
-        sessionToken: session.sessionToken
-      });
-    } catch (error) {
-      console.error(error);
-    }
+  try {
+    await window.sb.auth.signOut();
+  } catch (error) {
+    console.error(error);
   }
 
   clearTutorSession();
