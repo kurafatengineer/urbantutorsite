@@ -3053,4 +3053,15 @@ a.submit {
   margin-top: 0;
 }
 
-#emailPage .float-field input[type="email"] { text-align: left; }
+
+/* Email box: "Enter Your Email" centred inside the box and centred
+   on the top edge once it moves up; the typed email is centred too. */
+#emailPage .float-field > span {
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+#emailPage .field .float-field input[type="email"] {
+  text-align: center;
+}
