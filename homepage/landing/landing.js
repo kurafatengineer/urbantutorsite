@@ -320,7 +320,7 @@
       const place = [t.city, t.pin].filter(Boolean).join(" ");
       return `
         <div class="ld-tu">
-          <span class="ld-sj">${esc(String(t.subject || "?").slice(0, 2))}</span>
+          <span class="ld-sj">${esc(String(t.subject || "?").slice(0, 2).toUpperCase())}</span>
           <div><b>${esc(t.subject)}</b><span>${esc(info)}</span>${place ? `<span>${esc(place)}</span>` : ""}</div>
           <a href="tutoradvertisement.html">Apply</a>
         </div>`;
@@ -338,7 +338,7 @@
 
     $("ldTutorGrid").innerHTML = list.map((t, i) => {
       const years = parseFloat(String(t.experience || "").replace(/[^\d.]/g, ""));
-      const exp = isNaN(years) ? "" : `${years} ${years === 1 ? "Year" : "Years"}`;
+      const exp = isNaN(years) ? "" : `${years} ${years === 1 ? "Year" : "Years"} of Teaching Experience`;
       return `
         <div class="ld-tt">
           <div class="ld-av" style="background:${AVATAR_COLORS[i % AVATAR_COLORS.length]}">${esc(initials(t.name))}</div>

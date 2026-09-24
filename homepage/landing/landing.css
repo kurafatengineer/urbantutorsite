@@ -135,16 +135,24 @@
 .ld-reveal { opacity: 0; transform: translateY(22px); transition: opacity 0.8s ease, transform 0.8s ease; }
 .ld-reveal.ld-show { opacity: 1; transform: none; }
 
-@media (min-width: 860px) {
-  .ld-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .ld-kpi { border-bottom: 0 !important; border-right: 1px solid var(--ld-line); }
-  .ld-kpi:last-child { border-right: 0; }
-  .ld-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .ld-demand { grid-template-columns: 1.6fr 1fr; }
-  .ld-growth { grid-template-columns: 1fr 1.6fr; align-items: stretch; }
-  .ld-tutors { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .ld-chart { height: 320px; }
-}
+/* Desktop layout on EVERY screen - it never collapses to the
+   phone layout (index.html also sets a 1200px-wide viewport for
+   visitors, so phones and tablets show it scaled to fit). */
+.ld-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ld-kpi { border-bottom: 0 !important; border-right: 1px solid var(--ld-line); }
+.ld-kpi:nth-child(odd) { border-right: 1px solid var(--ld-line); }
+.ld-kpi:last-child { border-right: 0; }
+.ld-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ld-demand { grid-template-columns: 1.6fr 1fr; }
+.ld-growth { grid-template-columns: 1fr 1.6fr; align-items: stretch; }
+.ld-tutors { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ld-chart { height: 320px; }
+.landing { min-width: 1024px; }
+
+/* No white edges: the page itself had the browser's default 8px
+   white margin around it. */
+html:has(body[data-page="home"]) { background: #08080b; }
+body[data-page="home"] { margin: 0; background: #08080b; }
 
 @media (prefers-reduced-motion: reduce) {
   .landing * { animation: none !important; transition: none !important; }
