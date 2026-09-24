@@ -202,6 +202,13 @@ const STATE = {
     openNewTuition();
   }
 
+  // Homepage tuition card -> studentprofile.html#tuition-<Demo ID>
+  // opens that student, expands that tuition and scrolls to it.
+  if (location.hash.indexOf("#tuition-") === 0) {
+    openLinkedTuition(decodeURIComponent(location.hash.slice(9)));
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+
 })();
 
 async function loadProfile(selectAfter) {
@@ -1628,5 +1635,47 @@ async function logout() {
   try { localStorage.removeItem(SELECTED_STUDENT_KEY); } catch (e) {}
 
   window.location.href = "index.html";
+
+}
+
+
+
+/************************************************************
+ * OPEN A TUITION LINKED FROM THE HOMEPAGE
+ ************************************************************/
+
+function openLinkedTuition(demoId) {
+
+  if (!demoId) return;
+
+  const owner = STATE.students.find(st =>
+    (st.tuitions || []).some(t => String(t.demoId) === demoId));
+
+  if (!owner) return;
+
+  if (owner.studentId !== STATE.selectedId) {
+    STATE.selectedId = owner.studentId;
+    writeSelected(owner.studentId);
+  }
+
+  STATE.filter = "all";
+  $("filterTabs").querySelectorAll(".filter-tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.filter === "all"));
+
+  STATE.expanded.clear();
+  STATE.expanded.add("d:" + demoId);
+
+  renderAll();
+
+  const card = Array.from(document.querySelectorAll("[data-card]"))
+    .find(el => el.dataset.card === "d:" + demoId);
+
+  if (!card) return;
+
+  setTimeout(() => {
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("is-linked");
+    setTimeout(() => card.classList.remove("is-linked"), 2600);
+  }, 150);
 
 }

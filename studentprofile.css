@@ -1503,3 +1503,17 @@ body.add-modal-open {
   font-weight: 800;
   opacity: 1;
 }
+
+
+/* "You already have a running request for ..." etc. - centred */
+#newTuitionMessage,
+#addStudentMessage {
+  text-align: center;
+}
+
+/* tuition opened from the homepage */
+.class-card.is-linked {
+  outline: 2px solid var(--lime);
+  outline-offset: 3px;
+  transition: outline-color 0.4s ease;
+}

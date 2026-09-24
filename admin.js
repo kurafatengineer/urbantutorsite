@@ -333,6 +333,17 @@ function wireEvents() {
 
   });
 
+  // show / hide the password inside its box
+  $("togglePassword").addEventListener("click", () => {
+    const input = $("adminPassword");
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    $("togglePassword").classList.toggle("is-on", show);
+    $("togglePassword").setAttribute("aria-pressed", show ? "true" : "false");
+    $("togglePassword").setAttribute("aria-label", show ? "Hide password" : "Show password");
+    input.focus();
+  });
+
   $("logoutButton").addEventListener("click", async () => {
     const token = getToken();
     setToken("");
@@ -559,6 +570,26 @@ async function onListClick(event) {
     case "save-row":
       await saveDemoRow(box, actionEl);
       break;
+
+    case "verify": {
+      // Approve / Reject a tutor who is Pending for Verification
+      const value = actionEl.dataset.value;
+      const name = (STATE.data.tutors.rows.find(r => r.id === box.dataset.id) || { values: {} }).values["Full Name"] || box.dataset.id;
+      const ok = window.confirm(value === "Verified"
+        ? `Approve ${name}? Their profile will be marked Verified.`
+        : `Reject ${name}? Their profile will be marked Rejected.`);
+      if (!ok) break;
+      box.querySelectorAll(".admin-vbtn").forEach(b => { b.disabled = true; });
+      const saved = await save({
+        action: "adminUpdateRecord",
+        kind: "tutors",
+        rowNumber: Number(box.dataset.row),
+        id: box.dataset.id,
+        changes: { "Verification Status": value }
+      }, actionEl);
+      if (!saved) box.querySelectorAll(".admin-vbtn").forEach(b => { b.disabled = false; });
+      break;
+    }
 
   }
 
@@ -920,6 +951,11 @@ function recordCard(kind, record, opts) {
         </div>
         ${opts.pill ? `<span class="admin-pill" data-tone="${opts.tone}">${esc(opts.pill)}</span>` : ""}
         <span class="admin-caret" aria-hidden="true"></span>
+        ${opts.verifyButtons ? `
+          <div class="admin-vbtns">
+            <button class="admin-vbtn v-reject" type="button" data-action="verify" data-value="Rejected">Reject</button>
+            <button class="admin-vbtn v-approve" type="button" data-action="verify" data-value="Verified">Approve</button>
+          </div>` : ""}
       </div>
 
       <div class="admin-card-body">
@@ -978,7 +1014,9 @@ function renderTutors() {
         statusGroup(status)
       ),
       pill: status,
-      tone: statusGroup(status)
+      tone: statusGroup(status),
+      // Pending for Verification: Reject / Approve on the right of the tab
+      verifyButtons: statusGroup(status) === "pending"
     });
   }).join("") : empty("No tutors match.");
 

@@ -1627,3 +1627,132 @@ body[data-page="admin"] {
 .admin-top-3 #logoutButton {
   justify-self: end;
 }
+
+
+/* =========================================================
+   LOGIN PAGE - no card, centred password, show / hide
+========================================================= */
+
+.admin-login {
+  background: transparent;
+  border: 0;
+  padding: 10px 0;
+}
+
+.admin-login .admin-float > span {
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(to bottom, var(--bg) 50%, var(--surface-2) 50%);
+}
+
+.admin-pass {
+  position: relative;
+}
+
+.admin-pass .admin-float input {
+  padding-left: 54px;
+  padding-right: 54px;
+  text-align: center;
+}
+
+.admin-eye {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted-2);
+  cursor: pointer;
+}
+
+.admin-eye:hover,
+.admin-eye.is-on {
+  color: var(--lime);
+}
+
+.admin-eye svg {
+  width: 20px;
+  height: 20px;
+}
+
+.admin-eye .eye-shut,
+.admin-eye.is-on .eye-open {
+  display: none;
+}
+
+.admin-eye.is-on .eye-shut {
+  display: block;
+}
+
+
+/* =========================================================
+   PENDING TUTOR: Reject | Approve on the right of the tab
+   Reject (red) has rounded left corners; Approve (green)
+   sits on the card's edge with the card's own corners.
+   Text runs vertically. Both disappear once the status is
+   changed (the card is then no longer "pending").
+========================================================= */
+
+.admin-card:has(.admin-vbtns) {
+  overflow: hidden;
+}
+
+.admin-card-head .admin-vbtns {
+  align-self: stretch;
+  display: flex;
+  margin: -16px -16px -16px 4px;
+  flex: 0 0 auto;
+}
+
+.admin-vbtn {
+  width: 44px;
+  padding: 10px 0;
+  border: 0;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+/* rotated 180deg: "right" corners below appear on the left */
+.admin-vbtn.v-reject {
+  background: rgba(255, 104, 104, 0.9);
+  color: #1a0505;
+  border-radius: 0 16px 16px 0;
+}
+
+.admin-vbtn.v-approve {
+  background: #5ee39a;
+  color: #04200f;
+  border-radius: 18px 0 0 18px;
+}
+
+.admin-card.is-open .admin-vbtn.v-approve {
+  border-radius: 0 0 0 18px;   /* = top-right corner after the rotation */
+}
+
+.admin-vbtn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.admin-vbtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* the status pill is already said by the buttons */
+.admin-card:has(.admin-vbtns) .admin-card-head > .admin-pill {
+  display: none;
+}
