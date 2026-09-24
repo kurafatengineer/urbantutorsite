@@ -2295,3 +2295,113 @@ a.submit {
 }
 
 .terms { position: relative; }
+
+
+/* =========================================================
+   SPACING, ERRORS, TIME PICKER, TERMS TICK
+========================================================= */
+
+/* ---------- same gap between every box ----------
+   The gap between "Email Address" and "Enter Your Mobile Number"
+   (27px) is used everywhere; empty error lines no longer add
+   extra space. */
+
+#registrationPage .field-error {
+  display: none !important;
+}
+
+#registrationPage .pill-check,
+#registrationPage .whatsapp-box,
+#registrationPage .other-time {
+  margin-top: 27px;
+}
+
+
+/* ---------- errors: light red border instead of text ---------- */
+
+#registrationPage .field.has-error .float-field input,
+#registrationPage .field.has-error .float-field textarea,
+#registrationPage .field.has-error .phone-input,
+#registrationPage .field.has-error .selection-option,
+#registrationPage .field.has-error .time-option,
+#registrationPage .field.has-error .other-time .float-field input {
+  border-color: rgba(255, 104, 104, 0.65) !important;
+}
+
+#registrationPage .field.has-error .phone-input .float-field input {
+  border: 0 !important;
+}
+
+#registrationPage .field.has-error .float-field > span {
+  color: #ff9b9b;
+}
+
+#registrationPage .terms.has-error .terms-badge .seal {
+  stroke: rgba(255, 104, 104, 0.75);
+}
+
+
+/* ---------- "Other" timing: a time picker ---------- */
+
+.float-field.is-time input[type="time"] {
+  display: block;
+  width: 100%;
+  padding: 15px 20px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: #ffffff;
+  color-scheme: dark;
+  font: inherit;
+  font-size: 15px;
+  text-align: center;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 50px;
+}
+
+.float-field.is-time input[type="time"]::-webkit-date-and-time-value {
+  text-align: center;
+}
+
+.float-field.is-time input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.6);
+  cursor: pointer;
+}
+
+.float-field.is-time input[type="time"]:focus {
+  border-color: rgba(202, 255, 61, 0.35);
+}
+
+/* label always on the top border, centred */
+.float-field.is-time > span {
+  top: 0 !important;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.float-field.is-time input:focus + span {
+  color: var(--lime);
+}
+
+
+/* ---------- Terms tick: smaller, lime ---------- */
+
+.terms-badge,
+.terms-badge svg {
+  width: 22px;
+  height: 22px;
+}
+
+.terms input:checked + .terms-badge .seal {
+  fill: var(--lime);
+  stroke: var(--lime);
+}
+
+.terms-badge .tick {
+  stroke: #050505;
+}

@@ -743,7 +743,8 @@ function collectRegistrationData() {
 
   if (otherIndex !== -1) {
 
-    const otherTiming = cleanText(timingOtherInput.value);
+    // The time picker gives "17:30" -> saved as "5:30 PM".
+    const otherTiming = pickedTimeText(cleanText(timingOtherInput.value));
 
     if (otherTiming) {
 
@@ -1707,6 +1708,40 @@ function focusOTP() {
  * ERRORS / MESSAGES
  ************************************************************/
 
+// "17:30" (time picker) -> "5:30 PM"; anything else is kept as is.
+function pickedTimeText(value) {
+
+  const m = String(value || "").match(/^(\d{1,2}):(\d{2})/);
+
+  if (!m) return value;
+
+  let h = parseInt(m[1], 10);
+  const meridiem = h >= 12 ? "PM" : "AM";
+
+  h = h % 12 || 12;
+
+  return `${h}:${m[2]} ${meridiem}`;
+
+}
+
+
+// The box (or buttons) of a field with an error get a light red
+// border. On the registration form the message text itself stays
+// hidden; the email / OTP pages still show it.
+function errorHost(element) {
+
+  if (!element) return null;
+
+  const field = element.closest(".field");
+
+  if (field) return field;
+
+  const before = element.previousElementSibling;
+
+  return before && before.classList.contains("terms") ? before : null;
+
+}
+
 function setFieldError(id, message) {
 
   const element = document.getElementById(id);
@@ -1714,6 +1749,10 @@ function setFieldError(id, message) {
   if (element) {
 
     element.textContent = message;
+
+    const host = errorHost(element);
+
+    if (host) host.classList.add("has-error");
 
   }
 
@@ -1727,6 +1766,10 @@ function clearFieldError(id) {
   if (element) {
 
     element.textContent = "";
+
+    const host = errorHost(element);
+
+    if (host) host.classList.remove("has-error");
 
   }
 
@@ -1842,5 +1885,31 @@ ensureMediumOptions();
     console.error(error);
 
   }
+
+})();
+
+
+/************************************************************
+ * ERROR BORDER CLEARS AS SOON AS THE FIELD IS FIXED
+ ************************************************************/
+
+(function () {
+
+  const form = document.getElementById("registrationForm");
+
+  if (!form) return;
+
+  const clearHost = event => {
+
+    const host =
+      event.target.closest(".field") ||
+      event.target.closest(".terms");
+
+    if (host) host.classList.remove("has-error");
+
+  };
+
+  form.addEventListener("input", clearHost);
+  form.addEventListener("change", clearHost);
 
 })();
