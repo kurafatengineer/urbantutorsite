@@ -1275,3 +1275,165 @@ button { cursor: pointer; }
   .admin-chips-7 .admin-chip { padding: 7px 2px; border-radius: 10px; }
 
 }
+
+
+/* =========================================================
+   V4 - FIXES
+========================================================= */
+
+/* ---------- label on the border: fully hides the line ----------
+   The border runs through the label's middle, so the part of the
+   label that covers it must be solid (it used to be half
+   transparent, which let the line show through). */
+
+.admin-box > span {
+  background: var(--card-bg);
+  line-height: 1.2;
+}
+
+/* editable / edit-mode boxes: solid box background behind the
+   lower half of the label */
+.admin-box.is-edit > span,
+.admin-box.admin-box-input > span {
+  background: linear-gradient(to bottom, var(--card-bg) 55%, var(--box-bg) 55%);
+}
+
+
+/* ---------- edit mode: dim, not lime ---------- */
+
+.admin-card,
+.admin-stack > .tutor-row-card {
+  --box-bg: var(--surface-3);
+}
+
+.admin-box.is-edit input,
+.admin-box.is-edit select,
+.admin-box.is-edit textarea {
+  border-color: var(--border-light);
+  background: var(--box-bg);
+}
+
+.admin-box.is-edit > span {
+  color: var(--text);
+}
+
+.admin-box.is-edit input:focus,
+.admin-box.is-edit select:focus,
+.admin-box.is-edit textarea:focus {
+  border-color: var(--muted-2);
+  background: var(--box-bg);
+}
+
+.admin-card.is-editing {
+  border-color: var(--border-light);
+  box-shadow: none;
+}
+
+
+/* ---------- demo date / time / price / duration / % ----------
+   Normal look (not highlighted), editable. Date + time 50 / 50,
+   the other three in equal thirds. Fixed height so the iPhone
+   date / time pickers line up with the text boxes. */
+
+.admin-demo-grid {
+  display: grid;
+  gap: 16px 10px;
+  padding-top: 8px;
+}
+
+.admin-demo-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.admin-demo-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.admin-box.admin-box-input input {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 48px;
+  min-height: 48px;
+  padding: 12px 12px 10px;
+  border-color: var(--border);
+  background: var(--box-bg);
+  text-align: left;
+}
+
+.admin-box.admin-box-input input:focus {
+  outline: none;
+  border-color: var(--muted-2);
+}
+
+.admin-box.admin-box-input input::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+
+.admin-box.admin-box-input input::-webkit-datetime-edit {
+  padding: 0;
+}
+
+
+/* ---------- bold info lines (cards' collapsed view) ---------- */
+
+.admin-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+
+.admin-info b {
+  font-weight: 800;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.admin-info i {
+  font-style: normal;
+  color: var(--muted-2);
+}
+
+.admin-card-title .admin-info {
+  margin-top: 3px;
+}
+
+.admin-card-title > .admin-info:first-child {
+  margin-top: 0;
+  font-size: 14.5px;
+}
+
+.admin-address {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.admin-address span {
+  color: var(--lime);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* tuition card head: avatar + name/gender row, then info + address */
+.admin-card-head.admin-card-head-tall {
+  display: grid;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.admin-head-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+
+  .admin-demo-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  .admin-box.admin-box-input input { font-size: 13px; padding: 12px 10px 10px; }
+
+}

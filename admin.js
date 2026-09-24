@@ -754,6 +754,24 @@ function editButtons(key, editing, saveAction, editLabel) {
 
 }
 
+// Bold values in a row, split by "|" (empty ones left out).
+function infoLine(values, separator = "|") {
+  const parts = values.map(v => String(v == null ? "" : v).trim()).filter(Boolean);
+  if (!parts.length) return "";
+  return `<div class="admin-info">${parts.map(v => `<b>${esc(v)}</b>`).join(`<i aria-hidden="true">${esc(separator)}</i>`)}</div>`;
+}
+
+// "Address, City - PIN" without repeating the city.
+function fullAddress(address, city, pin) {
+  const a = String(address || "").trim();
+  const c = String(city || "").trim();
+  const p = String(pin || "").trim();
+  let text = a;
+  if (c && !lower(a).includes(lower(c))) text = text ? `${text}, ${c}` : c;
+  if (p) text = text ? `${text} - ${p}` : p;
+  return text;
+}
+
 function note(text) {
   return `<p class="admin-note">${esc(text)}</p>`;
 }
@@ -771,8 +789,7 @@ function recordCard(kind, record, opts) {
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">${esc(initials(opts.name, kind === "tutors" ? "T" : "S"))}</div>
         <div class="admin-card-title">
-          <strong>${esc(opts.name || record.id)}</strong>
-          <small>${esc(opts.sub)}</small>
+          ${opts.titleHtml || `<strong>${esc(opts.name || record.id)}</strong><small>${esc(opts.sub)}</small>`}
         </div>
         ${opts.pill ? `<span class="admin-pill" data-tone="${opts.tone}">${esc(opts.pill)}</span>` : ""}
         <span class="admin-caret" aria-hidden="true"></span>
@@ -857,7 +874,8 @@ function renderStudents() {
 
     return recordCard("students", r, {
       name: r.values["Student Name"],
-      sub: [r.id, r.values["Parents Name"] ? `(${r.values["Parents Name"]})` : "", r.values["Class"]].filter(Boolean).join(" · "),
+      // Name | WhatsApp Number | Class | Board - all bold, one line
+      titleHtml: infoLine([r.values["Student Name"] || r.id, r.values["WhatsApp"] || r.values["Phone"], r.values["Class"], r.values["Board"]]),
       extra
     });
 
@@ -905,6 +923,7 @@ function tuitionStack(g) {
   const studentName = student ? student.values["Student Name"] : f.studentId;
   const tutorRows = g.rows.filter(r => r.hasTutor);
   const terminated = state === "terminated";
+  const sv = field => (student && student.values[field]) || "";
 
   const tuitionBoxes = `
     <div class="admin-boxes">
@@ -928,13 +947,21 @@ function tuitionStack(g) {
   const head = `
     <article class="admin-card tuition-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-demo="${esc(g.demoId)}">
 
-      <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-card-title">
-          <strong>${esc(f.subject || "Subject")} <span class="muted">· ${esc(g.demoId)}</span></strong>
-          <small>${esc(studentName)}${student && student.values["Class"] ? " · " + esc(student.values["Class"]) : ""}${student && student.values["City"] ? " · " + esc(student.values["City"]) : ""} · ${tutorRows.length} tutor${tutorRows.length === 1 ? "" : "s"}</small>
+      <div class="admin-card-head admin-card-head-tall" data-toggle="${esc(key)}">
+        <div class="admin-head-top">
+          <div class="admin-avatar">${esc(initials(studentName, "S"))}</div>
+          <div class="admin-card-title">
+            <strong>${esc(studentName)}</strong>
+            <small>${esc(sv("Gender"))}</small>
+          </div>
+          <span class="admin-pill" data-tone="${state}">${esc(GROUP_LABELS[state])}</span>
+          <span class="admin-caret" aria-hidden="true"></span>
         </div>
-        <span class="admin-pill" data-tone="${state}">${esc(GROUP_LABELS[state])}</span>
-        <span class="admin-caret" aria-hidden="true"></span>
+        ${infoLine([g.demoId, f.subject, sv("Class"), sv("WhatsApp") || sv("Phone"), genderText(f.preferredTutor), mediumText(f.medium)], "·")}
+        <p class="admin-address">
+          ${esc(fullAddress(sv("Address"), sv("City"), sv("PIN Code")) || "No address")}
+          <span>· ${tutorRows.length} tutor${tutorRows.length === 1 ? "" : "s"} applied</span>
+        </p>
       </div>
 
       <div class="admin-card-body">
@@ -950,7 +977,7 @@ function tuitionStack(g) {
           <div class="admin-assign">
             <label class="admin-float">
               <input data-assign type="text" placeholder=" " autocomplete="off">
-              <span>Enter Tutor ID to assign a tutor</span>
+              <span>Enter Tutor ID or Mobile Number to assign a tutor</span>
             </label>
             <div class="admin-suggest hidden" data-suggest></div>
             <button class="admin-primary admin-wide" data-action="assign" type="button" disabled>Assign Tutor</button>
@@ -985,6 +1012,7 @@ function tutorRowCard(row, terminated) {
   const gender = tutor ? tutor.values["Gender"] : "";
   const verification = tutor ? tutor.values["Verification Status"] : "";
   const off = terminated ? " disabled" : "";
+  const tv = field => (tutor && tutor.values[field]) || "";
 
   const parent = row.parentAccepted ? "accepted" : row.parentRejected ? "rejected" : "pending";
   const tut = row.tutorAccepted ? "accepted" : row.tutorRejected ? "rejected" : "pending";
@@ -999,7 +1027,7 @@ function tutorRowCard(row, terminated) {
     </div>`;
 
   const input = (field, label, value, type) => `
-    <label class="admin-box is-edit${type ? " is-picker" : ""}">
+    <label class="admin-box admin-box-input${type ? " is-picker" : ""}">
       <input data-rfield="${field}" type="${type || "text"}" value="${esc(value)}"${off}>
       <span>${esc(label)}</span>
     </label>`;
@@ -1013,6 +1041,8 @@ function tutorRowCard(row, terminated) {
         <div class="admin-card-title">
           <strong>${esc(name)}</strong>
           <small>${esc(gender)}${tutor ? " · " + esc(tutor.id) : " · " + esc(row.mobile)}${lower(verification) === "verified" ? "" : ` · <span class="warn">${esc(verification || "Not verified")}</span>`}</small>
+          ${infoLine([tv("WhatsApp Number") || tv("Mobile Number") || row.mobile])}
+          ${fullAddress(tv("Present Address"), tv("City"), tv("Pin Code")) ? `<p class="admin-address">${esc(fullAddress(tv("Present Address"), tv("City"), tv("Pin Code")))}</p>` : ""}
         </div>
         <span class="admin-pill" data-tone="${state}">${esc(ROW_LABELS[state])}</span>
         <span class="admin-caret" aria-hidden="true"></span>
@@ -1023,9 +1053,11 @@ function tutorRowCard(row, terminated) {
         <h3 class="admin-section-title">Tutor</h3>
         ${tutor ? fieldsBoxes("tutors", tutor, false) : note(`No tutor in the Tutors sheet has mobile ${row.mobile}.`)}
 
-        <div class="admin-boxes admin-demo">
+        <div class="admin-demo-grid admin-demo-2">
           ${input("date", "Demo Date", toDateInput(row.demoDate), "date")}
           ${input("time", "Demo Time", toTimeInput(row.demoTime), "time")}
+        </div>
+        <div class="admin-demo-grid admin-demo-3">
           ${input("price", "Price", row.price)}
           ${input("duration", "Duration", row.duration)}
           ${input("percentage", "Percentage", row.percentage)}
