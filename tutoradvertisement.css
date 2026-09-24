@@ -409,3 +409,12 @@ html.embed .error-page .container {
   padding-top: 40px;
   padding-bottom: 40px;
 }
+
+
+/* card opened from the tutor homepage ("Apply" in Matching you) */
+.class-card.is-linked {
+  outline: 2px solid #c8ff2e;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 8px rgba(200, 255, 46, 0.12);
+  transition: outline-color 0.4s ease, box-shadow 0.4s ease;
+}

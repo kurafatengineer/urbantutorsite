@@ -110,6 +110,17 @@
   >
 
 
+
+  <!-- -----------------------------------------------------
+       07. DASHBOARD (logged-in student / tutor homepage)
+       ----------------------------------------------------- -->
+
+  <link
+    rel="stylesheet"
+    href="homepage/dashboard/dashboard.css"
+  >
+
+
 </head>
 
 
@@ -137,6 +148,13 @@
          =================================================== -->
 
     <div id="home-landing"></div>
+
+
+    <!-- ===================================================
+         00b. DASHBOARD  (NEW - logged-in student / tutor)
+         =================================================== -->
+
+    <div id="home-dashboard"></div>
 
 
     <!-- ===================================================
@@ -272,6 +290,14 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
   <script src="homepage/landing/landing.js"></script>
+
+
+
+  <!-- -----------------------------------------------------
+       07. DASHBOARD JAVASCRIPT
+       ----------------------------------------------------- -->
+
+  <script src="homepage/dashboard/dashboard.js"></script>
 
 
 
@@ -441,7 +467,7 @@
           const viewport = document.querySelector('meta[name="viewport"]');
           if (viewport) viewport.setAttribute("content", "width=1200");
 
-          ["home-toggle", "home-hero", "home-tuitions", "home-tutors", "home-students"]
+          ["home-toggle", "home-hero", "home-tuitions", "home-tutors", "home-students", "home-dashboard"]
             .forEach(function (id) {
               const box = document.getElementById(id);
               if (box) box.remove();
@@ -460,6 +486,30 @@
 
         const landingBox = document.getElementById("home-landing");
         if (landingBox) landingBox.remove();
+
+
+
+        /* =================================================
+           00b. LOGGED IN -> STUDENT / TUTOR DASHBOARD
+           =================================================
+           Replaces the old logged-in homepage (hero, carousels,
+           embedded Tuitions Available). Header and footer stay.
+           ================================================= */
+
+        ["home-toggle", "home-hero", "home-tuitions", "home-tutors", "home-students"]
+          .forEach(function (id) {
+            const box = document.getElementById(id);
+            if (box) box.remove();
+          });
+
+        await loadComponent(
+          "home-dashboard",
+          "homepage/dashboard/dashboard.html",
+          window.DashboardComponent,
+          "Dashboard"
+        );
+
+        return;
 
 
 

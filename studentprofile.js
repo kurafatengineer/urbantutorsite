@@ -195,6 +195,13 @@ const STATE = {
 
   await loadProfile();
 
+  // Homepage "Apply for New Tuition" -> studentprofile.html#apply
+  // opens the new-tuition form straight away.
+  if (location.hash === "#apply" && STATE.students.length) {
+    history.replaceState(null, "", location.pathname + location.search);
+    openNewTuition();
+  }
+
 })();
 
 async function loadProfile(selectAfter) {
