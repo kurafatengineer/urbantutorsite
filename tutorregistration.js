@@ -183,9 +183,190 @@ $("mobile").addEventListener("input", () => {
 
 /* ---- digits-only fields ---- */
 
-["whatsapp", "pinCode", "twelfthYear", "graduationYear", "pgYear"].forEach(id =>
+["whatsapp", "pinCode"].forEach(id =>
   $(id).addEventListener("input", () => digitsOnly($(id)))
 );
+
+/* ---- Year-picker <select> fields (Class 12th / Graduation / PG passing year) ---- */
+
+function fillYearSelect(id) {
+  const select = $(id);
+  if (!select) return;
+  const currentYear = new Date().getFullYear();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Select Year";
+  select.appendChild(placeholder);
+  for (let y = currentYear; y >= 1980; y--) {
+    const opt = document.createElement("option");
+    opt.value = String(y);
+    opt.textContent = String(y);
+    select.appendChild(opt);
+  }
+}
+
+["twelfthYear", "graduationYear", "pgYear"].forEach(fillYearSelect);
+
+/* ---- Experience slider (0-10, 11 = "10+") ---- */
+
+const experienceSlider = $("experience");
+const experienceValueLabel = $("experienceValue");
+
+function syncExperienceLabel() {
+  const v = Number(experienceSlider.value);
+  experienceValueLabel.textContent = v >= 11 ? "10+ years" : `${v} year${v === 1 ? "" : "s"}`;
+}
+
+experienceSlider.addEventListener("input", syncExperienceLabel);
+syncExperienceLabel();
+
+/* ---- Classes You Teach: dual-range slider (Class 1 - Class 12) ---- */
+
+const classesFrom = $("classesFrom");
+const classesTo = $("classesTo");
+const classesFromLabel = $("classesFromLabel");
+const classesToLabel = $("classesToLabel");
+
+function syncClassesRange() {
+  let from = Number(classesFrom.value);
+  let to = Number(classesTo.value);
+  if (from > to) {
+    // keep the two handles from crossing
+    if (document.activeElement === classesFrom) { to = from; classesTo.value = to; }
+    else { from = to; classesFrom.value = from; }
+  }
+  classesFromLabel.textContent = `Class ${from}`;
+  classesToLabel.textContent = `Class ${to}`;
+  setError("classesError", "");
+}
+
+classesFrom.addEventListener("input", syncClassesRange);
+classesTo.addEventListener("input", syncClassesRange);
+syncClassesRange();
+
+function classesYouTeachValue() {
+  const from = Number(classesFrom.value);
+  const to = Number(classesTo.value);
+  const lo = Math.min(from, to);
+  const hi = Math.max(from, to);
+  const list = [];
+  for (let c = lo; c <= hi; c++) list.push(`Class ${c}`);
+  return list.join(", ");
+}
+
+/* ---- Subjects You Teach: search + add chips ---- */
+
+const SUBJECTS_LIST = [
+  "Accountancy", "Arts & Craft", "Biology", "Biology/Biotechnology",
+  "Business Administration (BBA/MBA)", "Business Studies", "Chemistry", "Civics",
+  "Computer Applications", "Computer Science", "Dance", "Economics", "English",
+  "Environmental Studies (EVS)", "French", "Geography", "German", "Hindi", "History",
+  "Home Science", "Informatics Practices", "Information Technology", "Korean",
+  "Marathi", "Mathematics", "Music", "Philosophy", "Physical Education", "Physics",
+  "Political Science", "Psychology", "Punjabi", "Sanskrit", "Sciences", "Sociology",
+  "Spanish", "Yoga & Gymnastics"
+];
+
+let selectedSubjects = [];
+
+const subjectsChipList = $("subjectsChipList");
+const subjectsSearchInput = $("subjectsSearchInput");
+const subjectsSuggestions = $("subjectsSuggestions");
+
+function renderSubjectChips() {
+  subjectsChipList.innerHTML = "";
+  selectedSubjects.forEach(subject => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.innerHTML = `${subject}<button type="button" class="chip-remove" aria-label="Remove ${subject}">×</button>`;
+    chip.querySelector(".chip-remove").addEventListener("click", () => {
+      selectedSubjects = selectedSubjects.filter(s => s !== subject);
+      renderSubjectChips();
+    });
+    subjectsChipList.appendChild(chip);
+  });
+}
+
+function addSubject(subject) {
+  const clean = cleanText(subject);
+  if (!clean) return;
+  if (!selectedSubjects.some(s => s.toLowerCase() === clean.toLowerCase())) {
+    selectedSubjects.push(clean);
+    renderSubjectChips();
+    setError("subjectsError", "");
+  }
+  subjectsSearchInput.value = "";
+  subjectsSuggestions.classList.add("hidden");
+  subjectsSuggestions.innerHTML = "";
+}
+
+function renderSubjectSuggestions() {
+  const query = subjectsSearchInput.value.trim().toLowerCase();
+  subjectsSuggestions.innerHTML = "";
+  if (!query) { subjectsSuggestions.classList.add("hidden"); return; }
+  const matches = SUBJECTS_LIST.filter(s =>
+    s.toLowerCase().includes(query) &&
+    !selectedSubjects.some(sel => sel.toLowerCase() === s.toLowerCase())
+  ).slice(0, 8);
+  if (matches.length === 0) { subjectsSuggestions.classList.add("hidden"); return; }
+  matches.forEach(subject => {
+    const item = document.createElement("div");
+    item.className = "chip-suggestion";
+    item.textContent = subject;
+    item.addEventListener("mousedown", e => { e.preventDefault(); addSubject(subject); });
+    subjectsSuggestions.appendChild(item);
+  });
+  subjectsSuggestions.classList.remove("hidden");
+}
+
+subjectsSearchInput.addEventListener("input", renderSubjectSuggestions);
+subjectsSearchInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    addSubject(subjectsSearchInput.value);
+  }
+});
+subjectsSearchInput.addEventListener("blur", () => {
+  setTimeout(() => subjectsSuggestions.classList.add("hidden"), 150);
+});
+
+/* ---- Class 12th Board / Boards You Teach: "Other" reveals a text box ---- */
+
+function bindOtherBoard(radioName, wrapId, inputId) {
+  const wrap = $(wrapId);
+  document.querySelectorAll(`input[name="${radioName}"]`).forEach(radio => {
+    radio.addEventListener("change", () => {
+      const isOther = radio.value === "Other" && radio.checked;
+      wrap.classList.toggle("hidden", !isOther);
+      if (isOther) $(inputId).focus();
+    });
+  });
+}
+
+bindOtherBoard("twelfthBoard", "twelfthBoardOtherWrap", "twelfthBoardOther");
+
+function class12BoardValue() {
+  const selected = checked("twelfthBoard");
+  if (selected === "Other") return cleanText($("twelfthBoardOther").value);
+  return selected;
+}
+
+const boardsOtherCheckbox = document.querySelector('#boardsTeach input[value="Other"]');
+const boardsOtherWrap = $("boardsOtherWrap");
+
+if (boardsOtherCheckbox) {
+  boardsOtherCheckbox.addEventListener("change", () => {
+    boardsOtherWrap.classList.toggle("hidden", !boardsOtherCheckbox.checked);
+    if (boardsOtherCheckbox.checked) $("boardsOther").focus();
+  });
+}
+
+function boardsYouTeachValue() {
+  const selected = values("boardsTeach").filter(v => v !== "Other");
+  const other = boardsOtherCheckbox && boardsOtherCheckbox.checked ? cleanText($("boardsOther").value) : "";
+  if (other) selected.push(other);
+  return selected.join(", ");
+}
 
 /* ---- OTP: digits only, then auto-verify once 6 digits are entered ---- */
 
@@ -413,6 +594,10 @@ function validateRegistration() {
   if ($("sameWhatsapp").checked) $("whatsapp").value = val("mobile");
   if (!/^\d{10}$/.test(val("whatsapp"))) fail("whatsappError", "WhatsApp Number must contain 10 digits.");
 
+  /* Register as / Gender: must be explicitly chosen */
+  if (!checked("registerAs")) fail("registerAsError", "Please select an option.");
+  if (!checked("gender")) fail("genderError", "Please select an option.");
+
   /* Full name */
   if (cleanText($("fullName").value).length < 2) fail("fullNameError", "Please enter your full name.");
 
@@ -444,9 +629,12 @@ function validateRegistration() {
 
   /* Groups */
   if (values("languages").length === 0) fail("languagesError", "Select at least one language.");
-  if (values("classesTeach").length === 0) fail("classesError", "Select at least one class range.");
-  if (values("subjectsTeach").length === 0) fail("subjectsError", "Select at least one subject.");
-  if (values("boardsTeach").length === 0) fail("boardsError", "Select at least one board.");
+  if (selectedSubjects.length === 0) fail("subjectsError", "Add at least one subject.");
+  if (values("boardsTeach").length === 0) {
+    fail("boardsError", "Select at least one board.");
+  } else if (boardsOtherCheckbox && boardsOtherCheckbox.checked && !cleanText($("boardsOther").value)) {
+    fail("boardsError", "Please enter the board name.");
+  }
 
   /* Documents */
   if (!validateFile("identityProof", "identityError", false)) ok = false;
@@ -805,7 +993,7 @@ function buildRegistrationPayload() {
     class12PassingYear: val("twelfthYear"),
     class12Percentage: val("twelfthPercentage"),
     class12Cgpa: val("twelfthCgpa"),
-    class12Board: checked("twelfthBoard"),
+    class12Board: class12BoardValue(),
 
     graduationCourse: val("graduationCourse"),
     graduationSubject: val("graduationSubject"),
@@ -821,11 +1009,11 @@ function buildRegistrationPayload() {
     specialCourses: joinValues("specialCourses"),
     specialChildDisability: joinValues("disability"),
 
-    experienceYears: val("experience"),
+    experienceYears: Number(experienceSlider.value) >= 11 ? 10 : Number(experienceSlider.value),
 
-    classesYouTeach: joinValues("classesTeach"),
-    subjectsYouTeach: joinValues("subjectsTeach"),
-    boardsYouTeach: joinValues("boardsTeach"),
+    classesYouTeach: classesYouTeachValue(),
+    subjectsYouTeach: selectedSubjects.join(", "),
+    boardsYouTeach: boardsYouTeachValue(),
 
     teachingLocation: val("location"),
     city: val("city"),
