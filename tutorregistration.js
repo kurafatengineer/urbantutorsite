@@ -986,3 +986,93 @@ showPage("email");
     if (field) field.classList.remove("has-error");
   });
 });
+
+
+/************************************************************
+ * STEP-BY-STEP REVEAL
+ * Contact Information starts open. Answering it opens Basic
+ * Information; answering that opens Languages Known + Identity
+ * Proof together; uploading both files opens Education &
+ * Qualification. Everything after that (Experience onward)
+ * is unaffected for now. Clicking a completed section's own
+ * heading re-opens it, in case something needs fixing.
+ * Checking the Terms box expands everything again and scrolls
+ * to the top, so the whole form can be reviewed before Register.
+ ************************************************************/
+
+(function () {
+  const secContact = $("sectionContact");
+  const secBasic = $("sectionBasic");
+  const secLanguages = $("sectionLanguages");
+  const secIdentity = $("sectionIdentity");
+  const secEducation = $("sectionEducation");
+  const stepSections = [secContact, secBasic, secLanguages, secIdentity, secEducation];
+
+  if (!secContact || !secBasic || !secLanguages || !secIdentity || !secEducation) return;
+
+  function collapse(section) {
+    section.classList.add("step-collapsed", "step-done");
+  }
+  function expand(section) {
+    section.classList.remove("step-collapsed");
+  }
+
+  // start: only Contact Information open
+  [secBasic, secLanguages, secIdentity, secEducation].forEach(collapse);
+
+  // Full Time / Part Time chosen -> reveal Basic Information
+  document.querySelectorAll('input[name="registerAs"]').forEach(function (r) {
+    r.addEventListener("change", function () {
+      collapse(secContact);
+      expand(secBasic);
+    });
+  });
+
+  // Male / Female chosen -> reveal Languages Known + Identity Proof
+  document.querySelectorAll('input[name="gender"]').forEach(function (r) {
+    r.addEventListener("change", function () {
+      collapse(secBasic);
+      expand(secLanguages);
+      expand(secIdentity);
+    });
+  });
+
+  // Both documents uploaded -> reveal Education & Qualification
+  function checkUploadsDone() {
+    const identityInput = $("identityProof");
+    const profileInput = $("profileImage");
+    const identityDone = identityInput && identityInput.files && identityInput.files.length > 0;
+    const profileDone = profileInput && profileInput.files && profileInput.files.length > 0;
+    if (identityDone && profileDone) {
+      collapse(secLanguages);
+      collapse(secIdentity);
+      expand(secEducation);
+    }
+  }
+  const identityInput = $("identityProof");
+  const profileInput = $("profileImage");
+  if (identityInput) identityInput.addEventListener("change", checkUploadsDone);
+  if (profileInput) profileInput.addEventListener("change", checkUploadsDone);
+
+  // A completed section's own heading re-opens (or re-collapses) it
+  stepSections.forEach(function (section) {
+    const heading = section.querySelector(".section-title");
+    if (!heading) return;
+    heading.addEventListener("click", function () {
+      if (section.classList.contains("step-done")) {
+        section.classList.toggle("step-collapsed");
+      }
+    });
+  });
+
+  // Terms accepted -> open everything for a final review, scroll to top
+  const termsBox = $("terms");
+  if (termsBox) {
+    termsBox.addEventListener("change", function () {
+      if (termsBox.checked) {
+        stepSections.forEach(expand);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+  }
+})();
