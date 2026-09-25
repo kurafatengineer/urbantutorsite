@@ -13,11 +13,9 @@
 const HEADER_COMPONENT =
   "components/header.html";
 
-// Same Apps Script Web App as every other page. Used only to look up
-// the logged-in user's NAME for the header initials, once, when it
-// is not already known.
-const HEADER_WEB_APP_URL =
-  "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec";
+// The logged-in user's NAME for the header initials is looked up once,
+// when not already known, from Supabase (get_tutor_profile /
+// get_student_profile via window.sbCall - js/supabase-client.js).
 
 const HEADER_NAME_CACHE_KEY = "urbantutorsite_header_name";
 
@@ -617,16 +615,12 @@ async function renderHeaderAvatar() {
   // Not known yet (e.g. first page after a student login): ask once.
   try {
 
-    const response = await fetch(HEADER_WEB_APP_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        action: role === "tutor" ? "getTutorProfile" : "getStudentProfile",
-        sessionToken: token
-      })
-    });
+    // Pages that don't load Supabase simply keep the plain icon.
+    if (typeof window.sbCall !== "function") return;
 
-    const result = JSON.parse(await response.text());
+    const result = await window.sbCall(
+      role === "tutor" ? "get_tutor_profile" : "get_student_profile", {}
+    );
 
     if (!result || !result.success) return;
 
