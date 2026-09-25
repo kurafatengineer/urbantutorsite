@@ -19,9 +19,6 @@
 
   "use strict";
 
-  const WEB_APP_URL =
-    "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec";
-
   const STUDENT_KEY = "urbantutorsite_student_session";
   const TUTOR_KEY = "urbantutorsite_tutor_session";
   const SELECTED_STUDENT_KEY = "urbantutorsite_selected_student";
@@ -41,13 +38,49 @@
     try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
   }
 
+  // Every request goes to the matching Supabase function (the same ones
+  // Student Profile / Tutor Profile use). The rest of this file still
+  // speaks in the old "action" names, so only this helper changed.
   async function api(payload) {
-    const response = await fetch(WEB_APP_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    });
-    return JSON.parse(await response.text());
+
+    if (typeof window.sbCall !== "function") {
+      return { success: false, message: "Supabase is not loaded." };
+    }
+
+    switch (payload.action) {
+
+      case "getStudentProfile":
+        return window.sbCall("get_student_profile", {});
+
+      case "getTutorProfile":
+        return window.sbCall("get_tutor_profile", {});
+
+      case "getAvailableTuitions":
+        return window.sbCall("get_available_tuitions", {});
+
+      case "respondToDemo":
+        return window.sbCall("respond_to_demo", {
+          p_demo_id: payload.demoId,
+          p_tutor_id: payload.tutorId,
+          p_decision: payload.decision
+        });
+
+      case "respondToDemoTutor":
+        return window.sbCall("respond_to_demo_tutor", {
+          p_demo_id: payload.demoId,
+          p_decision: payload.decision
+        });
+
+      case "addTuition":
+        return window.sbCall("add_tuition", {
+          p: Object.assign({ studentId: payload.studentId }, payload.tuition)
+        });
+
+      default:
+        return { success: false, message: "Unknown request: " + payload.action };
+
+    }
+
   }
 
   function initials(name, fallback) {
