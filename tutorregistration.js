@@ -413,6 +413,10 @@ function validateRegistration() {
   if ($("sameWhatsapp").checked) $("whatsapp").value = val("mobile");
   if (!/^\d{10}$/.test(val("whatsapp"))) fail("whatsappError", "WhatsApp Number must contain 10 digits.");
 
+  /* Full Time / Part Time and gender are no longer pre-selected */
+  if (!checked("registerAs")) fail("registerAsError", "Select Full Time or Part Time.");
+  if (!checked("gender")) fail("genderError", "Select your gender.");
+
   /* Full name */
   if (cleanText($("fullName").value).length < 2) fail("fullNameError", "Please enter your full name.");
 
@@ -433,6 +437,14 @@ function validateRegistration() {
   }
   if (cgpa && (!decimal.test(cgpa) || Number(cgpa) > 10)) {
     fail("twelfthCgpaError", "Enter 0 - 10.");
+  }
+
+  /* Class 12th (and Graduation + Post Graduation when that is ticked) */
+  if (!educationValid(!!$("pgToggle") && $("pgToggle").checked, true)) ok = false;
+  if ($("pgToggle") && $("pgToggle").checked) {
+    if (!val("pgSubject")) fail("pgSubjectError", "This field is required.");
+    if (!val("pgCollege")) fail("pgCollegeError", "This field is required.");
+    if (!/^\d{4}$/.test(val("pgYear"))) fail("pgYearError", "Enter the passing year.");
   }
 
   /* Required text fields */
@@ -492,6 +504,7 @@ async function registerTutor() {
   }
 
   if (!validateRegistration()) {
+    if (typeof window.showAllRegistrationSteps === "function") window.showAllRegistrationSteps(false);
     // error texts are hidden on this form -> scroll to the red box
     const first = document.querySelector("#registrationPage .has-error") ||
       document.querySelector(".field-error:not(:empty)");
@@ -986,3 +999,313 @@ showPage("email");
     if (field) field.classList.remove("has-error");
   });
 });
+
+
+
+/************************************************************
+ * CLASS 12TH / GRADUATION CHECK
+ * Used before the Post Graduation tick hides these details and
+ * again when Register is pressed. Marks missing boxes red.
+ ************************************************************/
+
+function educationValid(includeGraduation, showErrors) {
+
+  let ok = true;
+  const fail = (id, message) => { ok = false; if (showErrors) setError(id, message); };
+  const decimal = /^\d+(\.\d{1,2})?$/;
+
+  if (!checked("twelfthStream")) fail("twelfthStreamError", "Select your Class 12th stream.");
+  if (!/^\d{4}$/.test(val("twelfthYear"))) fail("twelfthYearError", "Enter the passing year.");
+
+  const percentage = val("twelfthPercentage");
+  const cgpa = val("twelfthCgpa");
+  if (!percentage && !cgpa) {
+    fail("twelfthPercentageError", "Enter Percentage or CGPA.");
+    fail("twelfthCgpaError", "Enter Percentage or CGPA.");
+  } else if (percentage && (!decimal.test(percentage) || Number(percentage) > 100)) {
+    fail("twelfthPercentageError", "Enter 0 - 100.");
+  } else if (cgpa && (!decimal.test(cgpa) || Number(cgpa) > 10)) {
+    fail("twelfthCgpaError", "Enter 0 - 10.");
+  }
+
+  if (!checked("twelfthBoard")) fail("twelfthBoardError", "Select your Class 12th board.");
+
+  if (includeGraduation) {
+    ["graduationCourse", "graduationSubject", "graduationCollege", "graduationPercentage"].forEach(id => {
+      if (!val(id)) fail(id + "Error", "This field is required.");
+    });
+    if (!/^\d{4}$/.test(val("graduationYear"))) fail("graduationYearError", "Enter the passing year.");
+  }
+
+  return ok;
+
+}
+
+
+/************************************************************
+ * STEP-BY-STEP FORM
+ *
+ *  1. Only Contact Information is shown.
+ *     Full Time / Part Time -> (mobile + WhatsApp checked) ->
+ *     Contact hides, Basic Information shows.
+ *  2. Full Name + Date of Birth + Male / Female ->
+ *     Basic hides, Languages Known + Identity Proof show.
+ *  3. One language + both documents ->
+ *     those hide, Education & Qualification shows.
+ *  4. Education opens one piece at a time:
+ *     Stream -> Passing Year -> Percentage / CGPA -> Board.
+ *     After the Board: Graduation, the "Post Graduation",
+ *     "Special Courses" and "Special Child Disability" ticks,
+ *     and the ticks for Experience, Teaching Preferences,
+ *     Subjects, Boards and Areas You Teach, plus the Terms.
+ *     - Post Graduation tick: checks Class 12th + Graduation,
+ *       hides them and shows the Post Graduation boxes.
+ *     - Experience ... Areas ticks: open their part and hide
+ *       whatever else is open above.
+ *     - Special Courses / Disability ticks: open / close their
+ *       own options only.
+ *  5. Ticking Terms & Conditions shows the whole form and goes
+ *     back to the top, so everything can be reviewed.
+ ************************************************************/
+
+(function () {
+
+  const form = $("tutorForm");
+  if (!form || !$("sectionContact")) return;
+
+  const DELAY = 500;
+  const hide = id => { const e = $(id); if (e) e.classList.add("step-hidden"); };
+  const show = id => { const e = $(id); if (e) e.classList.remove("step-hidden"); };
+  const isShown = id => { const e = $(id); return !!e && !e.classList.contains("step-hidden"); };
+
+  let step = 1;          // 1 contact, 2 basic, 3 languages + identity, 4 education
+  let timer = null;
+  let reviewing = false;
+
+  function scrollToEl(id) {
+    const e = $(id);
+    if (e) e.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function later(fn) {
+    clearTimeout(timer);
+    timer = setTimeout(() => { timer = null; if (!reviewing) fn(); }, DELAY);
+  }
+
+  /* ---------- starting state ---------- */
+
+  form.classList.add("step-mode");
+
+  ["sectionBasic", "sectionLanguages", "sectionIdentity", "sectionEducation",
+   "sectionExperience", "sectionTeaching", "sectionAreas", "sectionTerms",
+   "eduYear", "eduResult", "eduBoard", "eduGraduation",
+   "pgToggleField", "eduPg", "specialToggleField", "eduSpecial",
+   "disabilityToggleField", "eduDisability",
+   "expContent", "teachClasses", "teachSubjects", "teachBoards", "areasContent"
+  ].forEach(hide);
+
+
+  /* ---------- 1. Contact Information ---------- */
+
+  function contactDone(showErrors) {
+    let ok = true;
+    const fail = (id, message) => { ok = false; if (showErrors) setError(id, message); };
+    if (!/^\d{10}$/.test(val("mobile"))) fail("mobileError", "Mobile Number must contain 10 digits.");
+    if ($("sameWhatsapp").checked) $("whatsapp").value = val("mobile");
+    if (!/^\d{10}$/.test(val("whatsapp"))) fail("whatsappError", "WhatsApp Number must contain 10 digits.");
+    if (!checked("registerAs")) ok = false;
+    return ok;
+  }
+
+  function tryContact(showErrors) {
+    if (reviewing || step !== 1) return;
+    if (!contactDone(showErrors)) return;
+    step = 2;
+    later(() => {
+      hide("sectionContact");
+      show("sectionBasic");
+      scrollToEl("sectionBasic");
+    });
+  }
+
+  document.querySelectorAll('input[name="registerAs"]').forEach(r =>
+    r.addEventListener("click", () => tryContact(true))
+  );
+  ["mobile", "whatsapp"].forEach(id =>
+    $(id).addEventListener("change", () => { if (checked("registerAs")) tryContact(false); })
+  );
+  $("sameWhatsapp").addEventListener("change", () => { if (checked("registerAs")) tryContact(false); });
+
+
+  /* ---------- 2. Basic Information ---------- */
+
+  function basicDone(showErrors) {
+    let ok = true;
+    const fail = (id, message) => { ok = false; if (showErrors) setError(id, message); };
+    if (cleanText($("fullName").value).length < 2) fail("fullNameError", "Please enter your full name.");
+    if (!val("birthDate")) fail("birthDateError", "Please choose your date of birth.");
+    else if (new Date(val("birthDate")) > new Date()) fail("birthDateError", "Date of birth cannot be in the future.");
+    if (!checked("gender")) ok = false;
+    return ok;
+  }
+
+  function tryBasic(showErrors) {
+    if (reviewing || step !== 2) return;
+    if (!basicDone(showErrors)) return;
+    step = 3;
+    later(() => {
+      hide("sectionBasic");
+      show("sectionLanguages");
+      show("sectionIdentity");
+      scrollToEl("sectionLanguages");
+    });
+  }
+
+  document.querySelectorAll('input[name="gender"]').forEach(r =>
+    r.addEventListener("click", () => tryBasic(true))
+  );
+  ["fullName", "birthDate"].forEach(id =>
+    $(id).addEventListener("change", () => { if (checked("gender")) tryBasic(false); })
+  );
+
+
+  /* ---------- 3. Languages Known + Identity Proof ---------- */
+
+  function tryLanguagesAndDocs() {
+    if (reviewing || step !== 3) return;
+    if (values("languages").length === 0) return;
+    if (!$("identityProof").files[0] || !$("profileImage").files[0]) return;
+    const idOk = validateFile("identityProof", "identityError", false);
+    const photoOk = validateFile("profileImage", "profileError", true);
+    if (!idOk || !photoOk) return;
+    step = 4;
+    later(() => {
+      hide("sectionLanguages");
+      hide("sectionIdentity");
+      show("sectionEducation");
+      scrollToEl("sectionEducation");
+    });
+  }
+
+  document.querySelectorAll("#languages input").forEach(c =>
+    c.addEventListener("change", tryLanguagesAndDocs)
+  );
+  ["identityProof", "profileImage"].forEach(id =>
+    $(id).addEventListener("change", tryLanguagesAndDocs)
+  );
+
+
+  /* ---------- 4. Education & Qualification, one piece at a time ---------- */
+
+  document.querySelectorAll('input[name="twelfthStream"]').forEach(r =>
+    r.addEventListener("change", () => { if (!reviewing) show("eduYear"); })
+  );
+
+  $("twelfthYear").addEventListener("input", () => {
+    if (!reviewing && /^\d{4}$/.test(val("twelfthYear"))) show("eduResult");
+  });
+
+  ["twelfthPercentage", "twelfthCgpa"].forEach(id =>
+    $(id).addEventListener("input", () => {
+      if (reviewing) return;
+      const v = val(id);
+      const max = id === "twelfthPercentage" ? 100 : 10;
+      if (/^\d+(\.\d{1,2})?$/.test(v) && Number(v) <= max) show("eduBoard");
+    })
+  );
+
+  document.querySelectorAll('input[name="twelfthBoard"]').forEach(r =>
+    r.addEventListener("change", () => {
+      if (reviewing || isShown("eduGraduation")) return;
+      ["eduGraduation", "pgToggleField", "specialToggleField", "disabilityToggleField",
+       "sectionExperience", "sectionTeaching", "sectionAreas", "sectionTerms"].forEach(show);
+    })
+  );
+
+
+  /* ---------- the ticks ---------- */
+
+  // details that the Post Graduation / Experience ... Areas ticks hide
+  const details = ["eduStream", "eduYear", "eduResult", "eduBoard", "eduGraduation"];
+
+  // only one of these is open at a time
+  const exclusive = [
+    { tick: "pgToggle",       part: "eduPg" },
+    { tick: "expToggle",      part: "expContent" },
+    { tick: "teachToggle",    part: "teachClasses" },
+    { tick: "subjectsToggle", part: "teachSubjects" },
+    { tick: "boardsToggle",   part: "teachBoards" },
+    { tick: "areasToggle",    part: "areasContent" }
+  ];
+
+  // these simply open / close their own options
+  const simple = [
+    { tick: "specialToggle",    part: "eduSpecial" },
+    { tick: "disabilityToggle", part: "eduDisability" }
+  ];
+
+  exclusive.forEach(item => {
+    const box = $(item.tick);
+    if (!box) return;
+    box.addEventListener("change", () => {
+      if (reviewing) return;
+
+      if (box.checked) {
+
+        // Post Graduation: Class 12th + Graduation must be complete first
+        if (item.tick === "pgToggle" && !educationValid(true, true)) {
+          box.checked = false;
+          const first = document.querySelector("#sectionEducation .has-error");
+          if (first) first.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+
+        exclusive.forEach(other => {
+          if (other === item) return;
+          $(other.tick).checked = false;
+          hide(other.part);
+        });
+        simple.forEach(other => {
+          $(other.tick).checked = false;
+          hide(other.part);
+        });
+        details.forEach(hide);
+        show(item.part);
+        scrollToEl(item.tick + "Field");
+
+      } else {
+
+        hide(item.part);
+        // nothing open any more -> Class 12th + Graduation come back
+        if (!exclusive.some(other => $(other.tick).checked)) details.forEach(show);
+
+      }
+    });
+  });
+
+  simple.forEach(item => {
+    const box = $(item.tick);
+    if (!box) return;
+    box.addEventListener("change", () => {
+      if (reviewing) return;
+      if (box.checked) show(item.part); else hide(item.part);
+    });
+  });
+
+
+  /* ---------- 5. review everything ---------- */
+
+  function showAll(goToTop) {
+    reviewing = true;
+    clearTimeout(timer);
+    form.classList.remove("step-mode");
+    form.querySelectorAll(".step-hidden").forEach(e => e.classList.remove("step-hidden"));
+    if (goToTop) window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  window.showAllRegistrationSteps = showAll;
+
+  $("terms").addEventListener("change", () => { if ($("terms").checked) showAll(true); });
+  $("acceptTerms").addEventListener("click", () => showAll(true));
+
+})();

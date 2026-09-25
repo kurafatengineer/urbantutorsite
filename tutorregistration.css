@@ -3125,3 +3125,53 @@ body {
   display: block;
   text-align: center;
 }
+
+
+/* =========================================================
+   STEP-BY-STEP FORM  (see "STEP-BY-STEP FORM" in the JS)
+========================================================= */
+
+/* parts not reached yet are fully hidden */
+#tutorForm .step-hidden {
+  display: none !important;
+}
+
+/* land a little below the top edge when a new part opens */
+#tutorForm .section,
+#tutorForm .step-toggle {
+  scroll-margin-top: 24px;
+}
+
+/* the ticks only exist while filling in step by step;
+   in the final review everything is simply shown */
+#tutorForm:not(.step-mode) .step-toggle {
+  display: none;
+}
+
+/* while stepping, the tick itself is the heading -> no repeat */
+#tutorForm.step-mode .step-dup-label {
+  display: none;
+}
+
+/* Experience / Teaching Preferences / Areas: while stepping they
+   are just a stack of ticks, so no big heading or divider */
+#tutorForm.step-mode .step-compact {
+  padding-bottom: 0;
+  margin-bottom: 27px;
+  border-bottom: 0;
+}
+
+#tutorForm.step-mode .step-compact > .section-title {
+  display: none;
+}
+
+#tutorForm.step-mode .step-compact.step-compact-last {
+  padding-bottom: 42px;
+  margin-bottom: 42px;
+  border-bottom: 1px solid #242424;
+}
+
+/* a tick that opens a part: same pill as "WhatsApp same as mobile" */
+#registrationPage .field.step-toggle > .pill-check {
+  margin-top: 0;
+}
