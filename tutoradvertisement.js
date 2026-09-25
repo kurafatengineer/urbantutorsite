@@ -157,7 +157,9 @@ function applyListResult(result) {
 
   // Every tutor action needs a VERIFIED profile (checked again on
   // the server when Apply is pressed).
-  tutorVerified = result.tutorVerified === undefined ? null : result.tutorVerified;
+  // Only a logged-in TUTOR has a verification status. Visitors and
+  // students get null: no notice, and "Apply" leads to the tutor login.
+  tutorVerified = result.loggedInTutor ? !!result.tutorVerified : null;
   $("verifyNotice")?.classList.toggle("hidden", tutorVerified !== false);
 
   // Merge (never drop) - keeps anything applied for in this visit

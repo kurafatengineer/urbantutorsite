@@ -1312,13 +1312,17 @@ async function submitAddStudent(event) {
   const message = $("addStudentMessage");
   message.textContent = "";
 
+  // The student on screen (or the first one) - the new student shares
+  // this family's parent name, numbers and, if ticked, the address.
+  const family = STATE.students.find(s => s.studentId === STATE.selectedId) || STATE.students[0] || {};
+
   const student = {
     // Same parent + same mobile number as this account - register_student
     // requires both, and they must match the account these students live
     // under (the account is identified by e-mail, not by these fields).
-    parentsName: STATE.account.parentsName || "",
-    phone: STATE.account.phone || "",
-    whatsapp: STATE.account.phone || "",
+    parentsName: STATE.account.parentsName || family.parentsName || "",
+    phone: STATE.account.phone || family.phone || "",
+    whatsapp: family.whatsapp || STATE.account.phone || family.phone || "",
     termsAccepted: true,
     studentName: clean($("addStudentName").value),
     gender: radioValue("addGender"),
@@ -1332,7 +1336,13 @@ async function submitAddStudent(event) {
 
   const sameAddress = $("addSameAddress").checked;
 
-  if (!sameAddress) {
+  if (sameAddress) {
+    // "Same address as my other student": copy it across (the database
+    // does not fill it in by itself).
+    student.address = family.address || "";
+    student.city = family.city || "";
+    student.pinCode = family.pinCode || "";
+  } else {
     student.address = clean($("addAddress").value);
     student.city = clean($("addCity").value);
     student.pinCode = clean($("addPin").value);

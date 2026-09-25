@@ -65,7 +65,22 @@ function setToken(token) {
   } catch (e) {}
 }
 
+// The server (a Supabase Edge Function) goes to sleep when unused, and
+// the first request that wakes it can fail. So a failed request (no
+// connection or a server error) is tried once more after a short pause.
+// Every admin action is safe to repeat.
 async function apiRequest(payload, timeoutMs = 60000) {
+
+  try {
+    return await apiRequestOnce(payload, timeoutMs);
+  } catch (error) {
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    return apiRequestOnce(payload, timeoutMs);
+  }
+
+}
+
+async function apiRequestOnce(payload, timeoutMs) {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -206,6 +221,10 @@ function indexData() {
 (function init() {
 
   wireEvents();
+
+  // Wake the server up now, while the password is being typed.
+  // ("adminLogout" does nothing on the server - it just answers.)
+  apiRequestOnce({ action: "adminLogout" }, 20000).catch(() => {});
 
   if (getToken()) loadOverview();
   else showLogin();
