@@ -28,73 +28,15 @@
 
 
   <!-- =====================================================
-       HOMEPAGE COMPONENT STYLES
+       HOMEPAGE STYLES
        ===================================================== -->
 
 
   <!-- -----------------------------------------------------
-       01. TOGGLE
-       ----------------------------------------------------- -->
-
-  <link
-    rel="stylesheet"
-    href="homepage/toggle/toggle.css"
-  >
-
-
-
-  <!-- -----------------------------------------------------
-       02. HERO
-       ----------------------------------------------------- -->
-
-  <link
-    rel="stylesheet"
-    href="homepage/hero/hero.css"
-  >
-
-
-
-  <!-- -----------------------------------------------------
-       03. TUTORS
-       ----------------------------------------------------- -->
-
-  <link
-    rel="stylesheet"
-    href="homepage/tutors/tutors.css"
-  >
-
-
-
-  <!-- -----------------------------------------------------
-       04. STUDENTS
+       LANDING (visitors who are NOT logged in)
        -----------------------------------------------------
-       New component:
-       Meet our Students
-       ----------------------------------------------------- -->
-
-  <link
-    rel="stylesheet"
-    href="homepage/students/students.css"
-  >
-
-
-
-  <!-- -----------------------------------------------------
-       05. TUITIONS AVAILABLE (logged-in tutors only)
-       ----------------------------------------------------- -->
-
-  <link
-    rel="stylesheet"
-    href="homepage/tuitions/tuitions.css"
-  >
-
-
-
-  <!-- -----------------------------------------------------
-       06. LANDING (visitors who are NOT logged in)
-       -----------------------------------------------------
-       Live figures and charts from the Students, Tutors and
-       Demos sheets (Apps Script action "getHomeStats").
+       Live figures and charts from Supabase
+       (get_home_stats).
        ----------------------------------------------------- -->
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -112,7 +54,7 @@
 
 
   <!-- -----------------------------------------------------
-       07. DASHBOARD (logged-in student / tutor homepage)
+       DASHBOARD (logged-in student / tutor homepage)
        ----------------------------------------------------- -->
 
   <link
@@ -138,89 +80,17 @@
 
   <!-- =====================================================
        HOMEPAGE
+       =====================================================
+       Exactly one of these two is shown:
+         - nobody logged in  -> LANDING
+         - student / tutor   -> DASHBOARD
        ===================================================== -->
 
   <main id="homepage">
 
-
-    <!-- ===================================================
-         00. LANDING  (NEW - only when nobody is logged in)
-         =================================================== -->
-
     <div id="home-landing"></div>
 
-
-    <!-- ===================================================
-         00b. DASHBOARD  (NEW - logged-in student / tutor)
-         =================================================== -->
-
     <div id="home-dashboard"></div>
-
-
-    <!-- ===================================================
-         01. TOGGLE
-         =================================================== -->
-
-    <div id="home-toggle"></div>
-
-
-
-    <!-- ===================================================
-         02. HERO
-         =================================================== -->
-
-    <div id="home-hero"></div>
-
-
-
-    <!-- ===================================================
-         02b. TUITIONS AVAILABLE   (NEW)
-         ===================================================
-         Only for a logged-in tutor: the "Tuitions Available"
-         page (tutoradvertisement.html) is shown right below
-         the hero, embedded in its own frame so its styles and
-         scripts stay independent of the homepage.
-         =================================================== -->
-
-    <div id="home-tuitions"></div>
-
-
-
-    <!-- ===================================================
-         03. OUR TUTORS
-         ===================================================
-         Existing Tutors component.
-         Nothing inside the Tutors component is changed.
-         =================================================== -->
-
-    <div id="home-tutors"></div>
-
-
-
-    <!-- ===================================================
-         04. OUR STUDENTS
-         ===================================================
-         New Students component.
-
-         HTML:
-         homepage/students/students.html
-
-         CSS:
-         homepage/students/students.css
-
-         JS:
-         homepage/students/students.js
-
-         The Students component will independently:
-           - Load student data
-           - Display student cards
-           - Hide personal information
-           - Handle its own carousel/navigation
-           - Handle its own loading state
-         =================================================== -->
-
-    <div id="home-students"></div>
-
 
   </main>
 
@@ -250,76 +120,24 @@
 
 
   <!-- =====================================================
-       HOMEPAGE COMPONENT JAVASCRIPT
+       HOMEPAGE JAVASCRIPT
        ===================================================== -->
 
-
-  <!-- -----------------------------------------------------
-       01. TOGGLE JAVASCRIPT
-       ----------------------------------------------------- -->
-
-  <script src="homepage/toggle/toggle.js"></script>
-
-
-
-  <!-- -----------------------------------------------------
-       02. HERO JAVASCRIPT
-       ----------------------------------------------------- -->
-
-  <script src="homepage/hero/hero.js"></script>
-
-
-
-  <!-- -----------------------------------------------------
-       03. TUTORS JAVASCRIPT
-       ----------------------------------------------------- -->
-
-  <script src="homepage/tutors/tutors.js"></script>
-
-
-
-  <!-- -----------------------------------------------------
-       04. STUDENTS JAVASCRIPT
-       -----------------------------------------------------
-       New Students component.
-       ----------------------------------------------------- -->
-
-  <script src="homepage/students/students.js"></script>
-
-
-
-  <!-- -----------------------------------------------------
-       06. LANDING JAVASCRIPT (+ Chart.js for its charts)
-       ----------------------------------------------------- -->
-
+  <!-- Landing (+ Chart.js for its charts) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
   <script src="homepage/landing/landing.js"></script>
 
-
-
-  <!-- -----------------------------------------------------
-       07. DASHBOARD JAVASCRIPT
-       ----------------------------------------------------- -->
-
+  <!-- Dashboard -->
   <script src="homepage/dashboard/dashboard.js"></script>
 
 
 
   <!-- =====================================================
-       HOMEPAGE COMPONENT LOADER
+       HOMEPAGE LOADER
        =====================================================
-
-       This loader:
-
-       1. Loads Toggle HTML
-       2. Loads Hero HTML
-       3. Loads Tutors HTML
-       4. Loads Students HTML
-       5. Initializes each component
-
-       Each component remains independent.
-
+       Loads the landing OR the dashboard HTML into its box,
+       then starts that component.
        ===================================================== -->
 
   <script>
@@ -329,106 +147,32 @@
       async function () {
 
 
-        /* =================================================
-           COMPONENT LOADER FUNCTION
-           =================================================
+        /* Fetch a component's HTML into its box, then start it.
+           A failure is logged and never breaks header / footer. */
 
-           This function:
+        async function loadComponent(containerId, filePath, componentObject, componentName) {
 
-           1. Finds the container.
-           2. Fetches the component HTML.
-           3. Inserts the HTML.
-           4. Initializes the component.
+          const container = document.getElementById(containerId);
 
-           ================================================= */
-
-        async function loadComponent(
-          containerId,
-          filePath,
-          componentObject,
-          componentName
-        ) {
-
-          /* -------------------------------------------------
-             Find container
-             ------------------------------------------------- */
-
-          const container =
-            document.getElementById(containerId);
-
-
-          /* -------------------------------------------------
-             Stop if container does not exist
-             ------------------------------------------------- */
-
-          if (!container) {
-            return;
-          }
-
+          if (!container) return;
 
           try {
 
-
-            /* -----------------------------------------------
-               Load component HTML
-               ----------------------------------------------- */
-
-            const response =
-              await fetch(filePath);
-
-
-            /* -----------------------------------------------
-               Check response
-               ----------------------------------------------- */
+            const response = await fetch(filePath);
 
             if (!response.ok) {
-
-              throw new Error(
-                `Could not load ${filePath}`
-              );
-
+              throw new Error(`Could not load ${filePath}`);
             }
 
+            container.innerHTML = await response.text();
 
-            /* -----------------------------------------------
-               Insert HTML
-               ----------------------------------------------- */
-
-            container.innerHTML =
-              await response.text();
-
-
-            /* -----------------------------------------------
-               Initialize component
-
-               IMPORTANT:
-               This happens only AFTER the HTML has
-               been inserted into the DOM.
-               ----------------------------------------------- */
-
-            if (
-              componentObject &&
-              typeof componentObject.init === "function"
-            ) {
-
+            if (componentObject && typeof componentObject.init === "function") {
               componentObject.init();
-
             }
 
           } catch (error) {
 
-
-            /* -----------------------------------------------
-               Component-specific error handling
-
-               One component failing will NOT stop the
-               remaining homepage components.
-               ----------------------------------------------- */
-
-            console.error(
-              `${componentName} component failed to load:`,
-              error
-            );
+            console.error(`${componentName} component failed to load:`, error);
 
           }
 
@@ -436,18 +180,7 @@
 
 
 
-        /* =================================================
-           WHO IS LOGGED IN
-           =================================================
-           ""        -> nobody: Student / Tutor toggle shown,
-                        exactly as before.
-           "student" -> no toggle; student hero; "Meet our
-                        Tutors" shown.
-           "tutor"   -> no toggle; tutor hero; Tuitions
-                        Available right below it; "Meet our
-                        Students" shown.
-           The toggle comes back as soon as they log out.
-           ================================================= */
+        /* Who is logged in: "" | "student" | "tutor" (js/header.js) */
 
         const role =
           window.UrbanSession ? window.UrbanSession.role() : "";
@@ -456,13 +189,7 @@
 
 
 
-        /* =================================================
-           00. NOBODY LOGGED IN -> NEW LANDING PAGE
-           =================================================
-           Visitors see the landing page (live figures from
-           the sheets). The logged-in student / tutor views
-           below are unchanged.
-           ================================================= */
+        /* ---------------- VISITOR -> LANDING ---------------- */
 
         if (!role) {
 
@@ -472,11 +199,7 @@
           const viewport = document.querySelector('meta[name="viewport"]');
           if (viewport) viewport.setAttribute("content", "width=1200");
 
-          ["home-toggle", "home-hero", "home-tuitions", "home-tutors", "home-students", "home-dashboard"]
-            .forEach(function (id) {
-              const box = document.getElementById(id);
-              if (box) box.remove();
-            });
+          document.getElementById("home-dashboard")?.remove();
 
           await loadComponent(
             "home-landing",
@@ -489,23 +212,11 @@
 
         }
 
-        const landingBox = document.getElementById("home-landing");
-        if (landingBox) landingBox.remove();
 
 
+        /* ---------------- LOGGED IN -> DASHBOARD ---------------- */
 
-        /* =================================================
-           00b. LOGGED IN -> STUDENT / TUTOR DASHBOARD
-           =================================================
-           Replaces the old logged-in homepage (hero, carousels,
-           embedded Tuitions Available). Header and footer stay.
-           ================================================= */
-
-        ["home-toggle", "home-hero", "home-tuitions", "home-tutors", "home-students"]
-          .forEach(function (id) {
-            const box = document.getElementById(id);
-            if (box) box.remove();
-          });
+        document.getElementById("home-landing")?.remove();
 
         await loadComponent(
           "home-dashboard",
@@ -513,158 +224,6 @@
           window.DashboardComponent,
           "Dashboard"
         );
-
-        return;
-
-
-
-        /* =================================================
-           01. LOAD TOGGLE  (logged-out visitors only)
-           ================================================= */
-
-        if (!role) {
-
-          await loadComponent(
-            "home-toggle",
-            "homepage/toggle/toggle.html",
-            window.ToggleComponent,
-            "Toggle"
-          );
-
-        } else {
-
-          const toggleBox = document.getElementById("home-toggle");
-          if (toggleBox) toggleBox.remove();
-
-        }
-
-
-
-        /* =================================================
-           02. LOAD HERO
-           ================================================= */
-
-        await loadComponent(
-          "home-hero",
-          "homepage/hero/hero.html",
-          window.HeroComponent,
-          "Hero"
-        );
-
-        if (role && window.HeroComponent) {
-          window.HeroComponent.update(role);
-        }
-
-
-
-        /* =================================================
-           02b. TUITIONS AVAILABLE  (logged-in tutor only)
-           ================================================= */
-
-        if (role === "tutor") {
-          mountTuitions();
-        } else {
-          const tuitionsBox = document.getElementById("home-tuitions");
-          if (tuitionsBox) tuitionsBox.remove();
-        }
-
-
-
-        /* =================================================
-           03. LOAD TUTORS  (not for a logged-in tutor)
-           ================================================= */
-
-        if (role !== "tutor") {
-
-          await loadComponent(
-            "home-tutors",
-            "homepage/tutors/tutors.html",
-            window.TutorsComponent,
-            "Tutors"
-          );
-
-        } else {
-
-          const tutorsBox = document.getElementById("home-tutors");
-          if (tutorsBox) tutorsBox.remove();
-
-        }
-
-
-
-        /* =================================================
-           04. LOAD STUDENTS  (not for a logged-in student)
-           ================================================= */
-
-        if (role !== "student") {
-
-          await loadComponent(
-            "home-students",
-            "homepage/students/students.html",
-            window.StudentsComponent,
-            "Students"
-          );
-
-        } else {
-
-          const studentsBox = document.getElementById("home-students");
-          if (studentsBox) studentsBox.remove();
-
-        }
-
-
-
-        /* =================================================
-           TUITIONS FRAME
-           =================================================
-           The embedded page reports its own height (so the
-           frame never scrolls on its own) and hands its
-           toasts to this page so they appear on screen.
-           ================================================= */
-
-        function mountTuitions() {
-
-          const box = document.getElementById("home-tuitions");
-
-          if (!box) return;
-
-          box.innerHTML = `
-            <section class="home-tuitions" aria-label="Tuitions available">
-              <iframe
-                id="tuitionsFrame"
-                class="home-tuitions-frame"
-                src="tutoradvertisement.html?embed=1"
-                title="Tuitions available"
-                scrolling="no"
-              ></iframe>
-            </section>
-            <div id="homeToast" class="home-toast" role="status"></div>
-          `;
-
-          const frame = document.getElementById("tuitionsFrame");
-
-          window.addEventListener("message", function (event) {
-
-            if (event.source !== frame.contentWindow) return;
-
-            const data = event.data || {};
-
-            if (data.type === "urbantutor-embed-height") {
-              frame.style.height = Math.max(200, Math.ceil(Number(data.height) || 0)) + "px";
-            }
-
-            if (data.type === "urbantutor-embed-toast") {
-              const toast = document.getElementById("homeToast");
-              toast.textContent = data.message || "";
-              toast.classList.toggle("error", !!data.isError);
-              toast.classList.add("show");
-              clearTimeout(mountTuitions._t);
-              mountTuitions._t = setTimeout(() => toast.classList.remove("show"), 3200);
-            }
-
-          });
-
-        }
 
 
       }

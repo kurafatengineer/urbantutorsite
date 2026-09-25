@@ -13,17 +13,20 @@
  * TUTORS    every column of every tutor, editable.
  * STUDENTS  every column of every student, editable.
  *
- * API ACTIONS (API Router.gs -> Admin Panel.gs)
+ * SERVER: the Supabase Edge Function "admin"
+ *   (supabase/functions/admin/index.ts). It checks the admin
+ *   password, then runs the admin_* database functions
+ *   (supabase-setup-7-admin-security.sql). Same actions as before:
  *   adminLogin  adminLogout  adminGetOverview
  *   adminUpdateRecord  adminUpdateTuition  adminUpdateDemoRow
  *   adminAssignTutor  adminSetTerminated
  *
  * The admin token lives in sessionStorage only: closing the tab
- * signs the admin out.
+ * signs the admin out. It also expires after 6 hours.
  ************************************************************/
 
 const WEB_APP_URL =
-  "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec";
+  "https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/admin";
 
 const ADMIN_TOKEN_KEY = "urbantutorsite_admin_token";
 
@@ -253,7 +256,7 @@ async function loadOverview(quiet) {
 
 }
 
-// Saves, then reloads everything so every card shows the sheet's truth.
+// Saves, then reloads everything so every card shows what is saved.
 async function save(payload, button) {
 
   const label = button ? button.textContent : "";
@@ -714,7 +717,15 @@ async function saveDemoRow(box, button) {
     "Classes Completed": completed
   };
 
-  await save({ action: "adminUpdateDemoRow", rowNumber, demoId, changes }, button);
+  // The database finds the row by Demo ID + Tutor ID.
+  const row = (STATE.data.demos || []).find(r => r.rowNumber === rowNumber && r.demoId === demoId);
+
+  if (!row || !row.tutorId) {
+    toast("That row has changed. Refresh and try again.", true);
+    return;
+  }
+
+  await save({ action: "adminUpdateDemoRow", rowNumber, demoId, tutorId: row.tutorId, changes }, button);
 
 }
 
@@ -1158,7 +1169,7 @@ function tuitionStack(g) {
         ${tuitionButtons}
 
         <h3 class="admin-section-title">Student</h3>
-        ${student ? fieldsBoxes("students", student, false) : note(`Student ${f.studentId} was not found in the Students sheet.`)}
+        ${student ? fieldsBoxes("students", student, false) : note(`Student ${f.studentId} was not found.`)}
 
         ${terminated ? "" : `
           <div class="admin-assign">
@@ -1244,7 +1255,7 @@ function tutorRowCard(row, terminated) {
       <div class="admin-card-body">
 
         <h3 class="admin-section-title">Tutor</h3>
-        ${tutor ? fieldsBoxes("tutors", tutor, false) : note(`No tutor in the Tutors sheet has mobile ${row.mobile}.`)}
+        ${tutor ? fieldsBoxes("tutors", tutor, false) : note(`No tutor has mobile ${row.mobile}.`)}
 
         <div class="admin-demo-grid admin-demo-2">
           ${input("date", "Demo Date", toDateInput(row.demoDate), "date")}
