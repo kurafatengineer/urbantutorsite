@@ -193,21 +193,15 @@
       return;
     }
 
-    // One student: greet them. Several: greet the parent (this is the
-    // family's view - no student switch, no Student IDs).
-    const many = students.length > 1;
-    const account = SDATA.account || {};
-    $("dbSName").textContent =
-      (firstName(many ? (account.parentsName || student.parentsName) : student.studentName) || "there") + ".";
+    // Shows the student selected on the Student Profile page (switch
+    // students there). No switch and no Student IDs here.
+    $("dbSName").textContent = (firstName(student.studentName) || "there") + ".";
 
     if (window.UrbanSession) window.UrbanSession.rememberName("student", student.studentName);
 
     $("dbSChips").innerHTML = "";
 
-    // every student's tuitions together, newest first; with several
-    // students each card carries the student's first name
-    const tuitions = students
-      .flatMap(s => (s.tuitions || []).map(t => Object.assign({}, t, { _who: many ? firstName(s.studentName) : "" })))
+    const tuitions = (student.tuitions || []).slice()
       .sort((a, b) => (Number(b.timestampMs) || 0) - (Number(a.timestampMs) || 0));
 
     // numbers
@@ -244,7 +238,7 @@
       $("dbSNext").innerHTML = `
         <div class="db-next">
           ${dateBlock(next.date)}
-          <div><h3>${esc(t.subject)}${t._who ? ` for ${esc(t._who)}` : ""}${tu.fullName ? ` with ${esc(tu.fullName)}` : ""}</h3><p>${esc(bits)}</p></div>
+          <div><h3>${esc(t.subject)}${tu.fullName ? ` with ${esc(tu.fullName)}` : ""}</h3><p>${esc(bits)}</p></div>
           <div class="db-acts">
             <button class="db-sbtn p" type="button" data-s-respond="accept" data-demo="${esc(t.demoId)}" data-tutor="${esc(tu.tutorId)}"${tu.canAccept ? "" : " disabled"}>Accept</button>
             <button class="db-sbtn r" type="button" data-s-respond="reject" data-demo="${esc(t.demoId)}" data-tutor="${esc(tu.tutorId)}"${tu.canReject ? "" : " disabled"}>Reject</button>
@@ -279,7 +273,7 @@
 
       return `
         <a class="db-tc" href="studentprofile.html#tuition-${encodeURIComponent(t.demoId)}">
-          <div class="db-tc-top"><div><b>${esc(t.subject)}</b> <span>${t._who ? `· ${esc(t._who)} ` : ""}· ${esc(mediumText(t.medium))}</span></div><span class="db-state" style="background:${bg};color:${fg}">${label}</span></div>
+          <div class="db-tc-top"><div><b>${esc(t.subject)}</b> <span>· ${esc(mediumText(t.medium))}</span></div><span class="db-state" style="background:${bg};color:${fg}">${label}</span></div>
           <div class="db-steps">${bars}</div>
           <div class="db-steps-l">${labels}</div>
           <div class="db-tc-foot">${foot}</div>
