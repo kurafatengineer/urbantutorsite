@@ -5,30 +5,23 @@
  *
  * FLOW
  *   1. Email page
- *        - email already registered as tutor -> LOGIN  : OTP -> index.html
- *        - new email                         -> REGISTER: form -> OTP -> saved
- *   2. Registration page (validated in the browser; nothing saved yet)
- *   3. OTP page (shared by registration and login) - uses Supabase Auth's
- *      own email-OTP system, exactly like student.html / student.js
- *   4. Success page (or straight to index.html)
+ *        - email already registered -> LOGIN  : OTP  -> welcome page
+ *        - new email                -> REGISTER: form -> OTP -> saved
+ *   2. Registration page (validated in the browser)
+ *   3. OTP page (shared by registration and login)
+ *   4. Success page
  *
- * AUTH: Supabase Auth's built-in passwordless email OTP
- *   window.sb.auth.signInWithOtp({ email, options:{ shouldCreateUser } })
- *   window.sb.auth.verifyOtp({ email, token, type: "email" })
- *   Once verifyOtp succeeds, a real Supabase Auth session exists and
- *   auth_email() (used inside every RPC function) resolves to this email.
- *
- * RPC FUNCTIONS USED (see supabase-setup-3-register-profile.sql)
- *   email_status(p_email)              -> { student, tutor }
- *   register_tutor(p)                  -> { success, tutorId } (called
- *                                          AFTER the OTP session exists)
- *   set_tutor_documents(p_identity_proof, p_profile_image)
- *                                       -> saves storage paths, called
- *                                          after files are uploaded
- *
- * DOCUMENTS: uploaded directly to the private "tutor-documents" Storage
- * bucket, inside a folder named after the new Tutor ID, only once
- * register_tutor() has returned that ID (see supabase-setup-2-ids-storage.sql).
+ * SUPABASE (replaces the old Apps Script API)
+ *   Login + registration use Supabase Auth's own e-mail OTP
+ *   (window.sb.auth.signInWithOtp / verifyOtp) - same as student.js.
+ *   RPC functions (supabase-setup-3-register-profile.sql):
+ *     email_status(p_email)      -> { student, tutor }
+ *     register_tutor(p)          -> { success, tutorId }
+ *     set_tutor_documents(p_identity_proof, p_profile_image)
+ *   Documents are uploaded to the private "tutor-documents" storage,
+ *   inside the tutor's own folder (TID.../), after register_tutor.
+ *   showSuccess() sets the "urbantutorsite_tutor_session" flag that
+ *   header.js / the homepage read to know a tutor is logged in.
  ************************************************************/
 
 
@@ -43,11 +36,11 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;   // 5 MB per document
  * STATE
  ************************************************************/
 
-let currentEmail = "";        // email the tutor entered on page 1
-let currentMode = "";         // "register" or "login"
-let currentName = "";         // used only in the OTP e-mail greeting
-let pendingRegistration = null; // form data + files, held until OTP verified
-let resendTimer = null;       // countdown interval for "Resend OTP"
+let currentEmail = "";     // email the tutor entered on page 1
+let currentMode = "";      // "register" or "login"
+let currentName = "";      // used only in the OTP e-mail greeting
+let pendingRegistration = null; // form data + files, saved only after the OTP
+let resendTimer = null;    // countdown interval for "Resend OTP"
 
 
 /************************************************************
@@ -114,6 +107,13 @@ function clearMessages() {
 /* Swap a button's label for a spinner */
 function setBusy(button, textId, loaderId, busy) {
   button.disabled = busy;
+  // The OTP page has no visible button: show the spinner in the box
+  // (it stays there while the documents upload, too).
+  if (textId === "verifyOtpText") {
+    const field = $("otp").closest(".field");
+    if (field) field.classList.toggle("is-busy", busy);
+    $("otp").readOnly = busy;
+  }
   $(textId).classList.toggle("hidden", busy);
   $(loaderId).classList.toggle("hidden", !busy);
 }
@@ -149,21 +149,6 @@ function showPage(name) {
     $(n + "Page").classList.toggle("hidden", n !== name)
   );
   window.scrollTo(0, 0);
-}
-
-
-/************************************************************
- * SESSION CHECK (Supabase Auth)
- ************************************************************/
-
-async function hasSession() {
-  try {
-    const { data: { session } } = await window.sb.auth.getSession();
-    return !!session;
-  } catch (error) {
-    console.error("Session check error:", error);
-    return false;
-  }
 }
 
 
@@ -339,24 +324,34 @@ async function checkEmail() {
 
   try {
 
+    // email_status returns { student, tutor } (no "success" key);
+    // only a real error comes back as { success: false, message }.
     const status = await window.sbCall("email_status", { p_email: email });
 
-    if (!status || !status.success) {
+    if (!status || status.success === false) {
       showMessage("emailMessage", (status && status.message) || "Unable to check email.", "error");
       return;
     }
 
-    /* ---- Existing tutor: LOGIN with OTP (Supabase Auth) ---- */
+    if (status.student && !status.tutor) {
+      showMessage("emailMessage", "This email is registered as a student. Please use the student login.", "error");
+      return;
+    }
+
+    /* ---- Existing tutor: LOGIN with OTP ---- */
 
     if (status.tutor) {
 
       currentMode = "login";
+      currentName = "";
 
       showMessage("emailMessage", "Account found. Sending your login code...", "info");
 
+      // shouldCreateUser: true - tutors copied over from the Google
+      // Sheet don't have a Supabase login yet; this creates it.
       const { error } = await window.sb.auth.signInWithOtp({
         email: currentEmail,
-        options: { shouldCreateUser: false }
+        options: { shouldCreateUser: true }
       });
 
       if (error) {
@@ -508,9 +503,7 @@ async function registerTutor() {
 
   currentName = cleanText($("fullName").value);
 
-  // Hold the form data (and the raw File objects, for upload after the
-  // Tutor ID exists) in memory - nothing is written to the database
-  // until the OTP below is verified.
+  // Kept in memory only - nothing is saved until the OTP is verified.
   pendingRegistration = buildRegistrationPayload();
 
   const button = $("registerButton");
@@ -595,8 +588,8 @@ $("otpForm").addEventListener("submit", async e => {
   await verifyOtp();
 });
 
-/* Upload one file into the tutor's own folder in the private
-   "tutor-documents" bucket, and return the storage path saved. */
+/* Upload one document into the tutor's own folder (TID.../) in the
+   private "tutor-documents" storage; returns the saved path. */
 async function uploadTutorDocument(tutorId, file, label) {
 
   if (!file) return null;
@@ -621,12 +614,7 @@ async function verifyOtp() {
 
   const otp = val("otp");
 
-  // Once verification already succeeded (e.g. register_tutor failed on a
-  // later step and the tutor retries) there's no need to re-check the OTP -
-  // the Supabase Auth session from the first successful verify is still live.
-  const needOtp = !(currentMode === "register" && (await hasSession()));
-
-  if (needOtp && !/^\d{6}$/.test(otp)) {
+  if (!/^\d{6}$/.test(otp)) {
     setError("otpError", "Please enter the 6-digit OTP.");
     $("otp").focus();
     return;
@@ -637,75 +625,71 @@ async function verifyOtp() {
 
   try {
 
-    /* ---- A. verify the OTP against Supabase Auth ---- */
+    /* ---- A. verify the OTP (Supabase Auth) ---- */
 
-    if (needOtp) {
+    showMessage("otpMessage", "Verifying your OTP...", "info");
 
-      showMessage("otpMessage", "Verifying your OTP...", "info");
+    const { error } = await window.sb.auth.verifyOtp({
+      email: currentEmail,
+      token: otp,
+      type: "email"
+    });
 
-      const { error } = await window.sb.auth.verifyOtp({
-        email: currentEmail,
-        token: otp,
-        type: "email"
-      });
-
-      if (error) {
-        showMessage("otpMessage", error.message || "Incorrect OTP.", "error");
-        return;
-      }
-
-      /* LOGIN finished - a real Supabase Auth session now exists */
-      if (currentMode === "login") {
-        showSuccess("login");
-        return;
-      }
-
-    }
-
-    /* ---- B. registration: OTP verified -> save the tutor ---- */
-
-    if (!pendingRegistration) {
-      showMessage("otpMessage", "Something went wrong. Please start again.", "error");
-      showPage("registration");
+    if (error) {
+      // wrong OTP: empty the box and give it the light red border
+      $("otp").value = "";
+      setError("otpError", error.message || "Incorrect OTP.");
+      $("otp").focus();
       return;
     }
 
-    showMessage("otpMessage", "Email verified. Saving your registration...", "info");
+    /* LOGIN finished */
+    if (currentMode === "login") {
+      showSuccess("login");
+      return;
+    }
+
+    /* ---- B. registration: OTP is correct -> save the tutor ---- */
+
+    if (!pendingRegistration) {
+      await window.sb.auth.signOut();
+      showMessage("otpMessage", "Please fill in the registration form again.", "error");
+      return;
+    }
+
+    showMessage("otpMessage", "Email verified. Saving your registration and documents...", "info");
 
     const { _files, ...profileFields } = pendingRegistration;
 
     const saved = await window.sbCall("register_tutor", { p: profileFields });
 
     if (!saved || !saved.success) {
+      // don't leave a half-registered login behind
+      await window.sb.auth.signOut();
       showMessage("otpMessage", (saved && saved.message) || "Registration could not be completed.", "error");
       return;
     }
 
-    /* ---- C. upload the two documents now that the Tutor ID exists ---- */
-
-    showMessage("otpMessage", "Uploading your documents...", "info");
+    /* ---- C. upload the documents into the new Tutor ID folder ---- */
 
     try {
 
       const [identityPath, profilePath] = await Promise.all([
         uploadTutorDocument(saved.tutorId, _files.identityProof, "identity-proof"),
-        uploadTutorDocument(saved.tutorId, _files.profileImage, "profile-image")
+        uploadTutorDocument(saved.tutorId, _files.profileImage, "profile-photo")
       ]);
 
-      const docResult = await window.sbCall("set_tutor_documents", {
+      const docs = await window.sbCall("set_tutor_documents", {
         p_identity_proof: identityPath,
         p_profile_image: profilePath
       });
 
-      if (!docResult || !docResult.success) {
-        console.error("set_tutor_documents failed:", docResult);
-        // Registration itself succeeded - don't block the tutor over this.
-      }
+      if (!docs || !docs.success) console.error("set_tutor_documents:", docs);
 
     } catch (uploadError) {
+      // The registration itself is saved; the office can collect the
+      // documents later, so this doesn't block the tutor.
       console.error(uploadError);
-      // Registration itself succeeded - documents can be re-uploaded later
-      // from the Tutor Profile page, so this does not block success.
     }
 
     pendingRegistration = null;
@@ -723,8 +707,7 @@ async function verifyOtp() {
 
 }
 
-/* Resend OTP via Supabase Auth (Supabase enforces its own resend gap;
-   60s here just matches the UI countdown to what Supabase expects). */
+/* Resend OTP (server enforces the 60 second gap) */
 $("resendButton").addEventListener("click", async () => {
 
   const button = $("resendButton");
@@ -735,12 +718,12 @@ $("resendButton").addEventListener("click", async () => {
 
     const { error } = await window.sb.auth.signInWithOtp({
       email: currentEmail,
-      options: { shouldCreateUser: currentMode === "register" }
+      options: { shouldCreateUser: true }
     });
 
     if (error) {
       showMessage("otpMessage", error.message || "Unable to resend OTP.", "error");
-      button.disabled = false;
+      startResendTimer(60);
       return;
     }
 
@@ -791,25 +774,21 @@ function startResendTimer(seconds) {
 
 
 /************************************************************
- * REGISTRATION PAYLOAD (form only - documents are uploaded to
- * Storage separately, after register_tutor() returns a Tutor ID)
- *
- * Field names match what public.register_tutor(p jsonb) reads in
- * supabase-setup-3-register-profile.sql. Multi-select groups are
- * joined into a single comma-separated string because the SQL
- * pulls each field with `p->>'key'` (plain text), not a jsonb array.
+ * REGISTRATION PAYLOAD (form + documents)
+ * Built only AFTER the OTP is verified.
  ************************************************************/
 
 function joinValues(containerId) {
   return values(containerId).join(", ");
 }
 
+/* Keys match what public.register_tutor(p) reads. Multi-select
+   groups are sent as "A, B, C" text. The two files are kept aside
+   (_files) and uploaded to storage after registration. */
 function buildRegistrationPayload() {
 
   return {
 
-    // kept aside for the Storage upload step after registration -
-    // never sent to register_tutor() itself
     _files: {
       identityProof: $("identityProof").files[0] || null,
       profileImage: $("profileImage").files[0] || null
@@ -866,26 +845,77 @@ function buildRegistrationPayload() {
  * STEP 4 - SUCCESS
  ************************************************************/
 
+const TUTOR_SESSION_KEY = "urbantutorsite_tutor_session";
+
 function showSuccess(type, result) {
 
   clearInterval(resendTimer);
   resendTimer = null;
 
   /*
-   * After successful OTP verification (login or registration),
-   * the Supabase Auth session is already established by the RPC.
-   * Mark the last login type and go straight to the home screen.
+   * NEW: sign the tutor in on this device and go straight to
+   * the home screen, with the header's Tutor toggle already
+   * selected. If, for any reason, the backend did not send a
+   * sessionToken (e.g. an older deployment), fall back to the
+   * original static success screen below instead of breaking.
    */
 
-  // Home reads this once, on the very next load, to pre-select
-  // the "Tutor" toggle instead of the default "Student" one.
-  try {
-    sessionStorage.setItem("urbantutorsite_last_login", "tutor");
-  } catch (ignore) {}
+  // Supabase keeps the real login; this flag only tells the header /
+  // homepage "a tutor is logged in here" (same idea as student.js).
+  {
 
-  // Go straight to home - Supabase Auth session is now active
-  window.location.href = "index.html";
-  return;
+    try {
+
+      localStorage.setItem(
+        TUTOR_SESSION_KEY,
+        JSON.stringify({ sessionToken: "supabase" })
+      );
+
+    } catch (storageError) {
+      console.error(storageError);
+    }
+
+    // Home reads this once, on the very next load, to pre-select
+    // the "Tutor" toggle instead of the default "Student" one.
+    try {
+      sessionStorage.setItem("urbantutorsite_last_login", "tutor");
+    } catch (ignore) {}
+
+    window.location.href = "index.html";
+    return;
+
+  }
+
+  $("successEmail").textContent = currentEmail;
+
+  if (type === "login") {
+
+    const profile = result.profile || {};
+    const firstName = (profile.fullName || currentName || "").split(" ")[0];
+
+    $("successEyebrow").textContent = "SECURE LOGIN";
+    $("successTitle").textContent = firstName ? `Welcome back, ${firstName}.` : "Welcome back.";
+    $("successDescription").textContent =
+      "Your email is verified and you are signed in as a tutor." +
+      (profile.status ? ` Your profile status is ${profile.status}.` : "");
+
+    $("successTutorId").textContent = profile.tutorId || "";
+    $("successIdBox").classList.toggle("hidden", !profile.tutorId);
+
+  } else {
+
+    $("successEyebrow").textContent = "REGISTRATION COMPLETE";
+    $("successTitle").textContent = "You're registered.";
+    $("successDescription").textContent =
+      "Your email is verified and your profile has been submitted for verification. " +
+      "We will contact you once the review is complete.";
+
+    // The Tutor ID (result.tutorId) is saved in the sheet but not shown here.
+    $("successIdBox").classList.add("hidden");
+
+  }
+
+  showPage("success");
 
 }
 
@@ -893,17 +923,37 @@ function showSuccess(type, result) {
 /************************************************************
  * INITIAL STATE
  *
- * The login/registration form is shown first. If a Supabase Auth
- * session is already active on this device, skip straight to
- * index.html instead of asking for the e-mail again.
+ * The login/registration form is shown first. Only if a saved
+ * session is confirmed valid by the server is the tutor sent
+ * to index.html. An expired / invalid session is cleared so
+ * the form stays usable.
  ************************************************************/
 
 showPage("email");
 
 (async function () {
 
-  if (await hasSession()) {
-    window.location.replace("index.html");
+  try {
+
+    const { data } = await window.sb.auth.getSession();
+
+    if (data && data.session) {
+
+      // already logged in as a tutor on this device -> go home
+      const profile = await window.sbCall("get_tutor_profile", {});
+
+      if (profile && profile.success) {
+        localStorage.setItem(TUTOR_SESSION_KEY, JSON.stringify({ sessionToken: "supabase" }));
+        window.location.replace("index.html");
+        return;
+      }
+
+    }
+
+    localStorage.removeItem(TUTOR_SESSION_KEY);
+
+  } catch (error) {
+    console.error(error);
   }
 
 })();
@@ -924,3 +974,17 @@ showPage("email");
   form.addEventListener("input", clear);
   form.addEventListener("change", clear);
 })();
+
+
+/************************************************************
+ * EMAIL + OTP BOXES: red border clears once you type again
+ ************************************************************/
+
+["emailForm", "otpForm"].forEach(function (formId) {
+  const form = document.getElementById(formId);
+  if (!form) return;
+  form.addEventListener("input", function (event) {
+    const field = event.target.closest(".field");
+    if (field) field.classList.remove("has-error");
+  });
+});

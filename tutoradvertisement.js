@@ -306,6 +306,8 @@ function render() {
     button.addEventListener("click", () => applyForTuition(button.dataset.apply, button));
   });
 
+  focusLinkedTuition();
+
 }
 
 function sortTuitions(items, sortBy) {
@@ -577,5 +579,37 @@ if (EMBEDDED && window.parent !== window) {
   window.addEventListener("resize", reportHeight);
 
   reportHeight();
+
+}
+
+
+
+/************************************************************
+ * LINK FROM THE TUTOR HOMEPAGE: tutoradvertisement.html#<DemoID>
+ * scrolls to that tuition card and highlights it (once).
+ ************************************************************/
+
+let linkedTuitionDone = false;
+
+function focusLinkedTuition() {
+
+  if (linkedTuitionDone) return;
+
+  const id = decodeURIComponent((location.hash || "").slice(1));
+
+  if (!id) return;
+
+  const card = Array.from(document.querySelectorAll("[data-demo-id]"))
+    .find(el => el.getAttribute("data-demo-id") === id);
+
+  if (!card) return;
+
+  linkedTuitionDone = true;
+
+  setTimeout(() => {
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("is-linked");
+    setTimeout(() => card.classList.remove("is-linked"), 2600);
+  }, 150);
 
 }
