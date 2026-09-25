@@ -190,9 +190,13 @@
           <div class="section-title centered-section-title"><div><h2>Experience</h2></div></div>
           <div class="field">
             <label class="field-label">Experience (In Years)</label>
-            <div class="slider-field">
-              <input id="experience" type="range" aria-label="Experience (In Years)" min="0" max="11" step="1" value="0" required>
-              <span id="experienceValue" class="slider-value">0 years</span>
+            <div class="ut-slider">
+              <output id="experienceValue" class="ut-slider-value">0 years</output>
+              <div class="ut-track">
+                <div class="ut-rail"><div class="ut-fill" id="experienceFill"></div></div>
+                <input id="experience" class="ut-range" type="range" aria-label="Experience (In Years)" min="0" max="11" step="1" value="0">
+              </div>
+              <div class="ut-ticks" aria-hidden="true"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>10+</span></div>
             </div>
             <small id="experienceError" class="field-error"></small>
           </div>
@@ -204,10 +208,21 @@
           <div class="vertical-fields">
             <div class="field">
               <label class="field-label">Classes You Teach</label>
-              <div class="range-slider-field">
-                <div class="range-slider-labels"><span id="classesFromLabel">Class 1</span><span> to </span><span id="classesToLabel">Class 12</span></div>
-                <input id="classesFrom" type="range" aria-label="Classes You Teach - From" min="1" max="12" step="1" value="1">
-                <input id="classesTo" type="range" aria-label="Classes You Teach - To" min="1" max="12" step="1" value="12">
+              <div class="ut-slider">
+                <output class="ut-slider-value"><span id="classesFromLabel">Class 1</span><span class="ut-dash">to</span><span id="classesToLabel">Class 12</span><small id="classesCount">12 classes</small></output>
+                <div class="ut-track ut-dual">
+                  <div class="ut-rail"><div class="ut-fill" id="classesFill"></div></div>
+                  <input id="classesFrom" class="ut-range" type="range" aria-label="Classes You Teach - From" min="1" max="12" step="1" value="1">
+                  <input id="classesTo" class="ut-range" type="range" aria-label="Classes You Teach - To" min="1" max="12" step="1" value="12">
+                </div>
+                <div class="ut-ticks" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span></div>
+                <div class="ut-presets" id="classesPresets">
+                  <button type="button" data-from="1" data-to="5">Primary <em>1–5</em></button>
+                  <button type="button" data-from="6" data-to="8">Middle <em>6–8</em></button>
+                  <button type="button" data-from="9" data-to="10">Secondary <em>9–10</em></button>
+                  <button type="button" data-from="11" data-to="12">Senior <em>11–12</em></button>
+                  <button type="button" data-from="1" data-to="12">All <em>1–12</em></button>
+                </div>
               </div>
               <small id="classesError" class="field-error"></small>
             </div>
@@ -215,9 +230,13 @@
               <label class="field-label">Subjects You Teach</label>
               <div class="chip-picker" id="subjectsTeach">
                 <div class="chip-list" id="subjectsChipList"></div>
-                <input id="subjectsSearchInput" type="text" class="chip-search-input" placeholder="Type a subject and press Enter" autocomplete="off">
-                <div class="chip-suggestions hidden" id="subjectsSuggestions"></div>
+                <div class="chip-search">
+                  <svg class="chip-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+                  <input id="subjectsSearchInput" type="text" class="chip-search-input" placeholder="Search subjects…" autocomplete="off" aria-label="Search subjects" role="combobox" aria-expanded="false" aria-controls="subjectsSuggestions">
+                </div>
+                <div class="chip-suggestions hidden" id="subjectsSuggestions" role="listbox"></div>
               </div>
+              <div class="chip-meta" id="subjectsCount">Pick from the list, or type your own and press Enter</div>
               <small id="subjectsError" class="field-error"></small>
             </div>
             <div class="field"><label class="field-label">Boards You Teach</label><div class="selection-box cols-3 small" id="boardsTeach"><label class="selection-option"><input type="checkbox" value="IB"><span>IB</span></label><label class="selection-option"><input type="checkbox" value="ICSE"><span>ICSE</span></label><label class="selection-option"><input type="checkbox" value="CBSE"><span>CBSE</span></label><label class="selection-option"><input type="checkbox" value="IGCSE"><span>IGCSE</span></label><label class="selection-option"><input type="checkbox" value="State Board"><span>State Board</span></label><label class="selection-option"><input type="checkbox" value="Other"><span>Other</span></label></div>

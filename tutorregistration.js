@@ -187,61 +187,192 @@ $("mobile").addEventListener("input", () => {
   $(id).addEventListener("input", () => digitsOnly($(id)))
 );
 
-/* ---- Year-picker <select> fields (Class 12th / Graduation / PG passing year) ---- */
+/* ---- Year pickers (Class 12th / Graduation / PG passing year) ----
+   The <select> stays the real value (val(id) reads it); a styled
+   button + year grid is drawn over it. */
+
+const YEAR_MIN = 1980;
+const YEAR_MAX = new Date().getFullYear();
+const YEARS_PER_PAGE = 12;
 
 function fillYearSelect(id) {
   const select = $(id);
   if (!select) return;
-  const currentYear = new Date().getFullYear();
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "Select Year";
-  select.appendChild(placeholder);
-  for (let y = currentYear; y >= 1980; y--) {
-    const opt = document.createElement("option");
-    opt.value = String(y);
-    opt.textContent = String(y);
-    select.appendChild(opt);
+  select.innerHTML = '<option value="">Select Year</option>';
+  for (let y = YEAR_MAX; y >= YEAR_MIN; y--) {
+    select.insertAdjacentHTML("beforeend", `<option value="${y}">${y}</option>`);
   }
+  buildYearPicker(select);
+}
+
+function buildYearPicker(select) {
+  const wrap = document.createElement("div");
+  wrap.className = "yp";
+  select.parentNode.insertBefore(wrap, select);
+  wrap.appendChild(select);
+  select.classList.add("yp-native");
+  select.tabIndex = -1;
+
+  wrap.insertAdjacentHTML("beforeend", `
+    <button type="button" class="yp-trigger" aria-haspopup="dialog" aria-expanded="false">
+      <svg class="yp-cal" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+      <span class="yp-text">Select Year</span>
+      <svg class="yp-chev" viewBox="0 0 14 9" aria-hidden="true"><path d="M1 1.5l6 6 6-6"/></svg>
+    </button>
+    <div class="yp-panel" role="dialog" aria-label="${select.getAttribute("aria-label") || "Choose year"}" hidden>
+      <div class="yp-head">
+        <button type="button" class="yp-nav" data-dir="-1" aria-label="Earlier years">‹</button>
+        <span class="yp-range"></span>
+        <button type="button" class="yp-nav" data-dir="1" aria-label="Later years">›</button>
+      </div>
+      <div class="yp-grid"></div>
+    </div>`);
+
+  const trigger = wrap.querySelector(".yp-trigger");
+  const text = wrap.querySelector(".yp-text");
+  const panel = wrap.querySelector(".yp-panel");
+  const grid = wrap.querySelector(".yp-grid");
+  const range = wrap.querySelector(".yp-range");
+  let pageEnd = YEAR_MAX;
+
+  function draw() {
+    const start = pageEnd - YEARS_PER_PAGE + 1;
+    range.textContent = `${Math.max(start, YEAR_MIN)} – ${pageEnd}`;
+    grid.innerHTML = "";
+    for (let y = start; y <= pageEnd; y++) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "yp-year";
+      b.textContent = y;
+      if (y < YEAR_MIN) { b.disabled = true; b.classList.add("is-empty"); }
+      if (String(y) === select.value) b.classList.add("is-selected");
+      if (y === YEAR_MAX) b.classList.add("is-current");
+      b.addEventListener("click", () => {
+        select.value = String(y);
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        close();
+      });
+      grid.appendChild(b);
+    }
+    wrap.querySelector('[data-dir="1"]').disabled = pageEnd >= YEAR_MAX;
+    wrap.querySelector('[data-dir="-1"]').disabled = start <= YEAR_MIN;
+  }
+
+  function sync() {
+    text.textContent = select.value || "Select Year";
+    wrap.classList.toggle("has-value", !!select.value);
+  }
+
+  function open() {
+    document.querySelectorAll(".yp.is-open").forEach(o => o !== wrap && o._close());
+    const y = Number(select.value) || YEAR_MAX;
+    pageEnd = Math.min(YEAR_MAX, y + Math.floor(YEARS_PER_PAGE / 2) - 1);
+    if (pageEnd < YEAR_MIN + YEARS_PER_PAGE - 1) pageEnd = YEAR_MIN + YEARS_PER_PAGE - 1;
+    if (!select.value) pageEnd = YEAR_MAX;
+    draw();
+    panel.hidden = false;
+    wrap.classList.add("is-open");
+    trigger.setAttribute("aria-expanded", "true");
+  }
+
+  function close() {
+    panel.hidden = true;
+    wrap.classList.remove("is-open");
+    trigger.setAttribute("aria-expanded", "false");
+  }
+  wrap._close = close;
+
+  trigger.addEventListener("click", () => (panel.hidden ? open() : close()));
+  wrap.querySelectorAll(".yp-nav").forEach(n =>
+    n.addEventListener("click", () => { pageEnd += Number(n.dataset.dir) * YEARS_PER_PAGE; pageEnd = Math.min(pageEnd, YEAR_MAX); draw(); })
+  );
+  select.addEventListener("change", sync);
+  document.addEventListener("click", e => { if (!wrap.contains(e.target)) close(); });
+  wrap.addEventListener("keydown", e => { if (e.key === "Escape") { close(); trigger.focus(); } });
+  sync();
 }
 
 ["twelfthYear", "graduationYear", "pgYear"].forEach(fillYearSelect);
+
+
+/* ---- Slider helpers: position of a value along the rail (0-100%) ---- */
+
+function sliderPct(input, value) {
+  const min = Number(input.min), max = Number(input.max);
+  return ((Number(value) - min) / (max - min)) * 100;
+}
+
+function markTicks(container, lo, hi, offset) {
+  container.querySelectorAll(".ut-ticks span").forEach((s, i) =>
+    s.classList.toggle("is-on", i + offset >= lo && i + offset <= hi)
+  );
+}
+
 
 /* ---- Experience slider (0-10, 11 = "10+") ---- */
 
 const experienceSlider = $("experience");
 const experienceValueLabel = $("experienceValue");
+const experienceFill = $("experienceFill");
 
 function syncExperienceLabel() {
   const v = Number(experienceSlider.value);
   experienceValueLabel.textContent = v >= 11 ? "10+ years" : `${v} year${v === 1 ? "" : "s"}`;
+  experienceFill.style.left = "0%";
+  experienceFill.style.width = sliderPct(experienceSlider, v) + "%";
+  markTicks(experienceSlider.closest(".ut-slider"), 0, v, 0);
 }
 
 experienceSlider.addEventListener("input", syncExperienceLabel);
 syncExperienceLabel();
 
-/* ---- Classes You Teach: dual-range slider (Class 1 - Class 12) ---- */
+
+/* ---- Classes You Teach: one rail, two handles (Class 1 - Class 12) ---- */
 
 const classesFrom = $("classesFrom");
 const classesTo = $("classesTo");
 const classesFromLabel = $("classesFromLabel");
 const classesToLabel = $("classesToLabel");
+const classesFill = $("classesFill");
+const classesCount = $("classesCount");
 
-function syncClassesRange() {
+function syncClassesRange(e) {
   let from = Number(classesFrom.value);
   let to = Number(classesTo.value);
   if (from > to) {
-    // keep the two handles from crossing
-    if (document.activeElement === classesFrom) { to = from; classesTo.value = to; }
+    // the handles never cross: the one being moved stops at the other
+    if (e && e.target === classesTo) { to = from; classesTo.value = to; }
     else { from = to; classesFrom.value = from; }
   }
+
+  // when both handles sit on the same class, keep the movable one on top
+  classesFrom.style.zIndex = from === to && from > 6 ? 4 : 2;
+  classesTo.style.zIndex = 3;
+
   classesFromLabel.textContent = `Class ${from}`;
   classesToLabel.textContent = `Class ${to}`;
+  const n = to - from + 1;
+  classesCount.textContent = `${n} class${n === 1 ? "" : "es"}`;
+
+  classesFill.style.left = sliderPct(classesFrom, from) + "%";
+  classesFill.style.width = (sliderPct(classesFrom, to) - sliderPct(classesFrom, from)) + "%";
+  markTicks(classesFrom.closest(".ut-slider"), from, to, 1);
+
+  document.querySelectorAll("#classesPresets button").forEach(b =>
+    b.classList.toggle("is-active", Number(b.dataset.from) === from && Number(b.dataset.to) === to)
+  );
   setError("classesError", "");
 }
 
 classesFrom.addEventListener("input", syncClassesRange);
 classesTo.addEventListener("input", syncClassesRange);
+document.querySelectorAll("#classesPresets button").forEach(b =>
+  b.addEventListener("click", () => {
+    classesFrom.value = b.dataset.from;
+    classesTo.value = b.dataset.to;
+    syncClassesRange();
+  })
+);
 syncClassesRange();
 
 function classesYouTeachValue() {
@@ -253,6 +384,7 @@ function classesYouTeachValue() {
   for (let c = lo; c <= hi; c++) list.push(`Class ${c}`);
   return list.join(", ");
 }
+
 
 /* ---- Subjects You Teach: search + add chips ---- */
 
@@ -267,68 +399,147 @@ const SUBJECTS_LIST = [
   "Spanish", "Yoga & Gymnastics"
 ];
 
+const POPULAR_SUBJECTS = [
+  "Mathematics", "English", "Physics", "Chemistry", "Biology", "Hindi",
+  "Sciences", "Computer Science", "Accountancy", "Economics"
+];
+
 let selectedSubjects = [];
+let subjectOptions = [];
+let subjectActive = -1;
 
 const subjectsChipList = $("subjectsChipList");
 const subjectsSearchInput = $("subjectsSearchInput");
 const subjectsSuggestions = $("subjectsSuggestions");
+const subjectsCount = $("subjectsCount");
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function isSelectedSubject(s) {
+  return selectedSubjects.some(sel => sel.toLowerCase() === s.toLowerCase());
+}
 
 function renderSubjectChips() {
   subjectsChipList.innerHTML = "";
   selectedSubjects.forEach(subject => {
     const chip = document.createElement("span");
     chip.className = "chip";
-    chip.innerHTML = `${subject}<button type="button" class="chip-remove" aria-label="Remove ${subject}">×</button>`;
+    chip.innerHTML = `<span>${escapeHtml(subject)}</span><button type="button" class="chip-remove" aria-label="Remove ${escapeHtml(subject)}"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6"/></svg></button>`;
     chip.querySelector(".chip-remove").addEventListener("click", () => {
       selectedSubjects = selectedSubjects.filter(s => s !== subject);
       renderSubjectChips();
+      if (document.activeElement === subjectsSearchInput) renderSubjectSuggestions();
     });
     subjectsChipList.appendChild(chip);
   });
+  const n = selectedSubjects.length;
+  subjectsCount.textContent = n
+    ? `${n} subject${n === 1 ? "" : "s"} selected`
+    : "Pick from the list, or type your own and press Enter";
+  subjectsCount.classList.toggle("is-on", n > 0);
 }
 
 function addSubject(subject) {
   const clean = cleanText(subject);
   if (!clean) return;
-  if (!selectedSubjects.some(s => s.toLowerCase() === clean.toLowerCase())) {
-    selectedSubjects.push(clean);
+  // use the list's spelling when the typed text matches one
+  const known = SUBJECTS_LIST.find(s => s.toLowerCase() === clean.toLowerCase());
+  const finalName = known || clean;
+  if (!isSelectedSubject(finalName)) {
+    selectedSubjects.push(finalName);
     renderSubjectChips();
     setError("subjectsError", "");
   }
   subjectsSearchInput.value = "";
+  renderSubjectSuggestions();
+}
+
+function closeSubjectSuggestions() {
   subjectsSuggestions.classList.add("hidden");
-  subjectsSuggestions.innerHTML = "";
+  subjectsSearchInput.setAttribute("aria-expanded", "false");
+  subjectActive = -1;
 }
 
 function renderSubjectSuggestions() {
-  const query = subjectsSearchInput.value.trim().toLowerCase();
+  const raw = subjectsSearchInput.value.trim();
+  const query = raw.toLowerCase();
   subjectsSuggestions.innerHTML = "";
-  if (!query) { subjectsSuggestions.classList.add("hidden"); return; }
-  const matches = SUBJECTS_LIST.filter(s =>
-    s.toLowerCase().includes(query) &&
-    !selectedSubjects.some(sel => sel.toLowerCase() === s.toLowerCase())
-  ).slice(0, 8);
-  if (matches.length === 0) { subjectsSuggestions.classList.add("hidden"); return; }
-  matches.forEach(subject => {
+  subjectActive = -1;
+
+  let heading;
+  if (!query) {
+    heading = "Popular subjects";
+    subjectOptions = POPULAR_SUBJECTS.filter(s => !isSelectedSubject(s)).map(s => ({ value: s }));
+  } else {
+    heading = "";
+    const starts = SUBJECTS_LIST.filter(s => s.toLowerCase().startsWith(query));
+    const contains = SUBJECTS_LIST.filter(s => !s.toLowerCase().startsWith(query) && s.toLowerCase().includes(query));
+    subjectOptions = [...starts, ...contains].filter(s => !isSelectedSubject(s)).slice(0, 7).map(s => ({ value: s }));
+    const exact = SUBJECTS_LIST.some(s => s.toLowerCase() === query) || isSelectedSubject(raw);
+    if (!exact) subjectOptions.push({ value: raw, custom: true });
+  }
+
+  if (subjectOptions.length === 0) { closeSubjectSuggestions(); return; }
+
+  if (heading) subjectsSuggestions.insertAdjacentHTML("beforeend", `<div class="chip-suggest-head">${heading}</div>`);
+
+  subjectOptions.forEach((opt, i) => {
     const item = document.createElement("div");
-    item.className = "chip-suggestion";
-    item.textContent = subject;
-    item.addEventListener("mousedown", e => { e.preventDefault(); addSubject(subject); });
+    item.className = "chip-suggestion" + (opt.custom ? " is-custom" : "");
+    item.setAttribute("role", "option");
+    if (opt.custom) {
+      item.innerHTML = `<span class="chip-plus">+</span> Add “${escapeHtml(opt.value)}”`;
+    } else if (query) {
+      const at = opt.value.toLowerCase().indexOf(query);
+      item.innerHTML = escapeHtml(opt.value.slice(0, at)) +
+        `<mark>${escapeHtml(opt.value.slice(at, at + query.length))}</mark>` +
+        escapeHtml(opt.value.slice(at + query.length));
+    } else {
+      item.textContent = opt.value;
+    }
+    item.addEventListener("mousedown", e => { e.preventDefault(); addSubject(opt.value); });
+    item.addEventListener("mousemove", () => highlightSubject(i));
     subjectsSuggestions.appendChild(item);
   });
+
+  if (query) highlightSubject(0);
   subjectsSuggestions.classList.remove("hidden");
+  subjectsSearchInput.setAttribute("aria-expanded", "true");
+}
+
+function highlightSubject(i) {
+  subjectActive = i;
+  subjectsSuggestions.querySelectorAll(".chip-suggestion").forEach((el, j) =>
+    el.classList.toggle("is-active", j === i)
+  );
 }
 
 subjectsSearchInput.addEventListener("input", renderSubjectSuggestions);
+subjectsSearchInput.addEventListener("focus", renderSubjectSuggestions);
 subjectsSearchInput.addEventListener("keydown", e => {
-  if (e.key === "Enter") {
+  const n = subjectOptions.length;
+  if (e.key === "ArrowDown" && n) { e.preventDefault(); highlightSubject((subjectActive + 1) % n); }
+  else if (e.key === "ArrowUp" && n) { e.preventDefault(); highlightSubject((subjectActive - 1 + n) % n); }
+  else if (e.key === "Enter") {
     e.preventDefault();
-    addSubject(subjectsSearchInput.value);
+    if (subjectActive >= 0 && subjectOptions[subjectActive]) addSubject(subjectOptions[subjectActive].value);
+    else addSubject(subjectsSearchInput.value);
+  }
+  else if (e.key === "Escape") closeSubjectSuggestions();
+  else if (e.key === "Backspace" && !subjectsSearchInput.value && selectedSubjects.length) {
+    selectedSubjects.pop();
+    renderSubjectChips();
+    renderSubjectSuggestions();
   }
 });
-subjectsSearchInput.addEventListener("blur", () => {
-  setTimeout(() => subjectsSuggestions.classList.add("hidden"), 150);
+subjectsSearchInput.addEventListener("blur", () => setTimeout(closeSubjectSuggestions, 120));
+$("subjectsTeach").addEventListener("click", e => {
+  if (!e.target.closest(".chip-remove") && !e.target.closest(".chip-suggestions")) subjectsSearchInput.focus();
 });
+renderSubjectChips();
+
 
 /* ---- Class 12th Board / Boards You Teach: "Other" reveals a text box ---- */
 
