@@ -87,7 +87,7 @@
               <div class="phone-input whatsapp-box hidden" id="whatsappWrap"><span class="country-code flag-code" aria-label="India (+91)"><svg class="in-flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" rx="3" fill="#fff"/><path d="M3 0h24a3 3 0 0 1 3 3v3.67H0V3a3 3 0 0 1 3-3Z" fill="#FF9933"/><path d="M0 13.33h30V17a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3Z" fill="#138808"/><circle cx="15" cy="10" r="2.6" fill="none" stroke="#000080" stroke-width=".7"/><circle cx="15" cy="10" r=".55" fill="#000080"/></svg></span><label class="float-field in-phone"><input id="whatsapp" type="tel" aria-label="WhatsApp Number" inputmode="numeric" maxlength="10" placeholder=" " required><span>Enter Your WhatsApp Number</span></label></div>
               <small id="whatsappError" class="field-error"></small>
             </div>
-            <div class="field"><div class="selection-box cols-2 small"><label class="selection-option"><input type="radio" name="registerAs" value="Full Time Tutor"><span>Full Time Tutor</span></label><label class="selection-option"><input type="radio" name="registerAs" value="Part Time Tutor"><span>Part Time Tutor</span></label></div><small id="registerAsError" class="field-error"></small></div>
+            <div class="field"><div class="selection-box cols-2 small"><label class="selection-option"><input type="radio" name="registerAs" value="Full Time Tutor" checked><span>Full Time Tutor</span></label><label class="selection-option"><input type="radio" name="registerAs" value="Part Time Tutor"><span>Part Time Tutor</span></label></div></div>
           </div>
         </section>
 
@@ -106,7 +106,7 @@
               <small id="birthDateError" class="field-error"></small>
             </div>
 
-            <div class="field"><div class="selection-box "><label class="selection-option"><input type="radio" name="gender" value="Male"><span>Male</span></label><label class="selection-option"><input type="radio" name="gender" value="Female"><span>Female</span></label></div><small id="genderError" class="field-error"></small></div>
+            <div class="field"><div class="selection-box "><label class="selection-option"><input type="radio" name="gender" value="Male" checked><span>Male</span></label><label class="selection-option"><input type="radio" name="gender" value="Female"><span>Female</span></label></div></div>
           </div>
         </section>
 
@@ -135,7 +135,7 @@
           <div id="profileCard" class="upload-card">
             <div class="upload-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/></svg><img id="profilePreview" class="upload-preview hidden" alt="Profile preview"></div>
             <div class="upload-info">
-              <strong>Profile Photo</strong>
+              <strong>Provide Your Image</strong>
               <span class="upload-hint">Profile photo for verification · JPG, JPEG or PNG · max 5 MB</span>
               <span id="profileFile" class="upload-file"></span>
             </div>
@@ -148,8 +148,8 @@
         <section class="section">
           <div class="section-title centered-section-title"><div><h2>Education & Qualification</h2></div></div>
           <div class="vertical-fields">
-            <div class="field"><label class="field-label">Class 12th</label><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthStream" value="Science"><span>Science</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Commerce"><span>Commerce</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Arts"><span>Arts</span></label></div></div>
-            <div class="field"><label class="field-label">Class 12th - Passing Year</label><select id="twelfthYear" class="year-select" aria-label="Class 12th - Passing Year"></select></div>
+            <div class="field"><label class="field-label">Class 12th - Stream</label><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthStream" value="Science"><span>Science</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Commerce"><span>Commerce</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Arts"><span>Arts</span></label></div></div>
+            <div class="field"><label class="float-field"><input id="twelfthYear" type="text" aria-label="Class 12th - Passing Year" placeholder=" " inputmode="numeric" maxlength="4"><span>Class 12th - Passing Year</span></label></div>
 
             <!-- 12th result: fill EITHER Percentage OR CGPA (the other box is disabled by JS) -->
             <div class="field">
@@ -157,19 +157,17 @@
                 <div class="field"><label class="float-field"><input id="twelfthPercentage" type="text" aria-label="12th Percentage" placeholder=" " inputmode="decimal" maxlength="5"><span>12th Percentage</span></label><small id="twelfthPercentageError" class="field-error"></small></div>
                 <div class="field"><label class="float-field"><input id="twelfthCgpa" type="text" aria-label="12th CGPA" placeholder=" " inputmode="decimal" maxlength="5"><span>12th CGPA</span></label><small id="twelfthCgpaError" class="field-error"></small></div>
               </div>
+              <small class="helper-text center">Fill either Percentage or CGPA. The other box is disabled automatically.</small>
             </div>
 
-            <div class="field"><div class="selection-box cols-3 small" id="twelfthBoardBox"><label class="selection-option"><input type="radio" name="twelfthBoard" value="IB"><span>IB</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="ICSE"><span>ICSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="CBSE"><span>CBSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="IGCSE"><span>IGCSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="State Board"><span>State Board</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="Other"><span>Other</span></label></div>
-              <div id="twelfthBoardOtherWrap" class="field hidden"><label class="float-field"><input id="twelfthBoardOther" type="text" aria-label="Other Board" placeholder=" " maxlength="60"><span>Enter Board Name</span></label></div>
-            </div>
-            <div class="section-title centered-section-title"><div><h2>Graduation</h2></div></div>
+            <div class="field"><label class="field-label">Class 12th - Board</label><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthBoard" value="IB"><span>IB</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="ICSE"><span>ICSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="CBSE"><span>CBSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="IGCSE"><span>IGCSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="State Board"><span>State Board</span></label></div></div>
             <div class="two-col">
               <div class="field"><label class="float-field"><input id="graduationCourse" type="text" aria-label="Graduation - Course" placeholder=" " ><span>Graduation - Course</span></label></div>
               <div class="field"><label class="float-field"><input id="graduationSubject" type="text" aria-label="Graduation - Subject" placeholder=" " ><span>Graduation - Subject</span></label></div>
             </div>
             <div class="two-col">
               <div class="field"><label class="float-field"><input id="graduationCollege" type="text" aria-label="Graduation - College/University" placeholder=" " ><span>Graduation - College/University</span></label></div>
-              <div class="field"><label class="field-label">Graduation - Passing Year</label><select id="graduationYear" class="year-select" aria-label="Graduation - Passing Year"></select></div>
+              <div class="field"><label class="float-field"><input id="graduationYear" type="text" aria-label="Graduation - Passing Year" placeholder=" " inputmode="numeric" maxlength="4"><span>Graduation - Passing Year</span></label></div>
             </div>
             <div class="field"><label class="float-field"><input id="graduationPercentage" type="text" aria-label="Graduation - Percentage" placeholder=" " ><span>Graduation - Percentage</span></label></div>
             <div class="two-col">
@@ -177,72 +175,27 @@
               <div class="field"><label class="float-field"><input id="pgCollege" type="text" aria-label="Post Graduation College/University" placeholder=" " ><span>Post Graduation College/University</span></label></div>
             </div>
             <div class="two-col">
-              <div class="field"><label class="field-label">Post-Graduation Passing Year</label><select id="pgYear" class="year-select" aria-label="Post Graduation Passing Year"></select></div>
+              <div class="field"><label class="float-field"><input id="pgYear" type="text" aria-label="Post Graduation Passing Year" placeholder=" " inputmode="numeric" maxlength="4"><span>Post Graduation Passing Year</span></label></div>
               <div class="field"><label class="float-field"><input id="pgPercentage" type="text" aria-label="Post Graduation Percentage" placeholder=" " ><span>Post Graduation Percentage</span></label></div>
             </div>
-            <div class="field"><label class="field-label">Special Courses</label><div class="selection-box cols-3 small" id="specialCourses"><label class="selection-option"><input type="checkbox" value="B. Ed"><span>B. Ed</span></label><label class="selection-option"><input type="checkbox" value="M. Ed"><span>M. Ed</span></label><label class="selection-option"><input type="checkbox" value="D. Ed"><span>D. Ed</span></label><label class="selection-option"><input type="checkbox" value="D. El. Ed."><span>D. El. Ed.</span></label><label class="selection-option"><input type="checkbox" value="D. P. Ed"><span>D. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="M. P. Ed"><span>M. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="B. P. Ed"><span>B. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="NET/JRF"><span>NET/JRF</span></label><label class="selection-option"><input type="checkbox" value="PhD"><span>PhD</span></label><label class="selection-option"><input type="checkbox" value="PHE"><span>PHE</span></label></div></div>
-            <div class="field"><label class="field-label">Child with Special Needs/Disability</label><div class="selection-box cols-2 small" id="disability"><label class="selection-option"><input type="checkbox" value="Specific Learning Disability (SLD)"><span>Specific Learning Disability (SLD)</span></label><label class="selection-option"><input type="checkbox" value="Health Impairment"><span>Health Impairment</span></label><label class="selection-option"><input type="checkbox" value="Autism Spectrum Disorder"><span>Autism Spectrum Disorder</span></label><label class="selection-option"><input type="checkbox" value="Emotional Disturbance"><span>Emotional Disturbance</span></label><label class="selection-option"><input type="checkbox" value="Speech or language impairment"><span>Speech or language impairment</span></label><label class="selection-option"><input type="checkbox" value="Shadow Teacher"><span>Shadow Teacher</span></label></div></div>
+            <div class="field"><label class="field-label">Special Courses</label><div class="selection-box cols-3 small" id="specialCourses"><label class="selection-option"><input type="checkbox" value="B. Ed"><span>B. Ed</span></label><label class="selection-option"><input type="checkbox" value="M. Ed"><span>M. Ed</span></label><label class="selection-option"><input type="checkbox" value="D. Ed"><span>D. Ed</span></label><label class="selection-option"><input type="checkbox" value="D. El. Ed."><span>D. El. Ed.</span></label><label class="selection-option"><input type="checkbox" value="D. P. Ed"><span>D. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="M. P. Ed"><span>M. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="B. P. Ed"><span>B. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="NET/IRF"><span>NET/IRF</span></label><label class="selection-option"><input type="checkbox" value="Phd"><span>Phd</span></label><label class="selection-option"><input type="checkbox" value="PHE"><span>PHE</span></label></div></div>
+            <div class="field"><label class="field-label">Special Child Disability</label><div class="selection-box cols-2 small" id="disability"><label class="selection-option"><input type="checkbox" value="Specific Learning Disability (SLD)"><span>Specific Learning Disability (SLD)</span></label><label class="selection-option"><input type="checkbox" value="Health Impairment"><span>Health Impairment</span></label><label class="selection-option"><input type="checkbox" value="Autism Spectrum Disorder"><span>Autism Spectrum Disorder</span></label><label class="selection-option"><input type="checkbox" value="Emotional disturbance"><span>Emotional disturbance</span></label><label class="selection-option"><input type="checkbox" value="Speech or language impairment"><span>Speech or language impairment</span></label><label class="selection-option"><input type="checkbox" value="Shadow Teacher"><span>Shadow Teacher</span></label></div></div>
           </div>
         </section>
 
 
         <section class="section">
           <div class="section-title centered-section-title"><div><h2>Experience</h2></div></div>
-          <div class="field">
-            <label class="field-label">Experience (In Years)</label>
-            <div class="ut-slider">
-              <output id="experienceValue" class="ut-slider-value">0 years</output>
-              <div class="ut-track">
-                <div class="ut-rail"><div class="ut-fill" id="experienceFill"></div></div>
-                <input id="experience" class="ut-range" type="range" aria-label="Experience (In Years)" min="0" max="11" step="1" value="0">
-              </div>
-              <div class="ut-ticks" aria-hidden="true"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>10+</span></div>
-            </div>
-            <small id="experienceError" class="field-error"></small>
-          </div>
+          <div class="field"><label class="float-field"><input id="experience" type="number" aria-label="Experience (In Years)" min="0" max="60" step="0.1" placeholder=" " required><span>Experience (In Years)</span></label><small id="experienceError" class="field-error"></small></div>
         </section>
 
 
         <section class="section">
           <div class="section-title centered-section-title"><div><h2>Teaching Preferences</h2></div></div>
           <div class="vertical-fields">
-            <div class="field">
-              <label class="field-label">Classes You Teach</label>
-              <div class="ut-slider">
-                <output class="ut-slider-value"><span id="classesFromLabel">Class 1</span><span class="ut-dash">to</span><span id="classesToLabel">Class 12</span><small id="classesCount">12 classes</small></output>
-                <div class="ut-track ut-dual">
-                  <div class="ut-rail"><div class="ut-fill" id="classesFill"></div></div>
-                  <input id="classesFrom" class="ut-range" type="range" aria-label="Classes You Teach - From" min="1" max="12" step="1" value="1">
-                  <input id="classesTo" class="ut-range" type="range" aria-label="Classes You Teach - To" min="1" max="12" step="1" value="12">
-                </div>
-                <div class="ut-ticks" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span></div>
-                <div class="ut-presets" id="classesPresets">
-                  <button type="button" data-from="1" data-to="5">Primary <em>1–5</em></button>
-                  <button type="button" data-from="6" data-to="8">Middle <em>6–8</em></button>
-                  <button type="button" data-from="9" data-to="10">Secondary <em>9–10</em></button>
-                  <button type="button" data-from="11" data-to="12">Senior <em>11–12</em></button>
-                  <button type="button" data-from="1" data-to="12">All <em>1–12</em></button>
-                </div>
-              </div>
-              <small id="classesError" class="field-error"></small>
-            </div>
-            <div class="field">
-              <label class="field-label">Subjects You Teach</label>
-              <div class="chip-picker" id="subjectsTeach">
-                <div class="chip-list" id="subjectsChipList"></div>
-                <div class="chip-search">
-                  <svg class="chip-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
-                  <input id="subjectsSearchInput" type="text" class="chip-search-input" placeholder="Search subjects…" autocomplete="off" aria-label="Search subjects" role="combobox" aria-expanded="false" aria-controls="subjectsSuggestions">
-                </div>
-                <div class="chip-suggestions hidden" id="subjectsSuggestions" role="listbox"></div>
-              </div>
-              <div class="chip-meta" id="subjectsCount">Pick from the list, or type your own and press Enter</div>
-              <small id="subjectsError" class="field-error"></small>
-            </div>
-            <div class="field"><label class="field-label">Boards You Teach</label><div class="selection-box cols-3 small" id="boardsTeach"><label class="selection-option"><input type="checkbox" value="IB"><span>IB</span></label><label class="selection-option"><input type="checkbox" value="ICSE"><span>ICSE</span></label><label class="selection-option"><input type="checkbox" value="CBSE"><span>CBSE</span></label><label class="selection-option"><input type="checkbox" value="IGCSE"><span>IGCSE</span></label><label class="selection-option"><input type="checkbox" value="State Board"><span>State Board</span></label><label class="selection-option"><input type="checkbox" value="Other"><span>Other</span></label></div>
-              <div id="boardsOtherWrap" class="field hidden"><label class="float-field"><input id="boardsOther" type="text" aria-label="Other Board You Teach" placeholder=" " maxlength="60"><span>Enter Board Name</span></label></div>
-              <small id="boardsError" class="field-error"></small>
-            </div>
+            <div class="field"><label class="field-label">Classes You Teach</label><div class="selection-box cols-2 small" id="classesTeach"><label class="selection-option"><input type="checkbox" value="1st-5th"><span>1st-5th</span></label><label class="selection-option"><input type="checkbox" value="6th-8th"><span>6th-8th</span></label><label class="selection-option"><input type="checkbox" value="9th-10th"><span>9th-10th</span></label><label class="selection-option"><input type="checkbox" value="11th-12th"><span>11th-12th</span></label></div><small id="classesError" class="field-error"></small></div>
+            <div class="field"><label class="field-label">Subject You Teach</label><div class="selection-box cols-3m2 small" id="subjectsTeach"><label class="selection-option"><input type="checkbox" value="Accountancy"><span>Accountancy</span></label><label class="selection-option"><input type="checkbox" value="Arts & Craft"><span>Arts & Craft</span></label><label class="selection-option"><input type="checkbox" value="Biology"><span>Biology</span></label><label class="selection-option"><input type="checkbox" value="Biology/Biotechnology"><span>Biology/Biotechnology</span></label><label class="selection-option"><input type="checkbox" value="Business Administration (BBA/MBA)"><span>Business Administration (BBA/MBA)</span></label><label class="selection-option"><input type="checkbox" value="Business Studies"><span>Business Studies</span></label><label class="selection-option"><input type="checkbox" value="Chemistry"><span>Chemistry</span></label><label class="selection-option"><input type="checkbox" value="Civis"><span>Civis</span></label><label class="selection-option"><input type="checkbox" value="Computer Applications"><span>Computer Applications</span></label><label class="selection-option"><input type="checkbox" value="Computer Science"><span>Computer Science</span></label><label class="selection-option"><input type="checkbox" value="Dance"><span>Dance</span></label><label class="selection-option"><input type="checkbox" value="Economics"><span>Economics</span></label><label class="selection-option"><input type="checkbox" value="English"><span>English</span></label><label class="selection-option"><input type="checkbox" value="Environmental Studies (EVS)"><span>Environmental Studies (EVS)</span></label><label class="selection-option"><input type="checkbox" value="Geography"><span>Geography</span></label><label class="selection-option"><input type="checkbox" value="Hindi"><span>Hindi</span></label><label class="selection-option"><input type="checkbox" value="History"><span>History</span></label><label class="selection-option"><input type="checkbox" value="Home Science"><span>Home Science</span></label><label class="selection-option"><input type="checkbox" value="Informatics Practices"><span>Informatics Practices</span></label><label class="selection-option"><input type="checkbox" value="Information Technology"><span>Information Technology</span></label><label class="selection-option"><input type="checkbox" value="Marathi"><span>Marathi</span></label><label class="selection-option"><input type="checkbox" value="Mathematics"><span>Mathematics</span></label><label class="selection-option"><input type="checkbox" value="Music"><span>Music</span></label><label class="selection-option"><input type="checkbox" value="Philosophy"><span>Philosophy</span></label><label class="selection-option"><input type="checkbox" value="Physical Education"><span>Physical Education</span></label><label class="selection-option"><input type="checkbox" value="Physics"><span>Physics</span></label><label class="selection-option"><input type="checkbox" value="Political Science"><span>Political Science</span></label><label class="selection-option"><input type="checkbox" value="Psychology"><span>Psychology</span></label><label class="selection-option"><input type="checkbox" value="Sanskrit"><span>Sanskrit</span></label><label class="selection-option"><input type="checkbox" value="Sciences"><span>Sciences</span></label><label class="selection-option"><input type="checkbox" value="Sociology"><span>Sociology</span></label><label class="selection-option"><input type="checkbox" value="French"><span>French</span></label><label class="selection-option"><input type="checkbox" value="German"><span>German</span></label><label class="selection-option"><input type="checkbox" value="Spanish"><span>Spanish</span></label><label class="selection-option"><input type="checkbox" value="Korean"><span>Korean</span></label><label class="selection-option"><input type="checkbox" value="Punjabi"><span>Punjabi</span></label><label class="selection-option"><input type="checkbox" value="Yoga & Gymnastics"><span>Yoga & Gymnastics</span></label></div><small id="subjectsError" class="field-error"></small></div>
+            <div class="field"><label class="field-label">Boards You Teach</label><div class="selection-box cols-3 small" id="boardsTeach"><label class="selection-option"><input type="checkbox" value="IB"><span>IB</span></label><label class="selection-option"><input type="checkbox" value="ICSE"><span>ICSE</span></label><label class="selection-option"><input type="checkbox" value="CBSE"><span>CBSE</span></label><label class="selection-option"><input type="checkbox" value="IGCSE"><span>IGCSE</span></label><label class="selection-option"><input type="checkbox" value="State Board"><span>State Board</span></label></div><small id="boardsError" class="field-error"></small></div>
           </div>
         </section>
 
@@ -250,7 +203,7 @@
         <section class="section">
           <div class="section-title centered-section-title"><div><h2>Areas You Teach</h2></div></div>
           <div class="vertical-fields">
-            <div class="field"><select id="location" aria-label="Location"><option value="">Select Location</option><option>Faridabad</option><option>Ghaziabad</option><option>Gurugram</option><option>Mumbai</option><option>Navi Mumbai</option><option>New Delhi</option><option>Noida</option><option>Pune</option></select></div>
+            <div class="field"><select id="location" aria-label="Location"><option value="">Select Location</option><option>New Delhi</option><option>Navi Mumbai</option><option>Mumbai</option><option>Pune</option><option>Faridabad</option><option>Ghaziabad</option><option>Noida</option><option>Gurugram</option></select></div>
             <div class="field"><label class="float-field"><input id="city" type="text" aria-label="City" placeholder=" " maxlength="80" required><span>City</span></label><small id="cityError" class="field-error"></small></div>
             <div class="field"><label class="float-field is-area"><textarea id="address" aria-label="Present Address" rows="4" maxlength="400" placeholder=" " required></textarea><span>Present Address</span></label><small id="addressError" class="field-error"></small></div>
             <div class="field"><label class="float-field"><input id="pinCode" type="text" aria-label="Pin Code" inputmode="numeric" maxlength="6" placeholder=" " required><span>Pin Code</span></label><small id="pinError" class="field-error"></small></div>
@@ -258,6 +211,8 @@
         </section>
 
         <section class="section last-section">
+
+          <div class="verification-note">Don't forget to upload your profile image for completing the verification process.</div>
 
           <label class="terms">
             <input id="terms" type="checkbox" required>
