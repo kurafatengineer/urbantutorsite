@@ -214,17 +214,16 @@ async function loadProfile(selectAfter) {
 
     // The tuition card only has these states: "Finding Tutor" until a
     // tutor is confirmed by BOTH sides, then "Running", then
-    // "Completed" (or "Rejected" when every applicant was turned down). Everything in between (applied, demo scheduled,
+    // "Completed". Everything in between (applied, demo scheduled,
     // waiting for approval) is shown on the tutor cards instead.
+    // A tuition whose applicants were all turned down is still open for
+    // new tutors, so it stays "Finding Tutor" too (the declined tutor
+    // cards show who was rejected).
     STATE.students.forEach(st => (st.tuitions || []).forEach(t => {
       t.detailStatus = t.status;
       const key = String(t.status || "").toLowerCase();
       if (key === "running" || key === "completed" || key === "terminated") return;
-      // Every tutor who applied has been rejected -> "Rejected"
-      // (it goes back to "Finding Tutor" as soon as a new tutor applies).
-      t.status = ((Number(t.tutorsApplied) || 0) === 0 && (Number(t.declinedCount) || 0) > 0)
-        ? "Rejected"
-        : "Finding Tutor";
+      t.status = "Finding Tutor";
     }));
 
     const wanted = selectAfter || urlStudentId() || readSelected();

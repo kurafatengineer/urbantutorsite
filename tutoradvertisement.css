@@ -418,3 +418,12 @@ html.embed .error-page .container {
   box-shadow: 0 0 0 8px rgba(200, 255, 46, 0.12);
   transition: outline-color 0.4s ease, box-shadow 0.4s ease;
 }
+
+
+/* Tuition card: subject centred in the top bar */
+.tuitions-grid .class-row-top .subject-badge {
+  justify-content: center;
+  text-align: center;
+  padding-left: 16px;
+  padding-right: 16px;
+}
