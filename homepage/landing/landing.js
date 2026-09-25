@@ -16,8 +16,7 @@
 
   "use strict";
 
-  const WEB_APP_URL =
-    "https://script.google.com/macros/s/AKfycbwnhZnXpGVegX3kQtggtRjTej1JrsgfUdDyPrtMmuxh-IR_I8EGudmGAgLscda2y3nxLg/exec";
+  // Figures come from Supabase: get_home_stats() via window.sbCall.
 
   const LIME = "#c8ff2e";
   const VIOLET = "#9486ff";
@@ -70,8 +69,9 @@
 
     try {
 
-      const response = await fetch(`${WEB_APP_URL}?action=getHomeStats`, { method: "GET" });
-      const result = JSON.parse(await response.text());
+      if (typeof window.sbCall !== "function") throw new Error("Supabase is not loaded.");
+
+      const result = await window.sbCall("get_home_stats", {});
 
       if (!result || !result.success) throw new Error(result && result.message);
 
@@ -169,7 +169,11 @@
 
     $("ldDemand").classList.remove("ld-hidden");
 
-    const cities = Object.keys(demand).filter(c => Object.keys(demand[c]).length);
+    // "All cities" first, then the busiest city (the database does not
+    // keep the order of these names).
+    const cities = Object.keys(demand)
+      .filter(c => Object.keys(demand[c]).length)
+      .sort((a, b) => (b === "All cities") - (a === "All cities") || cityTotal(b) - cityTotal(a));
 
     $("ldCities").innerHTML = cities.length > 1
       ? cities.map((c, i) => `<button class="ld-chip${i ? "" : " ld-on"}" data-c="${esc(c)}" type="button">${esc(c)}</button>`).join("")
