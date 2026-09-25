@@ -443,17 +443,8 @@ async function checkEmail() {
     // Does this email already belong to a student?
     const status = await window.sbCall("email_status", { p_email: email });
 
-    if (status.tutor && !status.student) {
-
-      showMessage(
-        "emailMessage",
-        "This email is registered as a tutor. Please use the tutor login.",
-        "error"
-      );
-
-      return;
-
-    }
+    // One email may be both a tutor and a student's parent: an email
+    // that is only registered as a tutor simply registers a student.
 
     if (status.student) {
 
@@ -1305,9 +1296,9 @@ async function logoutStudent() {
     console.error(error);
   }
 
-  localStorage.removeItem(
-    "urbantutorsite_student_session"
-  );
+  // One shared login for both roles - logging out ends both.
+  localStorage.removeItem("urbantutorsite_student_session");
+  localStorage.removeItem("urbantutorsite_tutor_session");
 
   window.location.href = "index.html";
 }
@@ -1748,15 +1739,24 @@ ensureMediumOptions();
 
     const { data } = await window.sb.auth.getSession();
 
+    // Only skip ahead if this login actually has a student - a
+    // logged-in tutor may be here to register their child.
     if (data && data.session) {
 
-      window.location.replace("index.html");
+      const profile = await window.sbCall("get_student_profile", {});
 
-    } else {
-
-      localStorage.removeItem("urbantutorsite_student_session");
+      if (profile && profile.success) {
+        localStorage.setItem(
+          "urbantutorsite_student_session",
+          JSON.stringify({ sessionToken: "supabase" })
+        );
+        window.location.replace("index.html");
+        return;
+      }
 
     }
+
+    localStorage.removeItem("urbantutorsite_student_session");
 
   } catch (error) {
 

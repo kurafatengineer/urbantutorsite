@@ -333,10 +333,8 @@ async function checkEmail() {
       return;
     }
 
-    if (status.student && !status.tutor) {
-      showMessage("emailMessage", "This email is registered as a student. Please use the student login.", "error");
-      return;
-    }
+    // One email may be both a tutor and a student's parent: an email
+    // that is only registered as a student simply registers as a tutor.
 
     /* ---- Existing tutor: LOGIN with OTP ---- */
 

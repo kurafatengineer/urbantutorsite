@@ -716,6 +716,12 @@ $("logoutButton")?.addEventListener("click", async () => {
 
   clearTutorSession();
 
+  // One shared login for both roles - logging out ends the student side too.
+  try {
+    localStorage.removeItem("urbantutorsite_student_session");
+    sessionStorage.removeItem("urbantutorsite_last_login");
+  } catch (ignore) {}
+
   window.location.href = "index.html";
 
 });
