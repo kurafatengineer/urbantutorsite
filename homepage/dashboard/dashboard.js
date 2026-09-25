@@ -193,17 +193,21 @@
       return;
     }
 
-    $("dbSName").textContent = (firstName(student.studentName) || "there") + ".";
+    // One student: greet them. Several: greet the parent (this is the
+    // family's view - no student switch, no Student IDs).
+    const many = students.length > 1;
+    const account = SDATA.account || {};
+    $("dbSName").textContent =
+      (firstName(many ? (account.parentsName || student.parentsName) : student.studentName) || "there") + ".";
 
     if (window.UrbanSession) window.UrbanSession.rememberName("student", student.studentName);
 
-    // student switch (only with more than one student)
-    $("dbSChips").innerHTML = students.length > 1 ? students.map((s, i) => `
-      <button class="db-chip${s.studentId === student.studentId ? " on" : ""}" type="button" data-sid="${esc(s.studentId)}">
-        <i style="background:${COLORS[i % COLORS.length]}">${esc(initials(s.studentName, "S"))}</i>${esc(s.studentName || "Student")} · ${esc(s.studentId)}
-      </button>`).join("") : "";
+    $("dbSChips").innerHTML = "";
 
-    const tuitions = (student.tuitions || []).slice()
+    // every student's tuitions together, newest first; with several
+    // students each card carries the student's first name
+    const tuitions = students
+      .flatMap(s => (s.tuitions || []).map(t => Object.assign({}, t, { _who: many ? firstName(s.studentName) : "" })))
       .sort((a, b) => (Number(b.timestampMs) || 0) - (Number(a.timestampMs) || 0));
 
     // numbers
@@ -240,7 +244,7 @@
       $("dbSNext").innerHTML = `
         <div class="db-next">
           ${dateBlock(next.date)}
-          <div><h3>${esc(t.subject)}${tu.fullName ? ` with ${esc(tu.fullName)}` : ""}</h3><p>${esc(bits)}</p></div>
+          <div><h3>${esc(t.subject)}${t._who ? ` for ${esc(t._who)}` : ""}${tu.fullName ? ` with ${esc(tu.fullName)}` : ""}</h3><p>${esc(bits)}</p></div>
           <div class="db-acts">
             <button class="db-sbtn p" type="button" data-s-respond="accept" data-demo="${esc(t.demoId)}" data-tutor="${esc(tu.tutorId)}"${tu.canAccept ? "" : " disabled"}>Accept</button>
             <button class="db-sbtn r" type="button" data-s-respond="reject" data-demo="${esc(t.demoId)}" data-tutor="${esc(tu.tutorId)}"${tu.canReject ? "" : " disabled"}>Reject</button>
@@ -275,7 +279,7 @@
 
       return `
         <a class="db-tc" href="studentprofile.html#tuition-${encodeURIComponent(t.demoId)}">
-          <div class="db-tc-top"><div><b>${esc(t.subject)}</b> <span>· ${esc(t.demoId)} · ${esc(mediumText(t.medium))}</span></div><span class="db-state" style="background:${bg};color:${fg}">${label}</span></div>
+          <div class="db-tc-top"><div><b>${esc(t.subject)}</b> <span>${t._who ? `· ${esc(t._who)} ` : ""}· ${esc(mediumText(t.medium))}</span></div><span class="db-state" style="background:${bg};color:${fg}">${label}</span></div>
           <div class="db-steps">${bars}</div>
           <div class="db-steps-l">${labels}</div>
           <div class="db-tc-foot">${foot}</div>
@@ -337,14 +341,34 @@
     else setTimeout(() => $("dbOtherTiming").focus(), 30);
   }
 
+  // Same as Student Profile's "Apply For New Tuition": "Name · SID"
+  // under the title; with more than one student it is a small lime
+  // button that opens a list to pick the student.
   function renderApplyStudents() {
     const students = (SDATA && SDATA.students) || [];
-    $("dbApplyStudents").innerHTML = students.length > 1
-      ? students.map((s, i) => `
-          <button class="db-chip${s.studentId === applyStudentId ? " on" : ""}" type="button" data-apply-sid="${esc(s.studentId)}">
-            <i style="background:${COLORS[i % COLORS.length]}">${esc(initials(s.studentName, "S"))}</i>${esc(s.studentName || "Student")} · ${esc(s.studentId)}
-          </button>`).join("")
-      : students.map(s => `<p class="db-modal-sub">${esc(s.studentName || "Student")} · ${esc(s.studentId)}</p>`).join("");
+    const current = students.find(s => s.studentId === applyStudentId) || students[0];
+    const many = students.length > 1;
+    if (!current) { $("dbApplyStudents").innerHTML = ""; return; }
+    $("dbApplyStudents").innerHTML = `
+      <div class="db-sid-switch">
+        <button class="db-sid-button${many ? " is-switchable" : ""}" id="dbApplyFor" type="button"
+                aria-haspopup="listbox" aria-expanded="false"${many ? "" : " disabled"}>${esc(current.studentName || "Student")} · ${esc(current.studentId)}</button>
+        <div class="db-sid-menu db-hidden" id="dbApplyMenu" role="listbox" aria-label="Choose student">
+          ${students.map(s => `
+            <button class="db-sid-option${s.studentId === current.studentId ? " active" : ""}" type="button" role="option"
+                    data-apply-sid="${esc(s.studentId)}" aria-selected="${s.studentId === current.studentId ? "true" : "false"}">
+              <span class="db-sid-option-id">${esc(s.studentId)}</span>
+              <span class="db-sid-option-name">${esc(s.studentName || "Student")}</span>
+            </button>`).join("")}
+        </div>
+      </div>`;
+  }
+
+  function closeApplyMenu() {
+    const menu = $("dbApplyMenu");
+    if (!menu) return;
+    menu.classList.add("db-hidden");
+    $("dbApplyFor").setAttribute("aria-expanded", "false");
   }
 
   function wireApply() {
@@ -371,12 +395,22 @@
 
     $("dbApplyModal").addEventListener("click", e => {
       if (e.target.closest("[data-db-close]")) { closeApply(); return; }
-      const chip = e.target.closest("[data-apply-sid]");
-      if (chip) { applyStudentId = chip.dataset.applySid; renderApplyStudents(); }
+      const pick = e.target.closest("[data-apply-sid]");
+      if (pick) { applyStudentId = pick.dataset.applySid; renderApplyStudents(); return; }
+      const toggle = e.target.closest("#dbApplyFor");
+      if (toggle && !toggle.disabled) {
+        const opening = $("dbApplyMenu").classList.contains("db-hidden");
+        $("dbApplyMenu").classList.toggle("db-hidden", !opening);
+        toggle.setAttribute("aria-expanded", opening ? "true" : "false");
+        return;
+      }
+      if (!e.target.closest(".db-sid-switch")) closeApplyMenu();
     });
 
     document.addEventListener("keydown", e => {
-      if (e.key === "Escape" && !$("dbApplyModal").classList.contains("db-hidden")) closeApply();
+      if (e.key !== "Escape" || $("dbApplyModal").classList.contains("db-hidden")) return;
+      if ($("dbApplyMenu") && !$("dbApplyMenu").classList.contains("db-hidden")) { closeApplyMenu(); $("dbApplyFor").focus(); return; }
+      closeApply();
     });
 
     $("dbApplyForm").addEventListener("submit", submitApply);
