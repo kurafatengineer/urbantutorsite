@@ -73,7 +73,7 @@
 
       <form id="tutorForm" novalidate>
 
-        <section class="section" id="sectionContact">
+        <section class="section">
           <div class="section-title centered-section-title"><div><h2>Contact Information</h2></div></div>
           <div class="vertical-fields">
             <div class="field email-registration-field"><label class="float-field"><input id="registrationEmail" type="email" aria-label="Email Address" placeholder=" " readonly><span>Email Address</span></label></div>
@@ -87,12 +87,12 @@
               <div class="phone-input whatsapp-box hidden" id="whatsappWrap"><span class="country-code flag-code" aria-label="India (+91)"><svg class="in-flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" rx="3" fill="#fff"/><path d="M3 0h24a3 3 0 0 1 3 3v3.67H0V3a3 3 0 0 1 3-3Z" fill="#FF9933"/><path d="M0 13.33h30V17a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3Z" fill="#138808"/><circle cx="15" cy="10" r="2.6" fill="none" stroke="#000080" stroke-width=".7"/><circle cx="15" cy="10" r=".55" fill="#000080"/></svg></span><label class="float-field in-phone"><input id="whatsapp" type="tel" aria-label="WhatsApp Number" inputmode="numeric" maxlength="10" placeholder=" " required><span>Enter Your WhatsApp Number</span></label></div>
               <small id="whatsappError" class="field-error"></small>
             </div>
-            <div class="field"><div class="selection-box cols-2 small"><label class="selection-option"><input type="radio" name="registerAs" value="Full Time Tutor"><span>Full Time Tutor</span></label><label class="selection-option"><input type="radio" name="registerAs" value="Part Time Tutor"><span>Part Time Tutor</span></label></div></div>
+            <div class="field"><div class="selection-box cols-2 small"><label class="selection-option"><input type="radio" name="registerAs" value="Full Time Tutor" checked><span>Full Time Tutor</span></label><label class="selection-option"><input type="radio" name="registerAs" value="Part Time Tutor"><span>Part Time Tutor</span></label></div></div>
           </div>
         </section>
 
 
-        <section class="section" id="sectionBasic">
+        <section class="section">
           <div class="section-title centered-section-title"><div><h2>Basic Information</h2></div></div>
           <div class="vertical-fields">
             <div class="field"><label class="float-field"><input id="fullName" type="text" aria-label="Full Name" placeholder=" " maxlength="120" autocomplete="name" required><span>Full Name</span></label><small id="fullNameError" class="field-error"></small></div>
@@ -106,18 +106,18 @@
               <small id="birthDateError" class="field-error"></small>
             </div>
 
-            <div class="field"><div class="selection-box "><label class="selection-option"><input type="radio" name="gender" value="Male"><span>Male</span></label><label class="selection-option"><input type="radio" name="gender" value="Female"><span>Female</span></label></div></div>
+            <div class="field"><div class="selection-box "><label class="selection-option"><input type="radio" name="gender" value="Male" checked><span>Male</span></label><label class="selection-option"><input type="radio" name="gender" value="Female"><span>Female</span></label></div></div>
           </div>
         </section>
 
 
-        <section class="section" id="sectionLanguages">
+        <section class="section">
           <div class="section-title centered-section-title"><div><h2>Languages Known</h2></div></div>
           <div class="field"><div class="selection-box cols-3 small" id="languages"><label class="selection-option"><input type="checkbox" value="Hindi"><span>Hindi</span></label><label class="selection-option"><input type="checkbox" value="English"><span>English</span></label><label class="selection-option"><input type="checkbox" value="Marathi"><span>Marathi</span></label><label class="selection-option"><input type="checkbox" value="Bengali"><span>Bengali</span></label><label class="selection-option"><input type="checkbox" value="Tamil"><span>Tamil</span></label><label class="selection-option"><input type="checkbox" value="Telugu"><span>Telugu</span></label></div><small id="languagesError" class="field-error"></small></div>
         </section>
 
 
-        <section class="section" id="sectionIdentity">
+        <section class="section">
           <div class="section-title centered-section-title"><div><h2>Identity Proof</h2></div></div>
           
           <!-- Upload cards: state (file name, size, preview) is handled in tutorregistration.js -->
@@ -145,7 +145,7 @@
         </section>
 
 
-        <section class="section" id="sectionEducation">
+        <section class="section">
           <div class="section-title centered-section-title"><div><h2>Education & Qualification</h2></div></div>
           <div class="vertical-fields">
             <div class="field"><label class="field-label">Class 12th - Stream</label><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthStream" value="Science"><span>Science</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Commerce"><span>Commerce</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Arts"><span>Arts</span></label></div></div>
@@ -218,9 +218,9 @@
             <input id="terms" type="checkbox" required>
             <span class="terms-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path class="seal" d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81C14.67 2.63 13.43 1.75 12 1.75s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91C2.63 9.33 1.75 10.57 1.75 12s.88 2.67 2.2 3.34c-.46 1.39-.21 2.9.8 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.68-.88 3.34-2.19c1.39.45 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34Z"/><path class="tick" d="m8 12.3 2.7 2.7L16.2 9.5"/></svg></span>
             <span class="terms-text">
-              I agree to the
+              I confirm that the information provided by me is accurate and I agree to the
               <button id="termsButton" type="button" class="inline-link">Terms & Conditions</button>
-              of Urbantutorsite.
+              and privacy requirements of Urbantutorsite.
             </span>
           </label>
           <small id="termsError" class="field-error"></small>
