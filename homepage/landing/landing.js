@@ -10,6 +10,7 @@
    Buttons:
      I'm a student  -> student.html            (student login)
      I'm a tutor    -> tutorregistration.html  (tutor login)
+     Apply (card)   -> tutorregistration.html  (visitors must log in first)
 ========================================================= */
 
 (function () {
@@ -326,7 +327,7 @@
         <div class="ld-tu">
           <span class="ld-sj">${esc(String(t.subject || "?").slice(0, 2).toUpperCase())}</span>
           <div><b>${esc(t.subject)}</b><span>${esc(info)}</span>${place ? `<span>${esc(place)}</span>` : ""}</div>
-          <a href="tutoradvertisement.html">Apply</a>
+          <a href="tutorregistration.html">Apply</a>
         </div>`;
     }).join("");
 

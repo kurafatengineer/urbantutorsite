@@ -44,7 +44,7 @@
 .ld-kick::before, .ld-kick::after { content: ""; width: 26px; height: 1px; background: var(--ld-faint); }
 .ld-h1 { position: relative; margin: 22px auto 0; max-width: 13ch; font-family: Sora, Inter, sans-serif; font-weight: 300; font-size: clamp(40px, 8.2vw, 84px); line-height: 1.02; letter-spacing: -0.045em; color: var(--ld-text); }
 .ld-h1 em { font-style: normal; font-weight: 700; color: var(--ld-lime); }
-.ld-lead { position: relative; margin: 20px auto 0; max-width: 470px; color: var(--ld-muted); font-size: clamp(15px, 2vw, 17px); }
+.ld-lead { position: relative; margin: 20px auto 0; max-width: none; white-space: nowrap; color: var(--ld-muted); font-size: clamp(15px, 2vw, 17px); }  /* one line (the landing always uses the desktop layout) */
 .ld-btns { position: relative; display: flex; justify-content: center; gap: 10px; margin-top: 30px; flex-wrap: wrap; }
 .ld-btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 14px 22px; font-weight: 600; font-size: 14.5px; transition: transform 0.15s ease; }
 .ld-btn:hover { transform: translateY(-2px); }
