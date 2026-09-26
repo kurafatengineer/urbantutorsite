@@ -1056,15 +1056,20 @@ function educationValid(includeGraduation, showErrors) {
  *     Stream -> Passing Year -> Percentage / CGPA -> Board.
  *     After the Board: Graduation, the "Post Graduation",
  *     "Special Courses" and "Special Child Disability" ticks,
- *     and the ticks for Experience, Teaching Preferences,
- *     Subjects, Boards and Areas You Teach, plus the Terms.
+ *     and the Experience box (nothing further down yet).
  *     - Post Graduation tick: checks Class 12th + Graduation,
  *       hides them and shows the Post Graduation boxes.
- *     - Experience ... Areas ticks: open their part and hide
- *       whatever else is open above.
  *     - Special Courses / Disability ticks: open / close their
  *       own options only.
- *  5. Ticking Terms & Conditions shows the whole form and goes
+ *  5. Typing in Experience -> everything above hides,
+ *     Teaching Preferences (Classes) + the "Subjects You Teach"
+ *     tick show.
+ *     - Subjects tick: hides everything above / below and shows
+ *       the subjects.
+ *     - First subject picked -> Boards You Teach shows.
+ *     - One subject + one board -> Areas You Teach shows,
+ *       with the Terms and the Register button.
+ *  6. Ticking Terms & Conditions shows the whole form and goes
  *     back to the top, so everything can be reviewed.
  ************************************************************/
 
@@ -1101,7 +1106,7 @@ function educationValid(includeGraduation, showErrors) {
    "eduYear", "eduResult", "eduBoard", "eduGraduation",
    "pgToggleField", "eduPg", "specialToggleField", "eduSpecial",
    "disabilityToggleField", "eduDisability",
-   "expContent", "teachClasses", "teachSubjects", "teachBoards", "areasContent"
+   "teachSubjects", "teachBoards"
   ].forEach(hide);
 
 
@@ -1218,82 +1223,92 @@ function educationValid(includeGraduation, showErrors) {
     r.addEventListener("change", () => {
       if (reviewing || isShown("eduGraduation")) return;
       ["eduGraduation", "pgToggleField", "specialToggleField", "disabilityToggleField",
-       "sectionExperience", "sectionTeaching", "sectionAreas", "sectionTerms"].forEach(show);
+       "sectionExperience"].forEach(show);
     })
   );
 
 
-  /* ---------- the ticks ---------- */
+  /* ---------- Education ticks ---------- */
 
-  // details that the Post Graduation / Experience ... Areas ticks hide
+  // Class 12th + Graduation: hidden while Post Graduation is ticked
   const details = ["eduStream", "eduYear", "eduResult", "eduBoard", "eduGraduation"];
 
-  // only one of these is open at a time
-  const exclusive = [
-    { tick: "pgToggle",       part: "eduPg" },
-    { tick: "expToggle",      part: "expContent" },
-    { tick: "teachToggle",    part: "teachClasses" },
-    { tick: "subjectsToggle", part: "teachSubjects" },
-    { tick: "boardsToggle",   part: "teachBoards" },
-    { tick: "areasToggle",    part: "areasContent" }
-  ];
-
-  // these simply open / close their own options
-  const simple = [
-    { tick: "specialToggle",    part: "eduSpecial" },
-    { tick: "disabilityToggle", part: "eduDisability" }
-  ];
-
-  exclusive.forEach(item => {
-    const box = $(item.tick);
-    if (!box) return;
-    box.addEventListener("change", () => {
-      if (reviewing) return;
-
-      if (box.checked) {
-
-        // Post Graduation: Class 12th + Graduation must be complete first
-        if (item.tick === "pgToggle" && !educationValid(true, true)) {
-          box.checked = false;
-          const first = document.querySelector("#sectionEducation .has-error");
-          if (first) first.scrollIntoView({ behavior: "smooth", block: "center" });
-          return;
-        }
-
-        exclusive.forEach(other => {
-          if (other === item) return;
-          $(other.tick).checked = false;
-          hide(other.part);
-        });
-        simple.forEach(other => {
-          $(other.tick).checked = false;
-          hide(other.part);
-        });
-        details.forEach(hide);
-        show(item.part);
-        scrollToEl(item.tick + "Field");
-
-      } else {
-
-        hide(item.part);
-        // nothing open any more -> Class 12th + Graduation come back
-        if (!exclusive.some(other => $(other.tick).checked)) details.forEach(show);
-
+  $("pgToggle").addEventListener("change", () => {
+    if (reviewing) return;
+    const box = $("pgToggle");
+    if (box.checked) {
+      if (!educationValid(true, true)) {
+        box.checked = false;
+        const first = document.querySelector("#sectionEducation .has-error");
+        if (first) first.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
       }
-    });
+      details.forEach(hide);
+      show("eduPg");
+      scrollToEl("pgToggleField");
+    } else {
+      hide("eduPg");
+      details.forEach(show);
+    }
   });
 
-  simple.forEach(item => {
-    const box = $(item.tick);
-    if (!box) return;
-    box.addEventListener("change", () => {
+  [["specialToggle", "eduSpecial"], ["disabilityToggle", "eduDisability"]].forEach(([tick, part]) => {
+    $(tick).addEventListener("change", () => {
       if (reviewing) return;
-      if (box.checked) show(item.part); else hide(item.part);
+      if ($(tick).checked) show(part); else hide(part);
     });
   });
 
 
-  /* ---------- 5. review everything ---------- */
+  /* ---------- 5. Experience -> Teaching Preferences ---------- */
+
+  let expTimer = null;
+
+  $("experience").addEventListener("input", () => {
+    if (reviewing || isShown("sectionTeaching") || !val("experience")) return;
+    clearTimeout(expTimer);
+    expTimer = setTimeout(() => {
+      if (reviewing || isShown("sectionTeaching")) return;
+      hide("sectionEducation");
+      show("sectionTeaching");          // Classes You Teach + the Subjects tick
+      scrollToEl("sectionExperience");
+    }, DELAY);
+  });
+
+  const subjectsPicked = () => values("subjectsTeach").length > 0;
+  const boardsPicked = () => values("boardsTeach").length > 0;
+
+  function revealAfterSubjects() {
+    if (reviewing) return;
+    if (subjectsPicked()) show("teachBoards");
+    if (subjectsPicked() && boardsPicked()) {
+      show("sectionAreas");
+      show("sectionTerms");
+    }
+  }
+
+  // Subjects tick: only the subjects (and what they unlock) stay in view
+  $("subjectsToggle").addEventListener("change", () => {
+    if (reviewing) return;
+    if ($("subjectsToggle").checked) {
+      ["sectionExperience", "teachClasses", "teachBoards", "sectionAreas", "sectionTerms"].forEach(hide);
+      show("teachSubjects");
+      revealAfterSubjects();
+      scrollToEl("subjectsToggleField");
+    } else {
+      hide("teachSubjects");
+      show("sectionExperience");
+      show("teachClasses");
+      revealAfterSubjects();
+    }
+  });
+
+  document.querySelectorAll("#subjectsTeach input, #boardsTeach input").forEach(c =>
+    c.addEventListener("change", revealAfterSubjects)
+  );
+
+
+  /* ---------- 6. review everything ---------- */
 
   function showAll(goToTop) {
     reviewing = true;

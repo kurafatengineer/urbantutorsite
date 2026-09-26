@@ -3153,22 +3153,9 @@ body {
   display: none;
 }
 
-/* Experience / Teaching Preferences / Areas: while stepping they
-   are just a stack of ticks, so no big heading or divider */
-#tutorForm.step-mode .step-compact {
-  padding-bottom: 0;
-  margin-bottom: 27px;
-  border-bottom: 0;
-}
-
-#tutorForm.step-mode .step-compact > .section-title {
+/* Experience: while stepping it is just the text box, no heading */
+#tutorForm.step-mode .step-nohead > .section-title {
   display: none;
-}
-
-#tutorForm.step-mode .step-compact.step-compact-last {
-  padding-bottom: 42px;
-  margin-bottom: 42px;
-  border-bottom: 1px solid #242424;
 }
 
 /* a tick that opens a part: same pill as "WhatsApp same as mobile" */
