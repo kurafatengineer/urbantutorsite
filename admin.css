@@ -1828,6 +1828,16 @@ body[data-page="admin"] {
   grid-column: 1 / -1;
 }
 
+/* A date input's own UA stylesheet gives it "min-width: min-content"
+   (the width needed to show its date-picker segments unbroken),
+   which an ancestor's min-width:0 does not reset - it has to be set
+   on the input itself or Safari/Chrome let it push past width:100%. */
+.admin-float input[type="date"] {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+
 /* select and textarea inside a floating-label box, matching the
    existing pill-shaped .admin-float input look */
 .admin-float select {

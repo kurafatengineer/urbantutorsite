@@ -401,29 +401,54 @@ async function handleBootstrap(caller: AuthedUser, body: Json): Promise<Json> {
 async function buildPaymentDirectory(): Promise<Json> {
 
   const [{ data: tuitions }, { data: applications }, { data: students }, { data: tutors }] = await Promise.all([
-    db.from("tuitions").select("demo_id, student_id, subject"),
-    db.from("applications").select("demo_id, tutor_id"),
+    db.from("tuitions").select("demo_id, student_id, subject, terminated"),
+    db.from("applications").select(
+      "demo_id, tutor_id, parent_accepted, tutor_accepted, parent_rejected, tutor_rejected, classes_completed, demo_date"
+    ),
     db.from("students").select("student_id, student_name, phone, whatsapp"),
     db.from("tutors").select("tutor_id, full_name, mobile_number, whatsapp_number"),
   ]);
 
+  const tuitionByDemo = new Map<string, Json>();
+  (tuitions ?? []).forEach((t: Json) => tuitionByDemo.set(t.demo_id, t));
+
+  // "running": both sides accepted, a demo date was set, neither side
+  // rejected, the class isn't marked complete, and the office hasn't
+  // terminated the tuition - the class is actually going on right now.
+  const isRunning = (a: Json) => {
+    const tuition = tuitionByDemo.get(a.demo_id);
+    return !!tuition && !tuition.terminated &&
+      a.parent_accepted && a.tutor_accepted &&
+      !a.parent_rejected && !a.tutor_rejected &&
+      !a.classes_completed && !!a.demo_date;
+  };
+
+  const runningApps = (applications ?? []).filter(isRunning);
+
   const tutorsByDemo = new Map<string, Set<string>>();
-  (applications ?? []).forEach((a: Json) => {
+  const demosByTutor = new Map<string, Set<string>>();
+  const runningDemoIds = new Set<string>();
+  const activeTutorIds = new Set<string>();
+
+  runningApps.forEach((a: Json) => {
+    runningDemoIds.add(a.demo_id);
+    activeTutorIds.add(a.tutor_id);
     if (!tutorsByDemo.has(a.demo_id)) tutorsByDemo.set(a.demo_id, new Set());
     tutorsByDemo.get(a.demo_id)!.add(a.tutor_id);
-  });
-
-  const demosByTutor = new Map<string, Set<string>>();
-  (applications ?? []).forEach((a: Json) => {
     if (!demosByTutor.has(a.tutor_id)) demosByTutor.set(a.tutor_id, new Set());
     demosByTutor.get(a.tutor_id)!.add(a.demo_id);
   });
 
   return {
+    // Payment suggestions only ever show demos/tutors flagged running/
+    // activeNow; the full lists (unfiltered) stay here too since
+    // Subscriptions - a different arrangement, not tied to one running
+    // class - still needs to look any student or tutor up.
     demos: (tuitions ?? []).map((t: Json) => ({
       demoId: t.demo_id,
       studentId: t.student_id,
       subject: t.subject,
+      running: runningDemoIds.has(t.demo_id),
       tutorIds: [...(tutorsByDemo.get(t.demo_id) ?? [])],
     })),
     students: (students ?? []).map((s: Json) => ({
@@ -431,6 +456,7 @@ async function buildPaymentDirectory(): Promise<Json> {
     })),
     tutors: (tutors ?? []).map((t: Json) => ({
       id: t.tutor_id, name: t.full_name, mobile: t.mobile_number || t.whatsapp_number || "",
+      activeNow: activeTutorIds.has(t.tutor_id),
       demoIds: [...(demosByTutor.get(t.tutor_id) ?? [])],
     })),
   };

@@ -863,7 +863,9 @@ function updateIdDetail(el, item) {
 function paymentDemoSuggestions(query, tutorFilter) {
   const q = lower(query);
   const digits = String(query || "").replace(/\D/g, "");
-  let list = STATE.directory.demos || [];
+  // Payments are for classes actually running right now, not every
+  // tuition ever posted.
+  let list = (STATE.directory.demos || []).filter(d => d.running);
   if (tutorFilter) list = list.filter(d => d.tutorIds.includes(tutorFilter));
   if (q) {
     list = list.filter(d => {
@@ -879,7 +881,9 @@ function paymentDemoSuggestions(query, tutorFilter) {
 function paymentTutorSuggestions(query, demoFilter) {
   const q = lower(query);
   const digits = String(query || "").replace(/\D/g, "");
-  let list = STATE.directory.tutors || [];
+  // Only tutors who currently have a running class - not everyone
+  // who has ever registered.
+  let list = (STATE.directory.tutors || []).filter(t => t.activeNow);
   if (demoFilter) list = list.filter(t => t.demoIds.includes(demoFilter));
   if (q) {
     list = list.filter(t =>
