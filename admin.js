@@ -1869,6 +1869,10 @@ function wireChipSearch(id, onChange) {
     input.value = "";
     renderSearchChips(id);
     onChange();
+    // Cursor stays in the box, right after the new chip, ready for
+    // the next word - the chip render above doesn't touch the input
+    // itself, but re-focus defensively in case anything stole it.
+    input.focus();
   });
 
   label.addEventListener("click", (event) => {
@@ -1878,6 +1882,7 @@ function wireChipSearch(id, onChange) {
     SEARCH_CHIPS[id].splice(Number(btn.dataset.removeChip), 1);
     renderSearchChips(id);
     onChange();
+    input.focus();
   });
 }
 
