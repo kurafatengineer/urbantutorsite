@@ -440,6 +440,15 @@ body.add-modal-open {
   border-top: 2px dashed var(--border-light);
 }
 
+/* same dashed seam for a payment card stacked into the tuition -
+   below the assigned/active tutor(s), above any rejected one */
+.tuition-stack > .payment-card {
+  border-top: 2px dashed var(--border-light);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 60%),
+    var(--surface);
+}
+
 /* first layer of a tutor card has nothing above it */
 .tutor-info-grid {
   border-top: 0;

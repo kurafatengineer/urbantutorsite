@@ -497,6 +497,10 @@ const SUB_STATUS_LABEL = { active: "Active", paused: "Paused", cancelled: "Cance
 // Reuses the tuition status colours - there is no separate subscription palette.
 const SUB_STATUS_CLASS = { active: "status-running", paused: "status-demo-scheduled", cancelled: "status-declined", completed: "status-completed" };
 
+// Only account-level subscriptions live here now - every payment is
+// tied to a demoId (the student RPC only ever returns demo-linked
+// payments), so it belongs on that tuition's own card instead; see
+// renderClassCard / renderPaymentCard below.
 function renderPayments() {
 
   const student = selectedStudent();
@@ -509,16 +513,9 @@ function renderPayments() {
     return;
   }
 
-  const demoIds = new Set((student.tuitions || []).map(t => t.demoId));
   const subscriptions = (STATE.subscriptions || []).filter(s => s.studentId === student.studentId);
-  const subIds = new Set(subscriptions.map(s => s.id));
 
-  const payments = (STATE.payments || [])
-    .filter(p => demoIds.has(p.demoId))
-    .slice()
-    .sort((a, b) => String(b.paymentDate) > String(a.paymentDate) ? 1 : -1);
-
-  if (!subscriptions.length && !payments.length) {
+  if (!subscriptions.length) {
     list.innerHTML = "";
     empty.classList.remove("hidden");
     return;
@@ -526,9 +523,7 @@ function renderPayments() {
 
   empty.classList.add("hidden");
 
-  list.innerHTML =
-    subscriptions.map(renderSubscriptionCard).join("") +
-    payments.map(renderPaymentCard).join("");
+  list.innerHTML = subscriptions.map(renderSubscriptionCard).join("");
 
 }
 
@@ -569,15 +564,22 @@ function renderSubscriptionCard(sub) {
 
 }
 
-function renderPaymentCard(p) {
+// Stacked on the tuition it belongs to - just below the assigned
+// tutor's card and above any rejected tutor cards (see renderClassCard) -
+// so it collapses/expands and groups exactly like a tutor card.
+function renderPaymentCard(p, demoId) {
 
   const details = [
     [ICONS.calendar, "Date", formatDemoDateTime(p.paymentDate)],
     [ICONS.file, "Mode", p.paymentMode]
   ].filter(row => row[2]);
 
+  const key = `p:${demoId}:${p.id}`;
+  const open = STATE.expanded.has(key);
+
   return `
-    <div class="class-card">
+    <div class="class-card payment-card${open ? "" : " is-collapsed"}"
+         data-card="${escapeHTML(key)}" data-group="${escapeHTML(demoId)}" tabindex="0" aria-expanded="${open ? "true" : "false"}">
       <div class="class-spine status-completed">
         <span class="class-spine-id">${escapeHTML(p.demoId || "")}</span>
         <span class="class-spine-label">Payment</span>
@@ -867,8 +869,19 @@ function renderClassCard(item, student) {
     </div>
   ` : "";
 
+  // Payments the agency recorded against this Demo ID - shown as
+  // their own cards, stacked just below the assigned tutor (or
+  // whichever tutor cards are still active) and above any rejected
+  // tutor.
+  const payments = (STATE.payments || [])
+    .filter(p => p.demoId === item.demoId)
+    .slice()
+    .sort((a, b) => String(b.paymentDate) > String(a.paymentDate) ? 1 : -1);
+
+  const hasStack = tutors.length > 0 || payments.length > 0;
+
   const studentCard = `
-    <div class="class-card${tutors.length ? " has-tutors" : ""}${cardOpen ? "" : " is-collapsed"}"
+    <div class="class-card${hasStack ? " has-tutors" : ""}${cardOpen ? "" : " is-collapsed"}"
          data-card="${escapeHTML(cardKey)}" data-group="${escapeHTML(item.demoId)}" tabindex="0" aria-expanded="${cardOpen ? "true" : "false"}">
       <div class="class-spine ${statusClass}">
         ${item.demoId ? `<span class="class-spine-id">${escapeHTML(item.demoId)}</span><span class="class-spine-label">Demo ID</span>` : ""}
@@ -900,12 +913,21 @@ function renderClassCard(item, student) {
     </div>
   `;
 
-  if (!tutors.length) return studentCard;
+  if (!hasStack) return studentCard;
+
+  // Rejected tutors always sort last (sortTutors -> TUTOR_ORDER), so
+  // splitting on that same rule puts payments right after the
+  // assigned/active tutor(s) and before any rejected one.
+  const sortedTutors = sortTutors(tutors);
+  const activeTutors = sortedTutors.filter(t => String(t.status || "").toLowerCase() !== "declined");
+  const declinedTutors = sortedTutors.filter(t => String(t.status || "").toLowerCase() === "declined");
 
   return `
     <div class="tuition-stack">
       ${studentCard}
-      ${sortTutors(tutors).map(tutor => renderTutorCard(tutor, item)).join("")}
+      ${activeTutors.map(tutor => renderTutorCard(tutor, item)).join("")}
+      ${payments.map(p => renderPaymentCard(p, item.demoId)).join("")}
+      ${declinedTutors.map(tutor => renderTutorCard(tutor, item)).join("")}
     </div>
   `;
 
