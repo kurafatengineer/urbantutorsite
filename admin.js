@@ -2233,7 +2233,7 @@ function employeeCard(e) {
     : `<button class="admin-ghost admin-wide" data-action="edit" data-key="${esc(key)}" type="button">Edit Employee</button>`;
 
   return `
-    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-id="${esc(e.id)}" data-key="${esc(key)}">
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="${e.active ? "verified" : "rejected"}" data-box data-id="${esc(e.id)}" data-key="${esc(key)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">${esc(initials(e.full_name, "E"))}</div>
