@@ -1707,19 +1707,27 @@ function editButtons(key, editing, saveAction, editLabel) {
 
 }
 
-// Bold values in a row, split by "|" (empty ones left out).
-function infoLine(values, separator = "|") {
+// Blue "verified" tick, shown right next to a Verified tutor's name.
+const VERIFIED_TICK =
+  ' <svg class="admin-verified-tick" width="14" height="14" viewBox="0 0 24 24" aria-label="Verified" role="img">' +
+  '<circle cx="12" cy="12" r="12" fill="#2563eb"/>' +
+  '<path d="M7 12.4l3.2 3.2L17 8.8" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+  '</svg>';
+
+// Bold values in a row, split by "|" (empty ones left out). `nameBadge`
+// (raw HTML, not escaped) is appended right after the first value.
+function infoLine(values, separator = "|", nameBadge = "") {
   const parts = values.map(v => String(v == null ? "" : v).trim()).filter(Boolean);
   if (!parts.length) return "";
-  return `<div class="admin-info">${parts.map(v => `<b>${esc(v)}</b>`).join(`<i aria-hidden="true">${esc(separator)}</i>`)}</div>`;
+  return `<div class="admin-info">${parts.map((v, i) => `<b>${esc(v)}${i === 0 ? nameBadge : ""}</b>`).join(`<i aria-hidden="true">${esc(separator)}</i>`)}</div>`;
 }
 
 // The summary of a collapsed card, in two layers with a thin gap:
 //   top    - bold values, coloured by the card's status (tone)
 //   bottom - small text, light grey (left out when empty)
 // Light colour, no border, square corners.
-function highlight(boldValues, smallText, separator, tone) {
-  const line = infoLine(boldValues, separator);
+function highlight(boldValues, smallText, separator, tone, nameBadge) {
+  const line = infoLine(boldValues, separator, nameBadge);
   const small = String(smallText || "").trim();
   return `<div class="admin-hl">
     <div class="admin-hl-top" data-tone="${esc(tone || "")}">${line}</div>
@@ -1842,6 +1850,7 @@ function renderSearchChips(id) {
   }
   row.innerHTML = chips.map((word, i) => `
     <span class="admin-search-chip">
+      <i class="admin-search-chip-dot" aria-hidden="true"></i>
       ${esc(word)}
       <button type="button" data-remove-chip="${i}" aria-label="Remove filter ${esc(word)}">&times;</button>
     </span>
@@ -1907,7 +1916,8 @@ function renderTutors() {
          [v("Graduation - Course"), v("Graduation - Subject")].filter(Boolean).join(" - "), r.id],
         esc(fullAddress(v("Present Address"), v("City"), v("Pin Code"))),
         "|",
-        statusGroup(status)
+        statusGroup(status),
+        statusGroup(status) === "verified" ? VERIFIED_TICK : ""
       ),
       pill: status,
       tone: statusGroup(status),

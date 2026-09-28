@@ -932,33 +932,40 @@ button { cursor: pointer; }
   gap: 6px;
 }
 
-/* solid gradient "swatch" chip - colourful pill, not just an
-   outlined badge */
+/* flat tag chip - colour dot + label + remove, like a Color Hunt
+   palette tag ("● Blue  x") */
 .admin-search-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 6px 6px 14px;
+  gap: 7px;
+  padding: 6px 6px 6px 12px;
   border-radius: 999px;
-  border: 0;
-  background: linear-gradient(135deg, #2563eb, #60a5fa);
-  color: #ffffff;
+  border: 1px solid var(--lime-line);
+  background: var(--surface-2);
+  color: var(--text);
   font-size: 12.5px;
-  font-weight: 700;
-  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.35);
+  font-weight: 600;
+}
+
+.admin-search-chip-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--lime);
+  flex: 0 0 auto;
 }
 
 .admin-search-chip button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 19px;
-  height: 19px;
+  width: 18px;
+  height: 18px;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
+  background: var(--lime-dim);
+  color: var(--lime);
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
@@ -966,7 +973,7 @@ button { cursor: pointer; }
 }
 
 .admin-search-chip button:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--lime-line);
   transform: scale(1.08);
 }
 
@@ -1466,6 +1473,12 @@ button { cursor: pointer; }
   overflow-wrap: anywhere;
 }
 
+.admin-verified-tick {
+  vertical-align: -2px;
+  margin-left: 3px;
+  flex: 0 0 auto;
+}
+
 .admin-info i {
   font-style: normal;
   color: var(--muted-2);
@@ -1670,11 +1683,14 @@ body[data-page="admin"] {
 
 /* top layer colour = status */
 .admin-hl-top[data-tone="blue"]       { background: rgba(110, 170, 255, 0.14); }
-.admin-hl-top[data-tone="verified"],
+/* "verified" (a tutor) matches the Accept button's exact green;
+   "running" (a tuition) keeps the separate success-mint green. */
+.admin-hl-top[data-tone="verified"]   { background: rgba(22, 163, 74, 0.18); }
 .admin-hl-top[data-tone="running"]    { background: rgba(114, 227, 154, 0.13); }
 .admin-hl-top[data-tone="pending"]    { background: var(--blue-dim); }
 .admin-hl-top[data-tone="schedule"]   { background: rgba(255, 209, 102, 0.13); }
-.admin-hl-top[data-tone="rejected"],
+/* "rejected" (a tutor) matches the Reject/Suspend button's exact red. */
+.admin-hl-top[data-tone="rejected"]   { background: rgba(255, 104, 104, 0.18); }
 .admin-hl-top[data-tone="declined"],
 .admin-hl-top[data-tone="terminated"] { background: rgba(255, 104, 104, 0.13); }
 .admin-hl-top[data-tone="scheduled"],
@@ -1682,6 +1698,12 @@ body[data-page="admin"] {
 .admin-hl-top[data-tone="completed"]  { background: rgba(255, 255, 255, 0.08); }
 .admin-hl-top[data-tone="new"],
 .admin-hl-top[data-tone="open"]       { background: rgba(22, 163, 74, 0.1); }
+
+/* Name/Mobile/ID text itself - not just the background - matches the
+   Accept (green) / Reject-Suspend (red) button colour. */
+.admin-hl-top[data-tone="verified"] .admin-info b { color: var(--lime); }
+.admin-hl-top[data-tone="rejected"] .admin-info b { color: var(--danger); }
+.admin-hl-top[data-tone="pending"] .admin-info b  { color: var(--blue); }
 
 
 /* ---------- top bar: Refresh | Admin Panel | Log out ---------- */
