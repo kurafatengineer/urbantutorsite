@@ -1911,7 +1911,7 @@ function renderTutors() {
         [
           [v("Graduation - Course"), v("Graduation - Subject")].filter(Boolean).join(" - "),
           fullAddress(v("Present Address"), v("City"), v("Pin Code"))
-        ].filter(Boolean).join(", "),
+        ].filter(Boolean).join(" | "),
         "|",
         statusGroup(status)
       ),

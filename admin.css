@@ -946,6 +946,13 @@ button { cursor: pointer; }
   flex-wrap: wrap;
   gap: 6px;
   padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.admin-search-wrap:focus-within {
+  border-color: var(--lime-line);
 }
 
 .admin-search-wrap input {
@@ -1699,6 +1706,7 @@ body[data-page="admin"] {
 
 .admin-hl-top {
   background: rgba(22, 163, 74, 0.08);
+  min-width: 0;
 }
 
 .admin-hl-top .admin-info {
@@ -1715,6 +1723,8 @@ body[data-page="admin"] {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .admin-hl-small {
