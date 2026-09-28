@@ -1158,7 +1158,7 @@ async function respondToTutor(button) {
 
   try {
 
-    const result = await window.sbCall("respond_to_demo", {
+    const result = await window.sbCallNotify("respondToDemo", {
       p_demo_id: demoId,
       p_tutor_id: tutorId,
       p_decision: decision

@@ -23,6 +23,7 @@
 // =====================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { emailTemplate, detailRow, sendMail } from "../_shared/email.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -507,6 +508,102 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
   return withLinks;
 }
 
+/* ------------------------------------------------------------------
+   NOTIFICATIONS - best-effort emails to the tutor/student an admin
+   action affects, naming the admin who made the change. A failed
+   send never blocks the action itself (see _shared/email.ts).
+------------------------------------------------------------------ */
+
+interface Party { name: string; email: string | null; }
+
+async function lookupTutor(tutorId?: string | null): Promise<Party | null> {
+  if (!tutorId) return null;
+  const { data } = await db.from("tutors").select("full_name, email").eq("tutor_id", tutorId).maybeSingle();
+  return data ? { name: data.full_name, email: data.email } : null;
+}
+
+async function lookupStudent(studentId?: string | null): Promise<Party | null> {
+  if (!studentId) return null;
+  const { data } = await db.from("students").select("student_name, email").eq("student_id", studentId).maybeSingle();
+  return data ? { name: data.student_name, email: data.email } : null;
+}
+
+async function lookupDemo(demoId?: string | null): Promise<{ studentId: string; subject: string | null } | null> {
+  if (!demoId) return null;
+  const { data } = await db.from("tuitions").select("student_id, subject").eq("demo_id", demoId).maybeSingle();
+  return data ? { studentId: data.student_id, subject: data.subject } : null;
+}
+
+async function studentForDemo(demoId?: string | null): Promise<Party | null> {
+  const demo = await lookupDemo(demoId);
+  return demo ? lookupStudent(demo.studentId) : null;
+}
+
+// The tutor currently running (accepted by both sides, not rejected or
+// completed) on a demo - "who is teaching this right now".
+async function activeTutorForDemo(demoId?: string | null): Promise<Party | null> {
+  if (!demoId) return null;
+  const { data } = await db.from("applications")
+    .select("tutor_id")
+    .eq("demo_id", demoId)
+    .eq("parent_accepted", true).eq("tutor_accepted", true)
+    .eq("parent_rejected", false).eq("tutor_rejected", false)
+    .maybeSingle();
+  return data ? lookupTutor(data.tutor_id) : null;
+}
+
+async function notify(party: Party | null, subject: string, heading: string, intro: string, rows: [string, string][] = []) {
+  if (!party?.email) return;
+  const html = emailTemplate({
+    heading,
+    greeting: `Hi ${party.name},`,
+    intro,
+    detailRowsHtml: rows.map(([l, v]) => detailRow(l, v)).join(""),
+  });
+  await sendMail(party.email, subject, html);
+}
+
+function changeSummaryRows(changes: Json): [string, string][] {
+  return Object.entries(changes ?? {})
+    .filter(([, v]) => v !== undefined)
+    .map(([k, v]) => [k, v === null || v === "" ? "-" : String(v)] as [string, string]);
+}
+
+async function resolvePaymentParty(row: Json): Promise<Party | null> {
+  if (row.transaction_type === "payout" && row.tutor_id) return lookupTutor(row.tutor_id);
+  if (row.demo_id) return studentForDemo(row.demo_id);
+  if (row.subscription_id) {
+    const { data: sub } = await db.from("subscriptions").select("student_id, tutor_id").eq("id", row.subscription_id).maybeSingle();
+    if (sub?.student_id) return lookupStudent(sub.student_id);
+    if (sub?.tutor_id) return lookupTutor(sub.tutor_id);
+  }
+  return null;
+}
+
+function paymentRows(row: Json): [string, string][] {
+  return [
+    ["Amount", `Rs. ${row.amount}`],
+    ["Type", row.payment_type ?? "-"],
+    ["Mode", row.payment_mode ?? "-"],
+    ["Date", row.payment_date ?? "-"],
+  ];
+}
+
+async function resolveSubscriptionParty(row: Json): Promise<Party | null> {
+  if (row.student_id) return lookupStudent(row.student_id);
+  if (row.tutor_id) return lookupTutor(row.tutor_id);
+  return null;
+}
+
+function subscriptionRows(row: Json): [string, string][] {
+  return [
+    ["Plan", row.plan_name ?? "-"],
+    ["Amount", `Rs. ${row.amount}`],
+    ["Billing Cycle", row.billing_cycle ?? "-"],
+    ["Status", row.status ?? "-"],
+  ];
+}
+
 async function handle(body: Json, authHeader: string | null): Promise<Json> {
 
   const action = String(body?.action ?? "");
@@ -536,46 +633,113 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
     case "adminUpdateRecord": {
       const scopeError = checkUpdateRecordScope(caller.role, String(body.kind), body.changes ?? {});
       if (scopeError) return { success: false, message: scopeError };
-      return rpc("admin_update_record", {
+      const result = await rpc("admin_update_record", {
         p_kind: body.kind,
         p_id: body.id,
         p_changes: body.changes ?? {},
       });
+      if (result?.success) {
+        const kind = String(body.kind);
+        const changes = body.changes ?? {};
+        const isVerification = kind === "tutors" && changes["Verification Status"] !== undefined;
+        const party = kind === "tutors" ? await lookupTutor(body.id)
+          : kind === "students" ? await lookupStudent(body.id) : null;
+        await notify(
+          party,
+          isVerification ? "Your verification status has been updated" : "Your profile was updated",
+          isVerification ? "Verification Status Updated" : "Profile Updated",
+          `${caller.fullName} has updated your profile on Urban Tutor Site.`,
+          changeSummaryRows(changes),
+        );
+      }
+      return result;
     }
 
-    case "adminUpdateTuition":
-      return rpc("admin_update_tuition", {
+    case "adminUpdateTuition": {
+      const result = await rpc("admin_update_tuition", {
         p_demo_id: body.demoId,
         p_changes: body.changes ?? {},
       });
+      if (result?.success) {
+        const party = await studentForDemo(body.demoId);
+        await notify(
+          party,
+          "Your tuition request was updated",
+          "Tuition Request Updated",
+          `${caller.fullName} has updated your tuition request.`,
+          [["Demo ID", String(body.demoId)], ...changeSummaryRows(body.changes ?? {})],
+        );
+      }
+      return result;
+    }
 
-    case "adminUpdateDemoRow":
+    case "adminUpdateDemoRow": {
       if (!body.tutorId) {
         return { success: false, message: "Please refresh the page and try again." };
       }
-      return rpc("admin_update_demo_row", {
+      const result = await rpc("admin_update_demo_row", {
         p_demo_id: body.demoId,
         p_tutor_id: body.tutorId,
         p_changes: body.changes ?? {},
       });
+      if (result?.success) {
+        const rows: [string, string][] = [["Demo ID", String(body.demoId)], ...changeSummaryRows(body.changes ?? {})];
+        const tutor = await lookupTutor(body.tutorId);
+        await notify(tutor, "Your demo/application details were updated", "Demo Details Updated",
+          `${caller.fullName} has updated the demo details for one of your applications.`, rows);
+        const student = await studentForDemo(body.demoId);
+        await notify(student, "Your demo details were updated", "Demo Details Updated",
+          `${caller.fullName} has updated the demo details for your tuition request.`, rows);
+      }
+      return result;
+    }
 
-    case "adminAssignTutor":
-      return rpc("admin_assign_tutor", {
+    case "adminAssignTutor": {
+      const result = await rpc("admin_assign_tutor", {
         p_demo_id: body.demoId,
         p_tutor_lookup: String(body.tutor ?? ""),
       });
+      if (result?.success) {
+        const tutor = await activeTutorForDemo(body.demoId);
+        const student = await studentForDemo(body.demoId);
+        const rows: [string, string][] = [["Demo ID", String(body.demoId)]];
+        await notify(tutor, "You have been assigned to a tuition", "Tutor Assigned",
+          `${caller.fullName} has assigned you to teach this tuition.`, rows);
+        await notify(student, "A tutor has been assigned to your tuition", "Tutor Assigned",
+          `${caller.fullName} has assigned a tutor to your tuition request.`,
+          tutor ? [...rows, ["Tutor", tutor.name]] : rows);
+      }
+      return result;
+    }
 
-    case "adminSetTerminated":
-      return rpc("admin_set_terminated", {
+    case "adminSetTerminated": {
+      const terminated = body.value === true;
+      const result = await rpc("admin_set_terminated", {
         p_demo_id: body.demoId,
-        p_terminated: body.value === true,
+        p_terminated: terminated,
       });
+      if (result?.success) {
+        const student = await studentForDemo(body.demoId);
+        const tutor = await activeTutorForDemo(body.demoId);
+        const rows: [string, string][] = [["Demo ID", String(body.demoId)]];
+        const heading = terminated ? "Tuition Terminated" : "Tuition Reopened";
+        const intro = `${caller.fullName} has ${terminated ? "terminated" : "reopened"} this tuition.`;
+        await notify(student, heading, heading, intro, rows);
+        await notify(tutor, heading, heading, intro, rows);
+      }
+      return result;
+    }
 
     case "adminAddPayment": {
       const changes = paymentChangesFromBody(body, false);
       if ("error" in changes) return { success: false, message: changes.error };
-      const { error } = await db.from("payments").insert({ ...changes, recorded_by: caller.id });
+      const { data: inserted, error } = await db.from("payments").insert({ ...changes, recorded_by: caller.id }).select().maybeSingle();
       if (error) return { success: false, message: error.message };
+      if (inserted) {
+        const party = await resolvePaymentParty(inserted);
+        await notify(party, "A payment was recorded", "Payment Recorded",
+          `${caller.fullName} has recorded a payment on your account.`, paymentRows(inserted));
+      }
       return { success: true, message: "Payment recorded." };
     }
 
@@ -583,23 +747,39 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
       if (!body.id) return { success: false, message: "Missing payment." };
       const changes = paymentChangesFromBody(body, true);
       if ("error" in changes) return { success: false, message: changes.error };
-      const { error } = await db.from("payments").update(changes).eq("id", body.id);
+      const { data: updated, error } = await db.from("payments").update(changes).eq("id", body.id).select().maybeSingle();
       if (error) return { success: false, message: error.message };
+      if (updated) {
+        const party = await resolvePaymentParty(updated);
+        await notify(party, "A payment was updated", "Payment Updated",
+          `${caller.fullName} has updated a payment on your account.`, paymentRows(updated));
+      }
       return { success: true, message: "Payment updated." };
     }
 
     case "adminDeletePayment": {
       if (!body.id) return { success: false, message: "Missing payment." };
+      const { data: existing } = await db.from("payments").select("*").eq("id", body.id).maybeSingle();
       const { error } = await db.from("payments").delete().eq("id", body.id);
       if (error) return { success: false, message: error.message };
+      if (existing) {
+        const party = await resolvePaymentParty(existing);
+        await notify(party, "A payment was removed", "Payment Removed",
+          `${caller.fullName} has removed a payment record on your account.`, paymentRows(existing));
+      }
       return { success: true, message: "Payment deleted." };
     }
 
     case "adminAddSubscription": {
       const changes = subscriptionChangesFromBody(body, false);
       if ("error" in changes) return { success: false, message: changes.error };
-      const { error } = await db.from("subscriptions").insert({ ...changes, created_by: caller.id });
+      const { data: inserted, error } = await db.from("subscriptions").insert({ ...changes, created_by: caller.id }).select().maybeSingle();
       if (error) return { success: false, message: error.message };
+      if (inserted) {
+        const party = await resolveSubscriptionParty(inserted);
+        await notify(party, "A subscription was created", "Subscription Created",
+          `${caller.fullName} has set up a subscription for you.`, subscriptionRows(inserted));
+      }
       return { success: true, message: "Subscription created." };
     }
 
@@ -607,15 +787,26 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
       if (!body.id) return { success: false, message: "Missing subscription." };
       const changes = subscriptionChangesFromBody(body, true);
       if ("error" in changes) return { success: false, message: changes.error };
-      const { error } = await db.from("subscriptions").update(changes).eq("id", body.id);
+      const { data: updated, error } = await db.from("subscriptions").update(changes).eq("id", body.id).select().maybeSingle();
       if (error) return { success: false, message: error.message };
+      if (updated) {
+        const party = await resolveSubscriptionParty(updated);
+        await notify(party, "Your subscription was updated", "Subscription Updated",
+          `${caller.fullName} has updated your subscription.`, subscriptionRows(updated));
+      }
       return { success: true, message: "Subscription updated." };
     }
 
     case "adminDeleteSubscription": {
       if (!body.id) return { success: false, message: "Missing subscription." };
+      const { data: existing } = await db.from("subscriptions").select("*").eq("id", body.id).maybeSingle();
       const { error } = await db.from("subscriptions").delete().eq("id", body.id);
       if (error) return { success: false, message: error.message };
+      if (existing) {
+        const party = await resolveSubscriptionParty(existing);
+        await notify(party, "Your subscription was cancelled", "Subscription Removed",
+          `${caller.fullName} has removed your subscription.`, subscriptionRows(existing));
+      }
       return { success: true, message: "Subscription deleted." };
     }
 

@@ -49,3 +49,46 @@ window.sbCall = async function (fnName, args) {
   return data;
 
 };
+
+/* -----------------------------------------------------------
+   Small helper: like sbCall, but goes through the "actions"
+   Edge Function instead of calling the database function
+   directly, so a notification email can be sent to the other
+   party (student/tutor) after the action succeeds. Use this
+   only for the handful of actions the Edge Function wraps
+   (see supabase/functions/actions/index.ts); everything else
+   keeps using sbCall as before.
+----------------------------------------------------------- */
+const ACTIONS_FUNCTION_URL =
+  "https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/actions";
+
+window.sbCallNotify = async function (action, args) {
+
+  let token = "";
+  try {
+    const { data } = await window.sb.auth.getSession();
+    token = (data && data.session && data.session.access_token) || "";
+  } catch (e) {
+    // fall through with no token - the function will reject with a
+    // clear "please log in first" message
+  }
+
+  try {
+
+    const response = await fetch(ACTIONS_FUNCTION_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      },
+      body: JSON.stringify(Object.assign({ action: action }, args || {}))
+    });
+
+    const raw = await response.text();
+    return JSON.parse(raw);
+
+  } catch (e) {
+    return { success: false, message: "Could not reach the server. Please try again." };
+  }
+
+};

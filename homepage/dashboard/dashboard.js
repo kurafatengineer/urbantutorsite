@@ -59,14 +59,14 @@
         return window.sbCall("get_available_tuitions", {});
 
       case "respondToDemo":
-        return window.sbCall("respond_to_demo", {
+        return window.sbCallNotify("respondToDemo", {
           p_demo_id: payload.demoId,
           p_tutor_id: payload.tutorId,
           p_decision: payload.decision
         });
 
       case "respondToDemoTutor":
-        return window.sbCall("respond_to_demo_tutor", {
+        return window.sbCallNotify("respondToDemoTutor", {
           p_demo_id: payload.demoId,
           p_decision: payload.decision
         });

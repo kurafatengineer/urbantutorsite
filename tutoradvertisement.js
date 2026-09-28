@@ -490,7 +490,7 @@ async function applyForTuition(demoId, button) {
 
   try {
 
-    const result = await window.sbCall("apply_for_tuition", {
+    const result = await window.sbCallNotify("applyForTuition", {
       p_demo_id: demoId
     });
 
