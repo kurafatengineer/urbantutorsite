@@ -894,6 +894,47 @@ button { cursor: pointer; }
   filter: invert(1) opacity(0.5);
 }
 
+/* Space commits the typed word as a removable chip above the box;
+   every chip plus whatever's still being typed is the live filter. */
+.admin-search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-search-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 12px;
+  border-radius: 999px;
+  background: var(--lime-dim);
+  border: 1px solid var(--lime-line);
+  color: var(--lime);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.admin-search-chip button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(202, 255, 61, 0.18);
+  color: var(--lime);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.admin-search-chip button:hover {
+  background: rgba(202, 255, 61, 0.3);
+}
+
 
 /* ---------- filters: equal widths, one line ---------- */
 

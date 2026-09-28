@@ -635,6 +635,12 @@ function wireEvents() {
   $("paymentSearch").addEventListener("input", renderPayments);
   $("subscriptionSearch").addEventListener("input", renderSubscriptions);
 
+  wireChipSearch("tutorSearch", renderTutors);
+  wireChipSearch("tuitionSearch", renderTuitions);
+  wireChipSearch("studentSearch", renderStudents);
+  wireChipSearch("paymentSearch", renderPayments);
+  wireChipSearch("subscriptionSearch", renderSubscriptions);
+
   ["tuitionList", "tutorList", "studentList", "paymentList", "employeeList", "subscriptionList"].forEach(id =>
     $(id).addEventListener("click", onListClick)
   );
@@ -1100,10 +1106,12 @@ function goToFilter(tab, filter) {
   if (tab === "tuitions") {
     STATE.tuitionFilter = filter;
     $("tuitionSearch").value = "";
+    clearSearchChips("tuitionSearch");
     $("tuitionFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === filter));
   } else if (tab === "tutors") {
     STATE.tutorFilter = filter;
     $("tutorSearch").value = "";
+    clearSearchChips("tutorSearch");
     $("tutorFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === filter));
   }
 
@@ -1242,12 +1250,17 @@ async function onListClick(event) {
       break;
 
     case "verify": {
-      // Approve / Reject a tutor who is Pending for Verification
+      // Accept / Reject a Pending tutor, or Accept / Suspend a Verified
+      // one (Suspend has the exact same effect as Reject).
       const value = actionEl.dataset.value;
-      const name = (STATE.data.tutors.rows.find(r => r.id === box.dataset.id) || { values: {} }).values["Full Name"] || box.dataset.id;
+      const record = STATE.data.tutors.rows.find(r => r.id === box.dataset.id) || { values: {} };
+      const name = record.values["Full Name"] || box.dataset.id;
+      const isSuspend = value === "Rejected" && statusGroup(record.values["Verification Status"]) === "verified";
       const ok = window.confirm(value === "Verified"
-        ? `Approve ${name}? Their profile will be marked Verified.`
-        : `Reject ${name}? Their profile will be marked Rejected.`);
+        ? `Accept ${name}? Their profile will be marked Verified.`
+        : isSuspend
+          ? `Suspend ${name}? Their profile will be marked Rejected and they will no longer count as verified.`
+          : `Reject ${name}? Their profile will be marked Rejected.`);
       if (!ok) break;
       box.querySelectorAll(".admin-vbtn").forEach(b => { b.disabled = true; });
       const saved = await save({
@@ -1720,6 +1733,23 @@ function note(text) {
   return `<p class="admin-note">${esc(text)}</p>`;
 }
 
+// Pending: Accept | Reject. Verified: Accept (already chosen, disabled) |
+// Suspend (same effect as Reject - sets Verification Status back to
+// Rejected). Rejected: Accept | Reject (already chosen, disabled) - so
+// there's always exactly one live action to move a tutor the other way.
+function verifyButtonsHtml(status) {
+  const group = statusGroup(status);
+  const approveChosen = group === "verified";
+  const rejectChosen = group === "rejected";
+  const rejectLabel = group === "verified" ? "Suspend" : "Reject";
+  return `
+    <div class="admin-vbtns">
+      <button class="admin-vbtn v-reject" type="button" data-action="verify" data-value="Rejected"${rejectChosen ? " disabled" : ""}>${rejectLabel}</button>
+      <button class="admin-vbtn v-approve" type="button" data-action="verify" data-value="Verified"${approveChosen ? " disabled" : ""}>Accept</button>
+    </div>
+  `;
+}
+
 function recordCard(kind, record, opts) {
 
   const key = `${kind}:${record.id}`;
@@ -1737,11 +1767,7 @@ function recordCard(kind, record, opts) {
         </div>
         ${opts.pill ? `<span class="admin-pill" data-tone="${opts.tone}">${esc(opts.pill)}</span>` : ""}
         <span class="admin-caret" aria-hidden="true"></span>
-        ${opts.verifyButtons ? `
-          <div class="admin-vbtns">
-            <button class="admin-vbtn v-reject" type="button" data-action="verify" data-value="Rejected">Reject</button>
-            <button class="admin-vbtn v-approve" type="button" data-action="verify" data-value="Verified">Approve</button>
-          </div>` : ""}
+        ${opts.verifyStatus ? verifyButtonsHtml(opts.verifyStatus) : ""}
       </div>
 
       <div class="admin-card-body">
@@ -1758,7 +1784,13 @@ function recordCard(kind, record, opts) {
 }
 
 
-/* ---------------- search (every field, every word) ---------------- */
+/* ---------------- search (every field, every word) ----------------
+   Every search box on this panel is a "chip" search: pressing Space
+   turns whatever was just typed into a small removable tag, and the
+   filter is every tag plus whatever's still being typed - so it
+   narrows down one word at a time, same AND logic as before, just
+   now visible and removable one word at a time instead of hidden
+   inside a single line of text. */
 
 function haystackOfRecord(record) {
   return record ? Object.values(record.values || {}).join(" ") : "";
@@ -1771,6 +1803,77 @@ function matchesAll(query, text) {
   return words.every(w => hay.includes(w));
 }
 
+const SEARCH_CHIPS = {}; // input id -> array of committed filter words
+
+function searchQueryFor(id) {
+  const chips = SEARCH_CHIPS[id] || [];
+  const el = $(id);
+  return [...chips, el ? el.value : ""].join(" ");
+}
+
+// The chips row lives BEFORE the .admin-search-wrap label, as a
+// sibling in its parent - not inside the label - because the label's
+// floating "Search" text is positioned by CSS relative to the whole
+// label (absolute, top: 50%); putting anything inside it would throw
+// that centring off once chips appear.
+function renderSearchChips(id) {
+  const input = $(id);
+  const label = input && input.closest(".admin-search-wrap");
+  const container = label && label.parentElement;
+  if (!container) return;
+  const chips = SEARCH_CHIPS[id] || [];
+  let row = container.querySelector(`.admin-search-chips[data-chips-for="${id}"]`);
+  if (!chips.length) {
+    if (row) row.remove();
+    return;
+  }
+  if (!row) {
+    row = document.createElement("div");
+    row.className = "admin-search-chips";
+    row.dataset.chipsFor = id;
+    container.insertBefore(row, label);
+  }
+  row.innerHTML = chips.map((word, i) => `
+    <span class="admin-search-chip">
+      ${esc(word)}
+      <button type="button" data-remove-chip="${i}" aria-label="Remove filter ${esc(word)}">&times;</button>
+    </span>
+  `).join("");
+}
+
+function clearSearchChips(id) {
+  SEARCH_CHIPS[id] = [];
+  renderSearchChips(id);
+}
+
+// Space commits the word just typed as a chip; clicking a chip's
+// &times; removes it. Either way `onChange` re-runs the filter.
+function wireChipSearch(id, onChange) {
+  const input = $(id);
+  const container = input.closest(".admin-search-wrap").parentElement;
+  SEARCH_CHIPS[id] = [];
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== " ") return;
+    event.preventDefault();
+    const word = input.value.trim();
+    if (!word) return;
+    SEARCH_CHIPS[id].push(word);
+    input.value = "";
+    renderSearchChips(id);
+    onChange();
+  });
+
+  container.addEventListener("click", (event) => {
+    const row = event.target.closest(`.admin-search-chips[data-chips-for="${id}"]`);
+    const btn = event.target.closest("[data-remove-chip]");
+    if (!row || !btn) return;
+    SEARCH_CHIPS[id].splice(Number(btn.dataset.removeChip), 1);
+    renderSearchChips(id);
+    onChange();
+  });
+}
+
 
 /* ---------------- tutors ---------------- */
 
@@ -1778,7 +1881,7 @@ function renderTutors() {
 
   const rows = STATE.data.tutors.rows
     .filter(r => STATE.tutorFilter === "all" || statusGroup(r.values["Verification Status"]) === STATE.tutorFilter)
-    .filter(r => matchesAll($("tutorSearch").value, haystackOfRecord(r)))
+    .filter(r => matchesAll(searchQueryFor("tutorSearch"), haystackOfRecord(r)))
     .slice()
     .sort((a, b) => {
       const order = { pending: 0, rejected: 1, verified: 2 };
@@ -1801,8 +1904,9 @@ function renderTutors() {
       ),
       pill: status,
       tone: statusGroup(status),
-      // Pending for Verification: Reject / Approve on the right of the tab
-      verifyButtons: statusGroup(status) === "pending" && myPerms().tutorsVerify
+      // Accept/Reject while Pending, Accept/Suspend once Verified,
+      // Accept/Reject again if Rejected - always on the right of the tab.
+      verifyStatus: myPerms().tutorsVerify ? status : ""
     });
   }).join("") : empty("No tutors match.");
 
@@ -1816,7 +1920,7 @@ function renderStudents() {
   const groups = demoGroups();
 
   const rows = STATE.data.students.rows
-    .filter(r => matchesAll($("studentSearch").value,
+    .filter(r => matchesAll(searchQueryFor("studentSearch"),
       haystackOfRecord(r) + " " + groups.filter(g => g.first.studentId === r.id).map(g => g.demoId + " " + g.first.subject).join(" ")))
     .slice()
     .reverse();
@@ -1866,7 +1970,7 @@ function renderPayments() {
     };
   });
 
-  const query = $("paymentSearch").value;
+  const query = searchQueryFor("paymentSearch");
 
   const rows = (STATE.payments || []).filter(p => matchesAll(query, [
     p.demo_id, p.tutor_id, p.payment_mode, p.notes,
@@ -1959,7 +2063,7 @@ function renderSubscriptions() {
 
   if (!$("subscriptionList")) return;
 
-  const query = $("subscriptionSearch").value;
+  const query = searchQueryFor("subscriptionSearch");
 
   const rows = (STATE.subscriptions || []).filter(sub => {
     const student = sub.student_id ? STUDENT_BY_ID[sub.student_id] : null;
@@ -2109,7 +2213,7 @@ function employeeCard(e) {
 
 function renderTuitions() {
 
-  const query = $("tuitionSearch").value;
+  const query = searchQueryFor("tuitionSearch");
   const filter = STATE.tuitionFilter;
 
   const list = demoGroups().filter(g => {
