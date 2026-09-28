@@ -1299,6 +1299,20 @@ async function onListClick(event) {
       await saveEmployeeEdit(box, actionEl);
       break;
 
+    case "employee-status": {
+      const value = actionEl.dataset.value === "true";
+      const emp = (STATE.employees || []).find(x => String(x.id) === box.dataset.id) || {};
+      const name = emp.full_name || box.dataset.id;
+      const ok = window.confirm(value
+        ? `Set ${name} back to Active?`
+        : `Suspend ${name}? They will no longer be able to log in to the admin panel.`);
+      if (!ok) break;
+      box.querySelectorAll(".admin-vbtn").forEach(b => { b.disabled = true; });
+      const saved = await save({ action: "adminUpdateEmployee", id: box.dataset.id, changes: { active: value } }, actionEl);
+      if (!saved) box.querySelectorAll(".admin-vbtn").forEach(b => { b.disabled = false; });
+      break;
+    }
+
     case "save-subscription":
       await saveSubscriptionEdit(box, actionEl);
       break;
@@ -2181,9 +2195,21 @@ function renderEmployees() {
 
 }
 
+// Active | Suspend - same vertical button strip and light-tint /
+// disabled-when-current-state look as the tutor Accept/Suspend pair.
+function employeeStatusButtonsHtml(active) {
+  return `
+    <div class="admin-vbtns">
+      <button class="admin-vbtn v-reject" type="button" data-action="employee-status" data-value="false"${!active ? " disabled" : ""}>Suspend</button>
+      <button class="admin-vbtn v-approve" type="button" data-action="employee-status" data-value="true"${active ? " disabled" : ""}>Active</button>
+    </div>
+  `;
+}
+
 function employeeCard(e) {
 
   const key = "employee:" + e.id;
+  const open = STATE.open.has(key);
   const editing = STATE.editing.has(key);
   const isMe = STATE.me && lower(e.email) === lower(STATE.me.email);
 
@@ -2207,13 +2233,15 @@ function employeeCard(e) {
     : `<button class="admin-ghost admin-wide" data-action="edit" data-key="${esc(key)}" type="button">Edit Employee</button>`;
 
   return `
-    <article class="admin-card is-open${editing ? " is-editing" : ""}" data-box data-id="${esc(e.id)}" data-key="${esc(key)}">
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-id="${esc(e.id)}" data-key="${esc(key)}">
 
-      <div class="admin-card-head">
+      <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">${esc(initials(e.full_name, "E"))}</div>
         <div class="admin-card-title">
           ${highlight([e.full_name, e.email, ROLE_LABELS[e.role] || e.role, e.active ? "" : "Inactive"], isMe ? "This is you" : "", "|", e.active ? "verified" : "rejected")}
         </div>
+        <span class="admin-caret" aria-hidden="true"></span>
+        ${!isMe ? employeeStatusButtonsHtml(!!e.active) : ""}
       </div>
 
       <div class="admin-card-body">
