@@ -1707,27 +1707,19 @@ function editButtons(key, editing, saveAction, editLabel) {
 
 }
 
-// Blue "verified" tick, shown right next to a Verified tutor's name.
-const VERIFIED_TICK =
-  ' <svg class="admin-verified-tick" width="14" height="14" viewBox="0 0 24 24" aria-label="Verified" role="img">' +
-  '<circle cx="12" cy="12" r="12" fill="#2563eb"/>' +
-  '<path d="M7 12.4l3.2 3.2L17 8.8" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
-  '</svg>';
-
-// Bold values in a row, split by "|" (empty ones left out). `nameBadge`
-// (raw HTML, not escaped) is appended right after the first value.
-function infoLine(values, separator = "|", nameBadge = "") {
+// Bold values in a row, split by "|" (empty ones left out).
+function infoLine(values, separator = "|") {
   const parts = values.map(v => String(v == null ? "" : v).trim()).filter(Boolean);
   if (!parts.length) return "";
-  return `<div class="admin-info">${parts.map((v, i) => `<b>${esc(v)}${i === 0 ? nameBadge : ""}</b>`).join(`<i aria-hidden="true">${esc(separator)}</i>`)}</div>`;
+  return `<div class="admin-info">${parts.map(v => `<b>${esc(v)}</b>`).join(`<i aria-hidden="true">${esc(separator)}</i>`)}</div>`;
 }
 
 // The summary of a collapsed card, in two layers with a thin gap:
 //   top    - bold values, coloured by the card's status (tone)
 //   bottom - small text, light grey (left out when empty)
 // Light colour, no border, square corners.
-function highlight(boldValues, smallText, separator, tone, nameBadge) {
-  const line = infoLine(boldValues, separator, nameBadge);
+function highlight(boldValues, smallText, separator, tone) {
+  const line = infoLine(boldValues, separator);
   const small = String(smallText || "").trim();
   return `<div class="admin-hl">
     <div class="admin-hl-top" data-tone="${esc(tone || "")}">${line}</div>
@@ -1759,10 +1751,11 @@ function verifyButtonsHtml(status) {
   const approveChosen = group === "verified";
   const rejectChosen = group === "rejected";
   const rejectLabel = group === "verified" ? "Suspend" : "Reject";
+  const approveLabel = approveChosen ? "Accepted" : "Accept";
   return `
     <div class="admin-vbtns">
       <button class="admin-vbtn v-reject" type="button" data-action="verify" data-value="Rejected"${rejectChosen ? " disabled" : ""}>${rejectLabel}</button>
-      <button class="admin-vbtn v-approve" type="button" data-action="verify" data-value="Verified"${approveChosen ? " disabled" : ""}>Accept</button>
+      <button class="admin-vbtn v-approve" type="button" data-action="verify" data-value="Verified"${approveChosen ? " disabled" : ""}>${approveLabel}</button>
     </div>
   `;
 }
@@ -1826,31 +1819,29 @@ function searchQueryFor(id) {
   return [...chips, el ? el.value : ""].join(" ");
 }
 
-// The chips row lives BEFORE the .admin-search-wrap label, as a
-// sibling in its parent - not inside the label - because the label's
-// floating "Search" text is positioned by CSS relative to the whole
-// label (absolute, top: 50%); putting anything inside it would throw
-// that centring off once chips appear.
+// The chips row lives INSIDE the .admin-search-wrap label, right
+// before the input, so it reads as part of the same search box
+// rather than a separate row above it.
 function renderSearchChips(id) {
   const input = $(id);
   const label = input && input.closest(".admin-search-wrap");
-  const container = label && label.parentElement;
-  if (!container) return;
+  if (!label) return;
   const chips = SEARCH_CHIPS[id] || [];
-  let row = container.querySelector(`.admin-search-chips[data-chips-for="${id}"]`);
+  let row = label.querySelector(`.admin-search-chips[data-chips-for="${id}"]`);
   if (!chips.length) {
     if (row) row.remove();
+    label.classList.remove("has-chips");
     return;
   }
+  label.classList.add("has-chips");
   if (!row) {
-    row = document.createElement("div");
+    row = document.createElement("span");
     row.className = "admin-search-chips";
     row.dataset.chipsFor = id;
-    container.insertBefore(row, label);
+    label.insertBefore(row, input);
   }
   row.innerHTML = chips.map((word, i) => `
     <span class="admin-search-chip">
-      <i class="admin-search-chip-dot" aria-hidden="true"></i>
       ${esc(word)}
       <button type="button" data-remove-chip="${i}" aria-label="Remove filter ${esc(word)}">&times;</button>
     </span>
@@ -1866,7 +1857,7 @@ function clearSearchChips(id) {
 // &times; removes it. Either way `onChange` re-runs the filter.
 function wireChipSearch(id, onChange) {
   const input = $(id);
-  const container = input.closest(".admin-search-wrap").parentElement;
+  const label = input.closest(".admin-search-wrap");
   SEARCH_CHIPS[id] = [];
 
   input.addEventListener("keydown", (event) => {
@@ -1880,7 +1871,7 @@ function wireChipSearch(id, onChange) {
     onChange();
   });
 
-  container.addEventListener("click", (event) => {
+  label.addEventListener("click", (event) => {
     const row = event.target.closest(`.admin-search-chips[data-chips-for="${id}"]`);
     const btn = event.target.closest("[data-remove-chip]");
     if (!row || !btn) return;
@@ -1911,13 +1902,18 @@ function renderTutors() {
     return recordCard("tutors", r, {
       name: v("Full Name"),
       // Name | WhatsApp | Graduation | Tutor ID, address small below
+      // Name | WhatsApp | Mobile | Tutor ID | Subject Taught, one line,
+      // truncated with an ellipsis if it runs long (see #tutorList
+      // .admin-info in admin.css). Graduation now lives on the small
+      // line below, right before the address.
       titleHtml: highlight(
-        [v("Full Name") || r.id, v("WhatsApp Number") || v("Mobile Number"),
-         [v("Graduation - Course"), v("Graduation - Subject")].filter(Boolean).join(" - "), r.id],
-        esc(fullAddress(v("Present Address"), v("City"), v("Pin Code"))),
+        [v("Full Name") || r.id, v("WhatsApp Number"), v("Mobile Number"), r.id, v("Subject You Teach")],
+        [
+          [v("Graduation - Course"), v("Graduation - Subject")].filter(Boolean).join(" - "),
+          fullAddress(v("Present Address"), v("City"), v("Pin Code"))
+        ].filter(Boolean).join(", "),
         "|",
-        statusGroup(status),
-        statusGroup(status) === "verified" ? VERIFIED_TICK : ""
+        statusGroup(status)
       ),
       pill: status,
       tone: statusGroup(status),

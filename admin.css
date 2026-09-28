@@ -377,7 +377,19 @@ button { cursor: pointer; }
 }
 
 .admin-card[data-tone="pending"] { border-color: var(--blue-line); }
+.admin-card[data-tone="verified"] { border-color: var(--lime-line); }
 .admin-card[data-tone="rejected"] { border-color: rgba(255, 104, 104, 0.3); }
+
+/* the name-letter avatar also follows the tutor's status */
+.admin-card[data-tone="pending"] .admin-avatar {
+  color: var(--blue); background: var(--blue-dim); border-color: var(--blue-line);
+}
+.admin-card[data-tone="verified"] .admin-avatar {
+  color: var(--lime); background: var(--lime-dim); border-color: var(--lime-line);
+}
+.admin-card[data-tone="rejected"] .admin-avatar {
+  color: var(--danger); background: var(--danger-dim); border-color: rgba(255, 104, 104, 0.3);
+}
 
 .admin-card-head {
   display: flex;
@@ -924,49 +936,74 @@ button { cursor: pointer; }
   filter: invert(1) opacity(0.5);
 }
 
-/* Space commits the typed word as a removable chip above the box;
-   every chip plus whatever's still being typed is the live filter. */
+/* Chips sit INSIDE the search box itself, before the typed text - the
+   label becomes the pill-shaped box (chips + input as a single flex
+   row); the input loses its own border/background so both blend into
+   one shared box. */
+.admin-search-wrap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 18px;
+}
+
+.admin-search-wrap input {
+  flex: 1 1 100px;
+  min-width: 80px;
+  width: auto;
+  padding: 7px 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.admin-search-wrap input:focus { border-color: transparent; }
+
+/* the floating "Search" label also moves up once a chip exists, even
+   if the box is empty of typed text right now */
+.admin-search-wrap.has-chips > span {
+  top: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--lime);
+}
+
+/* Space commits the typed word as a removable chip; every chip plus
+   whatever's still being typed is the live filter. */
 .admin-search-chips {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
 }
 
-/* flat tag chip - colour dot + label + remove, like a Color Hunt
-   palette tag ("● Blue  x") */
+/* flat tag chip - light background, no border */
 .admin-search-chip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 6px 6px 12px;
+  gap: 6px;
+  padding: 4px 5px 4px 10px;
   border-radius: 999px;
-  border: 1px solid var(--lime-line);
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.admin-search-chip-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--lime);
-  flex: 0 0 auto;
+  border: 0;
+  background: var(--lime-dim);
+  color: var(--lime);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .admin-search-chip button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: var(--lime-dim);
+  background: rgba(22, 163, 74, 0.22);
   color: var(--lime);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease;
@@ -1473,12 +1510,6 @@ button { cursor: pointer; }
   overflow-wrap: anywhere;
 }
 
-.admin-verified-tick {
-  vertical-align: -2px;
-  margin-left: 3px;
-  flex: 0 0 auto;
-}
-
 .admin-info i {
   font-style: normal;
   color: var(--muted-2);
@@ -1673,6 +1704,17 @@ body[data-page="admin"] {
 .admin-hl-top .admin-info {
   margin: 0;
   font-size: 14px;
+}
+
+/* Tutor's Name/WhatsApp/Mobile/ID/Subject line: now several fields,
+   so it stays on one line and truncates with an ellipsis instead of
+   wrapping or pushing the card wider. */
+#tutorList .admin-hl-top .admin-info {
+  display: block;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-hl-small {
