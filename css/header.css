@@ -11,8 +11,11 @@
 
   --header-muted: #999999;
 
-  /* Existing site accent */
-  --header-green: #b7ff00;
+  /* Site accent - brand wordmark, focus rings */
+  --header-green: #16a34a;
+
+  /* Secondary accent - the circular login button */
+  --header-blue: #2563eb;
 
   --header-border:
     rgba(255, 255, 255, 0.08);
@@ -150,10 +153,10 @@
 
   border:
     1px solid
-    rgba(183, 255, 0, 0.45);
+    rgba(37, 99, 235, 0.45);
 
   color:
-    var(--header-green);
+    var(--header-blue);
 
   text-decoration: none;
 
@@ -206,17 +209,17 @@
     #050505;
 
   background:
-    var(--header-green);
+    var(--header-blue);
 
   border-color:
-    var(--header-green);
+    var(--header-blue);
 
   transform:
     translateY(-2px);
 
   box-shadow:
     0 8px 25px
-    rgba(183, 255, 0, 0.18);
+    rgba(37, 99, 235, 0.18);
 
 }
 
@@ -332,11 +335,11 @@
   font-weight: 800;
   letter-spacing: 0.02em;
   line-height: 1;
-  color: var(--header-green);
+  color: var(--header-blue);
 }
 
 .header-login.has-initials {
-  border-color: var(--header-green);
+  border-color: var(--header-blue);
 }
 
 .header-login.has-initials:hover .header-initials {
@@ -351,9 +354,9 @@
   transform: none;
   box-shadow: none;
   background: #101010;
-  border-color: var(--header-green);
+  border-color: var(--header-blue);
 }
 
 .header-login.header-login-static:hover .header-initials {
-  color: var(--header-green);
+  color: var(--header-blue);
 }

@@ -28,7 +28,7 @@
 }
 
 .tuitions-hero h1 span {
-  color: #b7ff00;
+  color: #16a34a;
 }
 
 /* ================= WIDER PAGE CONTAINER ================= */
@@ -288,7 +288,7 @@
    just muted/darker, so it clearly reads as "done". */
 .apply-button.applied,
 .apply-button.applied:hover {
-  background: rgba(202, 255, 61, 0.45);
+  background: rgba(22, 163, 74, 0.45);
   color: rgba(10, 10, 10, 0.75);
 }
 
@@ -413,9 +413,9 @@ html.embed .error-page .container {
 
 /* card opened from the tutor homepage ("Apply" in Matching you) */
 .class-card.is-linked {
-  outline: 2px solid #c8ff2e;
+  outline: 2px solid #16a34a;
   outline-offset: 3px;
-  box-shadow: 0 0 0 8px rgba(200, 255, 46, 0.12);
+  box-shadow: 0 0 0 8px rgba(22, 163, 74, 0.12);
   transition: outline-color 0.4s ease, box-shadow 0.4s ease;
 }
 

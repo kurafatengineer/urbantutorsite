@@ -21,8 +21,8 @@
   --muted: #9a9a9a;
   --muted-2: #6f6f6f;
 
-  --lime: #caff3d;
-  --lime-hover: #d6ff63;
+  --lime: #16a34a;
+  --lime-hover: #22c55e;
 
   --danger: #ff6868;
   --success: #72e39a;
@@ -1505,7 +1505,7 @@ textarea:focus {
   height: 44px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(202, 255, 61, 0.45);
+  border: 1px solid rgba(22, 163, 74, 0.45);
   border-radius: 50%;
   background: #111;
   color: inherit;
@@ -1950,7 +1950,7 @@ textarea:focus {
   appearance: none;
   -webkit-appearance: none;
   padding-right: 48px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9' fill='none' stroke='%23caff3d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9' fill='none' stroke='%2316a34a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 20px center;
   cursor: pointer;
@@ -2077,8 +2077,8 @@ textarea:focus {
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: rgba(202, 255, 61, 0.07);
-  border: 1px solid rgba(202, 255, 61, 0.28);
+  background: rgba(22, 163, 74, 0.07);
+  border: 1px solid rgba(22, 163, 74, 0.28);
   border-radius: 15px;
 }
 
@@ -2131,7 +2131,7 @@ textarea:focus {
 .upload-card.has-file {
   background: #0a0d05;
   border-style: solid;
-  border-color: rgba(202, 255, 61, 0.55);
+  border-color: rgba(22, 163, 74, 0.55);
 }
 
 .upload-card.has-file .upload-file {
@@ -2139,7 +2139,7 @@ textarea:focus {
 }
 
 .upload-card.has-file .upload-icon {
-  background: rgba(202, 255, 61, 0.14);
+  background: rgba(22, 163, 74, 0.14);
 }
 
 .upload-button {
@@ -2169,11 +2169,11 @@ textarea:focus {
 .upload-card.has-file .upload-button {
   color: var(--lime);
   background: transparent;
-  border: 1px solid rgba(202, 255, 61, 0.5);
+  border: 1px solid rgba(22, 163, 74, 0.5);
 }
 
 .upload-card.has-file .upload-button:hover {
-  background: rgba(202, 255, 61, 0.08);
+  background: rgba(22, 163, 74, 0.08);
 }
 
 /* ---------------------------------------------------------
@@ -2429,8 +2429,8 @@ textarea:focus {
 }
 
 .pill-check:has(input:checked) {
-  border-color: rgba(202, 255, 61, 0.45);
-  background: rgba(202, 255, 61, 0.1);
+  border-color: rgba(22, 163, 74, 0.45);
+  background: rgba(22, 163, 74, 0.1);
 }
 
 .pill-check input:checked ~ .pill-check-icon {
@@ -2468,7 +2468,7 @@ textarea:focus {
 .field .float-field input[type="email"]:focus,
 .field .float-field input[type="tel"]:focus,
 .field .float-field textarea:focus {
-  border-color: rgba(202, 255, 61, 0.35);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 .float-field > span {
@@ -2496,7 +2496,7 @@ textarea:focus {
 }
 
 .phone-input:focus-within {
-  border-color: rgba(202, 255, 61, 0.35);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 .phone-input .flag-code {
@@ -2753,7 +2753,7 @@ a.submit {
 }
 
 .field .float-field input[type="number"]:focus {
-  border-color: rgba(202, 255, 61, 0.35);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 /* disabled 12th Percentage / CGPA keeps the pill shape */
@@ -2776,7 +2776,7 @@ a.submit {
 }
 
 .field select:focus {
-  border-color: rgba(202, 255, 61, 0.35);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 /* date of birth */
@@ -2795,7 +2795,7 @@ a.submit {
 }
 
 .date-field input[type="date"]:focus {
-  border-color: rgba(202, 255, 61, 0.35);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 .date-placeholder {
@@ -2906,7 +2906,7 @@ a.submit {
 }
 
 #emailPage .field .float-field input[type="email"]:focus {
-  border-color: rgba(202, 255, 61, 0.35);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 #emailPage .submit-area {
@@ -3009,7 +3009,7 @@ a.submit {
 }
 
 #otpPage .otp-input:focus {
-  border-color: rgba(202, 255, 61, 0.35);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 /* spinner inside the OTP box while checking / saving */
@@ -3022,7 +3022,7 @@ a.submit {
   height: 18px;
   margin-top: -9px;
   border-radius: 50%;
-  border: 2px solid rgba(202, 255, 61, 0.25);
+  border: 2px solid rgba(22, 163, 74, 0.25);
   border-top-color: var(--lime);
   animation: spin 0.7s linear infinite;
 }

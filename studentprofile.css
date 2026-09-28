@@ -1000,7 +1000,7 @@ body.add-modal-open {
 
 .add-student-button:hover {
   border-color: var(--lime);
-  background: rgba(202, 255, 61, 0.2);
+  background: rgba(22, 163, 74, 0.2);
 }
 
 
@@ -1238,7 +1238,7 @@ body.add-modal-open {
 }
 
 .pill-check:has(input:checked) {
-  border-color: rgba(202, 255, 61, 0.45);
+  border-color: rgba(22, 163, 74, 0.45);
   background: var(--lime-dim);
 }
 
@@ -1278,7 +1278,7 @@ body.add-modal-open {
 
 .add-modal-close:hover {
   border-color: var(--lime);
-  background: rgba(202, 255, 61, 0.2);
+  background: rgba(22, 163, 74, 0.2);
 }
 
 

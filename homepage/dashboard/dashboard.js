@@ -23,7 +23,7 @@
   const TUTOR_KEY = "urbantutorsite_tutor_session";
   const SELECTED_STUDENT_KEY = "urbantutorsite_selected_student";
 
-  const COLORS = ["#c8ff2e", "#9486ff", "#7fe3ff", "#ffb4d2", "#ffc947"];
+  const COLORS = ["#16a34a", "#9486ff", "#7fe3ff", "#ffb4d2", "#ffc947"];
   const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
   const DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 

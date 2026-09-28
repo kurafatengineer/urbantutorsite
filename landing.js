@@ -19,7 +19,7 @@
 
   // Figures come from Supabase: get_home_stats() via window.sbCall.
 
-  const LIME = "#c8ff2e";
+  const LIME = "#16a34a";
   const VIOLET = "#9486ff";
   const MUTED = "#8e8e99";
   const LINE = "rgba(255,255,255,.06)";
@@ -284,8 +284,8 @@
     const canvas = $("ldGrowthChart");
     const ctx = canvas.getContext("2d");
     const fill = ctx.createLinearGradient(0, 0, 0, 320);
-    fill.addColorStop(0, "rgba(200,255,46,.22)");
-    fill.addColorStop(1, "rgba(200,255,46,0)");
+    fill.addColorStop(0, "rgba(22,163,74,.22)");
+    fill.addColorStop(1, "rgba(22,163,74,0)");
 
     new Chart(canvas, {
       type: "line",

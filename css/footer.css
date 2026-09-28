@@ -8,8 +8,11 @@
   --footer-text: #f5f5f5;
   --footer-muted: #999999;
 
-  /* Existing site accent */
-  --footer-green: #b7ff00;
+  /* Site accent - brand wordmark, focus rings */
+  --footer-green: #16a34a;
+
+  /* Secondary accent - floating contact buttons, social icons */
+  --footer-blue: #2563eb;
 
   --footer-border:
     rgba(255, 255, 255, 0.08);
@@ -202,13 +205,13 @@
 
 .social-link:hover {
 
-  color: var(--footer-green);
+  color: var(--footer-blue);
 
   border-color:
-    rgba(183, 255, 0, 0.35);
+    rgba(37, 99, 235, 0.35);
 
   background:
-    rgba(183, 255, 0, 0.06);
+    rgba(37, 99, 235, 0.06);
 
   transform:
     translateY(-2px);
@@ -267,14 +270,14 @@
 
   border-radius: 50%;
 
-  color: var(--footer-green);
+  color: var(--footer-blue);
 
   background:
     #101010;
 
   border:
     1px solid
-    rgba(183, 255, 0, 0.45);
+    rgba(37, 99, 235, 0.45);
 
   box-shadow:
     0 8px 25px
@@ -334,17 +337,17 @@
   color: #050505;
 
   background:
-    var(--footer-green);
+    var(--footer-blue);
 
   border-color:
-    var(--footer-green);
+    var(--footer-blue);
 
   transform:
     translateY(-3px);
 
   box-shadow:
     0 10px 30px
-    rgba(183, 255, 0, 0.18);
+    rgba(37, 99, 235, 0.18);
 }
 
 
@@ -503,7 +506,7 @@
 .social-link:hover {
   border: 0;
   background: transparent;
-  color: var(--footer-green);
+  color: var(--footer-blue);
 }
 
 .social-link svg {

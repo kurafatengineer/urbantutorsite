@@ -21,8 +21,8 @@
   --muted: #9a9a9a;
   --muted-2: #6f6f6f;
 
-  --lime: #caff3d;
-  --lime-hover: #d6ff63;
+  --lime: #16a34a;
+  --lime-hover: #22c55e;
 
   --danger: #ff6868;
   --success: #72e39a;
@@ -1505,7 +1505,7 @@ textarea:focus {
   height: 44px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(202, 255, 61, 0.45);
+  border: 1px solid rgba(22, 163, 74, 0.45);
   border-radius: 50%;
   background: #111;
   color: inherit;
@@ -2061,8 +2061,8 @@ textarea:focus {
 }
 
 .pill-check:has(input:checked) {
-  border-color: rgba(202, 255, 61, 0.45);
-  background: rgba(202, 255, 61, 0.1);
+  border-color: rgba(22, 163, 74, 0.45);
+  background: rgba(22, 163, 74, 0.1);
 }
 
 .pill-check input:checked ~ .pill-check-icon {
@@ -2100,7 +2100,7 @@ textarea:focus {
 .field .float-field input[type="email"]:focus,
 .field .float-field input[type="tel"]:focus,
 .field .float-field textarea:focus {
-  border-color: rgba(202, 255, 61, 0.35);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 .float-field > span {
@@ -2128,7 +2128,7 @@ textarea:focus {
 }
 
 .phone-input:focus-within {
-  border-color: rgba(202, 255, 61, 0.35);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 .phone-input .flag-code {
@@ -2371,7 +2371,7 @@ a.submit {
 }
 
 .float-field.is-time input[type="time"]:focus {
-  border-color: rgba(202, 255, 61, 0.35);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 /* label always on the top border, centred */
@@ -2449,7 +2449,7 @@ a.submit {
 }
 
 #emailPage .field .float-field input[type="email"]:focus {
-  border-color: rgba(202, 255, 61, 0.35);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 #emailPage .submit-area {
@@ -2552,7 +2552,7 @@ a.submit {
 }
 
 #otpPage .otp-input:focus {
-  border-color: rgba(202, 255, 61, 0.35);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 /* spinner inside the OTP box while checking / saving */
@@ -2565,7 +2565,7 @@ a.submit {
   height: 18px;
   margin-top: -9px;
   border-radius: 50%;
-  border: 2px solid rgba(202, 255, 61, 0.25);
+  border: 2px solid rgba(22, 163, 74, 0.25);
   border-top-color: var(--lime);
   animation: spin 0.7s linear infinite;
 }

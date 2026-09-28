@@ -13,10 +13,14 @@
   --text: #f5f5f5;
   --muted: #9a9a9a;
   --muted-2: #6f6f6f;
-  --lime: #caff3d;
-  --lime-hover: #d6ff63;
-  --lime-dim: rgba(202, 255, 61, 0.12);
-  --lime-line: rgba(202, 255, 61, 0.3);
+  --lime: #16a34a;
+  --lime-hover: #22c55e;
+  --lime-dim: rgba(22, 163, 74, 0.12);
+  --lime-line: rgba(22, 163, 74, 0.3);
+  --blue: #2563eb;
+  --blue-hover: #3b82f6;
+  --blue-dim: rgba(37, 99, 235, 0.12);
+  --blue-line: rgba(37, 99, 235, 0.3);
   --danger: #ff6868;
   --danger-dim: rgba(255, 104, 104, 0.14);
   --success: #72e39a;
@@ -193,7 +197,7 @@ button { cursor: pointer; }
   font-size: 13.5px;
 }
 
-.admin-ghost:hover { border-color: var(--lime-line); color: var(--lime); }
+.admin-ghost:hover { border-color: var(--blue-line); color: var(--blue); }
 
 .admin-danger:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-dim); }
 
@@ -924,7 +928,7 @@ button { cursor: pointer; }
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: rgba(202, 255, 61, 0.18);
+  background: rgba(22, 163, 74, 0.18);
   color: var(--lime);
   font-size: 13px;
   line-height: 1;
@@ -932,7 +936,7 @@ button { cursor: pointer; }
 }
 
 .admin-search-chip button:hover {
-  background: rgba(202, 255, 61, 0.3);
+  background: rgba(22, 163, 74, 0.3);
 }
 
 
@@ -1048,7 +1052,7 @@ button { cursor: pointer; }
 .admin-box.is-edit select,
 .admin-box.is-edit textarea {
   border-color: var(--lime-line);
-  background: rgba(202, 255, 61, 0.05);
+  background: rgba(22, 163, 74, 0.05);
 }
 
 .admin-box.is-edit > span {
@@ -1060,7 +1064,7 @@ button { cursor: pointer; }
 .admin-box.is-edit textarea:focus {
   outline: none;
   border-color: var(--lime);
-  background: rgba(202, 255, 61, 0.09);
+  background: rgba(22, 163, 74, 0.09);
 }
 
 .admin-box.is-edit input:disabled {
@@ -1276,7 +1280,7 @@ button { cursor: pointer; }
 }
 
 .pill-check:has(input:checked) {
-  border-color: rgba(202, 255, 61, 0.45);
+  border-color: rgba(22, 163, 74, 0.45);
   background: var(--lime-dim);
 }
 
@@ -1495,7 +1499,7 @@ button { cursor: pointer; }
   padding: 8px 10px;
   border: 0;
   border-radius: 0;
-  background: rgba(202, 255, 61, 0.07);
+  background: rgba(22, 163, 74, 0.07);
 }
 
 .admin-hl .admin-info {
@@ -1619,7 +1623,7 @@ body[data-page="admin"] {
 }
 
 .admin-hl-top {
-  background: rgba(202, 255, 61, 0.08);
+  background: rgba(22, 163, 74, 0.08);
 }
 
 .admin-hl-top .admin-info {
@@ -1646,7 +1650,7 @@ body[data-page="admin"] {
 .admin-hl-top[data-tone="processing"] { background: rgba(180, 144, 255, 0.14); }
 .admin-hl-top[data-tone="completed"]  { background: rgba(255, 255, 255, 0.08); }
 .admin-hl-top[data-tone="new"],
-.admin-hl-top[data-tone="open"]       { background: rgba(202, 255, 61, 0.1); }
+.admin-hl-top[data-tone="open"]       { background: rgba(22, 163, 74, 0.1); }
 
 
 /* ---------- top bar: Refresh | Admin Panel | Log out ---------- */
