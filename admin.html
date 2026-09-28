@@ -189,6 +189,13 @@
         <p id="paymentForSubscription" class="admin-note hidden"></p>
         <input id="paymentSubscriptionId" type="hidden">
         <div class="admin-form">
+          <label class="admin-field wide">
+            <span>Transaction</span>
+            <select id="paymentTransactionType">
+              <option value="collection">Collection — money in from a parent</option>
+              <option value="payout">Payout — agency pays a tutor</option>
+            </select>
+          </label>
           <label class="admin-field wide" id="paymentDemoIdField">
             <span>Demo ID</span>
             <input id="paymentDemoId" type="text" placeholder="e.g. DEMO-000123">
@@ -201,7 +208,7 @@
             <span>Payment Date</span>
             <input id="paymentDate" type="date">
           </label>
-          <label class="admin-field">
+          <label class="admin-field" id="paymentTypeField">
             <span>Payment Type</span>
             <select id="paymentType">
               <option value="regular">Regular</option>
@@ -209,11 +216,11 @@
               <option value="final">Final</option>
             </select>
           </label>
-          <label class="admin-field">
+          <label class="admin-field" id="collectedByField">
             <span>Collected By</span>
             <select id="paymentCollectedBy">
               <option value="agency">Agency (we received it)</option>
-              <option value="tutor">Tutor (we only get our cut)</option>
+              <option value="tutor">Tutor (we only get our cut) — parent paid the tutor directly</option>
             </select>
           </label>
           <label class="admin-field">
@@ -224,8 +231,8 @@
             <span>Our Cut Amount (₹)</span>
             <input id="paymentOurCut" type="number" min="0" step="1" placeholder="Leave blank if not applicable">
           </label>
-          <label class="admin-field wide">
-            <span>Tutor ID (optional)</span>
+          <label class="admin-field wide" id="paymentTutorIdField">
+            <span>Tutor ID</span>
             <input id="paymentTutorId" type="text" placeholder="e.g. TUT-000045">
           </label>
           <label class="admin-field wide">

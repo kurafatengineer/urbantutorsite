@@ -676,6 +676,7 @@ function renderSubscriptionCard(sub) {
 
 function renderPaymentCard(p) {
 
+  const isPayout = p.transactionType === "payout";
   const collectedByTutor = p.collectedBy === "tutor";
   const cut = p.ourCutAmount != null && p.ourCutAmount !== "" ? Number(p.ourCutAmount) : null;
 
@@ -684,22 +685,25 @@ function renderPaymentCard(p) {
     [ICONS.file, "Mode", p.paymentMode]
   ].filter(row => row[2]);
 
-  const cutNote = (collectedByTutor && cut != null) ? `
+  const cutNote = (!isPayout && collectedByTutor && cut != null) ? `
     <div class="class-row-bottom class-row-message">
       <div class="class-status-message strong"><span>You collected this - agency's cut: ₹${escapeHTML(String(cut))}</span></div>
     </div>
   ` : "";
 
+  const badge = isPayout ? "Paid to you by agency" : (collectedByTutor ? "Collected by you" : "Collected by agency");
+  const spineLabel = isPayout ? "Payout" : "Payment";
+
   return `
     <div class="class-card">
-      <div class="class-spine status-completed">
+      <div class="class-spine ${isPayout ? "status-demo-scheduled" : "status-completed"}">
         <span class="class-spine-id">${escapeHTML(p.demoId || "")}</span>
-        <span class="class-spine-label">Payment</span>
+        <span class="class-spine-label">${spineLabel}</span>
       </div>
       <div class="class-body">
         <div class="class-row-top">
           <span class="status-badge subject-badge">₹${escapeHTML(String(p.amount))}</span>
-          <span class="status-badge">${escapeHTML(collectedByTutor ? "Collected by you" : "Collected by agency")}</span>
+          <span class="status-badge">${escapeHTML(badge)}</span>
         </div>
         ${details.length ? `
           <div class="class-detail-grid">

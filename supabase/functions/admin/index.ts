@@ -253,11 +253,25 @@ async function linkDocuments(overview: Json): Promise<Json> {
 
 const PAYMENT_TYPES = ["advance", "regular", "final"];
 const COLLECTED_BY = ["agency", "tutor"];
+const TRANSACTION_TYPES = ["collection", "payout"];
 
 function paymentChangesFromBody(body: Json, partial: boolean): Json | { error: string } {
   const changes: Json = {};
 
   const assign = (key: string, value: unknown) => { if (value !== undefined) changes[key] = value; };
+
+  // What kind of transaction this is: money coming in from a parent
+  // ("collection", the default) or the agency paying a tutor out of
+  // money it already collected ("payout").
+  let transactionType: string | undefined;
+
+  if (!partial || body.transactionType !== undefined) {
+    transactionType = String(body.transactionType ?? "collection");
+    if (!TRANSACTION_TYPES.includes(transactionType)) return { error: "Unknown transaction type." };
+    changes.transaction_type = transactionType;
+  }
+
+  const isPayout = transactionType === "payout";
 
   if (!partial || body.amount !== undefined) {
     const amount = Number(body.amount);
@@ -271,13 +285,15 @@ function paymentChangesFromBody(body: Json, partial: boolean): Json | { error: s
     changes.payment_type = t;
   }
 
-  if (!partial || body.collectedBy !== undefined) {
+  // Collected By / Our Cut only apply to a collection from a parent -
+  // a payout has no "collector", the agency is always the one paying.
+  if (!isPayout && (!partial || body.collectedBy !== undefined)) {
     const c = String(body.collectedBy ?? "agency");
     if (!COLLECTED_BY.includes(c)) return { error: "Unknown collector." };
     changes.collected_by = c;
   }
 
-  if (body.ourCutAmount !== undefined) {
+  if (!isPayout && body.ourCutAmount !== undefined) {
     changes.our_cut_amount = body.ourCutAmount === "" || body.ourCutAmount === null
       ? null : Number(body.ourCutAmount);
   }
@@ -292,7 +308,8 @@ function paymentChangesFromBody(body: Json, partial: boolean): Json | { error: s
   assign("notes", body.notes !== undefined ? String(body.notes ?? "").trim() : undefined);
 
   if (!partial) {
-    if (!body.demoId && !body.subscriptionId) return { error: "Demo ID or Subscription is required." };
+    if (isPayout && !body.tutorId) return { error: "Choose which tutor is being paid." };
+    if (!isPayout && !body.demoId && !body.subscriptionId) return { error: "Demo ID or Subscription is required." };
     changes.demo_id = body.demoId || null;
     changes.tutor_id = body.tutorId || null;
     changes.subscription_id = body.subscriptionId || null;

@@ -643,11 +643,23 @@ function wireEvents() {
 
 }
 
+// Shows/hides the fields that only apply to a collection (from a
+// parent) vs. a payout (agency paying a tutor out of what it collected).
+function applyPaymentTransactionType() {
+  const isPayout = $("paymentTransactionType").value === "payout";
+  $("paymentTypeField").classList.toggle("hidden", isPayout);
+  $("collectedByField").classList.toggle("hidden", isPayout);
+  $("ourCutField").classList.toggle("hidden", isPayout);
+  $("paymentDemoIdField").classList.toggle("hidden", isPayout || !!$("paymentSubscriptionId").value);
+  $("paymentTutorIdField").querySelector("span").textContent = isPayout ? "Tutor ID" : "Tutor ID (optional)";
+}
+
 function resetPaymentForm() {
   $("paymentDemoId").value = "";
   $("paymentSubscriptionId").value = "";
   $("paymentForSubscription").classList.add("hidden");
   $("paymentDemoIdField").classList.remove("hidden");
+  $("paymentTransactionType").value = "collection";
   $("paymentAmount").value = "";
   $("paymentDate").value = new Date().toISOString().slice(0, 10);
   $("paymentType").value = "regular";
@@ -656,6 +668,7 @@ function resetPaymentForm() {
   $("paymentOurCut").value = "";
   $("paymentTutorId").value = "";
   $("paymentNotes").value = "";
+  applyPaymentTransactionType();
 }
 
 // Opens the payment form pre-filled for one subscription's renewal,
@@ -673,6 +686,7 @@ function openPaymentFormForSubscription(sub) {
   $("paymentForSubscription").textContent = `For subscription: ${sub.plan_name} (₹${Number(sub.amount).toLocaleString("en-IN")} / ${sub.billing_cycle})`;
   $("paymentAmount").value = sub.amount;
   if (sub.tutor_id) $("paymentTutorId").value = sub.tutor_id;
+  applyPaymentTransactionType();
 
   $("paymentForm").classList.remove("hidden");
   $("paymentForm").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -691,23 +705,33 @@ function wirePaymentForm() {
 
   $("cancelPaymentButton").addEventListener("click", () => $("paymentForm").classList.add("hidden"));
 
+  $("paymentTransactionType").addEventListener("change", applyPaymentTransactionType);
+
   $("paymentForm").addEventListener("submit", async (event) => {
 
     event.preventDefault();
 
+    const isPayout = $("paymentTransactionType").value === "payout";
     const demoId = $("paymentDemoId").value.trim();
     const subscriptionId = $("paymentSubscriptionId").value;
+    const tutorId = $("paymentTutorId").value.trim();
 
-    if (!demoId && !subscriptionId) {
+    if (isPayout && !tutorId) {
+      toast("Enter which Tutor ID is being paid.", true);
+      return;
+    }
+
+    if (!isPayout && !demoId && !subscriptionId) {
       toast("Enter the Demo ID.", true);
       return;
     }
 
     const payload = {
       action: "adminAddPayment",
+      transactionType: $("paymentTransactionType").value,
       demoId,
       subscriptionId: subscriptionId || undefined,
-      tutorId: $("paymentTutorId").value.trim(),
+      tutorId,
       amount: $("paymentAmount").value,
       paymentType: $("paymentType").value,
       collectedBy: $("paymentCollectedBy").value,
@@ -1069,7 +1093,8 @@ async function savePaymentEdit(box, button) {
   const payload = { action: "adminUpdatePayment", id };
 
   box.querySelectorAll("[data-pfield]").forEach(input => {
-    payload[input.dataset.pfield] = input.value;
+    const field = input.dataset.pfield;
+    payload[field] = field === "transactionType" ? input.value.toLowerCase() : input.value;
   });
 
   const ok = await save(payload, button);
@@ -1646,18 +1671,24 @@ function paymentCard(p, ctx) {
   const editing = STATE.editing.has(key);
   const amount = Number(p.amount || 0);
   const cut = p.our_cut_amount != null && p.our_cut_amount !== "" ? Number(p.our_cut_amount) : null;
+  const isPayout = p.transaction_type === "payout";
   const tutorCollected = p.collected_by === "tutor";
 
   const boxes = `
     <div class="admin-boxes">
-      ${box("Demo ID", p.demo_id)}
+      ${box("Transaction", isPayout ? "Payout" : "Collection", {
+        editable: editing,
+        options: ["Collection", "Payout"],
+        attr: editing ? `data-pfield="transactionType"` : ""
+      })}
+      ${!isPayout ? box("Demo ID", p.demo_id) : ""}
       ${box("Tutor ID", p.tutor_id || "")}
       ${box("Amount (₹)", p.amount, { editable: editing, type: "number", attr: editing ? `data-pfield="amount"` : "" })}
       ${box("Payment Date", p.payment_date, { editable: editing, type: "date", attr: editing ? `data-pfield="paymentDate"` : "" })}
-      ${box("Payment Type", p.payment_type, { editable: editing, options: ["advance", "regular", "final"], attr: editing ? `data-pfield="paymentType"` : "" })}
-      ${box("Collected By", p.collected_by, { editable: editing, options: ["agency", "tutor"], attr: editing ? `data-pfield="collectedBy"` : "" })}
+      ${!isPayout ? box("Payment Type", p.payment_type, { editable: editing, options: ["advance", "regular", "final"], attr: editing ? `data-pfield="paymentType"` : "" }) : ""}
+      ${!isPayout ? box("Collected By", p.collected_by, { editable: editing, options: ["agency", "tutor"], attr: editing ? `data-pfield="collectedBy"` : "" }) : ""}
       ${box("Payment Mode", p.payment_mode, { editable: editing, attr: editing ? `data-pfield="paymentMode"` : "" })}
-      ${box("Our Cut (₹)", p.our_cut_amount == null ? "" : p.our_cut_amount, { editable: editing, type: "number", attr: editing ? `data-pfield="ourCutAmount"` : "" })}
+      ${!isPayout ? box("Our Cut (₹)", p.our_cut_amount == null ? "" : p.our_cut_amount, { editable: editing, type: "number", attr: editing ? `data-pfield="ourCutAmount"` : "" }) : ""}
       ${box("Notes", p.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
     </div>`;
 
@@ -1671,6 +1702,10 @@ function paymentCard(p, ctx) {
          <button class="admin-ghost admin-danger" data-action="delete-payment" type="button">Delete</button>
        </div>`;
 
+  const headline = isPayout
+    ? [p.tutor_id, "Payout to Tutor", "₹" + amount.toLocaleString("en-IN")]
+    : [p.demo_id, ctx.studentName, ctx.subject, "₹" + amount.toLocaleString("en-IN"), tutorCollected ? "Tutor collected" : "Agency collected"];
+
   return `
     <article class="admin-card is-open${editing ? " is-editing" : ""}" data-box data-id="${p.id}" data-key="${esc(key)}">
 
@@ -1678,10 +1713,10 @@ function paymentCard(p, ctx) {
         <div class="admin-avatar">₹</div>
         <div class="admin-card-title">
           ${highlight(
-            [p.demo_id, ctx.studentName, ctx.subject, "₹" + amount.toLocaleString("en-IN"), tutorCollected ? "Tutor collected" : "Agency collected"],
-            cut != null ? `Our cut: ₹${cut.toLocaleString("en-IN")}` : "",
+            headline,
+            !isPayout && cut != null ? `Our cut: ₹${cut.toLocaleString("en-IN")}` : "",
             "|",
-            tutorCollected ? "processing" : "running"
+            isPayout ? "scheduled" : (tutorCollected ? "processing" : "running")
           )}
         </div>
       </div>
