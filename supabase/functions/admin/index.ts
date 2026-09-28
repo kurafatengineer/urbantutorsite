@@ -150,6 +150,31 @@ function canSeePayments(role: Role): boolean {
   return ACTIONS_BY_ROLE[role].has("adminAddPayment");
 }
 
+// What admin_get_overview's data a role actually gets to see. A role
+// whose panel doesn't show a tab never receives that tab's data either -
+// the browser it's sent to shouldn't hold tutor/student PII (contact
+// details, addresses, ID documents) it has no UI for.
+const DATA_ACCESS: Record<Role, { tuitions: boolean; tutorsFull: boolean; studentsFull: boolean }> = {
+  super_admin:         { tuitions: true,  tutorsFull: true,  studentsFull: true },
+  tuition_coordinator: { tuitions: true,  tutorsFull: true,  studentsFull: true },
+  verification_staff:  { tuitions: false, tutorsFull: true,  studentsFull: false },
+  accounts_finance:    { tuitions: false, tutorsFull: false, studentsFull: false },
+  tutor_relations:     { tuitions: false, tutorsFull: true,  studentsFull: false },
+};
+
+// A name-only stand-in for a full tutors/students table, in the same
+// {headers, readOnly, rows} shape the panel already renders - just with
+// every field but the name stripped out, so Payments/Subscriptions
+// cards can still show whose record this is.
+function nameOnlyTable(table: Json, nameField: string): Json {
+  const rows = (table?.rows ?? []).map((r: Json) => ({
+    id: r.id,
+    rowNumber: r.rowNumber,
+    values: { [nameField]: r.values?.[nameField] ?? "" },
+  }));
+  return { headers: [nameField], readOnly: [], rows };
+}
+
 function forbidden(): Json {
   return { success: false, message: "Your role does not allow this action." };
 }
@@ -355,7 +380,15 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
   const overview = await rpc("admin_get_overview");
   if (!overview?.success) return overview;
 
-  const withLinks = await linkDocuments(overview);
+  const access = DATA_ACCESS[caller.role];
+
+  // Only sign document links for tutor data the caller actually receives.
+  const withLinks = access.tutorsFull ? await linkDocuments(overview) : overview;
+
+  if (!access.tuitions) withLinks.demos = [];
+  if (!access.tutorsFull) withLinks.tutors = nameOnlyTable(withLinks.tutors, "Full Name");
+  if (!access.studentsFull) withLinks.students = nameOnlyTable(withLinks.students, "Student Name");
+
   withLinks.me = { email: caller.email, fullName: caller.fullName, role: caller.role };
 
   if (canSeePayments(caller.role)) {
