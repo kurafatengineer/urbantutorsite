@@ -34,6 +34,15 @@ const WEB_APP_URL =
 
 const LINK_FIELDS = ["Identity Proof", "Profile Image"];
 
+// Chip search (see wireChipSearch/renderSearchChips below): declared
+// here, before wireEvents() runs, because wireEvents() calls
+// wireChipSearch() synchronously during page init - a `const`
+// declared further down the file would still be in its temporal
+// dead zone at that point and throw, which silently aborted all of
+// init() (including ever calling showPage()), leaving the page
+// stuck on the loading screen.
+const SEARCH_CHIPS = {}; // input id -> array of committed filter words
+
 const ROLE_LABELS = {
   super_admin: "Super Admin",
   tuition_coordinator: "Tuition Coordinator",
@@ -1802,8 +1811,6 @@ function matchesAll(query, text) {
   const hay = lower(text);
   return words.every(w => hay.includes(w));
 }
-
-const SEARCH_CHIPS = {}; // input id -> array of committed filter words
 
 function searchQueryFor(id) {
   const chips = SEARCH_CHIPS[id] || [];
