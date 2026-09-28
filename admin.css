@@ -199,6 +199,32 @@ button { cursor: pointer; }
 
 .admin-ghost:hover { border-color: var(--blue-line); color: var(--blue); }
 
+/* "Edit Details" - light green. "Cancel" - light blue. Always on,
+   not just on hover, so they read as distinct actions at a glance. */
+.admin-ghost[data-action="edit"] {
+  border-color: var(--lime-line);
+  background: var(--lime-dim);
+  color: var(--lime);
+}
+
+.admin-ghost[data-action="edit"]:hover {
+  border-color: var(--lime);
+  background: rgba(22, 163, 74, 0.2);
+  color: var(--lime);
+}
+
+.admin-ghost[data-action="cancel"] {
+  border-color: var(--blue-line);
+  background: var(--blue-dim);
+  color: var(--blue);
+}
+
+.admin-ghost[data-action="cancel"]:hover {
+  border-color: var(--blue);
+  background: rgba(37, 99, 235, 0.2);
+  color: var(--blue);
+}
+
 .admin-danger:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-dim); }
 
 .admin-primary.small,
@@ -350,7 +376,7 @@ button { cursor: pointer; }
   align-content: start;
 }
 
-.admin-card[data-tone="pending"] { border-color: rgba(255, 209, 102, 0.3); }
+.admin-card[data-tone="pending"] { border-color: var(--blue-line); }
 .admin-card[data-tone="rejected"] { border-color: rgba(255, 104, 104, 0.3); }
 
 .admin-card-head {
@@ -407,7 +433,7 @@ button { cursor: pointer; }
 
 .admin-pill[data-tone="verified"],
 .admin-pill[data-tone="running"] { color: var(--success); background: var(--success-dim); border-color: rgba(114, 227, 154, 0.3); }
-.admin-pill[data-tone="pending"],
+.admin-pill[data-tone="pending"] { color: var(--blue); background: var(--blue-dim); border-color: var(--blue-line); }
 .admin-pill[data-tone="schedule"] { color: var(--warn); background: var(--warn-dim); border-color: rgba(255, 209, 102, 0.3); }
 .admin-pill[data-tone="rejected"],
 .admin-pill[data-tone="declined"] { color: var(--danger); background: var(--danger-dim); border-color: rgba(255, 104, 104, 0.3); }
@@ -906,37 +932,42 @@ button { cursor: pointer; }
   gap: 6px;
 }
 
+/* solid gradient "swatch" chip - colourful pill, not just an
+   outlined badge */
 .admin-search-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 6px 5px 12px;
+  gap: 8px;
+  padding: 6px 6px 6px 14px;
   border-radius: 999px;
-  background: var(--lime-dim);
-  border: 1px solid var(--lime-line);
-  color: var(--lime);
+  border: 0;
+  background: linear-gradient(135deg, #2563eb, #60a5fa);
+  color: #ffffff;
   font-size: 12.5px;
   font-weight: 700;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.35);
 }
 
 .admin-search-chip button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: rgba(22, 163, 74, 0.18);
-  color: var(--lime);
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .admin-search-chip button:hover {
-  background: rgba(22, 163, 74, 0.3);
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(1.08);
 }
 
 
@@ -1126,14 +1157,14 @@ button { cursor: pointer; }
 }
 
 /* notes: text centred, highlight across the full width -
-   solid orange, no border, square corners */
+   light orange, no border, square corners */
 .admin-note {
   margin: 0;
   padding: 10px 14px;
   border-radius: 0;
   border: 0;
-  background: var(--orange);
-  color: #1a0f00;
+  background: rgba(255, 140, 26, 0.16);
+  color: var(--orange);
   font-size: 12.5px;
   font-weight: 700;
   text-align: center;
@@ -1641,7 +1672,7 @@ body[data-page="admin"] {
 .admin-hl-top[data-tone="blue"]       { background: rgba(110, 170, 255, 0.14); }
 .admin-hl-top[data-tone="verified"],
 .admin-hl-top[data-tone="running"]    { background: rgba(114, 227, 154, 0.13); }
-.admin-hl-top[data-tone="pending"],
+.admin-hl-top[data-tone="pending"]    { background: var(--blue-dim); }
 .admin-hl-top[data-tone="schedule"]   { background: rgba(255, 209, 102, 0.13); }
 .admin-hl-top[data-tone="rejected"],
 .admin-hl-top[data-tone="declined"],
@@ -1773,16 +1804,18 @@ body[data-page="admin"] {
   transition: filter 0.15s ease;
 }
 
-/* rotated 180deg: "right" corners below appear on the left */
+/* rotated 180deg: "right" corners below appear on the left -
+   light tinted colour while live, plain grey once disabled (already
+   accepted / already rejected-or-suspended) */
 .admin-vbtn.v-reject {
-  background: rgba(255, 104, 104, 0.9);
-  color: #1a0505;
+  background: rgba(255, 104, 104, 0.18);
+  color: var(--danger);
   border-radius: 0 16px 16px 0;
 }
 
 .admin-vbtn.v-approve {
-  background: #5ee39a;
-  color: #04200f;
+  background: rgba(22, 163, 74, 0.18);
+  color: var(--lime);
   border-radius: 18px 0 0 18px;
 }
 
@@ -1791,12 +1824,14 @@ body[data-page="admin"] {
 }
 
 .admin-vbtn:hover:not(:disabled) {
-  filter: brightness(1.08);
+  filter: brightness(1.15);
 }
 
 .admin-vbtn:disabled {
-  opacity: 0.55;
+  opacity: 1;
   cursor: default;
+  background: var(--surface-3);
+  color: var(--muted-2);
 }
 
 /* the status pill is already said by the buttons */
