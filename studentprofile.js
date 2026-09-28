@@ -155,6 +155,8 @@ ICONS.phone = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const STATE = {
   account: {},
   students: [],
+  payments: [],
+  subscriptions: [],
   selectedId: "",
   filter: "all",
   expanded: new Set()   // keys of the cards the parent has opened; empty = all collapsed
@@ -211,6 +213,8 @@ async function loadProfile(selectAfter) {
 
     STATE.account = result.account || {};
     STATE.students = result.students || [];
+    STATE.payments = result.payments || [];
+    STATE.subscriptions = result.subscriptions || [];
 
     // The tuition card only has these states: "Finding Tutor" until a
     // tutor is confirmed by BOTH sides, then "Running", then
@@ -264,6 +268,7 @@ function renderAll() {
   renderSwitcher();
   renderProfile(selectedStudent());
   renderClasses();
+  renderPayments();
 }
 
 
@@ -481,6 +486,128 @@ function renderClasses() {
   fitHeadText();
 
 }
+
+
+/************************************************************
+ * PAYMENTS & SUBSCRIPTION  (this student only, read-only -
+ * recorded by the agency, never edited from here)
+ ************************************************************/
+
+const SUB_STATUS_LABEL = { active: "Active", paused: "Paused", cancelled: "Cancelled", completed: "Completed" };
+// Reuses the tuition status colours - there is no separate subscription palette.
+const SUB_STATUS_CLASS = { active: "status-running", paused: "status-demo-scheduled", cancelled: "status-declined", completed: "status-completed" };
+
+function renderPayments() {
+
+  const student = selectedStudent();
+  const list = $("paymentsList");
+  const empty = $("paymentsEmpty");
+
+  if (!student) {
+    list.innerHTML = "";
+    empty.classList.add("hidden");
+    return;
+  }
+
+  const demoIds = new Set((student.tuitions || []).map(t => t.demoId));
+  const subscriptions = (STATE.subscriptions || []).filter(s => s.studentId === student.studentId);
+  const subIds = new Set(subscriptions.map(s => s.id));
+
+  const payments = (STATE.payments || [])
+    .filter(p => demoIds.has(p.demoId))
+    .slice()
+    .sort((a, b) => String(b.paymentDate) > String(a.paymentDate) ? 1 : -1);
+
+  if (!subscriptions.length && !payments.length) {
+    list.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+
+  empty.classList.add("hidden");
+
+  list.innerHTML =
+    subscriptions.map(renderSubscriptionCard).join("") +
+    payments.map(renderPaymentCard).join("");
+
+}
+
+function renderSubscriptionCard(sub) {
+
+  const details = [
+    [ICONS.file, "Billing Cycle", sub.billingCycle],
+    [ICONS.calendar, "Started", formatDemoDateTime(sub.startDate)],
+    [ICONS.clock, "Next Due", sub.nextDueDate ? formatDemoDateTime(sub.nextDueDate) : ""]
+  ].filter(row => row[2]);
+
+  const statusClass = SUB_STATUS_CLASS[sub.status] || "status-applied";
+
+  return `
+    <div class="class-card">
+      <div class="class-spine ${statusClass}">
+        <span class="class-spine-id">${escapeHTML(sub.planName || "Subscription")}</span>
+        <span class="class-spine-label">Subscription</span>
+      </div>
+      <div class="class-body">
+        <div class="class-row-top">
+          <span class="status-badge subject-badge">₹${escapeHTML(String(sub.amount))}</span>
+          <span class="status-badge ${statusClass}">${escapeHTML(SUB_STATUS_LABEL[sub.status] || sub.status)}</span>
+        </div>
+        ${details.length ? `
+          <div class="class-detail-grid">
+            ${details.map(([icon, label, value]) => `
+              <div class="class-detail" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
+                <span class="class-detail-icon">${icon}</span>
+                <span class="class-detail-value">${escapeHTML(value)}</span>
+              </div>
+            `).join("")}
+          </div>
+        ` : ""}
+      </div>
+    </div>
+  `;
+
+}
+
+function renderPaymentCard(p) {
+
+  const details = [
+    [ICONS.calendar, "Date", formatDemoDateTime(p.paymentDate)],
+    [ICONS.file, "Mode", p.paymentMode]
+  ].filter(row => row[2]);
+
+  return `
+    <div class="class-card">
+      <div class="class-spine status-completed">
+        <span class="class-spine-id">${escapeHTML(p.demoId || "")}</span>
+        <span class="class-spine-label">Payment</span>
+      </div>
+      <div class="class-body">
+        <div class="class-row-top">
+          <span class="status-badge subject-badge">₹${escapeHTML(String(p.amount))}</span>
+          <span class="status-badge">${escapeHTML(p.paymentType === "advance" ? "Advance" : p.paymentType === "final" ? "Final" : "Payment")}</span>
+        </div>
+        ${details.length ? `
+          <div class="class-detail-grid">
+            ${details.map(([icon, label, value]) => `
+              <div class="class-detail" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
+                <span class="class-detail-icon">${icon}</span>
+                <span class="class-detail-value">${escapeHTML(value)}</span>
+              </div>
+            `).join("")}
+          </div>
+        ` : ""}
+        ${p.notes ? `
+          <div class="class-row-bottom class-row-message">
+            <div class="class-status-message"><span>${escapeHTML(p.notes)}</span></div>
+          </div>
+        ` : ""}
+      </div>
+    </div>
+  `;
+
+}
+
 
 // Cards are collapsed by default. A click anywhere on a card opens it,
 // and a click anywhere on an open card closes it again (Accept / Reject

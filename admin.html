@@ -167,6 +167,14 @@
 
     <!-- ================= PAYMENTS ================= -->
     <section id="tab-payments" class="admin-panel hidden">
+
+      <div class="admin-tabs" id="paymentsSubTabs" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px;">
+        <button class="admin-tab active" data-subtab="payments" type="button">Payments</button>
+        <button class="admin-tab" data-subtab="subscriptions" type="button">Subscriptions</button>
+      </div>
+
+      <div id="subtab-payments">
+
       <div class="admin-tools">
         <label class="admin-float admin-search-wrap">
           <input id="paymentSearch" type="search" placeholder=" " autocomplete="off">
@@ -178,10 +186,12 @@
 
       <form id="paymentForm" class="admin-card hidden" style="margin-bottom:14px;">
         <h3 class="admin-section-title">New Payment</h3>
+        <p id="paymentForSubscription" class="admin-note hidden"></p>
+        <input id="paymentSubscriptionId" type="hidden">
         <div class="admin-form">
-          <label class="admin-field wide">
+          <label class="admin-field wide" id="paymentDemoIdField">
             <span>Demo ID</span>
-            <input id="paymentDemoId" type="text" required placeholder="e.g. DEMO-000123">
+            <input id="paymentDemoId" type="text" placeholder="e.g. DEMO-000123">
           </label>
           <label class="admin-field">
             <span>Amount (₹)</span>
@@ -230,6 +240,69 @@
       </form>
 
       <div id="paymentList" class="admin-stack-list"></div>
+
+      </div>
+
+      <div id="subtab-subscriptions" class="hidden">
+
+      <div class="admin-tools">
+        <label class="admin-float admin-search-wrap">
+          <input id="subscriptionSearch" type="search" placeholder=" " autocomplete="off">
+          <span>Search by student, tutor, plan</span>
+        </label>
+      </div>
+
+      <button id="addSubscriptionButton" class="admin-ghost admin-wide" type="button" style="margin-bottom:14px;">+ Create a Subscription</button>
+
+      <form id="subscriptionForm" class="admin-card hidden" style="margin-bottom:14px;">
+        <h3 class="admin-section-title">New Subscription</h3>
+        <div class="admin-form">
+          <label class="admin-field">
+            <span>For</span>
+            <select id="subscriptionPartyType">
+              <option value="student">Student</option>
+              <option value="tutor">Tutor</option>
+            </select>
+          </label>
+          <label class="admin-field">
+            <span id="subscriptionPartyIdLabel">Student ID</span>
+            <input id="subscriptionPartyId" type="text" required placeholder="e.g. STU-000123">
+          </label>
+          <label class="admin-field wide">
+            <span>Plan Name</span>
+            <input id="subscriptionPlanName" type="text" required placeholder="e.g. Monthly Unlimited">
+          </label>
+          <label class="admin-field">
+            <span>Amount (₹)</span>
+            <input id="subscriptionAmount" type="number" min="1" step="1" required>
+          </label>
+          <label class="admin-field">
+            <span>Billing Cycle</span>
+            <input id="subscriptionBillingCycle" type="text" required placeholder="Monthly / Quarterly / Per session..." value="Monthly">
+          </label>
+          <label class="admin-field">
+            <span>Start Date</span>
+            <input id="subscriptionStartDate" type="date">
+          </label>
+          <label class="admin-field">
+            <span>Next Due Date</span>
+            <input id="subscriptionNextDueDate" type="date">
+          </label>
+          <label class="admin-field wide">
+            <span>Notes</span>
+            <textarea id="subscriptionNotes" rows="2"></textarea>
+          </label>
+        </div>
+        <div class="admin-pair" style="margin-top:12px;">
+          <button class="admin-primary" type="submit">Save Subscription</button>
+          <button id="cancelSubscriptionButton" class="admin-ghost" type="button">Cancel</button>
+        </div>
+      </form>
+
+      <div id="subscriptionList" class="admin-stack-list"></div>
+
+      </div>
+
     </section>
 
     <!-- ================= EMPLOYEES ================= -->

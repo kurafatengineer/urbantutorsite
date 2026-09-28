@@ -128,6 +128,7 @@ const ACTIONS_BY_ROLE: Record<Role, Set<string>> = {
     "adminGetOverview", "adminUpdateRecord", "adminUpdateTuition", "adminUpdateDemoRow",
     "adminAssignTutor", "adminSetTerminated",
     "adminAddPayment", "adminUpdatePayment", "adminDeletePayment",
+    "adminAddSubscription", "adminUpdateSubscription", "adminDeleteSubscription",
     "adminListEmployees", "adminAddEmployee", "adminUpdateEmployee",
   ]),
   tuition_coordinator: new Set([
@@ -137,9 +138,17 @@ const ACTIONS_BY_ROLE: Record<Role, Set<string>> = {
   verification_staff: new Set(["adminGetOverview", "adminUpdateRecord"]),
   accounts_finance: new Set([
     "adminGetOverview", "adminAddPayment", "adminUpdatePayment", "adminDeletePayment",
+    "adminAddSubscription", "adminUpdateSubscription", "adminDeleteSubscription",
   ]),
   tutor_relations: new Set(["adminGetOverview", "adminUpdateRecord"]),
 };
+
+// Payments and Subscriptions are always granted to the same roles, so
+// the panel's "Payments" tab (which also shows Subscriptions) can be
+// gated with a single check.
+function canSeePayments(role: Role): boolean {
+  return ACTIONS_BY_ROLE[role].has("adminAddPayment");
+}
 
 function forbidden(): Json {
   return { success: false, message: "Your role does not allow this action." };
@@ -258,10 +267,64 @@ function paymentChangesFromBody(body: Json, partial: boolean): Json | { error: s
   assign("notes", body.notes !== undefined ? String(body.notes ?? "").trim() : undefined);
 
   if (!partial) {
-    if (!body.demoId) return { error: "Demo ID is required." };
-    changes.demo_id = body.demoId;
+    if (!body.demoId && !body.subscriptionId) return { error: "Demo ID or Subscription is required." };
+    changes.demo_id = body.demoId || null;
     changes.tutor_id = body.tutorId || null;
+    changes.subscription_id = body.subscriptionId || null;
   }
+
+  return changes;
+}
+
+const SUBSCRIPTION_STATUSES = ["active", "paused", "cancelled", "completed"];
+
+function subscriptionChangesFromBody(body: Json, partial: boolean): Json | { error: string } {
+  const changes: Json = {};
+
+  const assign = (key: string, value: unknown) => { if (value !== undefined) changes[key] = value; };
+
+  if (!partial) {
+    const partyType = String(body.partyType ?? "");
+    if (partyType === "student") {
+      if (!body.studentId) return { error: "Choose a student." };
+      changes.student_id = body.studentId;
+      changes.tutor_id = null;
+    } else if (partyType === "tutor") {
+      if (!body.tutorId) return { error: "Choose a tutor." };
+      changes.tutor_id = body.tutorId;
+      changes.student_id = null;
+    } else {
+      return { error: "Choose whether this subscription is for a student or a tutor." };
+    }
+  }
+
+  if (!partial || body.planName !== undefined) {
+    const planName = String(body.planName ?? "").trim();
+    if (!planName) return { error: "Enter a plan name." };
+    changes.plan_name = planName;
+  }
+
+  if (!partial || body.amount !== undefined) {
+    const amount = Number(body.amount);
+    if (!(amount > 0)) return { error: "Enter a valid amount." };
+    changes.amount = amount;
+  }
+
+  if (!partial || body.billingCycle !== undefined) {
+    const cycle = String(body.billingCycle ?? "").trim();
+    if (!cycle) return { error: "Enter a billing cycle (monthly, one-time, per session, ...)." };
+    changes.billing_cycle = cycle;
+  }
+
+  if (!partial || body.status !== undefined) {
+    const status = String(body.status ?? "active");
+    if (!SUBSCRIPTION_STATUSES.includes(status)) return { error: "Unknown status." };
+    changes.status = status;
+  }
+
+  assign("start_date", body.startDate || undefined);
+  assign("next_due_date", body.nextDueDate === "" ? null : body.nextDueDate || undefined);
+  assign("notes", body.notes !== undefined ? String(body.notes ?? "").trim() : undefined);
 
   return changes;
 }
@@ -295,13 +358,19 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
   const withLinks = await linkDocuments(overview);
   withLinks.me = { email: caller.email, fullName: caller.fullName, role: caller.role };
 
-  if (ACTIONS_BY_ROLE[caller.role].has("adminAddPayment")) {
+  if (canSeePayments(caller.role)) {
     const { data: payments, error } = await db
       .from("payments")
       .select("*")
       .order("payment_date", { ascending: false })
       .order("id", { ascending: false });
     withLinks.payments = error ? [] : payments;
+
+    const { data: subscriptions, error: subError } = await db
+      .from("subscriptions")
+      .select("*")
+      .order("created_at", { ascending: false });
+    withLinks.subscriptions = subError ? [] : subscriptions;
   }
 
   if (caller.role === "super_admin") {
@@ -401,6 +470,30 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
       const { error } = await db.from("payments").delete().eq("id", body.id);
       if (error) return { success: false, message: error.message };
       return { success: true, message: "Payment deleted." };
+    }
+
+    case "adminAddSubscription": {
+      const changes = subscriptionChangesFromBody(body, false);
+      if ("error" in changes) return { success: false, message: changes.error };
+      const { error } = await db.from("subscriptions").insert({ ...changes, created_by: caller.id });
+      if (error) return { success: false, message: error.message };
+      return { success: true, message: "Subscription created." };
+    }
+
+    case "adminUpdateSubscription": {
+      if (!body.id) return { success: false, message: "Missing subscription." };
+      const changes = subscriptionChangesFromBody(body, true);
+      if ("error" in changes) return { success: false, message: changes.error };
+      const { error } = await db.from("subscriptions").update(changes).eq("id", body.id);
+      if (error) return { success: false, message: error.message };
+      return { success: true, message: "Subscription updated." };
+    }
+
+    case "adminDeleteSubscription": {
+      if (!body.id) return { success: false, message: "Missing subscription." };
+      const { error } = await db.from("subscriptions").delete().eq("id", body.id);
+      if (error) return { success: false, message: error.message };
+      return { success: true, message: "Subscription deleted." };
     }
 
     case "adminListEmployees": {

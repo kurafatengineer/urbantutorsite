@@ -215,7 +215,9 @@ const STATE = {
   },
   me: null,             // { email, fullName, role }
   payments: [],
+  subscriptions: [],
   employees: [],
+  paymentsSubTab: "payments",
   tab: "tuitions",
   tutorFilter: "all",
   tuitionFilter: "all",
@@ -375,6 +377,7 @@ async function loadOverview(quiet) {
     };
     STATE.me = result.me || null;
     STATE.payments = result.payments || [];
+    STATE.subscriptions = result.subscriptions || [];
     STATE.employees = result.employees || [];
 
     indexData();
@@ -617,16 +620,62 @@ function wireEvents() {
   $("tuitionSearch").addEventListener("input", renderTuitions);
   $("studentSearch").addEventListener("input", renderStudents);
   $("paymentSearch").addEventListener("input", renderPayments);
+  $("subscriptionSearch").addEventListener("input", renderSubscriptions);
 
-  ["tuitionList", "tutorList", "studentList", "paymentList", "employeeList"].forEach(id =>
+  ["tuitionList", "tutorList", "studentList", "paymentList", "employeeList", "subscriptionList"].forEach(id =>
     $(id).addEventListener("click", onListClick)
   );
 
   $("tuitionList").addEventListener("input", onAssignInput);
 
+  $("paymentsSubTabs").addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-subtab]");
+    if (!tab) return;
+    STATE.paymentsSubTab = tab.dataset.subtab;
+    $("paymentsSubTabs").querySelectorAll("[data-subtab]").forEach(t => t.classList.toggle("active", t === tab));
+    $("subtab-payments").classList.toggle("hidden", STATE.paymentsSubTab !== "payments");
+    $("subtab-subscriptions").classList.toggle("hidden", STATE.paymentsSubTab !== "subscriptions");
+  });
+
   wirePaymentForm();
+  wireSubscriptionForm();
   wireEmployeeForm();
 
+}
+
+function resetPaymentForm() {
+  $("paymentDemoId").value = "";
+  $("paymentSubscriptionId").value = "";
+  $("paymentForSubscription").classList.add("hidden");
+  $("paymentDemoIdField").classList.remove("hidden");
+  $("paymentAmount").value = "";
+  $("paymentDate").value = new Date().toISOString().slice(0, 10);
+  $("paymentType").value = "regular";
+  $("paymentCollectedBy").value = "agency";
+  $("paymentMode").value = "";
+  $("paymentOurCut").value = "";
+  $("paymentTutorId").value = "";
+  $("paymentNotes").value = "";
+}
+
+// Opens the payment form pre-filled for one subscription's renewal,
+// switching over to the Payments sub-tab so the form is visible.
+function openPaymentFormForSubscription(sub) {
+  STATE.paymentsSubTab = "payments";
+  $("paymentsSubTabs").querySelectorAll("[data-subtab]").forEach(t => t.classList.toggle("active", t.dataset.subtab === "payments"));
+  $("subtab-payments").classList.remove("hidden");
+  $("subtab-subscriptions").classList.add("hidden");
+
+  resetPaymentForm();
+  $("paymentSubscriptionId").value = sub.id;
+  $("paymentDemoIdField").classList.add("hidden");
+  $("paymentForSubscription").classList.remove("hidden");
+  $("paymentForSubscription").textContent = `For subscription: ${sub.plan_name} (₹${Number(sub.amount).toLocaleString("en-IN")} / ${sub.billing_cycle})`;
+  $("paymentAmount").value = sub.amount;
+  if (sub.tutor_id) $("paymentTutorId").value = sub.tutor_id;
+
+  $("paymentForm").classList.remove("hidden");
+  $("paymentForm").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function wirePaymentForm() {
@@ -635,15 +684,7 @@ function wirePaymentForm() {
     const form = $("paymentForm");
     form.classList.toggle("hidden");
     if (!form.classList.contains("hidden")) {
-      $("paymentDemoId").value = "";
-      $("paymentAmount").value = "";
-      $("paymentDate").value = new Date().toISOString().slice(0, 10);
-      $("paymentType").value = "regular";
-      $("paymentCollectedBy").value = "agency";
-      $("paymentMode").value = "";
-      $("paymentOurCut").value = "";
-      $("paymentTutorId").value = "";
-      $("paymentNotes").value = "";
+      resetPaymentForm();
       $("paymentDemoId").focus();
     }
   });
@@ -655,8 +696,9 @@ function wirePaymentForm() {
     event.preventDefault();
 
     const demoId = $("paymentDemoId").value.trim();
+    const subscriptionId = $("paymentSubscriptionId").value;
 
-    if (!demoId) {
+    if (!demoId && !subscriptionId) {
       toast("Enter the Demo ID.", true);
       return;
     }
@@ -664,6 +706,7 @@ function wirePaymentForm() {
     const payload = {
       action: "adminAddPayment",
       demoId,
+      subscriptionId: subscriptionId || undefined,
       tutorId: $("paymentTutorId").value.trim(),
       amount: $("paymentAmount").value,
       paymentType: $("paymentType").value,
@@ -678,6 +721,68 @@ function wirePaymentForm() {
     const ok = await save(payload, button);
 
     if (ok) $("paymentForm").classList.add("hidden");
+
+  });
+
+}
+
+function wireSubscriptionForm() {
+
+  $("subscriptionPartyType").addEventListener("change", () => {
+    const isStudent = $("subscriptionPartyType").value === "student";
+    $("subscriptionPartyIdLabel").textContent = isStudent ? "Student ID" : "Tutor ID";
+    $("subscriptionPartyId").placeholder = isStudent ? "e.g. STU-000123" : "e.g. TUT-000045";
+  });
+
+  $("addSubscriptionButton").addEventListener("click", () => {
+    const form = $("subscriptionForm");
+    form.classList.toggle("hidden");
+    if (!form.classList.contains("hidden")) {
+      $("subscriptionPartyType").value = "student";
+      $("subscriptionPartyIdLabel").textContent = "Student ID";
+      $("subscriptionPartyId").placeholder = "e.g. STU-000123";
+      $("subscriptionPartyId").value = "";
+      $("subscriptionPlanName").value = "";
+      $("subscriptionAmount").value = "";
+      $("subscriptionBillingCycle").value = "Monthly";
+      $("subscriptionStartDate").value = new Date().toISOString().slice(0, 10);
+      $("subscriptionNextDueDate").value = "";
+      $("subscriptionNotes").value = "";
+      $("subscriptionPartyId").focus();
+    }
+  });
+
+  $("cancelSubscriptionButton").addEventListener("click", () => $("subscriptionForm").classList.add("hidden"));
+
+  $("subscriptionForm").addEventListener("submit", async (event) => {
+
+    event.preventDefault();
+
+    const partyType = $("subscriptionPartyType").value;
+    const partyId = $("subscriptionPartyId").value.trim();
+
+    if (!partyId) {
+      toast(partyType === "student" ? "Enter the Student ID." : "Enter the Tutor ID.", true);
+      return;
+    }
+
+    const payload = {
+      action: "adminAddSubscription",
+      partyType,
+      studentId: partyType === "student" ? partyId : undefined,
+      tutorId: partyType === "tutor" ? partyId : undefined,
+      planName: $("subscriptionPlanName").value.trim(),
+      amount: $("subscriptionAmount").value,
+      billingCycle: $("subscriptionBillingCycle").value.trim(),
+      startDate: $("subscriptionStartDate").value,
+      nextDueDate: $("subscriptionNextDueDate").value,
+      notes: $("subscriptionNotes").value.trim()
+    };
+
+    const button = $("subscriptionForm").querySelector("button[type=submit]");
+    const ok = await save(payload, button);
+
+    if (ok) $("subscriptionForm").classList.add("hidden");
 
   });
 
@@ -838,7 +943,7 @@ function rerenderCurrent() {
   if (STATE.tab === "tuitions") renderTuitions();
   if (STATE.tab === "tutors") renderTutors();
   if (STATE.tab === "students") renderStudents();
-  if (STATE.tab === "payments") renderPayments();
+  if (STATE.tab === "payments") { renderPayments(); renderSubscriptions(); }
   if (STATE.tab === "employees") renderEmployees();
 }
 
@@ -934,6 +1039,25 @@ async function onListClick(event) {
       await saveEmployeeEdit(box, actionEl);
       break;
 
+    case "save-subscription":
+      await saveSubscriptionEdit(box, actionEl);
+      break;
+
+    case "delete-subscription": {
+      const id = Number(box.dataset.id);
+      if (window.confirm("Delete this subscription? This cannot be undone.")) {
+        await save({ action: "adminDeleteSubscription", id }, actionEl);
+      }
+      break;
+    }
+
+    case "record-payment": {
+      const id = Number(box.dataset.id);
+      const sub = (STATE.subscriptions || []).find(s => s.id === id);
+      if (sub) openPaymentFormForSubscription(sub);
+      break;
+    }
+
   }
 
 }
@@ -959,6 +1083,30 @@ async function savePaymentEdit(box, button) {
 
 function roleKeyFromLabel(label) {
   return Object.keys(ROLE_LABELS).find(k => ROLE_LABELS[k] === label) || label;
+}
+
+function subscriptionStatusKeyFromLabel(label) {
+  return Object.keys(SUBSCRIPTION_STATUS_LABELS).find(k => SUBSCRIPTION_STATUS_LABELS[k] === label) || label;
+}
+
+async function saveSubscriptionEdit(box, button) {
+
+  const id = Number(box.dataset.id);
+  const key = box.dataset.key;
+  const payload = { action: "adminUpdateSubscription", id };
+
+  box.querySelectorAll("[data-subfield]").forEach(input => {
+    const field = input.dataset.subfield;
+    payload[field] = field === "status" ? subscriptionStatusKeyFromLabel(input.value) : input.value;
+  });
+
+  const ok = await save(payload, button);
+
+  if (ok) {
+    STATE.editing.delete(key);
+    rerenderCurrent();
+  }
+
 }
 
 async function saveEmployeeEdit(box, button) {
@@ -1162,6 +1310,7 @@ function renderAll() {
   renderTutors();
   renderStudents();
   renderPayments();
+  renderSubscriptions();
   renderEmployees();
 }
 
@@ -1539,6 +1688,98 @@ function paymentCard(p, ctx) {
 
       <div class="admin-card-body">
         ${boxes}
+        ${buttons}
+      </div>
+
+    </article>
+  `;
+
+}
+
+
+/* ---------------- subscriptions ---------------- */
+
+function renderSubscriptions() {
+
+  if (!$("subscriptionList")) return;
+
+  const query = $("subscriptionSearch").value;
+
+  const rows = (STATE.subscriptions || []).filter(sub => {
+    const student = sub.student_id ? STUDENT_BY_ID[sub.student_id] : null;
+    const tutor = sub.tutor_id ? TUTOR_BY_ID[sub.tutor_id] : null;
+    return matchesAll(query, [
+      sub.plan_name, sub.student_id, sub.tutor_id,
+      student && student.values["Student Name"],
+      tutor && tutor.values["Full Name"]
+    ].join(" "));
+  });
+
+  $("subscriptionList").innerHTML = rows.length
+    ? rows.map(subscriptionCard).join("")
+    : empty("No subscriptions yet.");
+
+}
+
+const SUBSCRIPTION_STATUS_LABELS = { active: "Active", paused: "Paused", cancelled: "Cancelled", completed: "Completed" };
+const SUBSCRIPTION_STATUS_TONES = { active: "running", paused: "schedule", cancelled: "rejected", completed: "completed" };
+
+function subscriptionCard(sub) {
+
+  const key = "subscription:" + sub.id;
+  const editing = STATE.editing.has(key);
+
+  const student = sub.student_id ? STUDENT_BY_ID[sub.student_id] : null;
+  const tutor = sub.tutor_id ? TUTOR_BY_ID[sub.tutor_id] : null;
+  const partyName = student ? (student.values["Student Name"] || sub.student_id) : (tutor ? (tutor.values["Full Name"] || sub.tutor_id) : "");
+  const partyKind = sub.student_id ? "Student" : "Tutor";
+  const amount = Number(sub.amount || 0);
+
+  const boxes = `
+    <div class="admin-boxes">
+      ${box(partyKind + " ID", sub.student_id || sub.tutor_id || "")}
+      ${box("Plan Name", sub.plan_name, { editable: editing, wide: true, attr: editing ? `data-subfield="planName"` : "" })}
+      ${box("Amount (₹)", sub.amount, { editable: editing, type: "number", attr: editing ? `data-subfield="amount"` : "" })}
+      ${box("Billing Cycle", sub.billing_cycle, { editable: editing, attr: editing ? `data-subfield="billingCycle"` : "" })}
+      ${box("Status", SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status, {
+        editable: editing,
+        options: Object.values(SUBSCRIPTION_STATUS_LABELS),
+        attr: editing ? `data-subfield="status"` : ""
+      })}
+      ${box("Start Date", sub.start_date, { editable: editing, type: "date", attr: editing ? `data-subfield="startDate"` : "" })}
+      ${box("Next Due Date", sub.next_due_date || "", { editable: editing, type: "date", attr: editing ? `data-subfield="nextDueDate"` : "" })}
+      ${box("Notes", sub.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-subfield="notes"` : "" })}
+    </div>`;
+
+  const buttons = editing
+    ? `<div class="admin-pair">
+         <button class="admin-primary" data-action="save-subscription" type="button">Save changes</button>
+         <button class="admin-ghost" data-action="cancel" data-key="${esc(key)}" type="button">Cancel</button>
+       </div>`
+    : `<div class="admin-split">
+         <button class="admin-ghost" data-action="edit" data-key="${esc(key)}" type="button">Edit</button>
+         <button class="admin-ghost admin-danger" data-action="delete-subscription" type="button">Delete</button>
+       </div>`;
+
+  return `
+    <article class="admin-card is-open${editing ? " is-editing" : ""}" data-tone="${SUBSCRIPTION_STATUS_TONES[sub.status] || ""}" data-box data-id="${sub.id}" data-key="${esc(key)}">
+
+      <div class="admin-card-head">
+        <div class="admin-avatar">${esc(initials(partyName, "$"))}</div>
+        <div class="admin-card-title">
+          ${highlight(
+            [partyName || (sub.student_id || sub.tutor_id), sub.plan_name, "₹" + amount.toLocaleString("en-IN"), sub.billing_cycle],
+            sub.next_due_date ? `Next due: ${sub.next_due_date}` : "",
+            "|",
+            SUBSCRIPTION_STATUS_TONES[sub.status] || "schedule"
+          )}
+        </div>
+        <span class="admin-pill" data-tone="${SUBSCRIPTION_STATUS_TONES[sub.status] || ""}">${esc(SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status)}</span>
+      </div>
+
+      <div class="admin-card-body">
+        ${boxes}
+        ${editing ? "" : `<button class="admin-ghost admin-wide" data-action="record-payment" type="button">Record a Payment for this Subscription</button>`}
         ${buttons}
       </div>
 

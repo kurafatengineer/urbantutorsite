@@ -141,6 +141,7 @@ async function loadProfile() {
 
     renderProfile(result.profile || {}, result.classes || []);
     initClasses(result.classes || []);
+    renderPayments(result.payments || [], result.subscriptions || []);
 
     showPage("profile");
 
@@ -599,6 +600,123 @@ function renderClassCard(item) {
 
         ${actionsRow}
 
+      </div>
+    </div>
+  `;
+
+}
+
+
+/************************************************************
+ * PAYMENTS & SUBSCRIPTION  (this tutor only, read-only -
+ * recorded by the agency, never edited from here)
+ ************************************************************/
+
+const SUB_STATUS_LABEL = { active: "Active", paused: "Paused", cancelled: "Cancelled", completed: "Completed" };
+// Reuses the tuition status colours - there is no separate subscription palette.
+const SUB_STATUS_CLASS = { active: "status-running", paused: "status-demo-scheduled", cancelled: "status-declined", completed: "status-completed" };
+
+function renderPayments(payments, subscriptions) {
+
+  const list = $("paymentsList");
+  const empty = $("paymentsEmpty");
+
+  if (!list) return;
+
+  if (!payments.length && !subscriptions.length) {
+    list.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+
+  empty.classList.add("hidden");
+
+  list.innerHTML =
+    subscriptions.map(renderSubscriptionCard).join("") +
+    payments.slice().sort((a, b) => String(b.paymentDate) > String(a.paymentDate) ? 1 : -1).map(renderPaymentCard).join("");
+
+}
+
+function renderSubscriptionCard(sub) {
+
+  const statusClass = SUB_STATUS_CLASS[sub.status] || "status-applied";
+
+  const details = [
+    [ICONS.file, "Billing Cycle", sub.billingCycle],
+    [ICONS.calendar, "Started", formatDemoDateTime(sub.startDate)],
+    [ICONS.clock, "Next Due", sub.nextDueDate ? formatDemoDateTime(sub.nextDueDate) : ""]
+  ].filter(row => row[2]);
+
+  return `
+    <div class="class-card">
+      <div class="class-spine ${statusClass}">
+        <span class="class-spine-id">${escapeHTML(sub.planName || "Subscription")}</span>
+        <span class="class-spine-label">Subscription</span>
+      </div>
+      <div class="class-body">
+        <div class="class-row-top">
+          <span class="status-badge subject-badge">₹${escapeHTML(String(sub.amount))}</span>
+          <span class="status-badge ${statusClass}">${escapeHTML(SUB_STATUS_LABEL[sub.status] || sub.status)}</span>
+        </div>
+        ${details.length ? `
+          <div class="class-detail-grid">
+            ${details.map(([icon, label, value]) => `
+              <div class="class-detail" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
+                <span class="class-detail-icon">${icon}</span>
+                <span class="class-detail-value">${escapeHTML(value)}</span>
+              </div>
+            `).join("")}
+          </div>
+        ` : ""}
+      </div>
+    </div>
+  `;
+
+}
+
+function renderPaymentCard(p) {
+
+  const collectedByTutor = p.collectedBy === "tutor";
+  const cut = p.ourCutAmount != null && p.ourCutAmount !== "" ? Number(p.ourCutAmount) : null;
+
+  const details = [
+    [ICONS.calendar, "Date", formatDemoDateTime(p.paymentDate)],
+    [ICONS.file, "Mode", p.paymentMode]
+  ].filter(row => row[2]);
+
+  const cutNote = (collectedByTutor && cut != null) ? `
+    <div class="class-row-bottom class-row-message">
+      <div class="class-status-message strong"><span>You collected this - agency's cut: ₹${escapeHTML(String(cut))}</span></div>
+    </div>
+  ` : "";
+
+  return `
+    <div class="class-card">
+      <div class="class-spine status-completed">
+        <span class="class-spine-id">${escapeHTML(p.demoId || "")}</span>
+        <span class="class-spine-label">Payment</span>
+      </div>
+      <div class="class-body">
+        <div class="class-row-top">
+          <span class="status-badge subject-badge">₹${escapeHTML(String(p.amount))}</span>
+          <span class="status-badge">${escapeHTML(collectedByTutor ? "Collected by you" : "Collected by agency")}</span>
+        </div>
+        ${details.length ? `
+          <div class="class-detail-grid">
+            ${details.map(([icon, label, value]) => `
+              <div class="class-detail" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
+                <span class="class-detail-icon">${icon}</span>
+                <span class="class-detail-value">${escapeHTML(value)}</span>
+              </div>
+            `).join("")}
+          </div>
+        ` : ""}
+        ${cutNote}
+        ${p.notes ? `
+          <div class="class-row-bottom class-row-message">
+            <div class="class-status-message"><span>${escapeHTML(p.notes)}</span></div>
+          </div>
+        ` : ""}
       </div>
     </div>
   `;
