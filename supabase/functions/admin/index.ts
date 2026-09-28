@@ -392,6 +392,51 @@ async function handleBootstrap(caller: AuthedUser, body: Json): Promise<Json> {
   return { success: true, message: "Super admin account created. Log in again to continue." };
 }
 
+// A minimal Demo ID / Tutor ID lookup for the Payments form's search
+// suggestions - just enough to find the right record and verify it by
+// mobile number, whatever the caller's role. Every role that can see
+// Payments gets this (even Accounts/Finance, who otherwise receives no
+// tuition/tutor/student data at all): it carries none of the fuller
+// PII (address, documents, verification status) those tables hold.
+async function buildPaymentDirectory(): Promise<Json> {
+
+  const [{ data: tuitions }, { data: applications }, { data: students }, { data: tutors }] = await Promise.all([
+    db.from("tuitions").select("demo_id, student_id, subject"),
+    db.from("applications").select("demo_id, tutor_id"),
+    db.from("students").select("student_id, student_name, phone, whatsapp"),
+    db.from("tutors").select("tutor_id, full_name, mobile_number, whatsapp_number"),
+  ]);
+
+  const tutorsByDemo = new Map<string, Set<string>>();
+  (applications ?? []).forEach((a: Json) => {
+    if (!tutorsByDemo.has(a.demo_id)) tutorsByDemo.set(a.demo_id, new Set());
+    tutorsByDemo.get(a.demo_id)!.add(a.tutor_id);
+  });
+
+  const demosByTutor = new Map<string, Set<string>>();
+  (applications ?? []).forEach((a: Json) => {
+    if (!demosByTutor.has(a.tutor_id)) demosByTutor.set(a.tutor_id, new Set());
+    demosByTutor.get(a.tutor_id)!.add(a.demo_id);
+  });
+
+  return {
+    demos: (tuitions ?? []).map((t: Json) => ({
+      demoId: t.demo_id,
+      studentId: t.student_id,
+      subject: t.subject,
+      tutorIds: [...(tutorsByDemo.get(t.demo_id) ?? [])],
+    })),
+    students: (students ?? []).map((s: Json) => ({
+      id: s.student_id, name: s.student_name, mobile: s.phone || s.whatsapp || "",
+    })),
+    tutors: (tutors ?? []).map((t: Json) => ({
+      id: t.tutor_id, name: t.full_name, mobile: t.mobile_number || t.whatsapp_number || "",
+      demoIds: [...(demosByTutor.get(t.tutor_id) ?? [])],
+    })),
+  };
+
+}
+
 async function handleGetOverview(caller: Caller): Promise<Json> {
 
   const overview = await rpc("admin_get_overview");
@@ -421,6 +466,8 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
       .select("*")
       .order("created_at", { ascending: false });
     withLinks.subscriptions = subError ? [] : subscriptions;
+
+    withLinks.directory = await buildPaymentDirectory();
   }
 
   if (caller.role === "super_admin") {

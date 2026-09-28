@@ -1808,3 +1808,118 @@ body[data-page="admin"] {
   .admin-tabs { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 }
+
+
+/* =========================================================
+   V8 - PAYMENT FORM: FLOATING LABELS FOR SELECT/TEXTAREA,
+   DEMO ID / TUTOR ID SEARCH, CONTAINMENT FIXES
+========================================================= */
+
+/* Everything that can sit inside .admin-form must never be wider
+   than its grid track - this is what was letting long content push
+   the New Payment card past the edge of its container. */
+.admin-form,
+.admin-form * {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.admin-float.wide {
+  grid-column: 1 / -1;
+}
+
+/* select and textarea inside a floating-label box, matching the
+   existing pill-shaped .admin-float input look */
+.admin-float select {
+  width: 100%;
+  min-width: 0;
+  padding: 15px 20px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  color-scheme: dark;
+  font-size: 15px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.admin-float select:focus { outline: none; border-color: var(--lime-line); }
+.admin-float select option { color: #050505; }
+
+.admin-float textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 20px 20px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  color-scheme: dark;
+  font-size: 15px;
+  resize: vertical;
+  min-height: 58px;
+  overflow-wrap: anywhere;
+}
+
+.admin-float textarea:focus { outline: none; border-color: var(--lime-line); }
+
+/* a <select> always has a value, so its label stays floated at the
+   top border rather than toggling on input like a text field does */
+.admin-float.is-select > span {
+  top: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted-2);
+}
+
+.admin-float.is-select select:focus + span { color: var(--lime); }
+
+.admin-float textarea:focus + span,
+.admin-float textarea:not(:placeholder-shown) + span {
+  top: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--lime);
+}
+
+/* long label text (e.g. "Payment Mode (Cash / UPI / ...)") must wrap
+   or shrink instead of forcing the box wider than its column */
+.admin-float > span {
+  max-width: calc(100% - 32px);
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+/* Demo ID / Tutor ID: input + its own search suggestions + the
+   resolved name/mobile line, all contained in one relatively
+   positioned block so the dropdown never escapes the card */
+.admin-id-row {
+  position: relative;
+  min-width: 0;
+}
+
+.admin-id-row .admin-suggest {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.admin-id-detail {
+  margin: 6px 0 0;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: var(--lime-dim);
+  border: 1px solid var(--lime-line);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.admin-id-detail strong { color: var(--lime); }

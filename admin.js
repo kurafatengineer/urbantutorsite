@@ -217,6 +217,7 @@ const STATE = {
   payments: [],
   subscriptions: [],
   employees: [],
+  directory: { demos: [], students: [], tutors: [] },
   paymentsSubTab: "payments",
   tab: "tuitions",
   tutorFilter: "all",
@@ -228,6 +229,9 @@ const STATE = {
 let TUTOR_BY_MOBILE = {};
 let TUTOR_BY_ID = {};
 let STUDENT_BY_ID = {};
+let DIR_DEMO_BY_ID = {};
+let DIR_STUDENT_BY_ID = {};
+let DIR_TUTOR_BY_ID = {};
 
 function indexData() {
 
@@ -242,6 +246,14 @@ function indexData() {
   });
 
   STATE.data.students.rows.forEach(r => { STUDENT_BY_ID[r.id] = r; });
+
+  DIR_DEMO_BY_ID = {};
+  DIR_STUDENT_BY_ID = {};
+  DIR_TUTOR_BY_ID = {};
+
+  (STATE.directory.demos || []).forEach(d => { DIR_DEMO_BY_ID[d.demoId] = d; });
+  (STATE.directory.students || []).forEach(s => { DIR_STUDENT_BY_ID[s.id] = s; });
+  (STATE.directory.tutors || []).forEach(t => { DIR_TUTOR_BY_ID[t.id] = t; });
 
 }
 
@@ -379,6 +391,7 @@ async function loadOverview(quiet) {
     STATE.payments = result.payments || [];
     STATE.subscriptions = result.subscriptions || [];
     STATE.employees = result.employees || [];
+    STATE.directory = result.directory || { demos: [], students: [], tutors: [] };
 
     indexData();
     applyRoleUI();
@@ -638,7 +651,9 @@ function wireEvents() {
   });
 
   wirePaymentForm();
+  wirePaymentIdSuggestions();
   wireSubscriptionForm();
+  wireSubscriptionIdSuggestion();
   wireEmployeeForm();
 
 }
@@ -668,6 +683,10 @@ function resetPaymentForm() {
   $("paymentOurCut").value = "";
   $("paymentTutorId").value = "";
   $("paymentNotes").value = "";
+  updateIdDetail($("paymentDemoDetail"), null);
+  updateIdDetail($("paymentTutorDetail"), null);
+  document.querySelectorAll('#paymentDemoIdField .admin-suggest, #paymentTutorIdField .admin-suggest')
+    .forEach(el => el.classList.add("hidden"));
   applyPaymentTransactionType();
 }
 
@@ -685,7 +704,10 @@ function openPaymentFormForSubscription(sub) {
   $("paymentForSubscription").classList.remove("hidden");
   $("paymentForSubscription").textContent = `For subscription: ${sub.plan_name} (₹${Number(sub.amount).toLocaleString("en-IN")} / ${sub.billing_cycle})`;
   $("paymentAmount").value = sub.amount;
-  if (sub.tutor_id) $("paymentTutorId").value = sub.tutor_id;
+  if (sub.tutor_id) {
+    $("paymentTutorId").value = sub.tutor_id;
+    updateIdDetail($("paymentTutorDetail"), DIR_TUTOR_BY_ID[sub.tutor_id] || null);
+  }
   applyPaymentTransactionType();
 
   $("paymentForm").classList.remove("hidden");
@@ -755,7 +777,9 @@ function wireSubscriptionForm() {
   $("subscriptionPartyType").addEventListener("change", () => {
     const isStudent = $("subscriptionPartyType").value === "student";
     $("subscriptionPartyIdLabel").textContent = isStudent ? "Student ID" : "Tutor ID";
-    $("subscriptionPartyId").placeholder = isStudent ? "e.g. STU-000123" : "e.g. TUT-000045";
+    $("subscriptionPartyId").value = "";
+    updateIdDetail($("subscriptionPartyDetail"), null);
+    document.querySelector('#subscriptionPartyIdField .admin-suggest').classList.add("hidden");
   });
 
   $("addSubscriptionButton").addEventListener("click", () => {
@@ -764,7 +788,6 @@ function wireSubscriptionForm() {
     if (!form.classList.contains("hidden")) {
       $("subscriptionPartyType").value = "student";
       $("subscriptionPartyIdLabel").textContent = "Student ID";
-      $("subscriptionPartyId").placeholder = "e.g. STU-000123";
       $("subscriptionPartyId").value = "";
       $("subscriptionPlanName").value = "";
       $("subscriptionAmount").value = "";
@@ -772,6 +795,8 @@ function wireSubscriptionForm() {
       $("subscriptionStartDate").value = new Date().toISOString().slice(0, 10);
       $("subscriptionNextDueDate").value = "";
       $("subscriptionNotes").value = "";
+      updateIdDetail($("subscriptionPartyDetail"), null);
+      document.querySelector('#subscriptionPartyIdField .admin-suggest').classList.add("hidden");
       $("subscriptionPartyId").focus();
     }
   });
@@ -808,6 +833,191 @@ function wireSubscriptionForm() {
 
     if (ok) $("subscriptionForm").classList.add("hidden");
 
+  });
+
+}
+
+
+/************************************************************
+ * DEMO ID / TUTOR ID SEARCH SUGGESTIONS
+ *
+ * Backed by STATE.directory (id, name, mobile - fetched for every
+ * role that can see Payments, even ones with no other tutor/student
+ * data). Picking one, or just resolving an exact match by typing,
+ * shows a name + mobile line under the field so it can be verified.
+ * Once one side is set, the other side's suggestions narrow to only
+ * what's actually linked to it.
+ ************************************************************/
+
+function updateIdDetail(el, item) {
+  if (!el) return;
+  if (!item) {
+    el.classList.add("hidden");
+    el.innerHTML = "";
+    return;
+  }
+  el.innerHTML = `<strong>${esc(item.name || "Unknown")}</strong> · ${esc(item.mobile || "No mobile on file")}`;
+  el.classList.remove("hidden");
+}
+
+function paymentDemoSuggestions(query, tutorFilter) {
+  const q = lower(query);
+  const digits = String(query || "").replace(/\D/g, "");
+  let list = STATE.directory.demos || [];
+  if (tutorFilter) list = list.filter(d => d.tutorIds.includes(tutorFilter));
+  if (q) {
+    list = list.filter(d => {
+      const student = DIR_STUDENT_BY_ID[d.studentId] || {};
+      return lower(d.demoId).includes(q) ||
+        lower(student.name || "").includes(q) ||
+        (digits.length >= 3 && String(student.mobile || "").replace(/\D/g, "").includes(digits));
+    });
+  }
+  return list.slice(0, 8);
+}
+
+function paymentTutorSuggestions(query, demoFilter) {
+  const q = lower(query);
+  const digits = String(query || "").replace(/\D/g, "");
+  let list = STATE.directory.tutors || [];
+  if (demoFilter) list = list.filter(t => t.demoIds.includes(demoFilter));
+  if (q) {
+    list = list.filter(t =>
+      lower(t.id).includes(q) ||
+      lower(t.name || "").includes(q) ||
+      (digits.length >= 3 && String(t.mobile || "").replace(/\D/g, "").includes(digits))
+    );
+  }
+  return list.slice(0, 8);
+}
+
+function studentOrTutorSuggestions(query, isStudent) {
+  const q = lower(query);
+  const digits = String(query || "").replace(/\D/g, "");
+  const list = isStudent ? (STATE.directory.students || []) : (STATE.directory.tutors || []);
+  if (!q) return list.slice(0, 8);
+  return list.filter(p =>
+    lower(p.id).includes(q) ||
+    lower(p.name || "").includes(q) ||
+    (digits.length >= 3 && String(p.mobile || "").replace(/\D/g, "").includes(digits))
+  ).slice(0, 8);
+}
+
+// Renders a dropdown of {id/demoId, name, mobile} - "demo" items show
+// the linked student's name/mobile; everything else shows its own.
+function renderIdSuggestions(container, items, kind) {
+  if (!container) return;
+  if (!items.length) {
+    container.innerHTML = `<p class="admin-suggest-empty">No match found.</p>`;
+    container.classList.remove("hidden");
+    return;
+  }
+  container.innerHTML = items.map(item => {
+    const id = kind === "demo" ? item.demoId : item.id;
+    const who = kind === "demo" ? (DIR_STUDENT_BY_ID[item.studentId] || {}) : item;
+    return `
+      <button type="button" class="admin-suggest-item" data-pick-id="${esc(id)}">
+        <strong>${esc(id)}</strong>
+        <span>${esc(who.name || "")} · ${esc(who.mobile || "No mobile")}</span>
+      </button>`;
+  }).join("");
+  container.classList.remove("hidden");
+}
+
+function wirePaymentIdSuggestions() {
+
+  const demoInput = $("paymentDemoId");
+  const tutorInput = $("paymentTutorId");
+  const demoSuggest = document.querySelector('#paymentDemoIdField [data-suggest="demo"]');
+  const tutorSuggest = document.querySelector('#paymentTutorIdField [data-suggest="tutor"]');
+  const demoDetail = $("paymentDemoDetail");
+  const tutorDetail = $("paymentTutorDetail");
+
+  const exactTutorId = () => (DIR_TUTOR_BY_ID[tutorInput.value.trim()] ? tutorInput.value.trim() : "");
+  const exactDemoId = () => (DIR_DEMO_BY_ID[demoInput.value.trim()] ? demoInput.value.trim() : "");
+
+  demoInput.addEventListener("input", () => {
+    const text = demoInput.value.trim();
+    const exact = DIR_DEMO_BY_ID[text];
+    updateIdDetail(demoDetail, exact ? DIR_STUDENT_BY_ID[exact.studentId] : null);
+    renderIdSuggestions(demoSuggest, paymentDemoSuggestions(text, exactTutorId()), "demo");
+  });
+
+  demoInput.addEventListener("focus", () => {
+    renderIdSuggestions(demoSuggest, paymentDemoSuggestions(demoInput.value.trim(), exactTutorId()), "demo");
+  });
+
+  tutorInput.addEventListener("input", () => {
+    const text = tutorInput.value.trim();
+    const exact = DIR_TUTOR_BY_ID[text];
+    updateIdDetail(tutorDetail, exact || null);
+    renderIdSuggestions(tutorSuggest, paymentTutorSuggestions(text, exactDemoId()), "tutor");
+  });
+
+  tutorInput.addEventListener("focus", () => {
+    renderIdSuggestions(tutorSuggest, paymentTutorSuggestions(tutorInput.value.trim(), exactDemoId()), "tutor");
+  });
+
+  demoSuggest.addEventListener("click", (event) => {
+    const pick = event.target.closest("[data-pick-id]");
+    if (!pick) return;
+    demoInput.value = pick.dataset.pickId;
+    demoInput.dispatchEvent(new Event("input", { bubbles: true }));
+    demoSuggest.classList.add("hidden");
+    if (!tutorInput.value.trim()) {
+      renderIdSuggestions(tutorSuggest, paymentTutorSuggestions("", pick.dataset.pickId), "tutor");
+    }
+  });
+
+  tutorSuggest.addEventListener("click", (event) => {
+    const pick = event.target.closest("[data-pick-id]");
+    if (!pick) return;
+    tutorInput.value = pick.dataset.pickId;
+    tutorInput.dispatchEvent(new Event("input", { bubbles: true }));
+    tutorSuggest.classList.add("hidden");
+    if (!demoInput.value.trim()) {
+      renderIdSuggestions(demoSuggest, paymentDemoSuggestions("", pick.dataset.pickId), "demo");
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#paymentDemoIdField")) demoSuggest.classList.add("hidden");
+    if (!event.target.closest("#paymentTutorIdField")) tutorSuggest.classList.add("hidden");
+  });
+
+}
+
+function wireSubscriptionIdSuggestion() {
+
+  const input = $("subscriptionPartyId");
+  const suggest = document.querySelector('#subscriptionPartyIdField [data-suggest="party"]');
+  const detail = $("subscriptionPartyDetail");
+
+  const isStudent = () => $("subscriptionPartyType").value === "student";
+  const currentParty = () => {
+    const dir = isStudent() ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID;
+    return dir[input.value.trim()] || null;
+  };
+
+  input.addEventListener("input", () => {
+    updateIdDetail(detail, currentParty());
+    renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent()), "party");
+  });
+
+  input.addEventListener("focus", () => {
+    renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent()), "party");
+  });
+
+  suggest.addEventListener("click", (event) => {
+    const pick = event.target.closest("[data-pick-id]");
+    if (!pick) return;
+    input.value = pick.dataset.pickId;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    suggest.classList.add("hidden");
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#subscriptionPartyIdField")) suggest.classList.add("hidden");
   });
 
 }
@@ -1674,6 +1884,11 @@ function paymentCard(p, ctx) {
   const isPayout = p.transaction_type === "payout";
   const tutorCollected = p.collected_by === "tutor";
 
+  // So the payment can be verified against the right person by phone.
+  const demoDir = p.demo_id ? DIR_DEMO_BY_ID[p.demo_id] : null;
+  const studentDir = demoDir ? DIR_STUDENT_BY_ID[demoDir.studentId] : null;
+  const tutorDir = p.tutor_id ? DIR_TUTOR_BY_ID[p.tutor_id] : null;
+
   const boxes = `
     <div class="admin-boxes">
       ${box("Transaction", isPayout ? "Payout" : "Collection", {
@@ -1682,7 +1897,9 @@ function paymentCard(p, ctx) {
         attr: editing ? `data-pfield="transactionType"` : ""
       })}
       ${!isPayout ? box("Demo ID", p.demo_id) : ""}
+      ${!isPayout && studentDir ? box("Student Mobile", `${studentDir.name} · ${studentDir.mobile || "No mobile"}`) : ""}
       ${box("Tutor ID", p.tutor_id || "")}
+      ${tutorDir ? box("Tutor Mobile", `${tutorDir.name} · ${tutorDir.mobile || "No mobile"}`) : ""}
       ${box("Amount (₹)", p.amount, { editable: editing, type: "number", attr: editing ? `data-pfield="amount"` : "" })}
       ${box("Payment Date", p.payment_date, { editable: editing, type: "date", attr: editing ? `data-pfield="paymentDate"` : "" })}
       ${!isPayout ? box("Payment Type", p.payment_type, { editable: editing, options: ["advance", "regular", "final"], attr: editing ? `data-pfield="paymentType"` : "" }) : ""}
