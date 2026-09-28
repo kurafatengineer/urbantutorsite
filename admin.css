@@ -23,6 +23,7 @@
   --success-dim: rgba(114, 227, 154, 0.14);
   --warn: #ffd166;
   --warn-dim: rgba(255, 209, 102, 0.14);
+  --orange: #ff8c1a;
   --violet: #b490ff;
   --violet-dim: rgba(180, 144, 255, 0.14);
   --radius: 20px;
@@ -1079,16 +1080,17 @@ button { cursor: pointer; }
   font-size: 13.5px;
 }
 
-/* notes: text centred, highlight across the full width */
+/* notes: text centred, highlight across the full width -
+   solid orange, no border, square corners */
 .admin-note {
   margin: 0;
   padding: 10px 14px;
-  border-radius: 12px;
-  background: var(--warn-dim);
-  border: 1px solid rgba(255, 209, 102, 0.3);
-  color: var(--warn);
+  border-radius: 0;
+  border: 0;
+  background: var(--orange);
+  color: #1a0f00;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
 }
 
