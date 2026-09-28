@@ -1711,7 +1711,7 @@ function editButtons(key, editing, saveAction, editLabel) {
 function infoLine(values, separator = "|") {
   const parts = values.map(v => String(v == null ? "" : v).trim()).filter(Boolean);
   if (!parts.length) return "";
-  return `<div class="admin-info">${parts.map(v => `<b>${esc(v)}</b>`).join(`<i aria-hidden="true">${esc(separator)}</i>`)}</div>`;
+  return `<div class="admin-info">${parts.map(v => `<b>${esc(v)}</b>`).join(`<i aria-hidden="true"> ${esc(separator)} </i>`)}</div>`;
 }
 
 // The summary of a collapsed card, in two layers with a thin gap:
