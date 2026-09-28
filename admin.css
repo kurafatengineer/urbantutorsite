@@ -1717,7 +1717,8 @@ body[data-page="admin"] {
 /* Tutor's Name/WhatsApp/Mobile/ID/Subject line: now several fields,
    so it stays on one line and truncates with an ellipsis instead of
    wrapping or pushing the card wider. */
-#tutorList .admin-hl-top .admin-info {
+#tutorList .admin-hl-top .admin-info,
+#studentList .admin-hl-top .admin-info {
   display: block;
   flex-wrap: nowrap;
   white-space: nowrap;
@@ -1750,10 +1751,13 @@ body[data-page="admin"] {
 .admin-hl-top[data-tone="completed"]  { background: rgba(255, 255, 255, 0.08); }
 .admin-hl-top[data-tone="new"],
 .admin-hl-top[data-tone="open"]       { background: rgba(22, 163, 74, 0.1); }
+/* "green" (a student) - same green as Accept/Verified. */
+.admin-hl-top[data-tone="green"]      { background: rgba(22, 163, 74, 0.18); }
 
 /* Name/Mobile/ID text itself - not just the background - matches the
    Accept (green) / Reject-Suspend (red) button colour. */
-.admin-hl-top[data-tone="verified"] .admin-info b { color: var(--lime); }
+.admin-hl-top[data-tone="verified"] .admin-info b,
+.admin-hl-top[data-tone="green"] .admin-info b    { color: var(--lime); }
 .admin-hl-top[data-tone="rejected"] .admin-info b { color: var(--danger); }
 .admin-hl-top[data-tone="pending"] .admin-info b  { color: var(--blue); }
 

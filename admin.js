@@ -1962,7 +1962,7 @@ function renderStudents() {
         r.values["Class"],
         r.values["Board"],
         fullAddress(r.values["Address"], r.values["City"], r.values["PIN Code"])
-      ], "", "|", "blue"),
+      ], "", "|", "green"),
       extra
     });
 
