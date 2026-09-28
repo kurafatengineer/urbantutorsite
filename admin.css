@@ -786,7 +786,7 @@ button { cursor: pointer; }
 .tutor-row-card[data-tone="running"] { box-shadow: inset 3px 0 0 var(--success); }
 .tutor-row-card[data-tone="scheduled"],
 .tutor-row-card[data-tone="processing"] { box-shadow: inset 3px 0 0 var(--violet); }
-.tutor-row-card[data-tone="schedule"] { box-shadow: inset 3px 0 0 var(--warn); }
+.tutor-row-card[data-tone="schedule"] { box-shadow: inset 3px 0 0 var(--orange); }
 .tutor-row-card[data-tone="declined"],
 .tutor-row-card[data-tone="terminated"] { box-shadow: inset 3px 0 0 var(--danger); }
 .tutor-row-card[data-tone="completed"] { box-shadow: inset 3px 0 0 var(--muted-2); }
@@ -1744,7 +1744,7 @@ body[data-page="admin"] {
 .admin-hl-top[data-tone="verified"]   { background: rgba(22, 163, 74, 0.18); }
 .admin-hl-top[data-tone="running"]    { background: rgba(114, 227, 154, 0.13); }
 .admin-hl-top[data-tone="pending"]    { background: var(--blue-dim); }
-.admin-hl-top[data-tone="schedule"]   { background: rgba(255, 209, 102, 0.13); }
+.admin-hl-top[data-tone="schedule"]   { background: rgba(255, 140, 26, 0.13); }
 /* "rejected" (a tutor) matches the Reject/Suspend button's exact red. */
 .admin-hl-top[data-tone="rejected"]   { background: rgba(255, 104, 104, 0.18); }
 .admin-hl-top[data-tone="declined"],
@@ -1753,7 +1753,7 @@ body[data-page="admin"] {
 .admin-hl-top[data-tone="processing"] { background: rgba(180, 144, 255, 0.14); }
 .admin-hl-top[data-tone="completed"]  { background: rgba(255, 255, 255, 0.08); }
 .admin-hl-top[data-tone="new"],
-.admin-hl-top[data-tone="open"]       { background: rgba(22, 163, 74, 0.1); }
+.admin-hl-top[data-tone="open"]       { background: var(--blue-dim); }
 /* "green" (a student) - same green as Accept/Verified. */
 .admin-hl-top[data-tone="green"]      { background: rgba(22, 163, 74, 0.18); }
 
@@ -1763,6 +1763,15 @@ body[data-page="admin"] {
 .admin-hl-top[data-tone="green"] .admin-info b    { color: var(--lime); }
 .admin-hl-top[data-tone="rejected"] .admin-info b { color: var(--danger); }
 .admin-hl-top[data-tone="pending"] .admin-info b  { color: var(--blue); }
+.admin-hl-top[data-tone="new"] .admin-info b,
+.admin-hl-top[data-tone="open"] .admin-info b     { color: var(--blue); }
+.admin-hl-top[data-tone="running"] .admin-info b  { color: var(--success); }
+.admin-hl-top[data-tone="completed"] .admin-info b { color: var(--muted); }
+.admin-hl-top[data-tone="terminated"] .admin-info b,
+.admin-hl-top[data-tone="declined"] .admin-info b { color: var(--danger); }
+.admin-hl-top[data-tone="schedule"] .admin-info b { color: var(--orange); }
+.admin-hl-top[data-tone="scheduled"] .admin-info b,
+.admin-hl-top[data-tone="processing"] .admin-info b { color: var(--violet); }
 
 
 /* ---------- top bar: Refresh | Admin Panel | Log out ---------- */
@@ -2096,3 +2105,106 @@ body[data-page="admin"] {
 }
 
 .admin-id-detail strong { color: var(--lime); }
+
+
+/* =========================================================
+   TUITIONS - vertical left status rail, right-aligned
+   "Tutor Applied" badge, and the nested Student toggle
+========================================================= */
+
+/* Colour-coded vertical status strip on the left edge of the
+   Tuition card and each Tutor Applied card, mirroring the
+   Accept/Reject vertical buttons on the right of a tutor card. */
+.admin-card:has(.admin-status-rail) { overflow: hidden; }
+
+.admin-card-head .admin-status-rail {
+  align-self: stretch;
+  flex: 0 0 auto;
+  width: 40px;
+  margin: -16px 4px -16px -16px;
+  padding: 10px 0;
+  border: 0;
+  border-radius: 16px 0 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  cursor: default;
+  background: var(--surface-3);
+  color: var(--muted-2);
+}
+
+.admin-card.is-open .admin-status-rail {
+  border-radius: 16px 0 0 0;
+}
+
+.admin-status-rail[data-action] {
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.admin-status-rail[data-action]:hover {
+  filter: brightness(1.15);
+}
+
+.admin-status-rail[data-tone="new"],
+.admin-status-rail[data-tone="open"]        { background: var(--blue-dim); color: var(--blue); }
+.admin-status-rail[data-tone="running"]     { background: rgba(114, 227, 154, 0.18); color: var(--success); }
+.admin-status-rail[data-tone="completed"]   { background: var(--surface-3); color: var(--muted); }
+.admin-status-rail[data-tone="terminated"],
+.admin-status-rail[data-tone="declined"]    { background: rgba(255, 104, 104, 0.18); color: var(--danger); }
+.admin-status-rail[data-tone="schedule"]    { background: rgba(255, 140, 26, 0.18); color: var(--orange); }
+.admin-status-rail[data-tone="scheduled"],
+.admin-status-rail[data-tone="processing"]  { background: var(--violet-dim); color: var(--violet); }
+
+/* "N Tutor(s) Applied" - pushed to the right by the title's flex-grow */
+.admin-applied-badge {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--lime-dim);
+  color: var(--lime);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* the name-line's ellipsis truncation, already used on Tutors/Students,
+   also applies to the Tuition and Tutor Applied cards */
+#tuitionList .admin-hl-top .admin-info {
+  display: block;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* "Student" section header inside the Tuition card - collapsed until tapped */
+.admin-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.admin-caret-mini {
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--muted-2);
+  border-bottom: 2px solid var(--muted-2);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.admin-caret-mini.is-open {
+  transform: rotate(-135deg);
+}

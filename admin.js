@@ -232,7 +232,8 @@ const STATE = {
   tutorFilter: "all",
   tuitionFilter: "all",
   open: new Set(),      // keys of expanded cards
-  editing: new Set()    // keys of records in edit mode
+  editing: new Set(),   // keys of records in edit mode
+  studentOpen: new Set() // keys of tuition cards whose nested Student section is expanded
 };
 
 let TUTOR_BY_MOBILE = {};
@@ -1258,6 +1259,28 @@ async function onListClick(event) {
       await saveDemoRow(box, actionEl);
       break;
 
+    case "toggle-student": {
+      const k = actionEl.dataset.key;
+      if (STATE.studentOpen.has(k)) STATE.studentOpen.delete(k); else STATE.studentOpen.add(k);
+      rerenderCurrent();
+      break;
+    }
+
+    case "schedule-demo": {
+      const head = box.querySelector("[data-toggle]");
+      if (head && !STATE.open.has(head.dataset.toggle)) toggleCard(head);
+      requestAnimationFrame(() => {
+        const dateInput = box.querySelector("[data-rfield='date']");
+        if (dateInput) {
+          dateInput.focus();
+          if (typeof dateInput.showPicker === "function") {
+            try { dateInput.showPicker(); } catch (e) { /* not user-gesture-eligible in this browser */ }
+          }
+        }
+      });
+      break;
+    }
+
     case "verify": {
       // Accept / Reject a Pending tutor, or Accept / Suspend a Verified
       // one (Suspend has the exact same effect as Reject).
@@ -1572,6 +1595,17 @@ function groupState(group) {
 const GROUP_LABELS = {
   new: "Find Tutors", schedule: "Schedule Demo", scheduled: "Demo Scheduled",
   running: "Running", completed: "Completed", terminated: "Terminated"
+};
+
+// The Tuitions card's own status only ever shows one of these four -
+// "Schedule Demo" / "Demo Scheduled" are a per-tutor-applied state, shown
+// on that tutor's own card instead (see ROW_LABELS / tutorRowCard).
+function tuitionRailTone(state) {
+  return (state === "running" || state === "completed" || state === "terminated") ? state : "new";
+}
+
+const TUITION_RAIL_LABELS = {
+  new: "Finding Tutor", running: "Running", completed: "Completed", terminated: "Rejected"
 };
 
 
@@ -2296,12 +2330,16 @@ function tuitionStack(g) {
   const open = STATE.open.has(key);
   const editing = STATE.editing.has(key);
   const state = groupState(g);
+  const railTone = tuitionRailTone(state);
   const f = g.first;
   const student = STUDENT_BY_ID[f.studentId];
   const studentName = student ? student.values["Student Name"] : f.studentId;
   const tutorRows = g.rows.filter(r => r.hasTutor);
   const terminated = state === "terminated";
   const sv = field => (student && student.values[field]) || "";
+  const studentKey = "student:" + g.demoId;
+  const studentOpen = STATE.studentOpen.has(studentKey);
+  const appliedLabel = `${tutorRows.length} Tutor${tutorRows.length === 1 ? "" : "s"} Applied`;
 
   const tuitionBoxes = `
     <div class="admin-boxes">
@@ -2326,31 +2364,24 @@ function tuitionStack(g) {
     <article class="admin-card tuition-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-demo="${esc(g.demoId)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
+        <button type="button" class="admin-status-rail" data-tone="${railTone}" tabindex="-1">${esc(TUITION_RAIL_LABELS[railTone])}</button>
         <div class="admin-avatar">${esc(initials(studentName, "S"))}</div>
         <div class="admin-card-title">
           ${highlight(
             [studentName, sv("WhatsApp") || sv("Phone"), g.demoId, f.subject, sv("Class"),
              genderText(f.preferredTutor), mediumText(f.medium)],
             [esc(sv("Gender")),
-             esc(fullAddress(sv("Address"), sv("City"), sv("PIN Code"))),
-             `<span class="admin-hl-count">${tutorRows.length} tutor${tutorRows.length === 1 ? "" : "s"} applied</span>`
+             esc(fullAddress(sv("Address"), sv("City"), sv("PIN Code")))
             ].filter(Boolean).join(" · "),
             "·",
-            state
+            railTone
           )}
         </div>
-        <span class="admin-pill" data-tone="${state}">${esc(GROUP_LABELS[state])}</span>
+        <span class="admin-applied-badge">${esc(appliedLabel)}</span>
         <span class="admin-caret" aria-hidden="true"></span>
       </div>
 
       <div class="admin-card-body">
-
-        <h3 class="admin-section-title">Tuition</h3>
-        ${tuitionBoxes}
-        ${tuitionButtons}
-
-        <h3 class="admin-section-title">Student</h3>
-        ${student ? fieldsBoxes("students", student, false) : note(`Student ${f.studentId} was not found.`)}
 
         ${terminated ? "" : `
           <div class="admin-assign">
@@ -2361,6 +2392,16 @@ function tuitionStack(g) {
             <div class="admin-suggest hidden" data-suggest></div>
             <button class="admin-primary admin-wide" data-action="assign" type="button" disabled>Assign Tutor</button>
           </div>`}
+
+        <h3 class="admin-section-title">Tuition</h3>
+        ${tuitionBoxes}
+        ${tuitionButtons}
+
+        <h3 class="admin-section-title admin-section-toggle" data-action="toggle-student" data-key="${esc(studentKey)}">
+          Student
+          <span class="admin-caret-mini${studentOpen ? " is-open" : ""}" aria-hidden="true"></span>
+        </h3>
+        ${studentOpen ? (student ? fieldsBoxes("students", student, false) : note(`Student ${f.studentId} was not found.`)) : ""}
 
       </div>
 
@@ -2395,6 +2436,7 @@ function tutorRowCard(row, terminated) {
 
   const parent = row.parentAccepted ? "accepted" : row.parentRejected ? "rejected" : "pending";
   const tut = row.tutorAccepted ? "accepted" : row.tutorRejected ? "rejected" : "pending";
+  const canScheduleDemo = !terminated && ["schedule", "scheduled", "processing"].includes(state);
 
   const segmented = (who, value) => `
     <div class="admin-seg" role="radiogroup" aria-label="${who === "parent" ? "Parent" : "Tutor"}">
@@ -2416,6 +2458,7 @@ function tutorRowCard(row, terminated) {
       data-box data-row="${row.rowNumber}" data-demo="${esc(row.demoId)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
+        <button type="button" class="admin-status-rail" data-tone="${state}"${canScheduleDemo ? ` data-action="schedule-demo"` : ` tabindex="-1"`}>${esc(ROW_LABELS[state])}</button>
         <div class="admin-avatar">${esc(initials(name, "T"))}</div>
         <div class="admin-card-title">
           ${highlight(
@@ -2429,14 +2472,10 @@ function tutorRowCard(row, terminated) {
             state
           )}
         </div>
-        <span class="admin-pill" data-tone="${state}">${esc(ROW_LABELS[state])}</span>
         <span class="admin-caret" aria-hidden="true"></span>
       </div>
 
       <div class="admin-card-body">
-
-        <h3 class="admin-section-title">Tutor</h3>
-        ${tutor ? fieldsBoxes("tutors", tutor, false) : note(`No tutor has mobile ${row.mobile}.`)}
 
         <div class="admin-demo-grid admin-demo-2">
           ${input("date", "Demo Date", toDateInput(row.demoDate), "date")}
@@ -2447,6 +2486,9 @@ function tutorRowCard(row, terminated) {
           ${input("duration", "Duration", row.duration)}
           ${input("percentage", "Percentage", row.percentage)}
         </div>
+
+        <h3 class="admin-section-title">Tutor</h3>
+        ${tutor ? fieldsBoxes("tutors", tutor, false) : note(`No tutor has mobile ${row.mobile}.`)}
 
         <h3 class="admin-section-title">Parent</h3>
         ${segmented("parent", parent)}
