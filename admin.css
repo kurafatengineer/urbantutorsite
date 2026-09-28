@@ -2108,20 +2108,21 @@ body[data-page="admin"] {
 
 
 /* =========================================================
-   TUITIONS - vertical left status rail, right-aligned
-   "Tutor Applied" badge, and the nested Student toggle
+   TUITIONS - vertical status rail on the RIGHT of the card,
+   "Tutor Applied" right-aligned on the address line, and the
+   nested Student toggle
 ========================================================= */
 
-/* Colour-coded vertical status strip on the left edge of the
+/* Colour-coded vertical status strip on the right edge of the
    Tuition card and each Tutor Applied card, mirroring the
-   Accept/Reject vertical buttons on the right of a tutor card. */
+   Accept/Reject vertical buttons on a tutor's own card. */
 .admin-card:has(.admin-status-rail) { overflow: hidden; }
 
 .admin-card-head .admin-status-rail {
   align-self: stretch;
   flex: 0 0 auto;
   width: 40px;
-  margin: -16px 4px -16px -16px;
+  margin: -16px -16px -16px 4px;
   padding: 10px 0;
   border: 0;
   border-radius: 16px 0 0 16px;
@@ -2141,7 +2142,7 @@ body[data-page="admin"] {
 }
 
 .admin-card.is-open .admin-status-rail {
-  border-radius: 16px 0 0 0;
+  border-radius: 0 0 0 16px;
 }
 
 .admin-status-rail[data-action] {
@@ -2163,15 +2164,36 @@ body[data-page="admin"] {
 .admin-status-rail[data-tone="scheduled"],
 .admin-status-rail[data-tone="processing"]  { background: var(--violet-dim); color: var(--violet); }
 
-/* "N Tutor(s) Applied" - pushed to the right by the title's flex-grow */
-.admin-applied-badge {
+/* the name-letter avatar on the Tuition / Tutor Applied card also
+   follows its own status colour */
+.admin-card[data-tone="new"] .admin-avatar,
+.admin-card[data-tone="open"] .admin-avatar        { color: var(--blue); background: var(--blue-dim); border-color: var(--blue-line); }
+.admin-card[data-tone="running"] .admin-avatar     { color: var(--success); background: rgba(114, 227, 154, 0.18); border-color: rgba(114, 227, 154, 0.3); }
+.admin-card[data-tone="completed"] .admin-avatar   { color: var(--muted); background: var(--surface-3); border-color: var(--border-light); }
+.admin-card[data-tone="terminated"] .admin-avatar,
+.admin-card[data-tone="declined"] .admin-avatar    { color: var(--danger); background: rgba(255, 104, 104, 0.18); border-color: rgba(255, 104, 104, 0.3); }
+.admin-card[data-tone="schedule"] .admin-avatar    { color: var(--orange); background: rgba(255, 140, 26, 0.18); border-color: rgba(255, 140, 26, 0.3); }
+.admin-card[data-tone="scheduled"] .admin-avatar,
+.admin-card[data-tone="processing"] .admin-avatar  { color: var(--violet); background: var(--violet-dim); border-color: rgba(180, 144, 255, 0.3); }
+
+/* Tuition card's address line: address text on the left, the
+   "N Tutor(s) Applied" count pushed to the far right */
+.admin-hl-small-split {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-hl-small-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-hl-small-applied {
   flex: 0 0 auto;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--lime-dim);
   color: var(--lime);
-  font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   white-space: nowrap;
 }
 

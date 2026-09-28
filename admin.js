@@ -233,7 +233,8 @@ const STATE = {
   tuitionFilter: "all",
   open: new Set(),      // keys of expanded cards
   editing: new Set(),   // keys of records in edit mode
-  studentOpen: new Set() // keys of tuition cards whose nested Student section is expanded
+  studentOpen: new Set(), // keys of tuition cards whose nested Student section is expanded
+  quickOpen: new Set()  // keys opened via the status rail: only the relevant fields + Save
 };
 
 let TUTOR_BY_MOBILE = {};
@@ -1144,6 +1145,11 @@ function chipGroup(id, onChange) {
 // cards (same stack) open with it; every other card collapses.
 // A card that collapses while in edit mode drops its unsaved edits
 // and goes back to normal.
+//
+// Opening always shows the FULL card body and needs a real re-render
+// (the DOM may currently hold the reduced "quick" body from a status-
+// rail tap - see openQuickCard()). Closing is still a cheap show/hide,
+// since a closed card's stale content doesn't matter until it reopens.
 function toggleCard(head) {
 
   const key = head.dataset.toggle;
@@ -1161,12 +1167,19 @@ function toggleCard(head) {
     });
 
     STATE.open.add(key);
+    STATE.quickOpen.delete(key);
 
-  } else {
+    Array.from(STATE.editing).forEach(editKey => {
+      if (!STATE.open.has(editKey)) STATE.editing.delete(editKey);
+    });
 
-    STATE.open.delete(key);
+    rerenderCurrent();
+    return;
 
   }
+
+  STATE.open.delete(key);
+  STATE.quickOpen.delete(key);
 
   let editDropped = false;
 
@@ -1189,10 +1202,37 @@ function toggleCard(head) {
 
 }
 
+// Tapping the status rail (Finding Tutor / Schedule Demo / Demo Scheduled /
+// Processing) opens the card straight to just the fields that status needs
+// to move forward, plus Save - not the whole card.
+function openQuickCard(head) {
+
+  const key = head.dataset.toggle;
+  const list = head.closest(".admin-stack-list");
+  const stack = head.closest(".admin-stack");
+  const heads = Array.from(list.querySelectorAll("[data-toggle]"));
+
+  Array.from(STATE.open).forEach(openKey => {
+    const other = heads.find(h => h.dataset.toggle === openKey);
+    if (!other || !stack || other.closest(".admin-stack") !== stack) STATE.open.delete(openKey);
+  });
+
+  STATE.open.add(key);
+  STATE.quickOpen.add(key);
+
+  Array.from(STATE.editing).forEach(editKey => {
+    if (!STATE.open.has(editKey)) STATE.editing.delete(editKey);
+  });
+
+  rerenderCurrent();
+
+}
+
 // Filter / tab change: everything collapses, unsaved edits are dropped.
 function collapseAll() {
   STATE.open.clear();
   STATE.editing.clear();
+  STATE.quickOpen.clear();
 }
 
 function rerenderCurrent() {
@@ -1266,15 +1306,18 @@ async function onListClick(event) {
       break;
     }
 
-    case "schedule-demo": {
+    case "quick-open": {
       const head = box.querySelector("[data-toggle]");
-      if (head && !STATE.open.has(head.dataset.toggle)) toggleCard(head);
+      const key = head.dataset.toggle;
+      openQuickCard(head);
       requestAnimationFrame(() => {
-        const dateInput = box.querySelector("[data-rfield='date']");
-        if (dateInput) {
-          dateInput.focus();
-          if (typeof dateInput.showPicker === "function") {
-            try { dateInput.showPicker(); } catch (e) { /* not user-gesture-eligible in this browser */ }
+        const newHead = Array.from(document.querySelectorAll("[data-toggle]")).find(h => h.dataset.toggle === key);
+        const newBox = newHead && newHead.closest("[data-box]");
+        const target = newBox && (newBox.querySelector("[data-rfield='date']") || newBox.querySelector("[data-assign]"));
+        if (target) {
+          target.focus();
+          if (typeof target.showPicker === "function") {
+            try { target.showPicker(); } catch (e) { /* not user-gesture-eligible in this browser */ }
           }
         }
       });
@@ -1519,6 +1562,14 @@ async function saveDemoRow(box, button) {
   const rowNumber = Number(box.dataset.row);
   const demoId = box.dataset.demo;
 
+  // The database finds the row by Demo ID + Tutor ID.
+  const row = (STATE.data.demos || []).find(r => r.rowNumber === rowNumber && r.demoId === demoId);
+
+  if (!row || !row.tutorId) {
+    toast("That row has changed. Refresh and try again.", true);
+    return;
+  }
+
   const date = box.querySelector("[data-rfield='date']").value;
   const time = box.querySelector("[data-rfield='time']").value;
 
@@ -1527,9 +1578,16 @@ async function saveDemoRow(box, button) {
     return;
   }
 
-  const parent = (box.querySelector(`input[name="parent-${rowNumber}"]:checked`) || {}).value || "pending";
-  const tutor = (box.querySelector(`input[name="tutor-${rowNumber}"]:checked`) || {}).value || "pending";
-  const completed = box.querySelector("[data-rfield='completed']").checked;
+  // The quick view (opened from the status rail) only shows the demo
+  // fields above - Parent/Tutor Accepted and Classes Completed aren't in
+  // the DOM there, so fall back to the row's current value instead of
+  // silently resetting it to "pending" / unticked.
+  const parentEl = box.querySelector(`input[name="parent-${rowNumber}"]:checked`);
+  const parent = parentEl ? parentEl.value : (row.parentAccepted ? "accepted" : row.parentRejected ? "rejected" : "pending");
+  const tutorEl = box.querySelector(`input[name="tutor-${rowNumber}"]:checked`);
+  const tutor = tutorEl ? tutorEl.value : (row.tutorAccepted ? "accepted" : row.tutorRejected ? "rejected" : "pending");
+  const completedEl = box.querySelector("[data-rfield='completed']");
+  const completed = completedEl ? completedEl.checked : !!row.classesCompleted;
 
   if (completed && !(parent === "accepted" && tutor === "accepted")) {
     if (!window.confirm("Classes Completed is ticked but parent and tutor have not both accepted. Save anyway?")) return;
@@ -1547,14 +1605,6 @@ async function saveDemoRow(box, button) {
     "Tutor Rejected": tutor === "rejected",
     "Classes Completed": completed
   };
-
-  // The database finds the row by Demo ID + Tutor ID.
-  const row = (STATE.data.demos || []).find(r => r.rowNumber === rowNumber && r.demoId === demoId);
-
-  if (!row || !row.tutorId) {
-    toast("That row has changed. Refresh and try again.", true);
-    return;
-  }
 
   await save({ action: "adminUpdateDemoRow", rowNumber, demoId, tutorId: row.tutorId, changes }, button);
 
@@ -2340,6 +2390,18 @@ function tuitionStack(g) {
   const studentKey = "student:" + g.demoId;
   const studentOpen = STATE.studentOpen.has(studentKey);
   const appliedLabel = `${tutorRows.length} Tutor${tutorRows.length === 1 ? "" : "s"} Applied`;
+  const quickOpen = STATE.quickOpen.has(key);
+  const canQuickOpen = !terminated && railTone === "new";
+
+  const assignBlock = `
+    <div class="admin-assign">
+      <label class="admin-float">
+        <input data-assign type="text" placeholder=" " autocomplete="off">
+        <span>Enter Tutor ID or Mobile Number to assign a tutor</span>
+      </label>
+      <div class="admin-suggest hidden" data-suggest></div>
+      <button class="admin-primary admin-wide" data-action="assign" type="button" disabled>Assign Tutor</button>
+    </div>`;
 
   const tuitionBoxes = `
     <div class="admin-boxes">
@@ -2360,48 +2422,49 @@ function tuitionStack(g) {
            : `<button class="admin-ghost admin-danger" data-action="terminate" type="button">Terminate Tuition</button>`}
        </div>`;
 
+  const nameLine = infoLine(
+    [studentName, sv("WhatsApp") || sv("Phone"), g.demoId, f.subject, sv("Class"),
+     genderText(f.preferredTutor), mediumText(f.medium)],
+    "·"
+  );
+  const smallText = [esc(sv("Gender")), esc(fullAddress(sv("Address"), sv("City"), sv("PIN Code")))].filter(Boolean).join(" · ");
+
+  const titleHtml = `
+    <div class="admin-hl">
+      <div class="admin-hl-top" data-tone="${esc(railTone)}">${nameLine}</div>
+      <p class="admin-hl-small admin-hl-small-split">
+        <span class="admin-hl-small-text">${smallText}</span>
+        <span class="admin-hl-small-applied">${esc(appliedLabel)}</span>
+      </p>
+    </div>`;
+
   const head = `
-    <article class="admin-card tuition-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-demo="${esc(g.demoId)}">
+    <article class="admin-card tuition-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-tone="${esc(railTone)}" data-demo="${esc(g.demoId)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
-        <button type="button" class="admin-status-rail" data-tone="${railTone}" tabindex="-1">${esc(TUITION_RAIL_LABELS[railTone])}</button>
         <div class="admin-avatar">${esc(initials(studentName, "S"))}</div>
-        <div class="admin-card-title">
-          ${highlight(
-            [studentName, sv("WhatsApp") || sv("Phone"), g.demoId, f.subject, sv("Class"),
-             genderText(f.preferredTutor), mediumText(f.medium)],
-            [esc(sv("Gender")),
-             esc(fullAddress(sv("Address"), sv("City"), sv("PIN Code")))
-            ].filter(Boolean).join(" · "),
-            "·",
-            railTone
-          )}
-        </div>
-        <span class="admin-applied-badge">${esc(appliedLabel)}</span>
+        <div class="admin-card-title">${titleHtml}</div>
         <span class="admin-caret" aria-hidden="true"></span>
+        <button type="button" class="admin-status-rail" data-tone="${railTone}"${canQuickOpen ? ` data-action="quick-open"` : ` tabindex="-1"`}>${esc(TUITION_RAIL_LABELS[railTone])}</button>
       </div>
 
       <div class="admin-card-body">
 
-        ${terminated ? "" : `
-          <div class="admin-assign">
-            <label class="admin-float">
-              <input data-assign type="text" placeholder=" " autocomplete="off">
-              <span>Enter Tutor ID or Mobile Number to assign a tutor</span>
-            </label>
-            <div class="admin-suggest hidden" data-suggest></div>
-            <button class="admin-primary admin-wide" data-action="assign" type="button" disabled>Assign Tutor</button>
-          </div>`}
+        ${quickOpen ? assignBlock : `
 
-        <h3 class="admin-section-title">Tuition</h3>
-        ${tuitionBoxes}
-        ${tuitionButtons}
+          ${terminated ? "" : assignBlock}
 
-        <h3 class="admin-section-title admin-section-toggle" data-action="toggle-student" data-key="${esc(studentKey)}">
-          Student
-          <span class="admin-caret-mini${studentOpen ? " is-open" : ""}" aria-hidden="true"></span>
-        </h3>
-        ${studentOpen ? (student ? fieldsBoxes("students", student, false) : note(`Student ${f.studentId} was not found.`)) : ""}
+          <h3 class="admin-section-title">Tuition</h3>
+          ${tuitionBoxes}
+          ${tuitionButtons}
+
+          <h3 class="admin-section-title admin-section-toggle" data-action="toggle-student" data-key="${esc(studentKey)}">
+            Student
+            <span class="admin-caret-mini${studentOpen ? " is-open" : ""}" aria-hidden="true"></span>
+          </h3>
+          ${studentOpen ? (student ? fieldsBoxes("students", student, false) : note(`Student ${f.studentId} was not found.`)) : ""}
+
+        `}
 
       </div>
 
@@ -2436,7 +2499,8 @@ function tutorRowCard(row, terminated) {
 
   const parent = row.parentAccepted ? "accepted" : row.parentRejected ? "rejected" : "pending";
   const tut = row.tutorAccepted ? "accepted" : row.tutorRejected ? "rejected" : "pending";
-  const canScheduleDemo = !terminated && ["schedule", "scheduled", "processing"].includes(state);
+  const canQuickOpen = !terminated && ["schedule", "scheduled", "processing"].includes(state);
+  const quickOpen = STATE.quickOpen.has(key);
 
   const segmented = (who, value) => `
     <div class="admin-seg" role="radiogroup" aria-label="${who === "parent" ? "Parent" : "Tutor"}">
@@ -2458,7 +2522,6 @@ function tutorRowCard(row, terminated) {
       data-box data-row="${row.rowNumber}" data-demo="${esc(row.demoId)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
-        <button type="button" class="admin-status-rail" data-tone="${state}"${canScheduleDemo ? ` data-action="schedule-demo"` : ` tabindex="-1"`}>${esc(ROW_LABELS[state])}</button>
         <div class="admin-avatar">${esc(initials(name, "T"))}</div>
         <div class="admin-card-title">
           ${highlight(
@@ -2473,6 +2536,7 @@ function tutorRowCard(row, terminated) {
           )}
         </div>
         <span class="admin-caret" aria-hidden="true"></span>
+        <button type="button" class="admin-status-rail" data-tone="${state}"${canQuickOpen ? ` data-action="quick-open"` : ` tabindex="-1"`}>${esc(ROW_LABELS[state])}</button>
       </div>
 
       <div class="admin-card-body">
@@ -2487,22 +2551,26 @@ function tutorRowCard(row, terminated) {
           ${input("percentage", "Percentage", row.percentage)}
         </div>
 
-        <h3 class="admin-section-title">Tutor</h3>
-        ${tutor ? fieldsBoxes("tutors", tutor, false) : note(`No tutor has mobile ${row.mobile}.`)}
+        ${quickOpen ? "" : `
 
-        <h3 class="admin-section-title">Parent</h3>
-        ${segmented("parent", parent)}
+          <h3 class="admin-section-title">Tutor</h3>
+          ${tutor ? fieldsBoxes("tutors", tutor, false) : note(`No tutor has mobile ${row.mobile}.`)}
 
-        <h3 class="admin-section-title">Tutor</h3>
-        ${segmented("tutor", tut)}
+          <h3 class="admin-section-title">Parent</h3>
+          ${segmented("parent", parent)}
 
-        <label class="pill-check">
-          <input data-rfield="completed" type="checkbox"${row.classesCompleted ? " checked" : ""}${off}>
-          <span class="pill-check-text">Classes Completed</span>
-          <span class="pill-check-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          </span>
-        </label>
+          <h3 class="admin-section-title">Tutor</h3>
+          ${segmented("tutor", tut)}
+
+          <label class="pill-check">
+            <input data-rfield="completed" type="checkbox"${row.classesCompleted ? " checked" : ""}${off}>
+            <span class="pill-check-text">Classes Completed</span>
+            <span class="pill-check-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+          </label>
+
+        `}
 
         ${terminated
           ? note("This tuition is terminated. Reopen it to make changes.")
