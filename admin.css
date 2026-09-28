@@ -1756,3 +1756,55 @@ body[data-page="admin"] {
 .admin-card:has(.admin-vbtns) .admin-card-head > .admin-pill {
   display: none;
 }
+
+
+/* =========================================================
+   V7 - RBAC + PAYMENTS + EMPLOYEES
+========================================================= */
+
+/* tabs now scale with however many are visible for this role */
+.admin-tabs {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+.admin-me {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.admin-role-pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--lime-line);
+  background: var(--lime-dim);
+  color: var(--lime);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-role-pill[data-role="accounts_finance"] { border-color: rgba(180,144,255,0.3); background: var(--violet-dim); color: var(--violet); }
+.admin-role-pill[data-role="verification_staff"] { border-color: rgba(255,209,102,0.3); background: var(--warn-dim); color: var(--warn); }
+.admin-role-pill[data-role="tutor_relations"] { border-color: rgba(110,170,255,0.3); background: rgba(110,170,255,0.14); color: #6eaaff; }
+.admin-role-pill[data-role="tuition_coordinator"] { border-color: var(--border-light); background: var(--surface-2); color: var(--text); }
+
+.admin-money {
+  font-weight: 800;
+  color: var(--lime);
+}
+
+.admin-money.is-cut { color: var(--violet); }
+
+@media (max-width: 640px) {
+
+  .admin-tabs { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+}

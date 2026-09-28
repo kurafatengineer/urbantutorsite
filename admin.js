@@ -14,23 +14,45 @@
  * STUDENTS  every column of every student, editable.
  *
  * SERVER: the Supabase Edge Function "admin"
- *   (supabase/functions/admin/index.ts). It checks the admin
- *   password, then runs the admin_* database functions
- *   (supabase-setup-7-admin-security.sql). Same actions as before:
- *   adminLogin  adminLogout  adminGetOverview
- *   adminUpdateRecord  adminUpdateTuition  adminUpdateDemoRow
- *   adminAssignTutor  adminSetTerminated
+ *   (supabase/functions/admin/index.ts). Login is your own email +
+ *   a one-time code (the same Supabase Auth flow students/tutors
+ *   use elsewhere on the site) - there is no shared password
+ *   anymore. The function looks your email up in admin_users to
+ *   find your role, and only allows the actions your role permits:
+ *   adminGetOverview  adminUpdateRecord  adminUpdateTuition
+ *   adminUpdateDemoRow  adminAssignTutor  adminSetTerminated
+ *   adminAddPayment  adminUpdatePayment  adminDeletePayment
+ *   adminListEmployees  adminAddEmployee  adminUpdateEmployee
+ *   adminBootstrapSuperAdmin (only while no admin account exists yet)
  *
- * The admin token lives in sessionStorage only: closing the tab
- * signs the admin out. It also expires after 6 hours.
+ * Your session comes from window.sb (js/supabase-client.js) and is
+ * sent as an Authorization: Bearer <token> header on every request.
  ************************************************************/
 
 const WEB_APP_URL =
   "https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/admin";
 
-const ADMIN_TOKEN_KEY = "urbantutorsite_admin_token";
-
 const LINK_FIELDS = ["Identity Proof", "Profile Image"];
+
+const ROLE_LABELS = {
+  super_admin: "Super Admin",
+  tuition_coordinator: "Tuition Coordinator",
+  verification_staff: "Verification Staff",
+  accounts_finance: "Accounts / Finance",
+  tutor_relations: "Tutor Relations",
+};
+
+const ROLE_PERMS = {
+  super_admin:          { tuitions: true,  tutorsEdit: true,  tutorsVerify: true,  students: true,  payments: true,  employees: true  },
+  tuition_coordinator:  { tuitions: true,  tutorsEdit: true,  tutorsVerify: false, students: true,  payments: false, employees: false },
+  verification_staff:   { tuitions: false, tutorsEdit: false, tutorsVerify: true,  students: false, payments: false, employees: false },
+  accounts_finance:     { tuitions: false, tutorsEdit: false, tutorsVerify: false, students: false, payments: true,  employees: false },
+  tutor_relations:      { tuitions: false, tutorsEdit: true,  tutorsVerify: false, students: false, payments: false, employees: false },
+};
+
+function myPerms() {
+  return ROLE_PERMS[STATE.me && STATE.me.role] || ROLE_PERMS.tuition_coordinator;
+}
 
 
 /************************************************************
@@ -54,42 +76,43 @@ function esc(value) {
     .replace(/'/g, "&#039;");
 }
 
-function getToken() {
-  try { return sessionStorage.getItem(ADMIN_TOKEN_KEY) || ""; } catch (e) { return ""; }
-}
-
-function setToken(token) {
+async function getAccessToken() {
   try {
-    if (token) sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
-    else sessionStorage.removeItem(ADMIN_TOKEN_KEY);
-  } catch (e) {}
+    const { data } = await window.sb.auth.getSession();
+    return (data && data.session && data.session.access_token) || "";
+  } catch (e) {
+    return "";
+  }
 }
 
 // The server (a Supabase Edge Function) goes to sleep when unused, and
 // the first request that wakes it can fail. So a failed request (no
 // connection or a server error) is tried once more after a short pause.
 // Every admin action is safe to repeat.
-async function apiRequest(payload, timeoutMs = 60000) {
+async function apiRequest(payload, timeoutMs = 60000, token = "") {
 
   try {
-    return await apiRequestOnce(payload, timeoutMs);
+    return await apiRequestOnce(payload, timeoutMs, token);
   } catch (error) {
     await new Promise(resolve => setTimeout(resolve, 1500));
-    return apiRequestOnce(payload, timeoutMs);
+    return apiRequestOnce(payload, timeoutMs, token);
   }
 
 }
 
-async function apiRequestOnce(payload, timeoutMs) {
+async function apiRequestOnce(payload, timeoutMs, token = "") {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
 
+    const headers = { "Content-Type": "text/plain;charset=utf-8" };
+    if (token) headers["Authorization"] = "Bearer " + token;
+
     const response = await fetch(WEB_APP_URL, {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      headers,
       body: JSON.stringify(payload),
       signal: controller.signal
     });
@@ -108,11 +131,12 @@ async function apiRequestOnce(payload, timeoutMs) {
 
 async function adminCall(payload) {
 
-  const result = await apiRequest({ ...payload, adminToken: getToken() });
+  const token = await getAccessToken();
+  const result = await apiRequest(payload, 60000, token);
 
   if (result && result.notAdmin) {
-    setToken("");
-    showLogin(result.message);
+    await window.sb.auth.signOut().catch(() => {});
+    showEmailStep(result.message);
     throw new Error("not-admin");
   }
 
@@ -189,6 +213,9 @@ const STATE = {
     demos: [],
     verificationValues: []
   },
+  me: null,             // { email, fullName, role }
+  payments: [],
+  employees: [],
   tab: "tuitions",
   tutorFilter: "all",
   tuitionFilter: "all",
@@ -197,16 +224,19 @@ const STATE = {
 };
 
 let TUTOR_BY_MOBILE = {};
+let TUTOR_BY_ID = {};
 let STUDENT_BY_ID = {};
 
 function indexData() {
 
   TUTOR_BY_MOBILE = {};
+  TUTOR_BY_ID = {};
   STUDENT_BY_ID = {};
 
   STATE.data.tutors.rows.forEach(r => {
     const key = mobileKey(r.values["Mobile Number"]);
     if (key) TUTOR_BY_MOBILE[key] = r;
+    TUTOR_BY_ID[r.id] = r;
   });
 
   STATE.data.students.rows.forEach(r => { STUDENT_BY_ID[r.id] = r; });
@@ -218,24 +248,104 @@ function indexData() {
  * START
  ************************************************************/
 
-(function init() {
+(async function init() {
 
   wireEvents();
 
-  // Wake the server up now, while the password is being typed.
-  // ("adminLogout" does nothing on the server - it just answers.)
-  apiRequestOnce({ action: "adminLogout" }, 20000).catch(() => {});
+  // Wake the server up now, while the person is opening the page.
+  apiRequestOnce({ action: "adminGetOverview" }, 20000).catch(() => {});
 
-  if (getToken()) loadOverview();
-  else showLogin();
+  const { data } = await window.sb.auth.getSession();
+
+  if (data && data.session) await loadOverview();
+  else showEmailStep();
 
 })();
 
-function showLogin(message) {
-  $("loginMessage").textContent = message || "";
-  $("adminPassword").value = "";
+let pendingEmail = "";
+let resendTimer = null;
+
+function showEmailStep(message) {
+  $("emailStepForm").classList.remove("hidden");
+  $("otpStepForm").classList.add("hidden");
+  $("bootstrapStepForm").classList.add("hidden");
+  $("emailMessage").textContent = message || "";
   showPage("login");
-  setTimeout(() => $("adminPassword").focus(), 50);
+  setTimeout(() => $("adminEmail").focus(), 50);
+}
+
+function showOtpStep(email) {
+  $("otpEmailDisplay").textContent = email;
+  $("emailStepForm").classList.add("hidden");
+  $("otpStepForm").classList.remove("hidden");
+  $("bootstrapStepForm").classList.add("hidden");
+  $("adminOtp").value = "";
+  $("otpMessage").textContent = "";
+  showPage("login");
+  setTimeout(() => $("adminOtp").focus(), 50);
+}
+
+function showBootstrapStep() {
+  $("emailStepForm").classList.add("hidden");
+  $("otpStepForm").classList.add("hidden");
+  $("bootstrapStepForm").classList.remove("hidden");
+  $("bootstrapMessage").textContent = "";
+  showPage("login");
+}
+
+function startResendTimer(seconds) {
+  clearInterval(resendTimer);
+  let remaining = seconds;
+  updateResendLabel(remaining);
+  resendTimer = setInterval(() => {
+    remaining -= 1;
+    if (remaining <= 0) { clearInterval(resendTimer); resendTimer = null; }
+    updateResendLabel(remaining);
+  }, 1000);
+}
+
+function updateResendLabel(remaining) {
+  const btn = $("resendCodeButton");
+  btn.disabled = remaining > 0;
+  btn.textContent = remaining > 0 ? `Resend in ${remaining}s` : "Resend code";
+}
+
+function applyRoleUI() {
+
+  const perms = myPerms();
+
+  const visibility = {
+    tuitions: perms.tuitions,
+    tutors: perms.tutorsEdit || perms.tutorsVerify,
+    students: perms.students,
+    payments: perms.payments,
+    employees: perms.employees
+  };
+
+  let firstVisible = null;
+
+  ["tuitions", "tutors", "students", "payments", "employees"].forEach(name => {
+    const tabButton = document.querySelector(`.admin-tab[data-tab="${name}"]`);
+    if (tabButton) tabButton.classList.toggle("hidden", !visibility[name]);
+    if (visibility[name] && !firstVisible) firstVisible = name;
+  });
+
+  if (!visibility[STATE.tab]) STATE.tab = firstVisible || "tuitions";
+
+  $("adminMe").innerHTML = (STATE.me && STATE.me.fullName)
+    ? `${esc(STATE.me.fullName)} <span class="admin-role-pill" data-role="${esc(STATE.me.role)}">${esc(ROLE_LABELS[STATE.me.role] || STATE.me.role)}</span>`
+    : "";
+
+  applyActiveTab();
+
+}
+
+function applyActiveTab() {
+  document.querySelectorAll(".admin-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === STATE.tab));
+  ["tuitions", "tutors", "students", "payments", "employees"].forEach(n => {
+    const sec = $("tab-" + n);
+    if (sec) sec.classList.toggle("hidden", n !== STATE.tab);
+  });
 }
 
 async function loadOverview(quiet) {
@@ -246,9 +356,14 @@ async function loadOverview(quiet) {
 
     const result = await adminCall({ action: "adminGetOverview" });
 
+    if (result && result.bootstrapNeeded) {
+      showBootstrapStep();
+      return false;
+    }
+
     if (!result.success) {
       if (quiet) toast(result.message || "Unable to load data.", true);
-      else showLogin(result.message || "Unable to load data.");
+      else showEmailStep(result.message || "Unable to load data.");
       return false;
     }
 
@@ -258,8 +373,12 @@ async function loadOverview(quiet) {
       demos: result.demos || [],
       verificationValues: result.verificationValues || ["Verified", "Rejected", "Pending for Verification"]
     };
+    STATE.me = result.me || null;
+    STATE.payments = result.payments || [];
+    STATE.employees = result.employees || [];
 
     indexData();
+    applyRoleUI();
     renderAll();
     showPage("panel");
 
@@ -269,7 +388,7 @@ async function loadOverview(quiet) {
     if (error.message === "not-admin") return false;
     console.error(error);
     if (quiet) toast("Unable to connect to the server.", true);
-    else showLogin("Unable to connect to the server. Please try again.");
+    else showEmailStep("Unable to connect to the server. Please try again.");
     return false;
   }
 
@@ -317,60 +436,152 @@ async function save(payload, button) {
 
 function wireEvents() {
 
-  $("loginForm").addEventListener("submit", async (event) => {
+  $("emailStepForm").addEventListener("submit", async (event) => {
 
     event.preventDefault();
 
-    const password = $("adminPassword").value;
+    const email = $("adminEmail").value.trim().toLowerCase();
 
-    if (!password) {
-      $("loginMessage").textContent = "Enter the admin password.";
+    if (!email) {
+      $("emailMessage").textContent = "Enter your work email.";
       return;
     }
 
-    const button = $("loginButton");
+    const button = $("sendCodeButton");
     button.disabled = true;
-    button.textContent = "Checking...";
-    $("loginMessage").textContent = "";
+    button.textContent = "Sending...";
+    $("emailMessage").textContent = "";
 
     try {
 
-      const result = await apiRequest({ action: "adminLogin", password });
+      const { error } = await window.sb.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: true }
+      });
 
-      if (!result.success) {
-        $("loginMessage").textContent = result.message || "Wrong password.";
+      if (error) {
+        $("emailMessage").textContent = error.message || "Unable to send the code.";
         return;
       }
 
-      setToken(result.adminToken);
+      pendingEmail = email;
+      showOtpStep(email);
+      startResendTimer(60);
+
+    } catch (error) {
+      console.error(error);
+      $("emailMessage").textContent = "Unable to connect to the server. Please try again.";
+    } finally {
+      button.disabled = false;
+      button.textContent = "Send code";
+    }
+
+  });
+
+  $("otpStepForm").addEventListener("submit", async (event) => {
+
+    event.preventDefault();
+
+    const code = $("adminOtp").value.trim();
+
+    if (!/^\d{6}$/.test(code)) {
+      $("otpMessage").textContent = "Enter the 6-digit code.";
+      return;
+    }
+
+    const button = $("verifyCodeButton");
+    button.disabled = true;
+    button.textContent = "Verifying...";
+    $("otpMessage").textContent = "";
+
+    try {
+
+      const { error } = await window.sb.auth.verifyOtp({
+        email: pendingEmail,
+        token: code,
+        type: "email"
+      });
+
+      if (error) {
+        $("otpMessage").textContent = error.message || "Incorrect code.";
+        $("adminOtp").value = "";
+        $("adminOtp").focus();
+        return;
+      }
+
       await loadOverview();
 
     } catch (error) {
       console.error(error);
-      $("loginMessage").textContent = "Unable to connect to the server. Please try again.";
+      $("otpMessage").textContent = "Unable to connect to the server. Please try again.";
     } finally {
       button.disabled = false;
-      button.textContent = "Log in";
+      button.textContent = "Verify & log in";
     }
 
   });
 
-  // show / hide the password inside its box
-  $("togglePassword").addEventListener("click", () => {
-    const input = $("adminPassword");
-    const show = input.type === "password";
-    input.type = show ? "text" : "password";
-    $("togglePassword").classList.toggle("is-on", show);
-    $("togglePassword").setAttribute("aria-pressed", show ? "true" : "false");
-    $("togglePassword").setAttribute("aria-label", show ? "Hide password" : "Show password");
-    input.focus();
+  $("otpBackButton").addEventListener("click", () => {
+    clearInterval(resendTimer);
+    showEmailStep();
+  });
+
+  $("resendCodeButton").addEventListener("click", async () => {
+    const button = $("resendCodeButton");
+    button.disabled = true;
+    try {
+      const { error } = await window.sb.auth.signInWithOtp({
+        email: pendingEmail,
+        options: { shouldCreateUser: true }
+      });
+      if (error) $("otpMessage").textContent = error.message || "Unable to resend the code.";
+      else { startResendTimer(60); toast("Code resent."); }
+    } catch (error) {
+      $("otpMessage").textContent = "Unable to connect to the server.";
+    }
+  });
+
+  $("bootstrapStepForm").addEventListener("submit", async (event) => {
+
+    event.preventDefault();
+
+    const fullName = $("bootstrapName").value.trim();
+
+    if (!fullName) {
+      $("bootstrapMessage").textContent = "Enter your name.";
+      return;
+    }
+
+    const button = $("bootstrapButton");
+    button.disabled = true;
+    button.textContent = "Creating...";
+    $("bootstrapMessage").textContent = "";
+
+    try {
+
+      const result = await adminCall({ action: "adminBootstrapSuperAdmin", fullName });
+
+      if (!result.success) {
+        $("bootstrapMessage").textContent = result.message || "Unable to create the account.";
+        return;
+      }
+
+      toast(result.message || "Account created.");
+      await loadOverview();
+
+    } catch (error) {
+      if (error.message !== "not-admin") $("bootstrapMessage").textContent = "Unable to connect to the server.";
+    } finally {
+      button.disabled = false;
+      button.textContent = "Create Super Admin account";
+    }
+
   });
 
   $("logoutButton").addEventListener("click", async () => {
-    const token = getToken();
-    setToken("");
-    try { if (token) await apiRequest({ action: "adminLogout", adminToken: token }); } catch (e) {}
-    showLogin();
+    try { await window.sb.auth.signOut(); } catch (e) {}
+    STATE.me = null;
+    showEmailStep();
   });
 
   $("refreshButton").addEventListener("click", async () => {
@@ -405,12 +616,108 @@ function wireEvents() {
   $("tutorSearch").addEventListener("input", renderTutors);
   $("tuitionSearch").addEventListener("input", renderTuitions);
   $("studentSearch").addEventListener("input", renderStudents);
+  $("paymentSearch").addEventListener("input", renderPayments);
 
-  ["tuitionList", "tutorList", "studentList"].forEach(id =>
+  ["tuitionList", "tutorList", "studentList", "paymentList", "employeeList"].forEach(id =>
     $(id).addEventListener("click", onListClick)
   );
 
   $("tuitionList").addEventListener("input", onAssignInput);
+
+  wirePaymentForm();
+  wireEmployeeForm();
+
+}
+
+function wirePaymentForm() {
+
+  $("addPaymentButton").addEventListener("click", () => {
+    const form = $("paymentForm");
+    form.classList.toggle("hidden");
+    if (!form.classList.contains("hidden")) {
+      $("paymentDemoId").value = "";
+      $("paymentAmount").value = "";
+      $("paymentDate").value = new Date().toISOString().slice(0, 10);
+      $("paymentType").value = "regular";
+      $("paymentCollectedBy").value = "agency";
+      $("paymentMode").value = "";
+      $("paymentOurCut").value = "";
+      $("paymentTutorId").value = "";
+      $("paymentNotes").value = "";
+      $("paymentDemoId").focus();
+    }
+  });
+
+  $("cancelPaymentButton").addEventListener("click", () => $("paymentForm").classList.add("hidden"));
+
+  $("paymentForm").addEventListener("submit", async (event) => {
+
+    event.preventDefault();
+
+    const demoId = $("paymentDemoId").value.trim();
+
+    if (!demoId) {
+      toast("Enter the Demo ID.", true);
+      return;
+    }
+
+    const payload = {
+      action: "adminAddPayment",
+      demoId,
+      tutorId: $("paymentTutorId").value.trim(),
+      amount: $("paymentAmount").value,
+      paymentType: $("paymentType").value,
+      collectedBy: $("paymentCollectedBy").value,
+      ourCutAmount: $("paymentOurCut").value,
+      paymentMode: $("paymentMode").value.trim(),
+      paymentDate: $("paymentDate").value,
+      notes: $("paymentNotes").value.trim()
+    };
+
+    const button = $("paymentForm").querySelector("button[type=submit]");
+    const ok = await save(payload, button);
+
+    if (ok) $("paymentForm").classList.add("hidden");
+
+  });
+
+}
+
+function wireEmployeeForm() {
+
+  $("addEmployeeButton").addEventListener("click", () => {
+    const form = $("employeeForm");
+    form.classList.toggle("hidden");
+    if (!form.classList.contains("hidden")) {
+      $("employeeEmail").value = "";
+      $("employeeName").value = "";
+      $("employeeRole").value = "tuition_coordinator";
+      $("employeeEmail").focus();
+    }
+  });
+
+  $("cancelEmployeeButton").addEventListener("click", () => $("employeeForm").classList.add("hidden"));
+
+  $("employeeForm").addEventListener("submit", async (event) => {
+
+    event.preventDefault();
+
+    const email = $("employeeEmail").value.trim();
+    const fullName = $("employeeName").value.trim();
+
+    if (!email || !fullName) {
+      toast("Enter an email and a name.", true);
+      return;
+    }
+
+    const payload = { action: "adminAddEmployee", email, fullName, role: $("employeeRole").value };
+
+    const button = $("employeeForm").querySelector("button[type=submit]");
+    const ok = await save(payload, button);
+
+    if (ok) $("employeeForm").classList.add("hidden");
+
+  });
 
 }
 
@@ -435,11 +742,7 @@ function showTab(name) {
 
   STATE.tab = name;
 
-  $("mainTabs").querySelectorAll(".admin-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
-
-  ["tuitions", "tutors", "students"].forEach(n =>
-    $("tab-" + n).classList.toggle("hidden", n !== name)
-  );
+  applyActiveTab();
 
   rerenderCurrent();
 
@@ -535,6 +838,8 @@ function rerenderCurrent() {
   if (STATE.tab === "tuitions") renderTuitions();
   if (STATE.tab === "tutors") renderTutors();
   if (STATE.tab === "students") renderStudents();
+  if (STATE.tab === "payments") renderPayments();
+  if (STATE.tab === "employees") renderEmployees();
 }
 
 async function onListClick(event) {
@@ -613,6 +918,67 @@ async function onListClick(event) {
       break;
     }
 
+    case "save-payment":
+      await savePaymentEdit(box, actionEl);
+      break;
+
+    case "delete-payment": {
+      const id = Number(box.dataset.id);
+      if (window.confirm("Delete this payment record? This cannot be undone.")) {
+        await save({ action: "adminDeletePayment", id }, actionEl);
+      }
+      break;
+    }
+
+    case "save-employee":
+      await saveEmployeeEdit(box, actionEl);
+      break;
+
+  }
+
+}
+
+async function savePaymentEdit(box, button) {
+
+  const id = Number(box.dataset.id);
+  const key = box.dataset.key;
+  const payload = { action: "adminUpdatePayment", id };
+
+  box.querySelectorAll("[data-pfield]").forEach(input => {
+    payload[input.dataset.pfield] = input.value;
+  });
+
+  const ok = await save(payload, button);
+
+  if (ok) {
+    STATE.editing.delete(key);
+    rerenderCurrent();
+  }
+
+}
+
+function roleKeyFromLabel(label) {
+  return Object.keys(ROLE_LABELS).find(k => ROLE_LABELS[k] === label) || label;
+}
+
+async function saveEmployeeEdit(box, button) {
+
+  const id = box.dataset.id;
+  const key = box.dataset.key;
+  const changes = {};
+
+  box.querySelectorAll("[data-efield]").forEach(input => {
+    const field = input.dataset.efield;
+    if (field === "active") changes.active = input.value === "Yes";
+    else if (field === "role") changes.role = roleKeyFromLabel(input.value);
+    else changes[field] = input.value;
+  });
+
+  const ok = await save({ action: "adminUpdateEmployee", id, changes }, button);
+
+  if (ok) {
+    STATE.editing.delete(key);
+    rerenderCurrent();
   }
 
 }
@@ -795,6 +1161,8 @@ function renderAll() {
   renderTuitions();
   renderTutors();
   renderStudents();
+  renderPayments();
+  renderEmployees();
 }
 
 function demoGroups() {
@@ -991,7 +1359,7 @@ function recordCard(kind, record, opts) {
       <div class="admin-card-body">
         ${fieldsBoxes(kind, record, editing)}
         ${opts.extra || ""}
-        ${editButtons(key, editing, "save-record", "Edit Details")}
+        ${kind !== "tutors" || myPerms().tutorsEdit ? editButtons(key, editing, "save-record", "Edit Details") : ""}
         ${editing && kind === "students" ? note("Changing the Email moves this student to that login. Brothers / sisters share one Email and Phone.") : ""}
         ${editing && kind === "tutors" ? note("Changing the Mobile Number also moves this tutor's tuitions to the new number.") : ""}
       </div>
@@ -1046,7 +1414,7 @@ function renderTutors() {
       pill: status,
       tone: statusGroup(status),
       // Pending for Verification: Reject / Approve on the right of the tab
-      verifyButtons: statusGroup(status) === "pending"
+      verifyButtons: statusGroup(status) === "pending" && myPerms().tutorsVerify
     });
   }).join("") : empty("No tutors match.");
 
@@ -1089,6 +1457,153 @@ function renderStudents() {
     });
 
   }).join("") : empty("No students match.");
+
+}
+
+
+/* ---------------- payments ---------------- */
+
+function renderPayments() {
+
+  if (!$("paymentList")) return;
+
+  const groups = demoGroups();
+  const context = {};
+
+  groups.forEach(g => {
+    const student = STUDENT_BY_ID[g.first.studentId];
+    context[g.demoId] = {
+      studentName: student ? student.values["Student Name"] : g.first.studentId,
+      subject: g.first.subject
+    };
+  });
+
+  const query = $("paymentSearch").value;
+
+  const rows = (STATE.payments || []).filter(p => matchesAll(query, [
+    p.demo_id, p.tutor_id, p.payment_mode, p.notes,
+    context[p.demo_id] && context[p.demo_id].studentName
+  ].join(" ")));
+
+  $("paymentList").innerHTML = rows.length
+    ? rows.map(p => paymentCard(p, context[p.demo_id] || {})).join("")
+    : empty("No payments recorded yet.");
+
+}
+
+function paymentCard(p, ctx) {
+
+  const key = "payment:" + p.id;
+  const editing = STATE.editing.has(key);
+  const amount = Number(p.amount || 0);
+  const cut = p.our_cut_amount != null && p.our_cut_amount !== "" ? Number(p.our_cut_amount) : null;
+  const tutorCollected = p.collected_by === "tutor";
+
+  const boxes = `
+    <div class="admin-boxes">
+      ${box("Demo ID", p.demo_id)}
+      ${box("Tutor ID", p.tutor_id || "")}
+      ${box("Amount (₹)", p.amount, { editable: editing, type: "number", attr: editing ? `data-pfield="amount"` : "" })}
+      ${box("Payment Date", p.payment_date, { editable: editing, type: "date", attr: editing ? `data-pfield="paymentDate"` : "" })}
+      ${box("Payment Type", p.payment_type, { editable: editing, options: ["advance", "regular", "final"], attr: editing ? `data-pfield="paymentType"` : "" })}
+      ${box("Collected By", p.collected_by, { editable: editing, options: ["agency", "tutor"], attr: editing ? `data-pfield="collectedBy"` : "" })}
+      ${box("Payment Mode", p.payment_mode, { editable: editing, attr: editing ? `data-pfield="paymentMode"` : "" })}
+      ${box("Our Cut (₹)", p.our_cut_amount == null ? "" : p.our_cut_amount, { editable: editing, type: "number", attr: editing ? `data-pfield="ourCutAmount"` : "" })}
+      ${box("Notes", p.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
+    </div>`;
+
+  const buttons = editing
+    ? `<div class="admin-pair">
+         <button class="admin-primary" data-action="save-payment" type="button">Save changes</button>
+         <button class="admin-ghost" data-action="cancel" data-key="${esc(key)}" type="button">Cancel</button>
+       </div>`
+    : `<div class="admin-split">
+         <button class="admin-ghost" data-action="edit" data-key="${esc(key)}" type="button">Edit</button>
+         <button class="admin-ghost admin-danger" data-action="delete-payment" type="button">Delete</button>
+       </div>`;
+
+  return `
+    <article class="admin-card is-open${editing ? " is-editing" : ""}" data-box data-id="${p.id}" data-key="${esc(key)}">
+
+      <div class="admin-card-head">
+        <div class="admin-avatar">₹</div>
+        <div class="admin-card-title">
+          ${highlight(
+            [p.demo_id, ctx.studentName, ctx.subject, "₹" + amount.toLocaleString("en-IN"), tutorCollected ? "Tutor collected" : "Agency collected"],
+            cut != null ? `Our cut: ₹${cut.toLocaleString("en-IN")}` : "",
+            "|",
+            tutorCollected ? "processing" : "running"
+          )}
+        </div>
+      </div>
+
+      <div class="admin-card-body">
+        ${boxes}
+        ${buttons}
+      </div>
+
+    </article>
+  `;
+
+}
+
+
+/* ---------------- employees ---------------- */
+
+function renderEmployees() {
+
+  if (!$("employeeList")) return;
+
+  const rows = STATE.employees || [];
+
+  $("employeeList").innerHTML = rows.length
+    ? rows.map(employeeCard).join("")
+    : empty("No employees yet.");
+
+}
+
+function employeeCard(e) {
+
+  const key = "employee:" + e.id;
+  const editing = STATE.editing.has(key);
+  const isMe = STATE.me && lower(e.email) === lower(STATE.me.email);
+
+  const boxes = `
+    <div class="admin-boxes">
+      ${box("Email", e.email)}
+      ${box("Full Name", e.full_name, { editable: editing, attr: editing ? `data-efield="fullName"` : "" })}
+      ${box("Role", ROLE_LABELS[e.role] || e.role, {
+        editable: editing && !isMe,
+        options: Object.values(ROLE_LABELS),
+        attr: editing && !isMe ? `data-efield="role"` : ""
+      })}
+      ${box("Active", e.active ? "Yes" : "No", { editable: editing && !isMe, options: ["Yes", "No"], attr: editing && !isMe ? `data-efield="active"` : "" })}
+    </div>`;
+
+  const buttons = editing
+    ? `<div class="admin-pair">
+         <button class="admin-primary" data-action="save-employee" type="button">Save changes</button>
+         <button class="admin-ghost" data-action="cancel" data-key="${esc(key)}" type="button">Cancel</button>
+       </div>`
+    : `<button class="admin-ghost admin-wide" data-action="edit" data-key="${esc(key)}" type="button">Edit Employee</button>`;
+
+  return `
+    <article class="admin-card is-open${editing ? " is-editing" : ""}" data-box data-id="${esc(e.id)}" data-key="${esc(key)}">
+
+      <div class="admin-card-head">
+        <div class="admin-avatar">${esc(initials(e.full_name, "E"))}</div>
+        <div class="admin-card-title">
+          ${highlight([e.full_name, e.email, ROLE_LABELS[e.role] || e.role, e.active ? "" : "Inactive"], isMe ? "This is you" : "", "|", e.active ? "verified" : "rejected")}
+        </div>
+      </div>
+
+      <div class="admin-card-body">
+        ${boxes}
+        ${buttons}
+      </div>
+
+    </article>
+  `;
 
 }
 

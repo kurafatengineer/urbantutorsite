@@ -31,22 +31,46 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
       </div>
       <h1>Admin Panel</h1>
-      <p class="muted">Office access only.</p>
+      <p class="muted" id="loginSubtitle">Office access only. Log in with your work email.</p>
 
-      <form id="loginForm" novalidate>
-        <div class="admin-pass">
-          <label class="admin-float">
-            <input id="adminPassword" type="password" autocomplete="current-password" placeholder=" " required>
-            <span>Admin Password</span>
-          </label>
-          <!-- show / hide the password -->
-          <button id="togglePassword" class="admin-eye" type="button" aria-label="Show password" aria-pressed="false">
-            <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-            <svg class="eye-shut" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2"/><path d="M6.6 6.6A17.4 17.4 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
-          </button>
+      <!-- STEP 1: email -->
+      <form id="emailStepForm" novalidate>
+        <label class="admin-float">
+          <input id="adminEmail" type="email" autocomplete="username" placeholder=" " required>
+          <span>Work Email</span>
+        </label>
+        <p id="emailMessage" class="admin-message" role="alert"></p>
+        <button id="sendCodeButton" class="admin-primary" type="submit">Send code</button>
+      </form>
+
+      <!-- STEP 2: OTP -->
+      <form id="otpStepForm" class="hidden" novalidate>
+        <p class="muted" style="margin:0 0 14px;font-size:13.5px;">
+          Code sent to <strong id="otpEmailDisplay"></strong>.
+        </p>
+        <label class="admin-float">
+          <input id="adminOtp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder=" " required>
+          <span>6-Digit Code</span>
+        </label>
+        <p id="otpMessage" class="admin-message" role="alert"></p>
+        <button id="verifyCodeButton" class="admin-primary" type="submit">Verify &amp; log in</button>
+        <div class="admin-pair" style="margin-top:8px;">
+          <button id="otpBackButton" class="admin-ghost" type="button">Change email</button>
+          <button id="resendCodeButton" class="admin-ghost" type="button">Resend code</button>
         </div>
-        <p id="loginMessage" class="admin-message" role="alert"></p>
-        <button id="loginButton" class="admin-primary" type="submit">Log in</button>
+      </form>
+
+      <!-- STEP 3: first-time super admin setup (only when no admin account exists yet) -->
+      <form id="bootstrapStepForm" class="hidden" novalidate>
+        <p class="muted" style="margin:0 0 14px;font-size:13.5px;">
+          No admin account exists yet. Set yourself up as the first Super Admin.
+        </p>
+        <label class="admin-float">
+          <input id="bootstrapName" type="text" autocomplete="name" placeholder=" " required>
+          <span>Your Full Name</span>
+        </label>
+        <p id="bootstrapMessage" class="admin-message" role="alert"></p>
+        <button id="bootstrapButton" class="admin-primary" type="submit">Create Super Admin account</button>
       </form>
     </section>
 
@@ -81,11 +105,16 @@
     <!-- counts -->
     <section class="admin-stats" id="adminStats"></section>
 
+    <!-- signed in as -->
+    <div class="admin-me" id="adminMe"></div>
+
     <!-- main tabs -->
     <div class="admin-tabs" id="mainTabs" role="tablist">
       <button class="admin-tab active" data-tab="tuitions" type="button" role="tab">Tuitions</button>
       <button class="admin-tab" data-tab="tutors" type="button" role="tab">Tutors</button>
       <button class="admin-tab" data-tab="students" type="button" role="tab">Students</button>
+      <button class="admin-tab hidden" data-tab="payments" data-role-tab="payments" type="button" role="tab">Payments</button>
+      <button class="admin-tab hidden" data-tab="employees" data-role-tab="employees" type="button" role="tab">Employees</button>
     </div>
 
     <!-- ================= TUITIONS ================= -->
@@ -136,12 +165,117 @@
       <div id="studentList" class="admin-stack-list"></div>
     </section>
 
+    <!-- ================= PAYMENTS ================= -->
+    <section id="tab-payments" class="admin-panel hidden">
+      <div class="admin-tools">
+        <label class="admin-float admin-search-wrap">
+          <input id="paymentSearch" type="search" placeholder=" " autocomplete="off">
+          <span>Search by Demo ID, student, tutor</span>
+        </label>
+      </div>
+
+      <button id="addPaymentButton" class="admin-ghost admin-wide" type="button" style="margin-bottom:14px;">+ Record a Payment</button>
+
+      <form id="paymentForm" class="admin-card hidden" style="margin-bottom:14px;">
+        <h3 class="admin-section-title">New Payment</h3>
+        <div class="admin-form">
+          <label class="admin-field wide">
+            <span>Demo ID</span>
+            <input id="paymentDemoId" type="text" required placeholder="e.g. DEMO-000123">
+          </label>
+          <label class="admin-field">
+            <span>Amount (₹)</span>
+            <input id="paymentAmount" type="number" min="1" step="1" required>
+          </label>
+          <label class="admin-field">
+            <span>Payment Date</span>
+            <input id="paymentDate" type="date">
+          </label>
+          <label class="admin-field">
+            <span>Payment Type</span>
+            <select id="paymentType">
+              <option value="regular">Regular</option>
+              <option value="advance">Advance</option>
+              <option value="final">Final</option>
+            </select>
+          </label>
+          <label class="admin-field">
+            <span>Collected By</span>
+            <select id="paymentCollectedBy">
+              <option value="agency">Agency (we received it)</option>
+              <option value="tutor">Tutor (we only get our cut)</option>
+            </select>
+          </label>
+          <label class="admin-field">
+            <span>Payment Mode</span>
+            <input id="paymentMode" type="text" placeholder="Cash / UPI / Bank transfer / Cheque..." required>
+          </label>
+          <label class="admin-field" id="ourCutField">
+            <span>Our Cut Amount (₹)</span>
+            <input id="paymentOurCut" type="number" min="0" step="1" placeholder="Leave blank if not applicable">
+          </label>
+          <label class="admin-field wide">
+            <span>Tutor ID (optional)</span>
+            <input id="paymentTutorId" type="text" placeholder="e.g. TUT-000045">
+          </label>
+          <label class="admin-field wide">
+            <span>Notes</span>
+            <textarea id="paymentNotes" rows="2"></textarea>
+          </label>
+        </div>
+        <div class="admin-pair" style="margin-top:12px;">
+          <button class="admin-primary" type="submit">Save Payment</button>
+          <button id="cancelPaymentButton" class="admin-ghost" type="button">Cancel</button>
+        </div>
+      </form>
+
+      <div id="paymentList" class="admin-stack-list"></div>
+    </section>
+
+    <!-- ================= EMPLOYEES ================= -->
+    <section id="tab-employees" class="admin-panel hidden">
+
+      <button id="addEmployeeButton" class="admin-ghost admin-wide" type="button" style="margin-bottom:14px;">+ Add Employee</button>
+
+      <form id="employeeForm" class="admin-card hidden" style="margin-bottom:14px;">
+        <h3 class="admin-section-title">New Employee</h3>
+        <div class="admin-form">
+          <label class="admin-field wide">
+            <span>Email</span>
+            <input id="employeeEmail" type="email" required>
+          </label>
+          <label class="admin-field wide">
+            <span>Full Name</span>
+            <input id="employeeName" type="text" required>
+          </label>
+          <label class="admin-field wide">
+            <span>Role</span>
+            <select id="employeeRole">
+              <option value="tuition_coordinator">Tuition Coordinator</option>
+              <option value="verification_staff">Verification Staff</option>
+              <option value="accounts_finance">Accounts / Finance</option>
+              <option value="tutor_relations">Tutor Relations / Recruiter</option>
+              <option value="super_admin">Super Admin</option>
+            </select>
+          </label>
+        </div>
+        <div class="admin-pair" style="margin-top:12px;">
+          <button class="admin-primary" type="submit">Add Employee</button>
+          <button id="cancelEmployeeButton" class="admin-ghost" type="button">Cancel</button>
+        </div>
+      </form>
+
+      <div id="employeeList" class="admin-stack-list"></div>
+    </section>
+
   </div>
 </main>
 
 <div id="adminToast" class="admin-toast" role="status"></div>
 
 <script src="js/header.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
 <script src="admin.js" defer></script>
 
 </body>
