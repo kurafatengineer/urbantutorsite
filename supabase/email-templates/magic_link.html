@@ -1,0 +1,40 @@
+<!--
+  Supabase Auth "Magic Link" template - this is the one Supabase actually
+  sends for every OTP login (site + admin panel both use email + a 6-digit
+  code, which shares this template). Not deployed by code: Supabase Auth's
+  email templates live in project config, not in this repo's Edge
+  Functions, so this file has to be pasted into the Dashboard by hand -
+  see supabase/email-templates/README.md for exactly where.
+
+  Same dark-card look as every other Urban Tutor Site email
+  (supabase/functions/_shared/email.ts), with the OTP token in place of
+  the usual details box.
+-->
+<div bgcolor="#000000" style="background-color:#000000;padding:36px 16px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+  <table role="presentation" width="100%" bgcolor="#000000" style="max-width:380px;margin:0 auto;background-color:#000000;border-radius:14px;overflow:hidden;text-align:center;">
+
+    <tr><td bgcolor="#000000" style="background-color:#000000;padding:24px 24px 18px;text-align:center;border-top-left-radius:14px;border-top-right-radius:14px;">
+      <div style="display:inline-block;font-size:14px;font-weight:700;letter-spacing:1.5px;color:#ffffff;padding-bottom:16px;border-bottom:1px dashed #555555;">Urban Tutor Site</div>
+    </td></tr>
+
+    <tr><td bgcolor="#000000" style="background-color:#000000;padding:18px 24px 4px;text-align:center;">
+      <h1 style="margin:0 0 10px;font-size:19px;color:#ffffff;text-align:center;">Your Login Code</h1>
+      <p style="margin:0;font-size:14px;line-height:1.6;color:#aaaaaa;text-align:center;">Hi,<br>Use the code below to sign in to your Urban Tutor Site account.</p>
+    </td></tr>
+
+    <tr><td bgcolor="#000000" style="background-color:#000000;padding:20px 24px 8px;text-align:center;">
+      <table role="presentation" align="center" style="margin:0 auto;"><tr><td bgcolor="#ffffff" style="background-color:#ffffff;border-radius:10px;padding:14px 22px;">
+        <span style="font-size:26px;font-weight:700;letter-spacing:8px;color:#000000;font-family:Arial,Helvetica,sans-serif;">{{ .Token }}</span>
+      </td></tr></table>
+    </td></tr>
+
+    <tr><td bgcolor="#000000" style="background-color:#000000;padding:16px 24px 24px;text-align:center;">
+      <span style="font-size:12px;color:#999999;">This code expires shortly. If you didn't request this, you can ignore this email.</span>
+    </td></tr>
+
+    <tr><td bgcolor="#ffffff" style="background-color:#ffffff;padding:12px 24px;text-align:center;border-bottom-left-radius:14px;border-bottom-right-radius:14px;">
+      <span style="font-size:11px;color:#555555;">&copy; 2026 Urban Tutor Site. All rights reserved.</span>
+    </td></tr>
+
+  </table>
+</div>
