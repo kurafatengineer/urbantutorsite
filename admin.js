@@ -2687,7 +2687,7 @@ function statusCard(key, tone, titleParts, subtitle, boxesHtml, railLabel, foote
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">₹</div>
         <div class="admin-card-title">${titleHtml}</div>
-        ${partyLabel ? `<span class="admin-pill admin-pill-party" data-tone="schedule">${esc(partyLabel)}</span>` : ""}
+        ${partyLabel ? `<span class="admin-pill admin-pill-party" data-tone="${esc(tone)}">${esc(partyLabel)}</span>` : ""}
         <span class="admin-caret" aria-hidden="true"></span>
         <span class="admin-status-rail" data-tone="${esc(tone)}" tabindex="-1">${esc(railLabel)}</span>
       </div>
