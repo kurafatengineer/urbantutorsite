@@ -1409,6 +1409,33 @@ button { cursor: pointer; }
 }
 
 
+/* ---------- Payment Mode radio row (Online / Offline) ---------- */
+
+.admin-form > .admin-radio-row.wide {
+  grid-column: 1 / -1;
+}
+
+.admin-radio-row-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.admin-radio-row-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-radio-row-options .pill-check {
+  flex: 1 1 140px;
+}
+
+
 /* ---------- small screens ---------- */
 
 @media (max-width: 640px) {
@@ -2040,6 +2067,21 @@ body[data-page="admin"] {
 
 .admin-float input[type="date"]::-webkit-datetime-edit {
   padding: 0;
+}
+
+/* a date input always shows a value (never an empty placeholder state),
+   so :placeholder-shown never fires and the label would otherwise sit
+   frozen mid-height, overlapping the date digits - float it permanently
+   like a <select>'s label instead. */
+.admin-float input[type="date"] + span {
+  top: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted-2);
+}
+
+.admin-float input[type="date"]:focus + span {
+  color: var(--lime);
 }
 
 /* computed/read-only preview fields (e.g. a subscription payment's

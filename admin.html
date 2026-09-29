@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260928r">
+  <link rel="stylesheet" href="admin.css?v=20260928t">
 </head>
 
 <body data-page="admin">
@@ -294,10 +294,25 @@
             </select>
             <span>Collected By</span>
           </label>
-          <label class="admin-float">
-            <input id="paymentMode" type="text" placeholder=" " required>
-            <span>Payment Mode</span>
-          </label>
+          <div class="admin-radio-row wide">
+            <span class="admin-radio-row-label">Payment Mode</span>
+            <div class="admin-radio-row-options">
+              <label class="pill-check">
+                <input type="radio" name="paymentModeChoice" id="paymentModeOnline" value="Online" checked>
+                <span class="pill-check-text">Online</span>
+                <span class="pill-check-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+              </label>
+              <label class="pill-check">
+                <input type="radio" name="paymentModeChoice" id="paymentModeOffline" value="Offline">
+                <span class="pill-check-text">Offline</span>
+                <span class="pill-check-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+              </label>
+            </div>
+          </div>
           <label class="admin-float" id="ourCutField">
             <input id="paymentOurCut" type="number" min="0" step="1" placeholder=" ">
             <span>Our Cut Amount (₹)</span>
@@ -447,7 +462,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260928s" defer></script>
+<script src="admin.js?v=20260928t" defer></script>
 
 </body>
 </html>

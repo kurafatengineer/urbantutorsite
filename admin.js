@@ -794,6 +794,11 @@ function fillPaymentSubscriptionFields(partyType, partyId) {
 
 }
 
+function paymentModeValue() {
+  const checked = document.querySelector('input[name="paymentModeChoice"]:checked');
+  return checked ? checked.value : "Online";
+}
+
 function resetPaymentForm() {
   $("paymentDemoId").value = "";
   $("paymentSubscriptionId").value = "";
@@ -805,7 +810,7 @@ function resetPaymentForm() {
   $("paymentDate").value = new Date().toISOString().slice(0, 10);
   $("paymentType").value = "regular";
   $("paymentCollectedBy").value = "agency";
-  $("paymentMode").value = "";
+  $("paymentModeOnline").checked = true;
   $("paymentOurCut").value = "";
   $("paymentTutorId").value = "";
   $("paymentReceivedBy").value = (STATE.me && STATE.me.fullName) || "";
@@ -896,7 +901,7 @@ function wirePaymentForm() {
       paymentType: $("paymentType").value,
       collectedBy: $("paymentCollectedBy").value,
       ourCutAmount: $("paymentOurCut").value,
-      paymentMode: $("paymentMode").value.trim(),
+      paymentMode: paymentModeValue(),
       receivedBy: isSub ? $("paymentReceivedBy").value.trim() : undefined,
       paymentDate: $("paymentDate").value,
       notes: $("paymentNotes").value.trim()
@@ -2348,6 +2353,7 @@ function renderPayments() {
 function paymentCard(p, ctx) {
 
   const key = "payment:" + p.id;
+  const open = STATE.open.has(key);
   const editing = STATE.editing.has(key);
   const amount = Number(p.amount || 0);
   const cut = p.our_cut_amount != null && p.our_cut_amount !== "" ? Number(p.our_cut_amount) : null;
@@ -2394,9 +2400,9 @@ function paymentCard(p, ctx) {
     : [p.demo_id, ctx.studentName, ctx.subject, "₹" + amount.toLocaleString("en-IN"), tutorCollected ? "Tutor collected" : "Agency collected"];
 
   return `
-    <article class="admin-card is-open${editing ? " is-editing" : ""}" data-box data-id="${p.id}" data-key="${esc(key)}">
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-id="${p.id}" data-key="${esc(key)}">
 
-      <div class="admin-card-head">
+      <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">₹</div>
         <div class="admin-card-title">
           ${highlight(
@@ -2406,6 +2412,7 @@ function paymentCard(p, ctx) {
             isPayout ? "scheduled" : (tutorCollected ? "processing" : "running")
           )}
         </div>
+        <span class="admin-caret" aria-hidden="true"></span>
       </div>
 
       <div class="admin-card-body">
