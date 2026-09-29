@@ -240,8 +240,7 @@ const STATE = {
   open: new Set(),      // keys of expanded cards
   editing: new Set(),   // keys of records in edit mode
   studentOpen: new Set(), // keys of tuition cards whose nested Student section is expanded
-  quickOpen: new Set(), // keys opened via the status rail: only the relevant fields + Save
-  classRecord: null     // { demoId, kind }: Class card figure whose "Record a Payment" is showing
+  quickOpen: new Set()  // keys opened via the status rail: only the relevant fields + Save
 };
 
 let TUTOR_BY_MOBILE = {};
@@ -995,12 +994,22 @@ function fillPaymentAgencyChargeFields(g, activeRow, side) {
 
 }
 
-// "Record a Payment" from a Class card figure: the Payments form opened
-// on the matching transaction type with this Tuition's Demo/Tutor ID
+// Tapping a Class card figure: the Payments form opened on the matching
+// transaction type - Agency Charge (Student/Tutor), Collection (Parent)
+// for the Student's Total Amount/Payment, Payout (Tutor) for the
+// Tutor's - with this Tuition's Demo/Tutor ID
 // (and, for a plain Collection/Payout, its dues as the amount) filled in.
 function openPaymentFormForClass(kind, g, activeRow) {
 
   const m = classMoney(g, activeRow);
+  const dues = {
+    "student-agency": m.studentAgencyDue, "tutor-agency": m.tutorAgencyDue,
+    "student-payment": m.studentDues, "tutor-payment": m.tutorDues
+  }[kind];
+  if (!(dues > 0)) {
+    toast("No dues left for this.");
+    return;
+  }
   const types = {
     "student-agency": "student-agency-charge", "tutor-agency": "tutor-agency-charge",
     "student-payment": "collection", "tutor-payment": "payout"
@@ -1690,7 +1699,6 @@ function collapseAll() {
   STATE.open.clear();
   STATE.editing.clear();
   STATE.quickOpen.clear();
-  STATE.classRecord = null;
 }
 
 function rerenderCurrent() {
@@ -1730,15 +1738,6 @@ async function onListClick(event) {
       break;
 
     case "class-figure": {
-      const demoId = actionEl.closest(".class-card").dataset.demo;
-      const kind = actionEl.dataset.kind;
-      const same = STATE.classRecord && STATE.classRecord.demoId === demoId && STATE.classRecord.kind === kind;
-      STATE.classRecord = same ? null : { demoId, kind };
-      rerenderCurrent();
-      break;
-    }
-
-    case "class-record-payment": {
       const g = demoGroups().find(x => x.demoId === actionEl.closest(".class-card").dataset.demo);
       const activeRow = g ? activeRowFor(g) : null;
       if (activeRow) openPaymentFormForClass(actionEl.dataset.kind, g, activeRow);
@@ -3541,8 +3540,8 @@ function classCard(g, activeRow) {
   const tv = field => (tutor && tutor.values[field]) || "";
 
   const cfield = f => editing ? `data-cfield="${esc(f)}"` : "";
-  // Outside edit mode, tapping one of these figures offers "Record a
-  // Payment" for it - only while it still has dues.
+  // Outside edit mode, tapping one of these figures opens a New Payment
+  // for it straight away - only while it still has dues.
   const jump = kind => `data-action="class-figure" data-kind="${kind}"`;
 
   // Start Date defaults to today, End Date to a week out, and the two
@@ -3584,26 +3583,9 @@ function classCard(g, activeRow) {
   const {
     studentTotalAmount, studentAdvancePaid, collected, studentDues,
     tutorTotalAmount, tutorTotalPayment, tutorDues,
-    studentAgencyCharge, studentAgencyReceived, studentAgencyDue,
-    tutorAgencyCharge, tutorAgencyReceived, tutorAgencyDue
+    studentAgencyCharge, studentAgencyReceived,
+    tutorAgencyCharge, tutorAgencyReceived
   } = classMoney(g, activeRow);
-
-  const figureDues = {
-    "student-agency": studentAgencyDue, "student-payment": studentDues,
-    "tutor-agency": tutorAgencyDue, "tutor-payment": tutorDues
-  };
-  const figureLabels = {
-    "student-agency": "Student Agency Charge", "student-payment": "Student Payment",
-    "tutor-agency": "Tutor Agency Charge", "tutor-payment": "Tutor Payment"
-  };
-  const picked = !editing && STATE.classRecord && STATE.classRecord.demoId === g.demoId ? STATE.classRecord.kind : "";
-  const recordOption = side => {
-    if (!picked || !picked.startsWith(side)) return "";
-    const dues = figureDues[picked];
-    return dues > 0
-      ? `<button class="admin-ghost admin-wide admin-record-option" data-action="class-record-payment" data-kind="${picked}" type="button">+ Record a ${esc(figureLabels[picked])} · Dues ₹${dues.toLocaleString("en-IN")}</button>`
-      : `<p class="admin-note">${esc(figureLabels[picked])}: no dues.</p>`;
-  };
 
   // Student and Tutor sit side by side as two columns (stacking on
   // narrow screens) - the full profile toggle is gone, just this
@@ -3620,11 +3602,10 @@ function classCard(g, activeRow) {
         ${box("Agency Charge (₹)", editing ? (activeRow.studentAgencyCharge || 0) : activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: editing ? cfield("Student Agency Charge") : jump("student-agency") })}
         ${box("Payment Frequency", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
         ${box("Advance Payment (₹)", studentAdvancePaid)}
-        ${box("Total Amount (₹)", studentTotalAmount)}
+        ${box("Total Amount (₹)", studentTotalAmount, { attr: editing ? "" : jump("student-payment") })}
         ${box("Total Payment (₹)", collected, { attr: editing ? "" : jump("student-payment") })}
         ${box("Dues (₹)", studentDues)}
       </div>
-      ${recordOption("student")}
     </div>`;
 
   const tutorSection = `
@@ -3639,11 +3620,10 @@ function classCard(g, activeRow) {
         ${box("Agency Charges (₹)", editing ? (activeRow.tutorAgencyCharge || 0) : activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: editing ? cfield("Tutor Agency Charge") : jump("tutor-agency") })}
         ${box("Payment Frequency", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
         ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, type: "number", attr: cfield("Tutor Advance Payment") })}
-        ${box("Total Amount (₹)", tutorTotalAmount)}
+        ${box("Total Amount (₹)", tutorTotalAmount, { attr: editing ? "" : jump("tutor-payment") })}
         ${box("Total Payment (₹)", tutorTotalPayment, { attr: editing ? "" : jump("tutor-payment") })}
         ${box("Dues (₹)", tutorDues)}
       </div>
-      ${recordOption("tutor")}
     </div>`;
 
   // Collapsed head: 4 fraction figures in one row - Student's own Total
