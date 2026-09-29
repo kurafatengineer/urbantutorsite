@@ -3680,16 +3680,18 @@ function classCard(g, activeRow) {
   // each side's own Agency Payment/Agency Amount centred between them
   // (Student's agency fraction first, then Tutor's).
   const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
-  const frac = (paid, total) => `${rupees(paid)}/${rupees(total)}`;
+  const frac = (paid, total) => `
+    <span class="admin-class-frac-num">${esc(rupees(paid))}</span>
+    <span class="admin-class-frac-den">${esc(rupees(total))}</span>`;
 
   const titleHtml = `
     <div class="admin-class-fracs">
-      <span class="admin-class-frac admin-class-frac-left">${esc(frac(collected, studentTotalAmount))}</span>
+      <span class="admin-class-frac admin-class-frac-left">${frac(collected, studentTotalAmount)}</span>
       <span class="admin-class-frac-center">
-        <span class="admin-class-frac">${esc(frac(studentAgencyReceived, studentAgencyCharge))}</span>
-        <span class="admin-class-frac">${esc(frac(tutorAgencyReceived, tutorAgencyCharge))}</span>
+        <span class="admin-class-frac">${frac(studentAgencyReceived, studentAgencyCharge)}</span>
+        <span class="admin-class-frac">${frac(tutorAgencyReceived, tutorAgencyCharge)}</span>
       </span>
-      <span class="admin-class-frac admin-class-frac-right">${esc(frac(tutorTotalPayment, tutorTotalAmount))}</span>
+      <span class="admin-class-frac admin-class-frac-right">${frac(tutorTotalPayment, tutorTotalAmount)}</span>
     </div>`;
 
   return `
