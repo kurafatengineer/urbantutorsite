@@ -2879,6 +2879,10 @@ function paymentCard(p, ctx) {
     return subscriptionPaymentCard(p, key, open, editing, buttons);
   }
 
+  if (p.transaction_type === "agency_charge") {
+    return agencyChargePaymentCard(p, key, open, editing, buttons);
+  }
+
   const headline = isPayout
     ? [p.tutor_id, "Payout to Tutor", "₹" + amount.toLocaleString("en-IN")]
     : [p.demo_id, ctx.studentName, ctx.subject, "₹" + amount.toLocaleString("en-IN"), tutorCollected ? "Tutor collected" : "Agency collected"];
@@ -2999,6 +3003,76 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
           ${highlight(
             [partyName, partyMobile, partyId, sub.plan_name, "Amount Paid " + rupees(paying)],
             timeSplitLine(remaining > 0 ? `Remaining ${rupees(remaining)}` : "Fully paid", p.created_at),
+            "|",
+            "neutral",
+            true
+          )}
+        </div>
+        <span class="admin-caret" aria-hidden="true"></span>
+      </div>
+
+      <div class="admin-card-body">
+        ${boxes}
+        ${buttons}
+      </div>
+
+    </article>
+  `;
+
+}
+
+
+// An Agency Charge payment's card mirrors the fields entered on the
+// Payments form (Demo ID, the paying party's own ID/Mobile/Name, and
+// Agency Charge/Dues/Paying Now) - same idea as a Subscription
+// payment's card mirroring its own entry form above.
+function agencyChargePaymentCard(p, key, open, editing, buttons) {
+
+  const g = demoGroups().find(x => x.demoId === p.demo_id);
+  const activeRow = g ? activeRowFor(g) : null;
+  const isTutorSide = !!p.tutor_id;
+  const m = (g && activeRow) ? classMoney(g, activeRow) : null;
+  const charge = m ? (isTutorSide ? m.tutorAgencyCharge : m.studentAgencyCharge) : 0;
+
+  const partyId = isTutorSide ? p.tutor_id : (g ? g.first.studentId : "");
+  const party = partyId ? (isTutorSide ? DIR_TUTOR_BY_ID : DIR_STUDENT_BY_ID)[partyId] : null;
+  const partyName = (party && party.name) || partyId;
+  const partyMobile = (party && party.mobile) || "";
+
+  const paying = Number(p.amount || 0);
+  const paidBefore = (STATE.payments || [])
+    .filter(o => o.transaction_type === "agency_charge" && o.demo_id === p.demo_id && !!o.tutor_id === isTutorSide &&
+      (o.payment_date < p.payment_date || (o.payment_date === p.payment_date && o.id < p.id)))
+    .reduce((sum, o) => sum + Number(o.amount || 0), 0);
+  const duesThen = Math.max(charge - paidBefore, 0);
+  const duesAfter = Math.max(duesThen - paying, 0);
+  const rupees = n => "₹" + Number(n).toLocaleString("en-IN");
+  const transactionLabel = isTutorSide ? "Tutor Agency Charge" : "Student Agency Charge";
+
+  const boxes = `
+    <div class="admin-boxes">
+      ${box("Transaction", transactionLabel)}
+      ${box("Demo ID", p.demo_id || "")}
+      ${box(isTutorSide ? "Tutor ID" : "Student ID", partyId)}
+      ${box("Mobile Number", partyMobile)}
+      ${box("Name", partyName)}
+      ${box("Agency Charge (₹)", rupees(charge))}
+      ${box("Dues (₹)", rupees(duesThen))}
+      ${box("Paying Now (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: editing ? "number" : "text", attr: editing ? `data-pfield="amount"` : "" })}
+      ${box("Payment Date", editing ? p.payment_date : formatDate(p.payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" })}
+      ${box("Payment Mode", p.payment_mode, { editable: editing, options: ["Online", "Offline"], attr: editing ? `data-pfield="paymentMode"` : "" })}
+      ${box("Notes", p.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
+    </div>`;
+
+  return `
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${p.id}" data-key="${esc(key)}">
+
+      <div class="admin-card-head" data-toggle="${esc(key)}">
+        <div class="admin-avatar">₹</div>
+        <div class="admin-card-title">
+          ${highlight(
+            [p.demo_id, partyName, transactionLabel, "Paid " + rupees(paying)],
+            timeSplitLine(duesAfter > 0 ? `Dues ${rupees(duesAfter)}` : "Fully paid", p.created_at),
             "|",
             "neutral",
             true
