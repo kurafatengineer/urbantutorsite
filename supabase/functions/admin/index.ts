@@ -349,7 +349,8 @@ function subscriptionChangesFromBody(body: Json, partial: boolean): Json | { err
 
   if (!partial || body.amount !== undefined) {
     const amount = Number(body.amount);
-    if (!(amount > 0)) return { error: "Enter a valid amount." };
+    // 0 is allowed - the amount can be reduced or fully exempted case by case.
+    if (!(amount >= 0)) return { error: "Enter a valid amount." };
     changes.amount = amount;
   }
 

@@ -278,7 +278,7 @@ button { cursor: pointer; }
 
 .admin-stat[data-tone="amber"] .admin-stat-value { color: var(--warn); }
 .admin-stat[data-tone="violet"] .admin-stat-value { color: var(--violet); }
-.admin-stat[data-tone="green"] .admin-stat-value { color: var(--success); }
+.admin-stat[data-tone="green"] .admin-stat-value { color: var(--lime); }
 .admin-stat[data-tone="lime"] .admin-stat-value { color: var(--lime); }
 
 
@@ -444,7 +444,7 @@ button { cursor: pointer; }
 }
 
 .admin-pill[data-tone="verified"],
-.admin-pill[data-tone="running"] { color: var(--success); background: var(--success-dim); border-color: rgba(114, 227, 154, 0.3); }
+.admin-pill[data-tone="running"] { color: var(--lime); background: var(--lime-dim); border-color: var(--lime-line); }
 .admin-pill[data-tone="pending"] { color: var(--blue); background: var(--blue-dim); border-color: var(--blue-line); }
 .admin-pill[data-tone="schedule"] { color: var(--warn); background: var(--warn-dim); border-color: rgba(255, 209, 102, 0.3); }
 .admin-pill[data-tone="rejected"],
@@ -783,7 +783,7 @@ button { cursor: pointer; }
   border-color: var(--border-light);
 }
 
-.tutor-row-card[data-tone="running"] { box-shadow: inset 3px 0 0 var(--success); }
+.tutor-row-card[data-tone="running"] { box-shadow: inset 3px 0 0 var(--lime); }
 .tutor-row-card[data-tone="scheduled"],
 .tutor-row-card[data-tone="processing"] { box-shadow: inset 3px 0 0 var(--violet); }
 .tutor-row-card[data-tone="schedule"] { box-shadow: inset 3px 0 0 var(--orange); }
@@ -1742,7 +1742,7 @@ body[data-page="admin"] {
 /* "verified" (a tutor) matches the Accept button's exact green;
    "running" (a tuition) keeps the separate success-mint green. */
 .admin-hl-top[data-tone="verified"]   { background: rgba(22, 163, 74, 0.18); }
-.admin-hl-top[data-tone="running"]    { background: rgba(114, 227, 154, 0.13); }
+.admin-hl-top[data-tone="running"]    { background: rgba(22, 163, 74, 0.13); }
 .admin-hl-top[data-tone="pending"]    { background: var(--blue-dim); }
 .admin-hl-top[data-tone="schedule"]   { background: rgba(255, 140, 26, 0.13); }
 /* "rejected" (a tutor) matches the Reject/Suspend button's exact red. */
@@ -1765,7 +1765,7 @@ body[data-page="admin"] {
 .admin-hl-top[data-tone="pending"] .admin-info b  { color: var(--blue); }
 .admin-hl-top[data-tone="new"] .admin-info b,
 .admin-hl-top[data-tone="open"] .admin-info b     { color: var(--blue); }
-.admin-hl-top[data-tone="running"] .admin-info b  { color: var(--success); }
+.admin-hl-top[data-tone="running"] .admin-info b  { color: var(--lime); }
 .admin-hl-top[data-tone="completed"] .admin-info b { color: var(--muted); }
 .admin-hl-top[data-tone="terminated"] .admin-info b,
 .admin-hl-top[data-tone="declined"] .admin-info b { color: var(--danger); }
@@ -2125,7 +2125,9 @@ body[data-page="admin"] {
   margin: -16px -16px -16px 4px;
   padding: 10px 0;
   border: 0;
-  border-radius: 16px 0 0 16px;
+  /* matches the card's own 18px corner exactly, so the rail's rounded
+     edge is flush with the card's top-right / bottom-right corner */
+  border-radius: 18px 0 0 18px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2142,7 +2144,7 @@ body[data-page="admin"] {
 }
 
 .admin-card.is-open .admin-status-rail {
-  border-radius: 0 0 0 16px;
+  border-radius: 0 0 0 18px;
 }
 
 .admin-status-rail[data-action] {
@@ -2156,7 +2158,7 @@ body[data-page="admin"] {
 
 .admin-status-rail[data-tone="new"],
 .admin-status-rail[data-tone="open"]        { background: var(--blue-dim); color: var(--blue); }
-.admin-status-rail[data-tone="running"]     { background: rgba(114, 227, 154, 0.18); color: var(--success); }
+.admin-status-rail[data-tone="running"]     { background: var(--lime-dim); color: var(--lime); }
 .admin-status-rail[data-tone="completed"]   { background: var(--surface-3); color: var(--muted); }
 .admin-status-rail[data-tone="terminated"],
 .admin-status-rail[data-tone="declined"]    { background: rgba(255, 104, 104, 0.18); color: var(--danger); }
@@ -2168,7 +2170,7 @@ body[data-page="admin"] {
    follows its own status colour */
 .admin-card[data-tone="new"] .admin-avatar,
 .admin-card[data-tone="open"] .admin-avatar        { color: var(--blue); background: var(--blue-dim); border-color: var(--blue-line); }
-.admin-card[data-tone="running"] .admin-avatar     { color: var(--success); background: rgba(114, 227, 154, 0.18); border-color: rgba(114, 227, 154, 0.3); }
+.admin-card[data-tone="running"] .admin-avatar     { color: var(--lime); background: var(--lime-dim); border-color: var(--lime-line); }
 .admin-card[data-tone="completed"] .admin-avatar   { color: var(--muted); background: var(--surface-3); border-color: var(--border-light); }
 .admin-card[data-tone="terminated"] .admin-avatar,
 .admin-card[data-tone="declined"] .admin-avatar    { color: var(--danger); background: rgba(255, 104, 104, 0.18); border-color: rgba(255, 104, 104, 0.3); }
@@ -2230,3 +2232,35 @@ body[data-page="admin"] {
 .admin-caret-mini.is-open {
   transform: rotate(-135deg);
 }
+
+
+/* =========================================================
+   SUBSCRIPTION PAY-STATUS BADGE - a small Twitter-verified-style
+   rosette on the avatar circle, coloured by how much of the
+   student's / tutor's current subscription has been paid.
+========================================================= */
+
+.admin-avatar {
+  position: relative;
+}
+
+.admin-sub-badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--card-bg, var(--surface));
+  background: var(--card-bg, var(--surface));
+}
+
+.admin-sub-badge svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.admin-sub-badge[data-tone="paid"] svg path:first-child    { fill: var(--lime); }
+.admin-sub-badge[data-tone="partial"] svg path:first-child { fill: var(--orange); }
+.admin-sub-badge[data-tone="unpaid"] svg path:first-child  { fill: var(--danger); }

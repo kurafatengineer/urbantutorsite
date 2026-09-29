@@ -789,6 +789,30 @@ function wirePaymentForm() {
 
 }
 
+// Subscriptions are always one of two fixed yearly plans - Student (₹500)
+// or Tutor (₹1000) - though the amount can still be reduced or fully
+// exempted for a particular case, so the field stays editable.
+const SUBSCRIPTION_DEFAULTS = {
+  student: { amount: 500, planName: "Student Yearly Subscription" },
+  tutor: { amount: 1000, planName: "Tutor Yearly Subscription" }
+};
+
+function oneYearFrom(dateText) {
+  const d = new Date(dateText || Date.now());
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function applySubscriptionDefaults() {
+  const partyType = $("subscriptionPartyType").value;
+  const defaults = SUBSCRIPTION_DEFAULTS[partyType] || SUBSCRIPTION_DEFAULTS.student;
+  $("subscriptionPlanName").value = defaults.planName;
+  $("subscriptionAmount").value = defaults.amount;
+  $("subscriptionBillingCycle").value = "Yearly";
+  $("subscriptionStartDate").value = new Date().toISOString().slice(0, 10);
+  $("subscriptionNextDueDate").value = oneYearFrom($("subscriptionStartDate").value);
+}
+
 function wireSubscriptionForm() {
 
   $("subscriptionPartyType").addEventListener("change", () => {
@@ -797,6 +821,7 @@ function wireSubscriptionForm() {
     $("subscriptionPartyId").value = "";
     updateIdDetail($("subscriptionPartyDetail"), null);
     document.querySelector('#subscriptionPartyIdField .admin-suggest').classList.add("hidden");
+    applySubscriptionDefaults();
   });
 
   $("addSubscriptionButton").addEventListener("click", () => {
@@ -806,12 +831,8 @@ function wireSubscriptionForm() {
       $("subscriptionPartyType").value = "student";
       $("subscriptionPartyIdLabel").textContent = "Student ID";
       $("subscriptionPartyId").value = "";
-      $("subscriptionPlanName").value = "";
-      $("subscriptionAmount").value = "";
-      $("subscriptionBillingCycle").value = "Monthly";
-      $("subscriptionStartDate").value = new Date().toISOString().slice(0, 10);
-      $("subscriptionNextDueDate").value = "";
       $("subscriptionNotes").value = "";
+      applySubscriptionDefaults();
       updateIdDetail($("subscriptionPartyDetail"), null);
       document.querySelector('#subscriptionPartyIdField .admin-suggest').classList.add("hidden");
       $("subscriptionPartyId").focus();
@@ -1321,6 +1342,12 @@ async function onListClick(event) {
           }
         }
       });
+      break;
+    }
+
+    case "show-full": {
+      STATE.quickOpen.delete(actionEl.dataset.key);
+      rerenderCurrent();
       break;
     }
 
@@ -1840,6 +1867,43 @@ function note(text) {
   return `<p class="admin-note">${esc(text)}</p>`;
 }
 
+// A small Twitter-style verified badge on the avatar circle, coloured by
+// how much of the party's (student's or tutor's) current subscription
+// has been paid - green (fully paid / exempted), orange (partially paid),
+// red (nothing paid). Nothing is shown if they have no subscription at
+// all. Only visible to roles that can see Payments/Subscriptions, since
+// STATE.subscriptions/STATE.payments are empty otherwise.
+function subscriptionPayBadge(partyType, partyId) {
+
+  if (!partyId) return "";
+
+  const subs = (STATE.subscriptions || []).filter(s =>
+    partyType === "student" ? s.student_id === partyId : s.tutor_id === partyId
+  );
+
+  if (!subs.length) return "";
+
+  const sub = subs.find(s => s.status === "active") || subs[0];
+  const due = Number(sub.amount || 0);
+  const paid = (STATE.payments || [])
+    .filter(p => p.subscription_id === sub.id && p.transaction_type !== "payout")
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  const tone = due <= 0 || paid >= due ? "paid" : paid > 0 ? "partial" : "unpaid";
+  const title = due <= 0
+    ? "Subscription exempted / fully covered"
+    : `Subscription ${tone === "paid" ? "fully paid" : tone === "partial" ? "partially paid" : "not paid"} (₹${paid.toLocaleString("en-IN")} / ₹${due.toLocaleString("en-IN")})`;
+
+  return `
+    <span class="admin-sub-badge" data-tone="${tone}" title="${esc(title)}">
+      <svg viewBox="0 0 22 22" aria-hidden="true">
+        <path d="M11 0l2.09 1.36 2.48-.36 1.02 2.3 2.3 1.02-.36 2.48L20 11l-1.36 2.09.36 2.48-2.3 1.02-1.02 2.3-2.48-.36L11 20l-2.09-1.36-2.48.36-1.02-2.3-2.3-1.02.36-2.48L2 11l1.36-2.09-.36-2.48 2.3-1.02 1.02-2.3 2.48.36z"/>
+        <path d="M7.2 11.2l2.4 2.4 5-5.4" stroke="#fff" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>`;
+
+}
+
 // Pending: Accept | Reject. Verified: Accept (already chosen, disabled) |
 // Suspend (same effect as Reject - sets Verification Status back to
 // Rejected). Rejected: Accept | Reject (already chosen, disabled) - so
@@ -1869,7 +1933,7 @@ function recordCard(kind, record, opts) {
       data-box data-kind="${kind}" data-row="${record.rowNumber}" data-id="${esc(record.id)}" data-key="${esc(key)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar">${esc(initials(opts.name, kind === "tutors" ? "T" : "S"))}</div>
+        <div class="admin-avatar">${esc(initials(opts.name, kind === "tutors" ? "T" : "S"))}${subscriptionPayBadge(kind === "tutors" ? "tutor" : "student", record.id)}</div>
         <div class="admin-card-title">
           ${opts.titleHtml || `<strong>${esc(opts.name || record.id)}</strong><small>${esc(opts.sub)}</small>`}
         </div>
@@ -2241,7 +2305,7 @@ function subscriptionCard(sub) {
     <article class="admin-card is-open${editing ? " is-editing" : ""}" data-tone="${SUBSCRIPTION_STATUS_TONES[sub.status] || ""}" data-box data-id="${sub.id}" data-key="${esc(key)}">
 
       <div class="admin-card-head">
-        <div class="admin-avatar">${esc(initials(partyName, "$"))}</div>
+        <div class="admin-avatar">${esc(initials(partyName, "$"))}${subscriptionPayBadge(sub.student_id ? "student" : "tutor", sub.student_id || sub.tutor_id)}</div>
         <div class="admin-card-title">
           ${highlight(
             [partyName || (sub.student_id || sub.tutor_id), sub.plan_name, "₹" + amount.toLocaleString("en-IN"), sub.billing_cycle],
@@ -2442,7 +2506,7 @@ function tuitionStack(g) {
     <article class="admin-card tuition-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-tone="${esc(railTone)}" data-demo="${esc(g.demoId)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar">${esc(initials(studentName, "S"))}</div>
+        <div class="admin-avatar">${esc(initials(studentName, "S"))}${subscriptionPayBadge("student", f.studentId)}</div>
         <div class="admin-card-title">${titleHtml}</div>
         <span class="admin-caret" aria-hidden="true"></span>
         <button type="button" class="admin-status-rail" data-tone="${railTone}"${canQuickOpen ? ` data-action="quick-open"` : ` tabindex="-1"`}>${esc(TUITION_RAIL_LABELS[railTone])}</button>
@@ -2450,7 +2514,10 @@ function tuitionStack(g) {
 
       <div class="admin-card-body">
 
-        ${quickOpen ? assignBlock : `
+        ${quickOpen ? `
+          ${assignBlock}
+          <button class="admin-ghost admin-wide" data-action="show-full" data-key="${esc(key)}" type="button">Show Full Details</button>
+        ` : `
 
           ${terminated ? "" : assignBlock}
 
@@ -2492,8 +2559,6 @@ function tutorRowCard(row, terminated) {
   const open = STATE.open.has(key);
   const state = rowState(row);
   const name = tutor ? tutor.values["Full Name"] : "Unknown tutor";
-  const gender = tutor ? tutor.values["Gender"] : "";
-  const verification = tutor ? tutor.values["Verification Status"] : "";
   const off = terminated ? " disabled" : "";
   const tv = field => (tutor && tutor.values[field]) || "";
 
@@ -2522,15 +2587,14 @@ function tutorRowCard(row, terminated) {
       data-box data-row="${row.rowNumber}" data-demo="${esc(row.demoId)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar">${esc(initials(name, "T"))}</div>
+        <div class="admin-avatar">${esc(initials(name, "T"))}${subscriptionPayBadge("tutor", tutor ? tutor.id : "")}</div>
         <div class="admin-card-title">
           ${highlight(
-            [name, tv("WhatsApp Number") || tv("Mobile Number") || row.mobile,
-             tv("Graduation - Course"), tv("Graduation - Subject")],
-            [esc(gender),
-             esc(fullAddress(tv("Present Address"), tv("City"), tv("Pin Code"))),
-             lower(verification) === "verified" ? "" : `<span class="warn">${esc(verification || "Not verified")}</span>`
-            ].filter(Boolean).join(" · "),
+            [name, tv("WhatsApp Number"), tv("Mobile Number"), tutor ? tutor.id : row.mobile, tv("Subject You Teach")],
+            [
+              [tv("Graduation - Course"), tv("Graduation - Subject")].filter(Boolean).join(" - "),
+              fullAddress(tv("Present Address"), tv("City"), tv("Pin Code"))
+            ].filter(Boolean).join(" | "),
             "|",
             state
           )}
@@ -2575,6 +2639,8 @@ function tutorRowCard(row, terminated) {
         ${terminated
           ? note("This tuition is terminated. Reopen it to make changes.")
           : `<button class="admin-primary admin-wide" data-action="save-row" type="button">Save</button>`}
+
+        ${quickOpen ? `<button class="admin-ghost admin-wide" data-action="show-full" data-key="${esc(key)}" type="button">Show Full Details</button>` : ""}
 
       </div>
 
