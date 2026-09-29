@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260929a">
+  <link rel="stylesheet" href="admin.css?v=20260929b">
 </head>
 
 <body data-page="admin">
@@ -168,12 +168,9 @@
     <!-- ================= PAYMENTS ================= -->
     <section id="tab-payments" class="admin-panel hidden">
 
-      <div class="admin-tabs" id="paymentsSubTabs" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px;">
-        <button class="admin-tab active" data-subtab="payments" type="button">Payments</button>
-        <button class="admin-tab" data-subtab="subscriptions" type="button">Subscriptions</button>
-      </div>
-
       <div id="subtab-payments">
+
+      <h3 class="admin-section-title" style="font-size:13px;margin-bottom:4px;">Payments</h3>
 
       <div class="admin-tools">
         <label class="admin-float admin-search-wrap">
@@ -346,7 +343,9 @@
 
       </div>
 
-      <div id="subtab-subscriptions" class="hidden">
+      <div id="subtab-subscriptions" style="margin-top:24px;">
+
+      <h3 class="admin-section-title" style="font-size:13px;margin-bottom:4px;">Subscriptions</h3>
 
       <div class="admin-tools">
         <label class="admin-float admin-search-wrap">
@@ -456,7 +455,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260929a" defer></script>
+<script src="admin.js?v=20260929b" defer></script>
 
 </body>
 </html>

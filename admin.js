@@ -227,7 +227,6 @@ const STATE = {
   subscriptions: [],
   employees: [],
   directory: { demos: [], students: [], tutors: [] },
-  paymentsSubTab: "payments",
   tab: "tuitions",
   tutorFilter: "all",
   tuitionFilter: "all",
@@ -658,15 +657,6 @@ function wireEvents() {
 
   $("tuitionList").addEventListener("input", onAssignInput);
 
-  $("paymentsSubTabs").addEventListener("click", (event) => {
-    const tab = event.target.closest("[data-subtab]");
-    if (!tab) return;
-    STATE.paymentsSubTab = tab.dataset.subtab;
-    $("paymentsSubTabs").querySelectorAll("[data-subtab]").forEach(t => t.classList.toggle("active", t === tab));
-    $("subtab-payments").classList.toggle("hidden", STATE.paymentsSubTab !== "payments");
-    $("subtab-subscriptions").classList.toggle("hidden", STATE.paymentsSubTab !== "subscriptions");
-  });
-
   wirePaymentForm();
   wirePaymentIdSuggestions();
   wirePaymentSubPartySuggestion();
@@ -830,14 +820,8 @@ function resetPaymentForm() {
   applyPaymentTransactionType();
 }
 
-// Opens the payment form pre-filled for one subscription's renewal,
-// switching over to the Payments sub-tab so the form is visible.
+// Opens the payment form pre-filled for one subscription's renewal.
 function openPaymentFormForSubscription(sub) {
-  STATE.paymentsSubTab = "payments";
-  $("paymentsSubTabs").querySelectorAll("[data-subtab]").forEach(t => t.classList.toggle("active", t.dataset.subtab === "payments"));
-  $("subtab-payments").classList.remove("hidden");
-  $("subtab-subscriptions").classList.add("hidden");
-
   resetPaymentForm();
   $("paymentTransactionType").value = sub.student_id ? "student-subscription" : "tutor-subscription";
   $("paymentForSubscription").classList.remove("hidden");
@@ -1858,7 +1842,7 @@ function rowState(row) {
 }
 
 const ROW_LABELS = {
-  open: "Open", schedule: "Schedule Demo", scheduled: "Demo Scheduled",
+  open: "Open", schedule: "Schedule", scheduled: "Scheduled",
   processing: "Processing", running: "Running", completed: "Completed",
   declined: "Declined", terminated: "Closed"
 };
@@ -1886,7 +1870,7 @@ function tuitionRailTone(state) {
 }
 
 const TUITION_RAIL_LABELS = {
-  new: "Finding Tutor", running: "Running", completed: "Completed", terminated: "Closed"
+  new: "New", running: "Running", completed: "Completed", terminated: "Closed"
 };
 
 
