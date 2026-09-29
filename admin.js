@@ -3432,8 +3432,11 @@ function ledgerEntries() {
 
   entries.forEach(e => { e.mobile = person(e.kind, e.partyId).mobile || ""; });
 
-  // By date, earliest first; anything with no due date set goes last.
-  return entries.sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
+  // Still to be paid first, then paid. Within each: no date set first,
+  // then by date, earliest first.
+  const rank = e => (e.status === "paid" ? 1 : 0);
+  return entries.sort((a, b) =>
+    rank(a) - rank(b) || (a.date ? 1 : 0) - (b.date ? 1 : 0) || (a.date || "").localeCompare(b.date || ""));
 
 }
 
@@ -3443,7 +3446,7 @@ const LEDGER_STATUS = {
   overdue: { label: "Overdue", tone: "declined" }
 };
 
-const LEDGER_COLUMNS = ["Due Date", "Who", "Name", "Mobile Number", "Tutor ID", "Student ID", "Demo ID", "Amount"];
+const LEDGER_COLUMNS = ["Date", "Who", "Name", "Mobile Number", "Tutor ID", "Student ID", "Demo ID", "Amount"];
 
 // "2026-10-06" -> "06|10|2026"
 function ledgerDate(iso) {
