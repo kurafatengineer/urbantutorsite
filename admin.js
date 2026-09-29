@@ -1525,6 +1525,33 @@ function goToTuition(demoId) {
 
 }
 
+// Same as goToTuition, for one Subscription or Tutor card: that tab's
+// search (and Tutor filter) cleared so the card is shown, then opened
+// and scrolled into view.
+function goToCard(tab, key) {
+
+  const searchId = { subscriptions: "subscriptionSearch", tutors: "tutorSearch" }[tab];
+
+  collapseAll();
+  STATE.tab = tab;
+  $(searchId).value = "";
+  clearSearchChips(searchId);
+  if (tab === "tutors") {
+    STATE.tutorFilter = "all";
+    $("tutorFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === "all"));
+  }
+  STATE.open.add(key);
+
+  applyActiveTab();
+  rerenderCurrent();
+
+  requestAnimationFrame(() => {
+    const card = document.querySelector(`[data-key="${CSS.escape(key)}"]`);
+    if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+}
+
 function chipGroup(id, onChange) {
   $(id).addEventListener("click", (event) => {
     const chip = event.target.closest(".admin-chip");
@@ -1658,6 +1685,10 @@ async function onListClick(event) {
 
     case "go-to-tuition":
       goToTuition(actionEl.dataset.demo);
+      break;
+
+    case "go-to-card":
+      goToCard(actionEl.dataset.tab, actionEl.dataset.key);
       break;
 
     case "edit":
@@ -2693,14 +2724,6 @@ function renderPayments() {
 
 }
 
-const PAYMENT_PARTY_TONES = { Student: "new", Tutor: "scheduled" };
-const PAYMENT_PURPOSE_TONES = {
-  "Subscription": "completed",
-  "Agency Charge": "schedule",
-  "Payments In": "running",
-  "Payments Out": "declined"
-};
-
 // Total of `list` up to and including payment p, in the order the
 // payments were made.
 function paidUpTo(list, p) {
@@ -2716,13 +2739,14 @@ function paymentSummary(p) {
 
   const all = STATE.payments || [];
   const groupFor = demoId => demoGroups().find(x => x.demoId === demoId);
-  let kind, partyId, purpose, dues = null;
+  let kind, partyId, purpose, dues = null, target = null;
 
   if (p.subscription_id) {
     const sub = (STATE.subscriptions || []).find(x => x.id === p.subscription_id) || {};
     kind = sub.student_id ? "Student" : "Tutor";
     partyId = sub.student_id || sub.tutor_id || "";
     purpose = "Subscription";
+    target = { action: "go-to-card", tab: "subscriptions", key: "subscription:" + p.subscription_id };
     const paid = paidUpTo(all.filter(o => o.subscription_id === p.subscription_id && o.transaction_type !== "payout"), p);
     dues = Math.max(num(sub.amount) - paid, 0);
 
@@ -2732,6 +2756,7 @@ function paymentSummary(p) {
     kind = p.tutor_id ? "Tutor" : "Student";
     partyId = p.tutor_id || (g ? g.first.studentId : "");
     purpose = "Agency Charge";
+    if (p.demo_id) target = { action: "go-to-tuition", demo: p.demo_id };
     if (activeRow) {
       const m = classMoney(g, activeRow);
       const charge = p.tutor_id ? m.tutorAgencyCharge : m.studentAgencyCharge;
@@ -2744,6 +2769,9 @@ function paymentSummary(p) {
     partyId = p.tutor_id || "";
     purpose = "Payments Out";
     const g = demoGroups().find(x => { const r = activeRowFor(x); return r && r.tutorId === p.tutor_id; });
+    target = g
+      ? { action: "go-to-tuition", demo: g.demoId }
+      : (p.tutor_id ? { action: "go-to-card", tab: "tutors", key: "tutors:" + p.tutor_id } : null);
     if (g) {
       const m = classMoney(g, activeRowFor(g));
       const paid = paidUpTo(all.filter(o => o.transaction_type === "payout" && o.tutor_id === p.tutor_id), p);
@@ -2757,6 +2785,7 @@ function paymentSummary(p) {
     kind = "Student";
     partyId = demo ? demo.studentId : "";
     purpose = "Payments In";
+    if (p.demo_id) target = { action: "go-to-tuition", demo: p.demo_id };
     if (activeRow) {
       const m = classMoney(g, activeRow);
       const paid = paidUpTo(all.filter(o => o.transaction_type === "collection" && o.demo_id === p.demo_id), p);
@@ -2766,7 +2795,7 @@ function paymentSummary(p) {
 
   const party = partyId ? (kind === "Student" ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID)[partyId] : null;
   return {
-    kind, partyId, purpose, dues,
+    kind, partyId, purpose, dues, target,
     partyName: (party && party.name) || partyId,
     partyMobile: (party && party.mobile) || ""
   };
@@ -2775,15 +2804,18 @@ function paymentSummary(p) {
 
 // Same two layers as a Subscription card: who / what / how much on top,
 // Full Payment or Dues left after it plus the time stamp below, and
-// Student/Tutor + what it was for as two separate vertical rails on
-// the right edge.
+// what it was for + Student/Tutor as two vertical rails on the right
+// edge. The ₹ avatar jumps to whatever the payment belongs to - its
+// Tuition, Subscription, or (a payout with no live Tuition) its Tutor.
 function paymentHead(key, p) {
   const s = paymentSummary(p);
   const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
   const status = s.dues == null ? "" : (s.dues > 0 ? "Dues " + rupees(s.dues) : "Full Payment");
   return `
       <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar">₹</div>
+        ${s.target
+          ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="${s.target.action}"${s.target.demo ? ` data-demo="${esc(s.target.demo)}"` : ""}${s.target.tab ? ` data-tab="${esc(s.target.tab)}" data-key="${esc(s.target.key)}"` : ""} title="Open what this payment is for">₹</button>`
+          : `<div class="admin-avatar">₹</div>`}
         <div class="admin-card-title">
           ${highlight(
             [s.partyName, s.partyMobile, s.partyId, s.purpose, "Amount Paid " + rupees(p.amount)],
@@ -2794,8 +2826,8 @@ function paymentHead(key, p) {
           )}
         </div>
         <span class="admin-caret" aria-hidden="true"></span>
-        <span class="admin-status-rail admin-rail-party" data-tone="${PAYMENT_PARTY_TONES[s.kind]}" tabindex="-1">${esc(s.kind)}</span>
-        <span class="admin-status-rail admin-rail-purpose" data-tone="${PAYMENT_PURPOSE_TONES[s.purpose]}" tabindex="-1">${esc(s.purpose)}</span>
+        <span class="admin-status-rail admin-rail-purpose" data-tone="black" tabindex="-1">${esc(s.purpose)}</span>
+        <span class="admin-status-rail admin-rail-party" data-tone="black" tabindex="-1">${esc(s.kind)}</span>
       </div>`;
 }
 
