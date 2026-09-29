@@ -855,24 +855,6 @@ function openPaymentFormForSubscription(sub) {
   $("paymentForm").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-// Opens the payment form pre-filled from a running/completed class's own
-// card, so a payment collected against that Tuition doesn't need its
-// Demo ID / Tutor ID typed in from scratch.
-function openPaymentFormForDemo(demoId, tutorId) {
-  if (STATE.tab !== "payments") showTab("payments");
-  resetPaymentForm();
-  $("paymentTransactionType").value = "collection";
-  $("paymentDemoId").value = demoId || "";
-  $("paymentTutorId").value = tutorId || "";
-  const demoItem = DIR_DEMO_BY_ID[demoId];
-  updateIdDetail($("paymentDemoDetail"), demoItem ? DIR_STUDENT_BY_ID[demoItem.studentId] : null);
-  updateIdDetail($("paymentTutorDetail"), tutorId ? DIR_TUTOR_BY_ID[tutorId] : null);
-  applyPaymentTransactionType();
-
-  $("paymentForm").classList.remove("hidden");
-  $("paymentForm").scrollIntoView({ behavior: "smooth", block: "center" });
-}
-
 function wirePaymentForm() {
 
   $("addPaymentButton").addEventListener("click", () => {
@@ -1644,11 +1626,6 @@ async function onListClick(event) {
         actionEl.classList.toggle("is-on", !adding);
         actionEl.disabled = false;
       }
-      break;
-    }
-
-    case "record-class-payment": {
-      openPaymentFormForDemo(box.dataset.demo, actionEl.dataset.tutorId);
       break;
     }
 
@@ -3198,10 +3175,6 @@ function classCard(g, activeRow) {
     subject: g.first.subject
   };
 
-  const demoPayments = (STATE.payments || [])
-    .filter(p => p.demo_id === g.demoId)
-    .sort((a, b) => (b.payment_date || "").localeCompare(a.payment_date || "") || (b.id - a.id));
-
   const titleHtml = highlight(
     [g.demoId, "Class Details"],
     [ctx.studentName, tv("Full Name")].filter(Boolean).join(" · "),
@@ -3235,10 +3208,6 @@ function classCard(g, activeRow) {
         </div>
 
         ${editButtons(key, editing, "save-class-details", "Edit Class Details")}
-
-        <h3 class="admin-section-title">Payments for this Class</h3>
-        ${demoPayments.length ? demoPayments.map(p => paymentCard(p, ctx)).join("") : note("No payments recorded yet for this class.")}
-        <button class="admin-ghost admin-wide" data-action="record-class-payment" data-tutor-id="${esc(activeRow.tutorId)}" type="button">+ Record a Payment</button>
 
       </div>
 
