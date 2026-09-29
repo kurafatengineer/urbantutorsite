@@ -1409,30 +1409,56 @@ button { cursor: pointer; }
 }
 
 
-/* ---------- Payment Mode radio row (Online / Offline) ---------- */
+/* ---------- Payment Mode: one pill-shaped box, Online/Offline as a
+   two-way segmented toggle inside it - same field height/label as
+   every other box in the row so it sits in line with Payment Date. */
 
-.admin-form > .admin-radio-row.wide {
-  grid-column: 1 / -1;
+.admin-mode-field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 15px 8px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
 }
 
-.admin-radio-row-label {
+.admin-mode-seg {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.admin-mode-seg label {
+  position: relative;
+  cursor: pointer;
+}
+
+.admin-mode-seg input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-mode-seg span {
   display: block;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  padding: 9px 4px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--muted);
-  margin-bottom: 8px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.admin-radio-row-options {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+.admin-mode-seg input:checked + span {
+  background: var(--lime);
+  color: #050505;
 }
 
-.admin-radio-row-options .pill-check {
-  flex: 1 1 140px;
+.admin-mode-seg input:focus-visible + span {
+  outline: 2px solid var(--lime);
+  outline-offset: 2px;
 }
 
 
