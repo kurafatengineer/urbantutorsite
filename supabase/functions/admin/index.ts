@@ -606,28 +606,43 @@ function subscriptionRows(row: Json): [string, string][] {
   ];
 }
 
+// Sum of everything paid in against a subscription so far (payouts
+// don't count) - the server-side twin of admin.js's
+// subscriptionPaidAmount, used both to cap a new payment at what's
+// still owed and to tell whether it's now fully settled.
+async function subscriptionPaidTotal(subscriptionId: number): Promise<number> {
+  const { data: rows } = await db.from("payments").select("amount")
+    .eq("subscription_id", subscriptionId).neq("transaction_type", "payout");
+  return (rows ?? []).reduce((sum: number, r: Json) => sum + Number(r.amount || 0), 0);
+}
+
 // start_date marks when the current billing cycle began - the first
 // payment ever, or a renewal landing after the previous cycle's
-// next_due_date had already passed. next_due_date follows the most
-// recent payment (its date + 1 year) and never moves backwards, so a
-// back-dated instalment can't pull it earlier.
+// next_due_date had already passed. next_due_date only moves once the
+// subscription is fully paid off, to one year from that cycle's start -
+// while dues remain, the admin sets their own follow-up date instead of
+// the system guessing one.
 async function realignSubscriptionCycle(subscriptionId: number, paymentDate: string) {
   const { data: sub } = await db
     .from("subscriptions")
-    .select("start_date, next_due_date")
+    .select("start_date, next_due_date, amount")
     .eq("id", subscriptionId)
     .maybeSingle();
   if (!sub) return;
 
   const startsNewCycle = !sub.start_date || !sub.next_due_date || paymentDate > sub.next_due_date;
-
-  const nextDue = new Date(paymentDate);
-  nextDue.setFullYear(nextDue.getFullYear() + 1);
-  const candidate = nextDue.toISOString().slice(0, 10);
+  const cycleStart = startsNewCycle ? paymentDate : sub.start_date;
 
   const changes: Record<string, string> = {};
-  if (startsNewCycle) changes.start_date = paymentDate;
-  if (!sub.next_due_date || candidate > sub.next_due_date) changes.next_due_date = candidate;
+  if (startsNewCycle) changes.start_date = cycleStart;
+
+  const totalPaid = await subscriptionPaidTotal(subscriptionId);
+  if (totalPaid >= Number(sub.amount || 0)) {
+    const nextDue = new Date(cycleStart);
+    nextDue.setFullYear(nextDue.getFullYear() + 1);
+    changes.next_due_date = nextDue.toISOString().slice(0, 10);
+  }
+
   if (!Object.keys(changes).length) return;
 
   await db.from("subscriptions").update(changes).eq("id", subscriptionId);
@@ -762,6 +777,19 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
     case "adminAddPayment": {
       const changes = paymentChangesFromBody(body, false);
       if ("error" in changes) return { success: false, message: changes.error };
+
+      if (changes.subscription_id) {
+        const { data: sub } = await db.from("subscriptions").select("amount")
+          .eq("id", changes.subscription_id).maybeSingle();
+        if (sub) {
+          const paidSoFar = await subscriptionPaidTotal(changes.subscription_id);
+          const dues = Math.max(Number(sub.amount || 0) - paidSoFar, 0);
+          if (Number(changes.amount) > dues) {
+            return { success: false, message: `Amount Paid can't be more than the Dues (Rs. ${dues}).` };
+          }
+        }
+      }
+
       const { data: inserted, error } = await db.from("payments").insert({ ...changes, recorded_by: caller.id }).select().maybeSingle();
       if (error) return { success: false, message: error.message };
       if (inserted) {

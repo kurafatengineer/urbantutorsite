@@ -1449,12 +1449,13 @@ button { cursor: pointer; }
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 12px 8px 14px;
+  padding: 7px 11px 7px 13px;
   border-radius: 999px;
+  border: 1px solid var(--border);
   font-size: 14px;
   font-weight: 700;
   color: var(--muted);
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .admin-mode-dot {
@@ -1477,6 +1478,7 @@ button { cursor: pointer; }
 
 .admin-mode-seg input:checked + .admin-mode-opt {
   background: var(--lime-dim);
+  border-color: rgba(22, 163, 74, 0.45);
   color: var(--text);
 }
 
@@ -1492,6 +1494,22 @@ button { cursor: pointer; }
 .admin-mode-seg input:focus-visible + .admin-mode-opt {
   outline: 2px solid var(--lime);
   outline-offset: 2px;
+}
+
+
+/* ---------- Next Due Date reminder hint (dues remain, so the system
+   can't auto-set it - the admin should pick a follow-up date) ---------- */
+
+#paymentSubNextDueField.needs-reminder input,
+.admin-box:has(input[data-reminder]) input {
+  border-color: var(--orange);
+  background: var(--warn-dim);
+  color: var(--text);
+}
+
+#paymentSubNextDueField.needs-reminder > span,
+.admin-box:has(input[data-reminder]) > span {
+  color: var(--orange);
 }
 
 .admin-float input[type="date"] {

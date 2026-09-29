@@ -727,8 +727,13 @@ function clearPaymentSubFields() {
 
 function updatePaymentRemaining() {
   const dues = Number(String($("paymentSubDues").value).replace(/[^\d.-]/g, "")) || 0;
-  const payingNow = Number($("paymentPayingNow").value) || 0;
+  let payingNow = Number($("paymentPayingNow").value) || 0;
+  if (payingNow > dues) {
+    payingNow = dues;
+    $("paymentPayingNow").value = dues;
+  }
   $("paymentRemaining").value = "₹" + Math.max(dues - payingNow, 0).toLocaleString("en-IN");
+  $("paymentSubNextDueField").classList.toggle("needs-reminder", dues - payingNow > 0);
 }
 
 // The subscription's current billing cycle "starts" from whichever
@@ -781,11 +786,13 @@ function fillPaymentSubscriptionFields(partyType, partyId) {
   $("paymentSubPlan").value = sub.plan_name || "";
   $("paymentSubAmount").value = "₹" + amount.toLocaleString("en-IN");
   $("paymentSubDues").value = "₹" + dues.toLocaleString("en-IN");
+  $("paymentPayingNow").max = dues || amount;
   $("paymentPayingNow").value = dues || amount;
   $("paymentSubCycle").value = sub.billing_cycle || "";
   $("paymentSubStatus").value = SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status;
   $("paymentSubStartDate").value = cycleStart;
-  $("paymentSubNextDue").value = oneYearFrom($("paymentDate").value || new Date().toISOString().slice(0, 10));
+  $("paymentSubNextDue").value = subscriptionNextDue(sub);
+  $("paymentSubNextDueField").classList.toggle("needs-reminder", dues > 0);
   updatePaymentRemaining();
 
   $("paymentSubPartyIdField").classList.add("hidden");
@@ -897,6 +904,14 @@ function wirePaymentForm() {
       return;
     }
 
+    if (isSub) {
+      const dues = Number(String($("paymentSubDues").value).replace(/[^\d.-]/g, "")) || 0;
+      if (enteredAmount > dues) {
+        toast(`Amount Paid can't be more than the Dues (₹${dues.toLocaleString("en-IN")}).`, true);
+        return;
+      }
+    }
+
     const payload = {
       action: "adminAddPayment",
       transactionType: isPayout ? "payout" : "collection",
@@ -930,11 +945,11 @@ function wirePaymentSubPartySuggestion() {
   const isStudent = () => $("paymentTransactionType").value === "student-subscription";
 
   input.addEventListener("input", () => {
-    renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent()), "party");
+    renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent(), { excludeFullyPaid: true }), "party");
   });
 
   input.addEventListener("focus", () => {
-    renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent()), "party");
+    renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent(), { excludeFullyPaid: true }), "party");
   });
 
   suggest.addEventListener("click", (event) => {
@@ -1100,10 +1115,16 @@ function paymentTutorSuggestions(query, demoFilter) {
   return list.slice(0, 8);
 }
 
-function studentOrTutorSuggestions(query, isStudent) {
+function studentOrTutorSuggestions(query, isStudent, opts = {}) {
   const q = lower(query);
   const digits = String(query || "").replace(/\D/g, "");
-  const list = isStudent ? (STATE.directory.students || []) : (STATE.directory.tutors || []);
+  let list = isStudent ? (STATE.directory.students || []) : (STATE.directory.tutors || []);
+  if (opts.excludeFullyPaid) {
+    list = list.filter(p => {
+      const sub = subscriptionFor(isStudent ? "student" : "tutor", p.id);
+      return !sub || subscriptionPaidAmount(sub.id) < Number(sub.amount || 0);
+    });
+  }
   if (!q) return list.slice(0, 8);
   return list.filter(p =>
     lower(p.id).includes(q) ||
@@ -2462,13 +2483,13 @@ function recordedAt(iso) {
 // subscription (that payment's date + 1 year), never earlier than what
 // is already stored.
 function subscriptionNextDue(sub) {
-  const dates = (STATE.payments || [])
-    .filter(p => p.subscription_id === sub.id && p.transaction_type !== "payout" && p.payment_date)
-    .map(p => p.payment_date)
-    .sort();
-  const fromPayment = dates.length ? oneYearFrom(dates[dates.length - 1]) : "";
-  const stored = sub.next_due_date || (sub.start_date ? oneYearFrom(sub.start_date) : "");
-  return fromPayment > stored ? fromPayment : stored;
+  const amount = Number(sub.amount || 0);
+  const paid = subscriptionPaidAmount(sub.id);
+  if (paid >= amount && sub.start_date) {
+    const fromCycle = oneYearFrom(sub.start_date);
+    return sub.next_due_date && sub.next_due_date > fromCycle ? sub.next_due_date : fromCycle;
+  }
+  return sub.next_due_date || "";
 }
 
 function subscriptionPaymentCard(p, key, open, editing, buttons) {
@@ -2597,7 +2618,7 @@ function subscriptionCard(sub) {
         attr: editing ? `data-subfield="status"` : ""
       })}
       ${box("Start Date", sub.start_date, { editable: editing, type: "date", attr: editing ? `data-subfield="startDate"` : "" })}
-      ${box("Next Due Date", nextDueDate, { editable: editing, type: "date", attr: editing ? `data-subfield="nextDueDate"` : "" })}
+      ${box("Next Due Date", nextDueDate, { editable: editing, type: "date", attr: (editing ? `data-subfield="nextDueDate"` : "") + (dues > 0 ? ` data-reminder="1"` : "") })}
       ${box("Notes", sub.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-subfield="notes"` : "" })}
     </div>`;
 
@@ -2630,7 +2651,7 @@ function subscriptionCard(sub) {
 
       <div class="admin-card-body">
         ${boxes}
-        ${editing ? "" : `<button class="admin-ghost admin-wide" data-action="record-payment" type="button">Record a Payment for this Subscription</button>`}
+        ${(!editing && dues > 0) ? `<button class="admin-ghost admin-wide" data-action="record-payment" type="button">Record a Payment for this Subscription</button>` : ""}
         ${buttons}
       </div>
 
