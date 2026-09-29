@@ -692,6 +692,8 @@ function wireEvents() {
 
   $("tuitionList").addEventListener("input", onAssignInput);
 
+  document.addEventListener("click", collapseOnOutsideClick, true);
+
   wirePaymentForm();
   wirePaymentIdSuggestions();
   wirePaymentSubPartySuggestion();
@@ -1744,6 +1746,34 @@ function chipGroup(id, onChange) {
 // (the DOM may currently hold the reduced "quick" body from a status-
 // rail tap - see openQuickCard()). Closing is still a cheap show/hide,
 // since a closed card's stale content doesn't matter until it reopens.
+// A click anywhere outside an open card closes it - "outside" meaning
+// outside its whole joined stack (a Tuition with its Class card and
+// Tutor rows counts as one), and never a card that's being edited, so
+// unsaved changes aren't lost. Runs in the capture phase, before the
+// click's own handler, and only flips classes (no re-render).
+function collapseOnOutsideClick(event) {
+
+  if (!STATE.open.size) return;
+
+  const target = event.target;
+  let closed = false;
+
+  document.querySelectorAll(".admin-card.is-open").forEach(card => {
+    const head = card.querySelector(":scope > .admin-card-head[data-toggle]");
+    const key = head && head.dataset.toggle;
+    if (!key || !STATE.open.has(key) || STATE.editing.has(key)) return;
+    const area = card.closest(".admin-stack") || card;
+    if (area.contains(target)) return;
+    STATE.open.delete(key);
+    STATE.quickOpen.delete(key);
+    card.classList.remove("is-open");
+    closed = true;
+  });
+
+  return closed;
+
+}
+
 function toggleCard(head) {
 
   const key = head.dataset.toggle;
