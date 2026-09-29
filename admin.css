@@ -2383,6 +2383,9 @@ body[data-page="admin"] {
   margin: -16px -16px -16px 4px;
   padding: 6px 0;
   border: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
