@@ -2769,7 +2769,21 @@ function tuitionPaymentStatusCards(g, activeRow) {
     "admin-boxes-triple"
   );
 
-  return studentCard + tutorCard + studentAgencyCard + tutorAgencyCard;
+  // Every Agency Charge payment actually made against this side sits
+  // stacked right under its own status card (same joined-card look as
+  // a Tuition and its Tutor rows), instead of floating loose in the
+  // flat payments list below.
+  const studentAgencyPayments = (STATE.payments || [])
+    .filter(p => p.transaction_type === "agency_charge" && p.demo_id === g.demoId && !p.tutor_id)
+    .map(p => paymentCard(p, {})).join("");
+  const tutorAgencyPayments = (STATE.payments || [])
+    .filter(p => p.transaction_type === "agency_charge" && p.demo_id === g.demoId && p.tutor_id === activeRow.tutorId)
+    .map(p => paymentCard(p, {})).join("");
+
+  const studentAgencyStack = `<div class="admin-stack${studentAgencyPayments ? " has-tutors" : ""}">${studentAgencyCard}${studentAgencyPayments}</div>`;
+  const tutorAgencyStack = `<div class="admin-stack${tutorAgencyPayments ? " has-tutors" : ""}">${tutorAgencyCard}${tutorAgencyPayments}</div>`;
+
+  return studentCard + tutorCard + studentAgencyStack + tutorAgencyStack;
 
 }
 
@@ -2814,6 +2828,9 @@ function renderPayments() {
   const query = searchQueryFor("paymentSearch");
 
   const rows = (STATE.payments || []).filter(p => {
+    // Agency Charge payments are stacked under their own status card
+    // in the list above instead (see tuitionPaymentStatusCards).
+    if (p.transaction_type === "agency_charge") return false;
     const sub = p.subscription_id ? (STATE.subscriptions || []).find(s => s.id === p.subscription_id) : null;
     const subId = sub ? (sub.student_id || sub.tutor_id) : "";
     const subParty = subId ? (sub.student_id ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID)[subId] : null;
@@ -3065,7 +3082,7 @@ function agencyChargePaymentCard(p, key, open, editing, buttons) {
     </div>`;
 
   return `
-    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${p.id}" data-key="${esc(key)}">
+    <article class="admin-card tutor-row-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${p.id}" data-key="${esc(key)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">₹</div>
