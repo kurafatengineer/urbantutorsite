@@ -3686,12 +3686,15 @@ function classCard(g, activeRow) {
 
   const titleHtml = `
     <div class="admin-class-fracs">
-      <span class="admin-class-frac admin-class-frac-left">${frac(collected, studentTotalAmount)}</span>
-      <span class="admin-class-frac-center">
-        <span class="admin-class-frac">${frac(studentAgencyReceived, studentAgencyCharge)}</span>
-        <span class="admin-class-frac">${frac(tutorAgencyReceived, tutorAgencyCharge)}</span>
+      <span class="admin-class-fracs-figures">
+        <span class="admin-class-frac admin-class-frac-left">${frac(collected, studentTotalAmount)}</span>
+        <span class="admin-class-frac-center">
+          <span class="admin-class-frac">${frac(studentAgencyReceived, studentAgencyCharge)}</span>
+          <span class="admin-class-frac">${frac(tutorAgencyReceived, tutorAgencyCharge)}</span>
+        </span>
+        <span class="admin-class-frac admin-class-frac-right">${frac(tutorTotalPayment, tutorTotalAmount)}</span>
       </span>
-      <span class="admin-class-frac admin-class-frac-right">${frac(tutorTotalPayment, tutorTotalAmount)}</span>
+      <span class="admin-class-fracs-label">Payments</span>
     </div>`;
 
   return `

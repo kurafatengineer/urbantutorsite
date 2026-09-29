@@ -2460,10 +2460,27 @@ body[data-page="admin"] {
 .admin-class-fracs {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
-  gap: 10px;
+  gap: 14px;
   overflow: hidden;
+}
+
+.admin-class-fracs-figures {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 10px;
+}
+
+.admin-class-fracs-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .admin-class-frac {
