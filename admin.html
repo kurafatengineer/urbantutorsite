@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260928p">
+  <link rel="stylesheet" href="admin.css?v=20260928q">
 </head>
 
 <body data-page="admin">
@@ -192,10 +192,74 @@
 
           <label class="admin-float is-select wide">
             <select id="paymentTransactionType">
+              <option value="student-subscription">Student Subscription</option>
+              <option value="tutor-subscription">Tutor Subscription</option>
               <option value="collection">Collection — money in from a parent</option>
               <option value="payout">Payout — agency pays a tutor</option>
             </select>
             <span>Transaction</span>
+          </label>
+
+          <!-- Only for a subscription payment: search by Student/Tutor
+               ID, mobile or WhatsApp number, then everything below
+               fills in from that party's own subscription. Hidden
+               once "Record a Payment for this Subscription" has
+               already resolved it. -->
+          <div class="admin-id-row wide hidden" id="paymentSubPartyIdField">
+            <label class="admin-float">
+              <input id="paymentSubPartyId" type="text" placeholder=" " autocomplete="off">
+              <span id="paymentSubPartyIdLabel">Enter Student ID, Mobile or WhatsApp Number</span>
+            </label>
+            <div class="admin-suggest hidden" data-suggest="subparty"></div>
+          </div>
+
+          <label class="admin-float hidden" id="paymentSubNameField">
+            <input id="paymentSubName" type="text" readonly>
+            <span>Name</span>
+          </label>
+          <label class="admin-float hidden" id="paymentSubMobileField">
+            <input id="paymentSubMobile" type="text" readonly>
+            <span>Mobile Number</span>
+          </label>
+          <label class="admin-float hidden" id="paymentSubIdField">
+            <input id="paymentSubId" type="text" readonly>
+            <span id="paymentSubIdLabel">Student ID</span>
+          </label>
+          <label class="admin-float hidden" id="paymentSubPlanField">
+            <input id="paymentSubPlan" type="text" readonly>
+            <span>Plan Name</span>
+          </label>
+          <label class="admin-float hidden" id="paymentSubAmountField">
+            <input id="paymentSubAmount" type="text" readonly>
+            <span>Amount (₹)</span>
+          </label>
+          <label class="admin-float hidden" id="paymentSubDuesField">
+            <input id="paymentSubDues" type="text" readonly>
+            <span>Dues (₹)</span>
+          </label>
+          <label class="admin-float hidden" id="paymentPayingNowField">
+            <input id="paymentPayingNow" type="number" min="0" step="1" placeholder=" ">
+            <span>Paying Now (₹)</span>
+          </label>
+          <label class="admin-float hidden" id="paymentRemainingField">
+            <input id="paymentRemaining" type="text" readonly>
+            <span>Remaining (₹)</span>
+          </label>
+          <label class="admin-float hidden" id="paymentSubCycleField">
+            <input id="paymentSubCycle" type="text" readonly>
+            <span>Billing Cycle</span>
+          </label>
+          <label class="admin-float hidden" id="paymentSubStatusField">
+            <input id="paymentSubStatus" type="text" readonly>
+            <span>Status</span>
+          </label>
+          <label class="admin-float hidden" id="paymentSubStartDateField">
+            <input id="paymentSubStartDate" type="date" readonly>
+            <span>Start Date</span>
+          </label>
+          <label class="admin-float hidden" id="paymentSubNextDueField">
+            <input id="paymentSubNextDue" type="date" readonly>
+            <span>Next Due Date</span>
           </label>
 
           <!-- Demo ID and Tutor ID share one line; each has its own
@@ -219,7 +283,7 @@
             <p class="admin-id-detail hidden" id="paymentTutorDetail"></p>
           </div>
 
-          <label class="admin-float">
+          <label class="admin-float" id="paymentAmountField">
             <input id="paymentAmount" type="number" min="1" step="1" placeholder=" " required>
             <span>Amount (₹)</span>
           </label>
@@ -245,6 +309,10 @@
           <label class="admin-float">
             <input id="paymentMode" type="text" placeholder=" " required>
             <span>Payment Mode</span>
+          </label>
+          <label class="admin-float hidden" id="paymentReceivedByField">
+            <input id="paymentReceivedBy" type="text" placeholder=" ">
+            <span>Received By</span>
           </label>
           <label class="admin-float" id="ourCutField">
             <input id="paymentOurCut" type="number" min="0" step="1" placeholder=" ">
@@ -376,7 +444,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260928r" defer></script>
+<script src="admin.js?v=20260928s" defer></script>
 
 </body>
 </html>

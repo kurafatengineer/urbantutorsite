@@ -669,26 +669,135 @@ function wireEvents() {
 
   wirePaymentForm();
   wirePaymentIdSuggestions();
+  wirePaymentSubPartySuggestion();
   wireSubscriptionForm();
   wireSubscriptionIdSuggestion();
   wireEmployeeForm();
 
 }
 
-// Shows/hides the fields that only apply to a collection (from a
-// parent) vs. a payout (agency paying a tutor out of what it collected).
+// Fields that only appear for a Student/Tutor Subscription payment.
+const PAYMENT_SUB_FIELD_IDS = [
+  "paymentSubNameField", "paymentSubMobileField", "paymentSubIdField", "paymentSubPlanField",
+  "paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField", "paymentRemainingField",
+  "paymentSubCycleField", "paymentSubStatusField", "paymentSubStartDateField", "paymentSubNextDueField"
+];
+
+// Shows/hides the fields for whichever of the 4 transaction kinds is
+// picked: Student Subscription, Tutor Subscription, Collection (from a
+// parent) or Payout (agency paying a tutor out of what it collected).
 function applyPaymentTransactionType() {
-  const isPayout = $("paymentTransactionType").value === "payout";
-  $("paymentTypeField").classList.toggle("hidden", isPayout);
-  $("collectedByField").classList.toggle("hidden", isPayout);
-  $("ourCutField").classList.toggle("hidden", isPayout);
-  $("paymentDemoIdField").classList.toggle("hidden", isPayout || !!$("paymentSubscriptionId").value);
-  $("paymentTutorIdField").querySelector("span").textContent = isPayout ? "Tutor ID" : "Tutor ID (optional)";
+
+  const mode = $("paymentTransactionType").value;
+  const isPayout = mode === "payout";
+  const isSub = mode === "student-subscription" || mode === "tutor-subscription";
+  const isCollection = mode === "collection";
+
+  $("paymentTypeField").classList.toggle("hidden", !isCollection);
+  $("collectedByField").classList.toggle("hidden", !isCollection);
+  $("ourCutField").classList.toggle("hidden", !isCollection);
+
+  $("paymentAmountField").classList.toggle("hidden", isSub);
+  $("paymentDemoIdField").classList.toggle("hidden", isSub || isPayout);
+  $("paymentTutorIdField").classList.toggle("hidden", isSub);
+  if (!isSub) $("paymentTutorIdField").querySelector("span").textContent = isPayout ? "Tutor ID" : "Tutor ID (optional)";
+
+  $("paymentReceivedByField").classList.toggle("hidden", !isSub);
+  PAYMENT_SUB_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub));
+
+  // The search box only shows in subscription mode, and only until a
+  // party has actually been resolved (typed/picked, or pre-filled by
+  // "Record a Payment for this Subscription").
+  $("paymentSubPartyIdField").classList.toggle("hidden", !isSub || !!$("paymentSubscriptionId").value);
+
+  if (isSub) {
+    $("paymentSubPartyIdLabel").textContent = mode === "student-subscription"
+      ? "Enter Student ID, Mobile or WhatsApp Number"
+      : "Enter Tutor ID, Mobile or WhatsApp Number";
+    $("paymentSubIdLabel").textContent = mode === "student-subscription" ? "Student ID" : "Tutor ID";
+  }
+
+}
+
+function clearPaymentSubFields() {
+  ["paymentSubName", "paymentSubMobile", "paymentSubId", "paymentSubPlan", "paymentSubAmount",
+   "paymentSubDues", "paymentPayingNow", "paymentRemaining", "paymentSubCycle", "paymentSubStatus",
+   "paymentSubStartDate", "paymentSubNextDue"].forEach(id => { $(id).value = ""; });
+}
+
+function updatePaymentRemaining() {
+  const dues = Number(String($("paymentSubDues").value).replace(/[^\d.-]/g, "")) || 0;
+  const payingNow = Number($("paymentPayingNow").value) || 0;
+  $("paymentRemaining").value = "₹" + Math.max(dues - payingNow, 0).toLocaleString("en-IN");
+}
+
+// The subscription's current billing cycle "starts" from whichever
+// payment first landed within the trailing 12 months - so a payment
+// today with nothing paid in the last year begins a fresh cycle
+// (today), while one still inside last year's cycle keeps that
+// cycle's own first-payment date.
+function subscriptionCycleStartDate(sub) {
+  const today = new Date().toISOString().slice(0, 10);
+  const cutoff = oneYearBefore(today);
+  const paidDates = (STATE.payments || [])
+    .filter(p => p.subscription_id === sub.id && p.transaction_type !== "payout" && p.payment_date >= cutoff)
+    .map(p => p.payment_date)
+    .sort();
+  return paidDates.length ? paidDates[0] : today;
+}
+
+function oneYearBefore(dateText) {
+  const d = new Date(dateText || Date.now());
+  d.setFullYear(d.getFullYear() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+// Fills the whole subscription block from a resolved student/tutor -
+// used both by the search-and-pick flow and by "Record a Payment for
+// this Subscription". Returns false (and toasts) if they somehow have
+// no subscription yet.
+function fillPaymentSubscriptionFields(partyType, partyId) {
+
+  const sub = subscriptionFor(partyType, partyId);
+
+  if (!sub) {
+    toast(`No subscription found for ${partyId}.`, true);
+    return false;
+  }
+
+  const dir = partyType === "student" ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID;
+  const party = dir[partyId] || null;
+
+  const amount = Number(sub.amount || 0);
+  const paid = subscriptionPaidAmount(sub.id);
+  const dues = Math.max(amount - paid, 0);
+  const cycleStart = subscriptionCycleStartDate(sub);
+
+  $("paymentSubscriptionId").value = sub.id;
+  $("paymentSubPartyId").value = partyId;
+  $("paymentSubName").value = (party && party.name) || partyId;
+  $("paymentSubMobile").value = (party && party.mobile) || "";
+  $("paymentSubId").value = partyId;
+  $("paymentSubPlan").value = sub.plan_name || "";
+  $("paymentSubAmount").value = "₹" + amount.toLocaleString("en-IN");
+  $("paymentSubDues").value = "₹" + dues.toLocaleString("en-IN");
+  $("paymentPayingNow").value = dues || amount;
+  $("paymentSubCycle").value = sub.billing_cycle || "";
+  $("paymentSubStatus").value = SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status;
+  $("paymentSubStartDate").value = cycleStart;
+  $("paymentSubNextDue").value = oneYearFrom(cycleStart);
+  updatePaymentRemaining();
+
+  $("paymentSubPartyIdField").classList.add("hidden");
+
+  return true;
+
 }
 
 function resetPaymentForm() {
   $("paymentDemoId").value = "";
   $("paymentSubscriptionId").value = "";
+  $("paymentSubPartyId").value = "";
   $("paymentForSubscription").classList.add("hidden");
   $("paymentDemoIdField").classList.remove("hidden");
   $("paymentTransactionType").value = "collection";
@@ -699,10 +808,12 @@ function resetPaymentForm() {
   $("paymentMode").value = "";
   $("paymentOurCut").value = "";
   $("paymentTutorId").value = "";
+  $("paymentReceivedBy").value = (STATE.me && STATE.me.fullName) || "";
   $("paymentNotes").value = "";
+  clearPaymentSubFields();
   updateIdDetail($("paymentDemoDetail"), null);
   updateIdDetail($("paymentTutorDetail"), null);
-  document.querySelectorAll('#paymentDemoIdField .admin-suggest, #paymentTutorIdField .admin-suggest')
+  document.querySelectorAll('#paymentDemoIdField .admin-suggest, #paymentTutorIdField .admin-suggest, #paymentSubPartyIdField .admin-suggest')
     .forEach(el => el.classList.add("hidden"));
   applyPaymentTransactionType();
 }
@@ -716,16 +827,11 @@ function openPaymentFormForSubscription(sub) {
   $("subtab-subscriptions").classList.add("hidden");
 
   resetPaymentForm();
-  $("paymentSubscriptionId").value = sub.id;
-  $("paymentDemoIdField").classList.add("hidden");
+  $("paymentTransactionType").value = sub.student_id ? "student-subscription" : "tutor-subscription";
   $("paymentForSubscription").classList.remove("hidden");
   $("paymentForSubscription").textContent = `For subscription: ${sub.plan_name} (₹${Number(sub.amount).toLocaleString("en-IN")} / ${sub.billing_cycle})`;
-  $("paymentAmount").value = sub.amount;
-  if (sub.tutor_id) {
-    $("paymentTutorId").value = sub.tutor_id;
-    updateIdDetail($("paymentTutorDetail"), DIR_TUTOR_BY_ID[sub.tutor_id] || null);
-  }
   applyPaymentTransactionType();
+  fillPaymentSubscriptionFields(sub.student_id ? "student" : "tutor", sub.student_id || sub.tutor_id);
 
   $("paymentForm").classList.remove("hidden");
   $("paymentForm").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -744,38 +850,54 @@ function wirePaymentForm() {
 
   $("cancelPaymentButton").addEventListener("click", () => $("paymentForm").classList.add("hidden"));
 
-  $("paymentTransactionType").addEventListener("change", applyPaymentTransactionType);
+  $("paymentTransactionType").addEventListener("change", () => {
+    $("paymentSubscriptionId").value = "";
+    $("paymentSubPartyId").value = "";
+    clearPaymentSubFields();
+    $("paymentForSubscription").classList.add("hidden");
+    applyPaymentTransactionType();
+  });
+
+  $("paymentPayingNow").addEventListener("input", updatePaymentRemaining);
 
   $("paymentForm").addEventListener("submit", async (event) => {
 
     event.preventDefault();
 
-    const isPayout = $("paymentTransactionType").value === "payout";
+    const mode = $("paymentTransactionType").value;
+    const isPayout = mode === "payout";
+    const isSub = mode === "student-subscription" || mode === "tutor-subscription";
     const demoId = $("paymentDemoId").value.trim();
     const subscriptionId = $("paymentSubscriptionId").value;
     const tutorId = $("paymentTutorId").value.trim();
+
+    if (isSub && !subscriptionId) {
+      toast("Search and select the student/tutor first.", true);
+      return;
+    }
 
     if (isPayout && !tutorId) {
       toast("Enter which Tutor ID is being paid.", true);
       return;
     }
 
-    if (!isPayout && !demoId && !subscriptionId) {
+    if (!isPayout && !isSub && !demoId) {
       toast("Enter the Demo ID.", true);
       return;
     }
 
     const payload = {
       action: "adminAddPayment",
-      transactionType: $("paymentTransactionType").value,
-      demoId,
-      subscriptionId: subscriptionId || undefined,
-      tutorId,
-      amount: $("paymentAmount").value,
+      transactionType: isPayout ? "payout" : "collection",
+      demoId: isSub ? undefined : demoId,
+      subscriptionId: isSub ? subscriptionId : undefined,
+      tutorId: isSub ? undefined : tutorId,
+      amount: isSub ? $("paymentPayingNow").value : $("paymentAmount").value,
       paymentType: $("paymentType").value,
       collectedBy: $("paymentCollectedBy").value,
       ourCutAmount: $("paymentOurCut").value,
       paymentMode: $("paymentMode").value.trim(),
+      receivedBy: isSub ? $("paymentReceivedBy").value.trim() : undefined,
       paymentDate: $("paymentDate").value,
       notes: $("paymentNotes").value.trim()
     };
@@ -785,6 +907,34 @@ function wirePaymentForm() {
 
     if (ok) $("paymentForm").classList.add("hidden");
 
+  });
+
+}
+
+function wirePaymentSubPartySuggestion() {
+
+  const input = $("paymentSubPartyId");
+  const suggest = document.querySelector('#paymentSubPartyIdField [data-suggest="subparty"]');
+
+  const isStudent = () => $("paymentTransactionType").value === "student-subscription";
+
+  input.addEventListener("input", () => {
+    renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent()), "party");
+  });
+
+  input.addEventListener("focus", () => {
+    renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent()), "party");
+  });
+
+  suggest.addEventListener("click", (event) => {
+    const pick = event.target.closest("[data-pick-id]");
+    if (!pick) return;
+    suggest.classList.add("hidden");
+    fillPaymentSubscriptionFields(isStudent() ? "student" : "tutor", pick.dataset.pickId);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#paymentSubPartyIdField")) suggest.classList.add("hidden");
   });
 
 }

@@ -307,6 +307,7 @@ function paymentChangesFromBody(body: Json, partial: boolean): Json | { error: s
 
   assign("payment_date", body.paymentDate || undefined);
   assign("notes", body.notes !== undefined ? String(body.notes ?? "").trim() : undefined);
+  assign("received_by", body.receivedBy !== undefined ? (String(body.receivedBy ?? "").trim() || null) : undefined);
 
   if (!partial) {
     if (isPayout && !body.tutorId) return { error: "Choose which tutor is being paid." };
@@ -605,17 +606,22 @@ function subscriptionRows(row: Json): [string, string][] {
   ];
 }
 
-// The subscription's one-year period counts from whenever the FIRST
-// payment against it was actually made, not from whenever the
-// subscription record itself was created - so once a payment lands
-// (and only the first one), pull start_date up to that payment's date
-// and push next_due_date out to a year after it.
-async function alignSubscriptionToFirstPayment(subscriptionId: number, paymentDate: string) {
-  const { count } = await db
-    .from("payments")
-    .select("id", { count: "exact", head: true })
-    .eq("subscription_id", subscriptionId);
-  if (count !== 1) return; // not the first payment on this subscription
+// A subscription's one-year period counts from whenever a payment
+// actually starts a fresh cycle - either the very first payment ever
+// made against it, or a renewal payment landing after the previous
+// cycle's next_due_date has already passed. A payment that falls
+// inside the current cycle (on or before next_due_date) doesn't move
+// anything - it's just another instalment toward the same year.
+async function realignSubscriptionCycle(subscriptionId: number, paymentDate: string) {
+  const { data: sub } = await db
+    .from("subscriptions")
+    .select("start_date, next_due_date")
+    .eq("id", subscriptionId)
+    .maybeSingle();
+  if (!sub) return;
+
+  const startsNewCycle = !sub.start_date || !sub.next_due_date || paymentDate > sub.next_due_date;
+  if (!startsNewCycle) return;
 
   const nextDue = new Date(paymentDate);
   nextDue.setFullYear(nextDue.getFullYear() + 1);
@@ -759,7 +765,7 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
       if (error) return { success: false, message: error.message };
       if (inserted) {
         if (inserted.subscription_id) {
-          await alignSubscriptionToFirstPayment(inserted.subscription_id, inserted.payment_date);
+          await realignSubscriptionCycle(inserted.subscription_id, inserted.payment_date);
         }
         const party = await resolvePaymentParty(inserted);
         await notify(party, "A payment was recorded", "Payment Recorded",

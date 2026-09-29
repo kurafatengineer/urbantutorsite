@@ -2031,6 +2031,19 @@ body[data-page="admin"] {
   width: 100%;
 }
 
+/* computed/read-only preview fields (e.g. a subscription payment's
+   Dues, Remaining, Start/Next Due Date) - same pill, just dimmed and
+   non-interactive so they read as informational, not editable */
+.admin-float input[readonly] {
+  cursor: default;
+  color: var(--muted);
+  background: var(--surface-2);
+}
+
+.admin-float input[readonly]:focus {
+  outline: none;
+}
+
 /* select and textarea inside a floating-label box, matching the
    existing pill-shaped .admin-float input look */
 .admin-float select {
@@ -2101,6 +2114,10 @@ body[data-page="admin"] {
 .admin-id-row {
   position: relative;
   min-width: 0;
+}
+
+.admin-id-row.wide {
+  grid-column: 1 / -1;
 }
 
 .admin-id-row .admin-suggest {
