@@ -763,10 +763,9 @@ function layoutAgencyChargeFields(isAgencyCharge) {
     // Demo ID leads the Student's own Mobile/Name (always in that slot).
     demoSlot.insertBefore($("paymentDemoIdField"), demoSlot.firstChild);
     ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"].forEach(id => partySlot.appendChild($(id)));
-    // No Remaining here - Paying Now already starts at the full Dues,
-    // so it would just show ₹0 until the admin deliberately changes it.
     ["paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField"].forEach(id => amountSlot.appendChild($(id)));
-    notesSlot.insertBefore($("paymentNotesField"), notesSlot.firstChild);
+    // Notes | Remaining | Next Payment Date (that one lives in the slot).
+    ["paymentNotesField", "paymentRemainingField"].forEach(id => notesSlot.insertBefore($(id), $("paymentNextDateField")));
   } else {
     // Reverse document order: each field is reinserted right before its
     // own original next-sibling, so a field chained to another moved
@@ -812,9 +811,6 @@ function applyPaymentTransactionType() {
   PAYMENT_SUB_ONLY_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub));
   PAYMENT_PARTY_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isAgencyCharge));
   PAYMENT_AMOUNT_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isAgencyCharge));
-  // Remaining stays Subscription-only - an Agency Charge payment never
-  // shows it (see layoutAgencyChargeFields).
-  if (isAgencyCharge) $("paymentRemainingField").classList.add("hidden");
 
   // The search box only shows in subscription mode, and only until a
   // party has actually been resolved (typed/picked, or pre-filled by
@@ -3120,6 +3116,7 @@ function agencyChargePaymentCard(p, key, open, editing, buttons) {
       ${box("Dues (₹)", rupees(duesThen))}
       ${box("Paying Now (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: editing ? "number" : "text", attr: editing ? `data-pfield="amount"` : "" })}
       ${box("Notes", p.notes || "", { editable: editing, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
+      ${box("Remaining (₹)", rupees(Math.max(duesThen - paying, 0)))}
       ${(p.next_payment_date || editing) ? box("Next Payment Date", editing ? (p.next_payment_date || "") : formatDate(p.next_payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="nextPaymentDate"` : "" }) : ""}
     </div>`;
 

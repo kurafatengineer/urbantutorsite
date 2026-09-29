@@ -704,10 +704,11 @@ button { cursor: pointer; }
 }
 
 .admin-form-row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-/* Agency Charge form's last row: Notes, then Next Payment Date (shown
-   only when the payment doesn't clear the dues). */
-.admin-form-row-notes { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
-.admin-form-row-notes:has(> .hidden) { grid-template-columns: 1fr; }
+/* Agency Charge form's last row: Notes | Remaining | Next Payment Date
+   (that last one shown only when the payment doesn't clear the dues -
+   Notes widens to fill its place otherwise). */
+.admin-form-row-notes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.admin-form-row-notes:has(> .hidden) { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .admin-form-row-notes > .admin-float.wide { grid-column: auto; }
 /* The Student's own Mobile/Name sit beside Demo ID on this row. */
 #agencySlotDemo .admin-id-detail { display: none; }
