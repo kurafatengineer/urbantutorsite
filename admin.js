@@ -686,7 +686,7 @@ function wireEvents() {
   wireChipSearch("paymentSearch", renderPayments);
   wireChipSearch("subscriptionSearch", renderSubscriptions);
 
-  ["tuitionList", "tutorList", "studentList", "paymentList", "employeeList", "subscriptionList"].forEach(id =>
+  ["tuitionList", "tutorList", "studentList", "tuitionPaymentStatusList", "paymentList", "employeeList", "subscriptionList"].forEach(id =>
     $(id).addEventListener("click", onListClick)
   );
 
@@ -2516,9 +2516,109 @@ function renderStudents() {
 
 /* ---------------- payments ---------------- */
 
+// A small collapsed-by-default card for the Payments tab's own status
+// summaries - same shell as any other card (head with a caret, body
+// hidden until opened) so it behaves like the rest of the page.
+function statusCard(key, tone, titleParts, subtitle, boxesHtml) {
+  const open = STATE.open.has(key);
+  const titleHtml = highlight(titleParts, subtitle, "|", tone);
+  return `
+    <article class="admin-card${open ? " is-open" : ""}" data-tone="${esc(tone)}" data-box data-key="${esc(key)}">
+      <div class="admin-card-head" data-toggle="${esc(key)}">
+        <div class="admin-avatar">₹</div>
+        <div class="admin-card-title">${titleHtml}</div>
+        <span class="admin-caret" aria-hidden="true"></span>
+      </div>
+      <div class="admin-card-body">
+        <div class="admin-boxes">${boxesHtml}</div>
+      </div>
+    </article>`;
+}
+
+// The 4 payment-status cards for one Running/Completed Tuition: what
+// the Student/Parent owes, what's owed to the Tutor, and each side's
+// own Agency Charge status - a read-only summary view in the Payments
+// tab, backed by the exact same numbers as the Class card in Tuitions.
+function tuitionPaymentStatusCards(g, activeRow) {
+
+  const m = classMoney(g, activeRow);
+  const student = STUDENT_BY_ID[g.first.studentId];
+  const tutor = TUTOR_BY_ID[activeRow.tutorId];
+  const studentName = student ? student.values["Student Name"] : g.first.studentId;
+  const tutorName = tutor ? tutor.values["Full Name"] : activeRow.tutorId;
+
+  const studentCard = statusCard(
+    "paystatus:student:" + g.demoId,
+    m.studentDues > 0 ? "schedule" : "running",
+    [g.demoId, "Payment by Student/Parent"], `${studentName} · ${g.first.subject}`,
+    box("Total Amount (₹)", m.studentTotalAmount) +
+    box("Advance Payment (₹)", m.studentAdvancePaid) +
+    box("Total Payment (₹)", m.collected) +
+    box("Dues (₹)", m.studentDues) +
+    box("Payment To", activeRow.studentPaymentTo) +
+    box("Next Due Date", activeRow.studentNextDueDate)
+  );
+
+  const tutorCard = statusCard(
+    "paystatus:tutor:" + g.demoId,
+    m.tutorDues > 0 ? "schedule" : "running",
+    [g.demoId, "Payment to Tutor"], `${tutorName} · ${g.first.subject}`,
+    box("Total Amount (₹)", m.tutorTotalAmount) +
+    box("Advance Payment (₹)", m.tutorAdvance) +
+    box("Total Payment (₹)", m.tutorTotalPayment) +
+    box("Dues (₹)", m.tutorDues) +
+    box("Payment From", activeRow.tutorPaymentFrom) +
+    box("Next Payment Date", activeRow.tutorNextPaymentDate)
+  );
+
+  const studentAgencyCard = statusCard(
+    "paystatus:studentagency:" + g.demoId,
+    m.studentAgencyDue > 0 ? "schedule" : "running",
+    [g.demoId, "Student Agency Charges"], `${studentName} · ${g.first.subject}`,
+    box("Agency Charge (₹)", m.studentAgencyCharge) +
+    box("Received (₹)", m.studentAgencyReceived) +
+    box("Dues (₹)", m.studentAgencyDue)
+  );
+
+  const tutorAgencyCard = statusCard(
+    "paystatus:tutoragency:" + g.demoId,
+    m.tutorAgencyDue > 0 ? "schedule" : "running",
+    [g.demoId, "Tutor Agency Charges"], `${tutorName} · ${g.first.subject}`,
+    box("Agency Charge (₹)", m.tutorAgencyCharge) +
+    box("Received (₹)", m.tutorAgencyReceived) +
+    box("Dues (₹)", m.tutorAgencyDue)
+  );
+
+  return studentCard + tutorCard + studentAgencyCard + tutorAgencyCard;
+
+}
+
+function renderTuitionPaymentStatus() {
+
+  if (!$("tuitionPaymentStatusList")) return;
+
+  const query = searchQueryFor("paymentSearch");
+
+  const cards = demoGroups()
+    .map(g => ({ g, activeRow: activeRowFor(g) }))
+    .filter(({ activeRow }) => activeRow)
+    .filter(({ g, activeRow }) => {
+      const student = STUDENT_BY_ID[g.first.studentId];
+      const studentName = student ? student.values["Student Name"] : g.first.studentId;
+      return matchesAll(query, [g.demoId, studentName, g.first.subject, activeRow.tutorId].join(" "));
+    })
+    .map(({ g, activeRow }) => tuitionPaymentStatusCards(g, activeRow))
+    .join("");
+
+  $("tuitionPaymentStatusList").innerHTML = cards || "";
+
+}
+
 function renderPayments() {
 
   if (!$("paymentList")) return;
+
+  renderTuitionPaymentStatus();
 
   const groups = demoGroups();
   const context = {};
@@ -2947,6 +3047,17 @@ function renderTuitions() {
 
 }
 
+// The one tutor row actually Running/Completed for a Tuition group, if
+// any - the same row the Class card is keyed off, shared with anywhere
+// else (like the Payments tab's status cards) that needs to know
+// whether a Tuition is currently live and who its active tutor is.
+function activeRowFor(g) {
+  const state = groupState(g);
+  const railTone = tuitionRailTone(state);
+  if (railTone !== "running" && railTone !== "completed") return null;
+  return g.rows.filter(r => r.hasTutor).find(r => ["running", "completed"].includes(rowState(r))) || null;
+}
+
 function tuitionStack(g) {
 
   const key = "tuition:" + g.demoId;
@@ -2973,9 +3084,7 @@ function tuitionStack(g) {
   // "Classes Completed" moved up from the Tutor Applied card - it only
   // makes sense once a tutor is actually running the tuition, so it's
   // shown here (against that tutor's row) only while Running/Completed.
-  const activeRow = (railTone === "running" || railTone === "completed")
-    ? tutorRows.find(r => ["running", "completed"].includes(rowState(r)))
-    : null;
+  const activeRow = activeRowFor(g);
 
   const completedBlock = activeRow ? `
     <label class="pill-check">
@@ -3095,6 +3204,52 @@ function tuitionStack(g) {
 // Payment/Dues, not typed in), their profiles, and every payment
 // recorded against this Tuition, with a shortcut into recording a new
 // one pre-filled with this Demo/Tutor ID.
+// All the money maths shared between the Class card's Student/Tutor
+// sections and the Payments tab's own 4 status cards for this Tuition,
+// so the two views can never disagree about what's owed.
+function classMoney(g, activeRow) {
+
+  const studentTotalAmount = (num(activeRow.classDuration) / 60) * num(activeRow.classCharges) * num(activeRow.classCount);
+  const demoCollections = (STATE.payments || []).filter(p => p.demo_id === g.demoId && p.transaction_type !== "payout");
+  const studentAdvancePaid = demoCollections
+    .filter(p => p.payment_type === "advance")
+    .reduce((sum, p) => sum + num(p.amount), 0);
+  const collected = demoCollections
+    .filter(p => p.payment_type !== "advance")
+    .reduce((sum, p) => sum + num(p.amount), 0);
+  const studentDues = Math.max(studentTotalAmount - studentAdvancePaid - collected, 0);
+
+  const tutorTotalAmount = num(activeRow.tutorTotalAmount);
+  const tutorAgencyCharge = num(activeRow.tutorAgencyCharge);
+  const tutorAdvance = num(activeRow.tutorAdvancePayment);
+  const tutorPayouts = (STATE.payments || [])
+    .filter(p => p.tutor_id === activeRow.tutorId && p.transaction_type === "payout")
+    .reduce((sum, p) => sum + num(p.amount), 0);
+  const tutorTotalPayment = tutorAdvance + tutorPayouts;
+  const tutorDues = Math.max(tutorTotalAmount - tutorAgencyCharge - tutorTotalPayment, 0);
+
+  // The agency's own cut on each side isn't its own tracked ledger -
+  // it's realised out of whatever money has actually moved on that
+  // side so far (capped at the charge itself), and whatever's left of
+  // the charge once that's accounted for is still due to the agency.
+  const studentAgencyCharge = num(activeRow.studentAgencyCharge);
+  const studentAgencyMoved = studentAdvancePaid + collected;
+  const studentAgencyReceived = Math.min(studentAgencyCharge, studentAgencyMoved);
+  const studentAgencyDue = Math.max(studentAgencyCharge - studentAgencyReceived, 0);
+
+  const tutorAgencyMoved = tutorTotalPayment;
+  const tutorAgencyReceived = Math.min(tutorAgencyCharge, tutorAgencyMoved);
+  const tutorAgencyDue = Math.max(tutorAgencyCharge - tutorAgencyReceived, 0);
+
+  return {
+    studentTotalAmount, studentAdvancePaid, collected, studentDues,
+    tutorTotalAmount, tutorAgencyCharge, tutorAdvance, tutorPayouts, tutorTotalPayment, tutorDues,
+    studentAgencyCharge, studentAgencyReceived, studentAgencyDue,
+    tutorAgencyReceived, tutorAgencyDue
+  };
+
+}
+
 function classCard(g, activeRow) {
 
   const key = "class:" + g.demoId;
@@ -3150,28 +3305,10 @@ function classCard(g, activeRow) {
   // against this Tuition ID (split by Payment Type - "advance" feeds
   // Advance Payment, "regular"/"final" feed Total Payment, so the two
   // never double-count each other), and Dues is Total Amount less both.
-  const studentTotalAmount = (num(activeRow.classDuration) / 60) * num(activeRow.classCharges) * num(activeRow.classCount);
-  const demoCollections = (STATE.payments || []).filter(p => p.demo_id === g.demoId && p.transaction_type !== "payout");
-  const studentAdvancePaid = demoCollections
-    .filter(p => p.payment_type === "advance")
-    .reduce((sum, p) => sum + num(p.amount), 0);
-  const collected = demoCollections
-    .filter(p => p.payment_type !== "advance")
-    .reduce((sum, p) => sum + num(p.amount), 0);
-  const studentDues = Math.max(studentTotalAmount - studentAdvancePaid - collected, 0);
-
-  // Payouts aren't tied to a Demo ID yet, so "paid to this tutor" is
-  // gathered by Tutor ID instead (their advance plus every payout
-  // recorded for them) - a first-pass total, not a ledger scoped to
-  // this one class specifically, since that link doesn't exist yet.
-  const tutorTotalAmount = num(activeRow.tutorTotalAmount);
-  const tutorAgencyCharge = num(activeRow.tutorAgencyCharge);
-  const tutorAdvance = num(activeRow.tutorAdvancePayment);
-  const tutorPayouts = (STATE.payments || [])
-    .filter(p => p.tutor_id === activeRow.tutorId && p.transaction_type === "payout")
-    .reduce((sum, p) => sum + num(p.amount), 0);
-  const tutorTotalPayment = tutorAdvance + tutorPayouts;
-  const tutorDues = Math.max(tutorTotalAmount - tutorAgencyCharge - tutorTotalPayment, 0);
+  const {
+    studentTotalAmount, studentAdvancePaid, collected, studentDues,
+    tutorTotalAmount, tutorTotalPayment, tutorDues
+  } = classMoney(g, activeRow);
 
   // Student and Tutor sit side by side as two columns (stacking on
   // narrow screens) - the full profile toggle is gone, just this
