@@ -2744,7 +2744,7 @@ function tuitionPaymentStatusCards(g, activeRow) {
     box("Dues (₹)", m.studentDues) +
     box("Payment To", activeRow.studentPaymentTo) +
     box("Next Due Date", activeRow.studentNextDueDate),
-    m.studentDues > 0 ? "Dues" : "Received",
+    m.studentDues > 0 ? "Student Dues" : "Student Received",
     "",
     undefined,
     partyCardTitleHtml(studentName, studentMobile, studentTone, "Student Payments")
@@ -2762,7 +2762,7 @@ function tuitionPaymentStatusCards(g, activeRow) {
     box("Dues (₹)", m.tutorDues) +
     box("Payment From", activeRow.tutorPaymentFrom) +
     box("Next Payment Date", activeRow.tutorNextPaymentDate),
-    m.tutorDues > 0 ? "Due" : "Paid",
+    m.tutorDues > 0 ? "Tutor Due" : "Tutor Paid",
     "",
     undefined,
     partyCardTitleHtml(tutorName, tutorMobile, tutorTone, "Tutor Payments")
@@ -2784,7 +2784,7 @@ function tuitionPaymentStatusCards(g, activeRow) {
     box("Agency Charge (₹)", m.studentAgencyCharge) +
     box("Received (₹)", m.studentAgencyReceived) +
     box("Dues (₹)", m.studentAgencyDue),
-    m.studentAgencyDue > 0 ? "Dues" : "Paid",
+    m.studentAgencyDue > 0 ? "Student Dues" : "Student Paid",
     m.studentAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="student" type="button">+ Record a Payment</button>` : "",
     "admin-boxes-triple",
     partyCardTitleHtml(studentName, studentMobile, studentAgencyTone, "Agency Charges")
@@ -2803,7 +2803,7 @@ function tuitionPaymentStatusCards(g, activeRow) {
     box("Agency Charge (₹)", m.tutorAgencyCharge) +
     box("Received (₹)", m.tutorAgencyReceived) +
     box("Dues (₹)", m.tutorAgencyDue),
-    m.tutorAgencyDue > 0 ? "Dues" : "Paid",
+    m.tutorAgencyDue > 0 ? "Tutor Dues" : "Tutor Paid",
     m.tutorAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="tutor" type="button">+ Record a Payment</button>` : "",
     "admin-boxes-triple",
     partyCardTitleHtml(tutorName, tutorMobile, tutorAgencyTone, "Agency Charges")
