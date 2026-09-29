@@ -1025,12 +1025,16 @@ button { cursor: pointer; }
 }
 
 /* Space commits the typed word as a removable chip; every chip plus
-   whatever's still being typed is the live filter. */
+   whatever's still being typed is the live filter.
+   display:contents (not flex) makes this wrapper invisible to layout,
+   so each .admin-search-chip becomes a direct flex item of
+   .admin-search-wrap alongside the input itself - they all wrap
+   together as one row set. A nested flex-wrap container here would
+   wrap internally as a single oversized flex item, its second line
+   spilling outside the search box's own border/background instead of
+   growing it. */
 .admin-search-chips {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+  display: contents;
 }
 
 /* flat tag chip - light background, no border */
@@ -1058,10 +1062,15 @@ button { cursor: pointer; }
   border-radius: 50%;
   background: rgba(22, 163, 74, 0.22);
   color: var(--lime);
-  font-size: 12px;
-  line-height: 1;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease;
+}
+
+/* An SVG X centers exactly regardless of font metrics - the old
+   "&times;" text glyph sat visibly high inside the circle. */
+.admin-search-chip button svg {
+  width: 9px;
+  height: 9px;
 }
 
 .admin-search-chip button:hover {

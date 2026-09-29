@@ -2243,7 +2243,9 @@ function renderSearchChips(id) {
   row.innerHTML = chips.map((word, i) => `
     <span class="admin-search-chip">
       ${esc(word)}
-      <button type="button" data-remove-chip="${i}" aria-label="Remove filter ${esc(word)}">&times;</button>
+      <button type="button" data-remove-chip="${i}" aria-label="Remove filter ${esc(word)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
     </span>
   `).join("");
 }
@@ -2261,18 +2263,32 @@ function wireChipSearch(id, onChange) {
   SEARCH_CHIPS[id] = [];
 
   input.addEventListener("keydown", (event) => {
-    if (event.key !== " ") return;
-    event.preventDefault();
-    const word = input.value.trim();
-    if (!word) return;
-    SEARCH_CHIPS[id].push(word);
-    input.value = "";
-    renderSearchChips(id);
-    onChange();
-    // Cursor stays in the box, right after the new chip, ready for
-    // the next word - the chip render above doesn't touch the input
-    // itself, but re-focus defensively in case anything stole it.
-    input.focus();
+
+    if (event.key === " ") {
+      event.preventDefault();
+      const word = input.value.trim();
+      if (!word) return;
+      SEARCH_CHIPS[id].push(word);
+      input.value = "";
+      renderSearchChips(id);
+      onChange();
+      // Cursor stays in the box, right after the new chip, ready for
+      // the next word - the chip render above doesn't touch the input
+      // itself, but re-focus defensively in case anything stole it.
+      input.focus();
+      return;
+    }
+
+    // Backspace on an already-empty box removes the last chip instead
+    // of doing nothing, same as Gmail/most tag inputs.
+    if (event.key === "Backspace" && !input.value && SEARCH_CHIPS[id].length) {
+      event.preventDefault();
+      SEARCH_CHIPS[id].pop();
+      renderSearchChips(id);
+      onChange();
+      input.focus();
+    }
+
   });
 
   label.addEventListener("click", (event) => {
