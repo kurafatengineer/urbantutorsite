@@ -2460,6 +2460,21 @@ body[data-page="admin"] {
 /* While a payment is being recorded, the payments list below is hidden. */
 #paymentForm:not(.hidden) ~ #paymentList { display: none; }
 
+/* Ledger entries: status rail on the left edge, what it's for on the
+   right edge. Rails are drawn rotated 180deg, so each radius is written
+   for the rotated box (element bottom-left = visual top-right). */
+.admin-card-head .ledger-status-rail {
+  order: -1;
+  margin: -16px 4px -16px -16px;
+  border-radius: 0 18px 18px 0;
+}
+.admin-card-head .ledger-purpose-rail { border-radius: 18px 0 0 18px; }
+.ledger-record {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 /* Class card figures that open a New Payment when tapped. */
 .admin-box input[data-action] { cursor: pointer; }
 .admin-box:has(input[data-action]):hover { filter: brightness(1.2); }
