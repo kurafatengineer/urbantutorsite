@@ -2273,17 +2273,26 @@ body[data-page="admin"] {
   color: var(--muted-2);
 }
 
-/* The Payment Mode pill is taller and fully round (999px radius on a
-   52px-tall box), so its corner curve reaches much further in from
-   the edge than a normal ~44px input's does - at left:16px the label
-   still sits inside that curve, not the flat part of the border, and
-   the arc shows through as a visible loop behind the text. This one
-   box's background is a fixed, known colour (not inherited/variable
-   like every other context), so a small patch matching it exactly is
-   safe here without reintroducing the old per-context guessing game. */
-.admin-mode-field > span {
+/* Border mask: when a label floats up onto the box's top border, a strip
+   as thick as the border, a little wider than the text, and coloured
+   like the box's own fill sits behind the text and hides just that
+   segment of the border line (and any rounded-corner arc) - no
+   full-height background box, so nothing dark shows around the label. */
+.admin-float input:focus + span::before,
+.admin-float input:not(:placeholder-shown) + span::before,
+.admin-float input[type="date"] + span::before,
+.admin-float textarea:focus + span::before,
+.admin-float textarea:not(:placeholder-shown) + span::before,
+.admin-float.is-select > span::before,
+.admin-search-wrap.has-chips > span::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
   background: var(--surface-2);
-  border-radius: 4px;
+  z-index: -1;
 }
 
 .admin-float.is-select select:focus + span { color: var(--lime); }
