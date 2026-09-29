@@ -2832,22 +2832,25 @@ function tuitionStack(g) {
            : `<button class="admin-ghost admin-danger" data-action="terminate" type="button">Terminate Tuition</button>`}
        </div>`;
 
-  const nameLine = infoLine(
-    [studentName, sv("WhatsApp") || sv("Phone"), g.demoId, f.subject, sv("Class"),
-     genderText(f.preferredTutor), mediumText(f.medium)],
+  // Top layer: Demo ID, Subject, Class, tutor Gender/Medium preferences
+  // (left) with the applied count pushed to the right. Bottom layer:
+  // the student's own contact details, plain text, left-aligned.
+  const topLine = infoLine(
+    [g.demoId, f.subject, sv("Class"), genderText(f.preferredTutor), mediumText(f.medium)],
     "·"
   );
-  const smallText = [esc(sv("Gender")), esc(fullAddress(sv("Address"), sv("City"), sv("PIN Code")))].filter(Boolean).join(" · ");
+  const bottomText = [studentName, sv("WhatsApp") || sv("Phone"), sv("Gender"), fullAddress(sv("Address"), sv("City"), sv("PIN Code"))]
+    .filter(Boolean).map(esc).join(" · ");
 
   const titleHtml = `
     <div class="admin-hl">
       <div class="admin-hl-top admin-hl-top-split" data-tone="${esc(railTone)}">
-        ${nameLine}
+        ${topLine}
         <span class="admin-hl-top-right">
-          <span class="admin-hl-top-right-text">${smallText}</span>
           <span class="admin-hl-small-applied">${esc(appliedLabel)}</span>
         </span>
       </div>
+      ${bottomText ? `<p class="admin-hl-small">${bottomText}</p>` : ""}
     </div>`;
 
   const head = `

@@ -2408,9 +2408,10 @@ body[data-page="admin"] {
   white-space: nowrap;
 }
 
-/* Tuition card: Name/Mobile (and the rest of the name line) on the
-   left, Gender/Address/"N Tutors Applied" pushed to the right - both
-   inside the single (top) coloured layer, no separate line below it. */
+/* Tuition card's top layer: Demo ID/Subject/Class/tutor preferences on
+   the left, "N Tutors Applied" pushed to the right, both in the same
+   coloured layer. The student's own name/mobile/gender/address sit
+   below in their own plain left-aligned line (.admin-hl-small). */
 .admin-hl-top-split {
   display: flex;
   align-items: baseline;
@@ -2430,10 +2431,6 @@ body[data-page="admin"] {
   white-space: nowrap;
   font-size: 12px;
   font-weight: 600;
-}
-
-.admin-hl-top-right-text {
-  color: var(--muted);
 }
 
 /* the name-line's ellipsis truncation, already used on Tutors/Students,
