@@ -237,6 +237,7 @@ const STATE = {
   tab: "tuitions",
   tutorFilter: "all",
   tuitionFilter: "all",
+  ledgerFilter: "all",
   open: new Set(),      // keys of expanded cards
   editing: new Set(),   // keys of records in edit mode
   studentOpen: new Set(), // keys of tuition cards whose nested Student section is expanded
@@ -351,12 +352,13 @@ function applyRoleUI() {
     students: perms.students,
     payments: perms.payments,
     subscriptions: perms.payments,
+    ledger: perms.payments,
     employees: perms.employees
   };
 
   let firstVisible = null;
 
-  ["tuitions", "tutors", "students", "payments", "subscriptions", "employees"].forEach(name => {
+  ["tuitions", "tutors", "students", "payments", "subscriptions", "ledger", "employees"].forEach(name => {
     const tabButton = document.querySelector(`.admin-tab[data-tab="${name}"]`);
     if (tabButton) tabButton.classList.toggle("hidden", !visibility[name]);
     if (visibility[name] && !firstVisible) firstVisible = name;
@@ -374,7 +376,7 @@ function applyRoleUI() {
 
 function applyActiveTab() {
   document.querySelectorAll(".admin-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === STATE.tab));
-  ["tuitions", "tutors", "students", "payments", "subscriptions", "employees"].forEach(n => {
+  ["tuitions", "tutors", "students", "payments", "subscriptions", "ledger", "employees"].forEach(n => {
     const sec = $("tab-" + n);
     if (sec) sec.classList.toggle("hidden", n !== STATE.tab);
   });
@@ -667,6 +669,7 @@ function wireEvents() {
 
   chipGroup("tutorFilter", v => { collapseAll(); STATE.tutorFilter = v; renderTutors(); });
   chipGroup("tuitionFilter", v => { collapseAll(); STATE.tuitionFilter = v; renderTuitions(); });
+  chipGroup("ledgerFilter", v => { STATE.ledgerFilter = v; renderLedger(); });
 
   // The 8 count tiles work as shortcuts to their filter.
   $("adminStats").addEventListener("click", (event) => {
@@ -679,14 +682,16 @@ function wireEvents() {
   $("studentSearch").addEventListener("input", renderStudents);
   $("paymentSearch").addEventListener("input", renderPayments);
   $("subscriptionSearch").addEventListener("input", renderSubscriptions);
+  $("ledgerSearch").addEventListener("input", renderLedger);
 
   wireChipSearch("tutorSearch", renderTutors);
   wireChipSearch("tuitionSearch", renderTuitions);
   wireChipSearch("studentSearch", renderStudents);
   wireChipSearch("paymentSearch", renderPayments);
   wireChipSearch("subscriptionSearch", renderSubscriptions);
+  wireChipSearch("ledgerSearch", renderLedger);
 
-  ["tuitionList", "tutorList", "studentList", "paymentList", "employeeList", "subscriptionList"].forEach(id =>
+  ["tuitionList", "tutorList", "studentList", "paymentList", "employeeList", "subscriptionList", "ledgerList"].forEach(id =>
     $(id).addEventListener("click", onListClick)
   );
 
@@ -1706,7 +1711,8 @@ function goToTuition(demoId, highlight) {
 // then wave-highlighted and scrolled into view, left collapsed.
 function goToCard(tab, key) {
 
-  const searchId = { subscriptions: "subscriptionSearch", tutors: "tutorSearch", students: "studentSearch" }[tab];
+  const searchId = { subscriptions: "subscriptionSearch", tutors: "tutorSearch", students: "studentSearch", payments: "paymentSearch" }[tab];
+  if (tab === "payments") $("paymentForm").classList.add("hidden");
 
   collapseAll();
   STATE.tab = tab;
@@ -1865,6 +1871,7 @@ function rerenderCurrent() {
   if (STATE.tab === "students") renderStudents();
   if (STATE.tab === "payments") renderPayments();
   if (STATE.tab === "subscriptions") renderSubscriptions();
+  if (STATE.tab === "ledger") renderLedger();
   if (STATE.tab === "employees") renderEmployees();
 }
 
@@ -3323,6 +3330,134 @@ ${paymentHead(key, p)}
 
     </article>
   `;
+
+}
+
+
+/* ---------------- ledger ---------------- */
+
+// One list of every payment already made plus every one still due -
+// each live Tuition's Student fees, Tutor payout and both Agency
+// Charges, and every Subscription - with when it was (or is to be)
+// paid. Tapping an entry opens what it belongs to: the payment's own
+// card if it's been made, else the Class card figure / Subscription it
+// has to be paid against.
+function ledgerEntries() {
+
+  const today = new Date().toISOString().slice(0, 10);
+  const entries = [];
+  const all = STATE.payments || [];
+  const person = (kind, id) => (kind === "Student" ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID)[id] || {};
+  const latestNextDate = list => {
+    const withDate = list.filter(p => p.next_payment_date)
+      .sort((a, b) => (b.payment_date || "").localeCompare(a.payment_date || "") || b.id - a.id);
+    return withDate.length ? withDate[0].next_payment_date : "";
+  };
+  const due = (fields) => {
+    const date = fields.date || "";
+    entries.push({ ...fields, date, status: date && date < today ? "overdue" : "upcoming" });
+  };
+
+  all.forEach(p => {
+    const s = paymentSummary(p);
+    entries.push({
+      status: "paid", date: p.payment_date || "", kind: s.kind, partyId: s.partyId, partyName: s.partyName,
+      demoId: p.demo_id || "", purpose: s.purpose, amount: num(p.amount), mode: p.payment_mode || "",
+      recordedAt: p.created_at, target: { action: "go-to-card", tab: "payments", key: "payment:" + p.id }
+    });
+  });
+
+  demoGroups().forEach(g => {
+    const activeRow = activeRowFor(g);
+    if (!activeRow) return;
+    const m = classMoney(g, activeRow);
+    const studentId = g.first.studentId, tutorId = activeRow.tutorId;
+    const target = part => ({ action: "go-to-tuition", demo: g.demoId, part });
+    const payoutsHere = all.filter(p => p.transaction_type === "payout" && p.tutor_id === tutorId && (!p.demo_id || p.demo_id === g.demoId));
+    const agency = all.filter(p => p.transaction_type === "agency_charge" && p.demo_id === g.demoId);
+
+    if (m.studentDues > 0) due({
+      kind: "Student", partyId: studentId, partyName: person("Student", studentId).name || studentId, demoId: g.demoId,
+      purpose: "Payments In", amount: m.studentDues, target: target("student-payment"),
+      date: latestNextDate(all.filter(p => p.transaction_type === "collection" && p.demo_id === g.demoId)) || toDateInput(activeRow.studentNextDueDate)
+    });
+    if (m.tutorDues > 0) due({
+      kind: "Tutor", partyId: tutorId, partyName: person("Tutor", tutorId).name || tutorId, demoId: g.demoId,
+      purpose: "Payments Out", amount: m.tutorDues, target: target("tutor-payment"),
+      date: latestNextDate(payoutsHere) || toDateInput(activeRow.tutorNextPaymentDate)
+    });
+    if (m.studentAgencyDue > 0) due({
+      kind: "Student", partyId: studentId, partyName: person("Student", studentId).name || studentId, demoId: g.demoId,
+      purpose: "Agency Charge", amount: m.studentAgencyDue, target: target("student-agency"),
+      date: latestNextDate(agency.filter(p => !p.tutor_id))
+    });
+    if (m.tutorAgencyDue > 0) due({
+      kind: "Tutor", partyId: tutorId, partyName: person("Tutor", tutorId).name || tutorId, demoId: g.demoId,
+      purpose: "Agency Charge", amount: m.tutorAgencyDue, target: target("tutor-agency"),
+      date: latestNextDate(agency.filter(p => p.tutor_id === tutorId))
+    });
+  });
+
+  (STATE.subscriptions || []).forEach(sub => {
+    const dues = Math.max(num(sub.amount) - subscriptionPaidAmount(sub.id), 0);
+    if (!(dues > 0) || sub.status === "cancelled") return;
+    const kind = sub.student_id ? "Student" : "Tutor";
+    const id = sub.student_id || sub.tutor_id;
+    due({
+      kind, partyId: id, partyName: person(kind, id).name || id, demoId: "",
+      purpose: "Subscription", amount: dues, date: subscriptionNextDue(sub),
+      target: { action: "go-to-card", tab: "subscriptions", key: "subscription:" + sub.id }
+    });
+  });
+
+  // Newest first; an upcoming entry with no due date set goes on top.
+  return entries.sort((a, b) => (b.date || "9999").localeCompare(a.date || "9999"));
+
+}
+
+const LEDGER_STATUS = {
+  paid: { label: "Paid", tone: "running" },
+  upcoming: { label: "Upcoming", tone: "schedule" },
+  overdue: { label: "Overdue", tone: "declined" }
+};
+
+function ledgerCard(e) {
+  const t = e.target;
+  const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
+  const left = e.status === "paid"
+    ? `Paid on ${formatDate(e.date)}${e.mode ? " · " + e.mode : ""}`
+    : e.date ? `${e.status === "overdue" ? "Overdue since" : "Due on"} ${formatDate(e.date)}` : "Due date not set";
+  const right = e.status === "paid" ? recordedAt(e.recordedAt) : "";
+  const small = `<span class="admin-hl-small-text">${esc(left)}</span><span class="admin-hl-small-right">${esc(right)}</span>`;
+  const attrs = `data-action="${t.action}"` +
+    (t.demo ? ` data-demo="${esc(t.demo)}"` : "") + (t.part ? ` data-part="${esc(t.part)}"` : "") +
+    (t.tab ? ` data-tab="${esc(t.tab)}" data-key="${esc(t.key)}"` : "");
+  const status = LEDGER_STATUS[e.status];
+  return `
+    <article class="admin-card ledger-card" data-tone="neutral">
+      <div class="admin-card-head" ${attrs} title="Open what this is for">
+        <div class="admin-avatar">₹</div>
+        <div class="admin-card-title">
+          ${highlight([e.partyName, e.partyId, e.demoId, e.kind, e.purpose, rupees(e.amount)], small, "|", "neutral", true)}
+        </div>
+        <span class="admin-status-rail admin-rail-purpose" data-tone="black" tabindex="-1">${esc(e.purpose)}</span>
+        <span class="admin-status-rail admin-rail-party" data-tone="${status.tone}" tabindex="-1">${esc(status.label)}</span>
+      </div>
+    </article>`;
+}
+
+function renderLedger() {
+
+  if (!$("ledgerList")) return;
+
+  const filter = STATE.ledgerFilter;
+  const rows = ledgerEntries().filter(e => filter === "all" || e.status === filter);
+
+  $("ledgerList").innerHTML = rows.length
+    ? rows.map(ledgerCard).join("")
+    : empty(filter === "all" ? "Nothing paid or due yet." : "Nothing here.");
+
+  applyTextSearch("ledgerList", "ledgerSearch", "Nothing matches.");
 
 }
 

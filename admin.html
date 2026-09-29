@@ -115,6 +115,7 @@
       <button class="admin-tab" data-tab="students" type="button" role="tab">Students</button>
       <button class="admin-tab hidden" data-tab="payments" data-role-tab="payments" type="button" role="tab">Payments</button>
       <button class="admin-tab hidden" data-tab="subscriptions" data-role-tab="payments" type="button" role="tab">Subscriptions</button>
+      <button class="admin-tab hidden" data-tab="ledger" data-role-tab="payments" type="button" role="tab">Ledger</button>
       <button class="admin-tab hidden" data-tab="employees" data-role-tab="employees" type="button" role="tab">Employees</button>
     </div>
 
@@ -450,6 +451,24 @@
 
     </section>
 
+    <!-- ================= LEDGER ================= -->
+    <!-- Every payment already made and every one still due, in one list. -->
+    <section id="tab-ledger" class="admin-panel hidden">
+      <div class="admin-tools">
+        <label class="admin-float admin-search-wrap">
+          <input id="ledgerSearch" type="search" placeholder=" " autocomplete="off">
+          <span>Search</span>
+        </label>
+        <div class="admin-chips admin-chips-4" id="ledgerFilter">
+          <button class="admin-chip active" data-value="all" type="button">All</button>
+          <button class="admin-chip" data-value="upcoming" type="button">Upcoming</button>
+          <button class="admin-chip" data-value="overdue" type="button">Overdue</button>
+          <button class="admin-chip" data-value="paid" type="button">Paid</button>
+        </div>
+      </div>
+      <div id="ledgerList" class="admin-stack-list"></div>
+    </section>
+
     <!-- ================= EMPLOYEES ================= -->
     <section id="tab-employees" class="admin-panel hidden">
 
@@ -494,7 +513,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260929zzy" defer></script>
+<script src="admin.js?v=20260929zzz" defer></script>
 
 </body>
 </html>
