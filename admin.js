@@ -1591,10 +1591,7 @@ async function onListClick(event) {
       break;
 
     case "delete-subscription": {
-      const id = Number(box.dataset.id);
-      if (window.confirm("Delete this subscription? This cannot be undone.")) {
-        await save({ action: "adminDeleteSubscription", id }, actionEl);
-      }
+      toast("Subscriptions cannot be deleted.", true);
       break;
     }
 
@@ -2345,10 +2342,16 @@ function renderPayments() {
 
   const query = searchQueryFor("paymentSearch");
 
-  const rows = (STATE.payments || []).filter(p => matchesAll(query, [
-    p.demo_id, p.tutor_id, p.payment_mode, p.notes,
-    context[p.demo_id] && context[p.demo_id].studentName
-  ].join(" ")));
+  const rows = (STATE.payments || []).filter(p => {
+    const sub = p.subscription_id ? (STATE.subscriptions || []).find(s => s.id === p.subscription_id) : null;
+    const subId = sub ? (sub.student_id || sub.tutor_id) : "";
+    const subParty = subId ? (sub.student_id ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID)[subId] : null;
+    return matchesAll(query, [
+      p.demo_id, p.tutor_id, p.payment_mode, p.notes, subId,
+      subParty && subParty.name, subParty && subParty.mobile,
+      context[p.demo_id] && context[p.demo_id].studentName
+    ].join(" "));
+  });
 
   $("paymentList").innerHTML = rows.length
     ? rows.map(p => paymentCard(p, context[p.demo_id] || {})).join("")
@@ -2401,6 +2404,10 @@ function paymentCard(p, ctx) {
          <button class="admin-ghost admin-danger" data-action="delete-payment" type="button">Delete</button>
        </div>`;
 
+  if (p.subscription_id) {
+    return subscriptionPaymentCard(p, key, open, editing, buttons);
+  }
+
   const headline = isPayout
     ? [p.tutor_id, "Payout to Tutor", "₹" + amount.toLocaleString("en-IN")]
     : [p.demo_id, ctx.studentName, ctx.subject, "₹" + amount.toLocaleString("en-IN"), tutorCollected ? "Tutor collected" : "Agency collected"];
@@ -2416,6 +2423,79 @@ function paymentCard(p, ctx) {
             !isPayout && cut != null ? `Our cut: ₹${cut.toLocaleString("en-IN")}` : "",
             "|",
             isPayout ? "scheduled" : (tutorCollected ? "processing" : "running")
+          )}
+        </div>
+        <span class="admin-caret" aria-hidden="true"></span>
+      </div>
+
+      <div class="admin-card-body">
+        ${boxes}
+        ${buttons}
+      </div>
+
+    </article>
+  `;
+
+}
+
+
+// A subscription payment's card mirrors the fields entered on the
+// Payments form. Dues/Remaining are worked out as they stood when this
+// payment was made (earlier instalments only), so they don't change as
+// later payments arrive.
+function subscriptionPaymentCard(p, key, open, editing, buttons) {
+
+  const sub = (STATE.subscriptions || []).find(s => s.id === p.subscription_id) || {};
+  const isStudent = !!sub.student_id;
+  const partyId = sub.student_id || sub.tutor_id || "";
+  const party = partyId ? (isStudent ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID)[partyId] : null;
+  const partyName = (party && party.name) || partyId;
+  const partyMobile = (party && party.mobile) || "";
+
+  const paying = Number(p.amount || 0);
+  const planAmount = Number(sub.amount || 0);
+  const paidBefore = (STATE.payments || [])
+    .filter(o => o.subscription_id === p.subscription_id && o.transaction_type !== "payout" &&
+      (o.payment_date < p.payment_date || (o.payment_date === p.payment_date && o.id < p.id)))
+    .reduce((sum, o) => sum + Number(o.amount || 0), 0);
+  const duesThen = Math.max(planAmount - paidBefore, 0);
+  const remaining = Math.max(duesThen - paying, 0);
+  const rupees = n => "₹" + Number(n).toLocaleString("en-IN");
+  const startDate = sub.start_date || "";
+  const nextDue = sub.next_due_date || (startDate ? oneYearFrom(startDate) : "");
+
+  const boxes = `
+    <div class="admin-boxes">
+      ${box("Transaction", isStudent ? "Student Subscription" : "Tutor Subscription")}
+      ${box("Name", partyName)}
+      ${box("Mobile Number", partyMobile)}
+      ${box(isStudent ? "Student ID" : "Tutor ID", partyId)}
+      ${box("Plan Name", sub.plan_name || "")}
+      ${box("Billing Cycle", sub.billing_cycle || "")}
+      ${box("Status", SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status || "")}
+      ${box("Start Date", startDate)}
+      ${box("Next Due Date", nextDue)}
+      ${box("Payment Date", p.payment_date, { editable: editing, type: "date", attr: editing ? `data-pfield="paymentDate"` : "" })}
+      ${box("Payment Mode", p.payment_mode, { editable: editing, options: ["Online", "Offline"], attr: editing ? `data-pfield="paymentMode"` : "" })}
+      ${box("Received By", p.received_by || "", { editable: editing, attr: editing ? `data-pfield="receivedBy"` : "" })}
+      ${box("Amount (₹)", rupees(planAmount))}
+      ${box("Dues (₹)", rupees(duesThen))}
+      ${box("Paying Now (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: "number", attr: editing ? `data-pfield="amount"` : "" })}
+      ${box("Remaining (₹)", rupees(remaining))}
+      ${box("Notes", p.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
+    </div>`;
+
+  return `
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-id="${p.id}" data-key="${esc(key)}">
+
+      <div class="admin-card-head" data-toggle="${esc(key)}">
+        <div class="admin-avatar">₹</div>
+        <div class="admin-card-title">
+          ${highlight(
+            [partyName, partyMobile, partyId, sub.plan_name, rupees(paying)],
+            remaining > 0 ? `Remaining: ${rupees(remaining)}` : "Fully paid",
+            "|",
+            remaining > 0 ? "processing" : "running"
           )}
         </div>
         <span class="admin-caret" aria-hidden="true"></span>
@@ -2500,7 +2580,7 @@ function subscriptionCard(sub) {
        </div>`
     : `<div class="admin-split">
          <button class="admin-ghost" data-action="edit" data-key="${esc(key)}" type="button">Edit</button>
-         <button class="admin-ghost admin-danger" data-action="delete-subscription" type="button">Delete</button>
+         <button class="admin-ghost admin-danger" data-action="delete-subscription" type="button" disabled title="Subscriptions cannot be deleted">Delete</button>
        </div>`;
 
   return `
