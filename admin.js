@@ -2455,7 +2455,7 @@ function paymentCard(p, ctx) {
       ${box("Tutor ID", p.tutor_id || "")}
       ${tutorDir ? box("Tutor Mobile", `${tutorDir.name} · ${tutorDir.mobile || "No mobile"}`) : ""}
       ${box("Amount (₹)", p.amount, { editable: editing, type: "number", attr: editing ? `data-pfield="amount"` : "" })}
-      ${box("Payment Date", p.payment_date, { editable: editing, type: "date", attr: editing ? `data-pfield="paymentDate"` : "" })}
+      ${box("Payment Date", editing ? p.payment_date : formatDate(p.payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" })}
       ${!isPayout ? box("Payment Type", p.payment_type, { editable: editing, options: ["advance", "regular", "final"], attr: editing ? `data-pfield="paymentType"` : "" }) : ""}
       ${!isPayout ? box("Collected By", p.collected_by, { editable: editing, options: ["agency", "tutor"], attr: editing ? `data-pfield="collectedBy"` : "" }) : ""}
       ${box("Payment Mode", p.payment_mode, { editable: editing, attr: editing ? `data-pfield="paymentMode"` : "" })}
@@ -2521,6 +2521,18 @@ function recordedAt(iso) {
   });
 }
 
+// Plain-text date for read-only display - a readonly <input type="date">
+// doesn't reliably show its value on every mobile browser (the native
+// picker chrome can render blank/oddly sized instead), so view mode
+// uses this instead of the date input, matching a value like "29
+// September 2027".
+function formatDate(dateText) {
+  if (!dateText) return "";
+  const d = new Date(dateText + "T00:00:00");
+  if (isNaN(d)) return dateText;
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+}
+
 // Next Due Date follows the most recent payment made against the
 // subscription (that payment's date + 1 year), never earlier than what
 // is already stored.
@@ -2564,9 +2576,9 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
       ${box("Plan Name", sub.plan_name || "")}
       ${box("Billing Cycle", sub.billing_cycle || "")}
       ${box("Status", SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status || "")}
-      ${box("Start Date", startDate)}
-      ${box("Next Due Date", nextDue)}
-      ${box("Payment Date", p.payment_date, { editable: editing, type: "date", attr: editing ? `data-pfield="paymentDate"` : "" })}
+      ${box("Start Date", formatDate(startDate))}
+      ${box("Next Due Date", formatDate(nextDue))}
+      ${box("Payment Date", editing ? p.payment_date : formatDate(p.payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" })}
       ${box("Payment Mode", p.payment_mode, { editable: editing, options: ["Online", "Offline"], attr: editing ? `data-pfield="paymentMode"` : "" })}
       ${box("Received By", p.received_by || "", { editable: editing, attr: editing ? `data-pfield="receivedBy"` : "" })}
       ${box("Amount (₹)", rupees(planAmount))}
@@ -2660,8 +2672,8 @@ function subscriptionCard(sub) {
         options: Object.values(SUBSCRIPTION_STATUS_LABELS),
         attr: editing ? `data-subfield="status"` : ""
       })}
-      ${box("Start Date", sub.start_date, { editable: editing, type: "date", attr: editing ? `data-subfield="startDate"` : "" })}
-      ${box("Next Due Date", nextDueDate, { editable: editing, type: "date", attr: (editing ? `data-subfield="nextDueDate"` : "") + (dues > 0 ? ` data-reminder="1"` : "") })}
+      ${box("Start Date", editing ? sub.start_date : formatDate(sub.start_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-subfield="startDate"` : "" })}
+      ${box("Next Due Date", editing ? nextDueDate : formatDate(nextDueDate), { editable: editing, type: editing ? "date" : "text", attr: (editing ? `data-subfield="nextDueDate"` : "") + (dues > 0 ? ` data-reminder="1"` : "") })}
       ${box("Notes", sub.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-subfield="notes"` : "" })}
     </div>`;
 
