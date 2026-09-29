@@ -2709,19 +2709,24 @@ function tuitionPaymentStatusCards(g, activeRow) {
   const tutor = TUTOR_BY_ID[activeRow.tutorId];
   const studentName = student ? student.values["Student Name"] : g.first.studentId;
   const tutorName = tutor ? tutor.values["Full Name"] : activeRow.tutorId;
-  const studentMobile = student ? (student.values["Phone"] || student.values["WhatsApp"]) : "";
-  const tutorMobile = tutor ? (tutor.values["Mobile Number"] || tutor.values["WhatsApp Number"]) : "";
+  const studentMobile = student ? student.values["Phone"] : "";
+  const studentWhatsapp = student ? student.values["WhatsApp"] : "";
+  const tutorMobile = tutor ? tutor.values["Mobile Number"] : "";
+  const tutorWhatsapp = tutor ? tutor.values["WhatsApp Number"] : "";
 
   // Top layer for every one of these 4 cards: the relevant party's own
-  // Name/Mobile/Demo ID on the left, a plain label naming the card
-  // pushed to the right - no bottom line, nothing else.
-  const partyCardTitleHtml = (partyName, partyMobile, tone, rightLabel) => `
+  // details on the left, a plain label naming the card pushed to the
+  // right - no bottom line, nothing else.
+  const partyCardTitleHtml = (parts, tone, rightLabel) => `
     <div class="admin-hl">
       <div class="admin-hl-top admin-hl-top-split" data-tone="${esc(tone)}">
-        ${infoLine([partyName, partyMobile, g.demoId])}
+        ${infoLine(parts)}
         <span class="admin-hl-top-right">${esc(rightLabel)}</span>
       </div>
     </div>`;
+
+  const studentTitleParts = [studentName, studentMobile, studentWhatsapp, g.first.studentId, g.demoId];
+  const tutorTitleParts = [tutorName, tutorMobile, tutorWhatsapp, activeRow.tutorId];
 
   // Stacks each payment record actually made under the status card it
   // was made against - same joined-card look as a Tuition and its
@@ -2748,7 +2753,7 @@ function tuitionPaymentStatusCards(g, activeRow) {
     m.studentDues > 0 ? "Dues" : "Received",
     "",
     undefined,
-    partyCardTitleHtml(studentName, studentMobile, studentTone, "Student Payments"),
+    partyCardTitleHtml(studentTitleParts, studentTone, "Payment To"),
     "Student"
   );
 
@@ -2767,7 +2772,7 @@ function tuitionPaymentStatusCards(g, activeRow) {
     m.tutorDues > 0 ? "Due" : "Paid",
     "",
     undefined,
-    partyCardTitleHtml(tutorName, tutorMobile, tutorTone, "Tutor Payments"),
+    partyCardTitleHtml(tutorTitleParts, tutorTone, "Payment To"),
     "Tutor"
   );
 
@@ -2790,7 +2795,7 @@ function tuitionPaymentStatusCards(g, activeRow) {
     m.studentAgencyDue > 0 ? "Dues" : "Paid",
     m.studentAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="student" type="button">+ Record a Payment</button>` : "",
     "admin-boxes-triple",
-    partyCardTitleHtml(studentName, studentMobile, studentAgencyTone, "Agency Charges"),
+    partyCardTitleHtml(studentTitleParts, studentAgencyTone, "Agency Charge"),
     "Student"
   );
 
@@ -2810,7 +2815,7 @@ function tuitionPaymentStatusCards(g, activeRow) {
     m.tutorAgencyDue > 0 ? "Dues" : "Paid",
     m.tutorAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="tutor" type="button">+ Record a Payment</button>` : "",
     "admin-boxes-triple",
-    partyCardTitleHtml(tutorName, tutorMobile, tutorAgencyTone, "Agency Charges"),
+    partyCardTitleHtml(tutorTitleParts, tutorAgencyTone, "Agency Charge"),
     "Tutor"
   );
 
