@@ -452,14 +452,6 @@ button { cursor: pointer; }
 .admin-pill[data-tone="scheduled"] { color: var(--violet); background: var(--violet-dim); border-color: rgba(180, 144, 255, 0.3); }
 .admin-pill[data-tone="completed"] { color: var(--muted); background: var(--surface-2); border-color: var(--border-light); }
 
-/* Payment card pills: fixed widths sized to the longest word each can
-   hold ("Student", "Agency Charge"/"Payments Out") so they line up
-   down the list. */
-.admin-pill.admin-pill-party,
-.admin-pill.admin-pill-purpose { text-align: center; box-sizing: content-box; }
-.admin-pill.admin-pill-party { width: 8ch; }
-.admin-pill.admin-pill-purpose { width: 14ch; }
-
 .admin-facts {
   margin: 0;
   display: grid;
@@ -2391,6 +2383,9 @@ body[data-page="admin"] {
   color: var(--muted-2);
 }
 
+/* Every radius below is written for the rail as it's drawn after its
+   own rotate(180deg), which swaps corners: the element's bottom-left is
+   the visual top-right, its top-left the visual bottom-right. */
 /* The rail sits flush against the card's own right edge (the negative
    margin above pulls it there), so its outer corners must round the
    same amount as that edge of the card itself, or a square notch shows
@@ -2401,10 +2396,16 @@ body[data-page="admin"] {
    the tutor row below. Tutor Applied sits below it - the opposite:
    square top-right, and only the last row's bottom-right rounds off
    with the bottom of the stack. */
-.tuition-card .admin-status-rail    { border-radius: 0 18px 0 0; }
-.admin-stack:not(.has-tutors) .tuition-card .admin-status-rail { border-radius: 0 18px 18px 0; }
+.tuition-card .admin-status-rail    { border-radius: 0 0 0 18px; }
+.admin-stack:not(.has-tutors) .tuition-card .admin-status-rail { border-radius: 18px 0 0 18px; }
 .tutor-row-card .admin-status-rail  { border-radius: 0; }
-.admin-stack > .tutor-row-card:last-child .admin-status-rail { border-radius: 0 0 18px 0; }
+.admin-stack > .tutor-row-card:last-child .admin-status-rail { border-radius: 18px 0 0 0; }
+
+/* A payment card carries two rails side by side: Student/Tutor, then
+   what the payment was for on the outer edge. Payment cards are always
+   standalone, so only the outer rail rounds, on both right corners. */
+.admin-card-head .admin-rail-party { margin-right: 0; }
+.admin-card-head .admin-rail-purpose { margin-left: -12px; border-radius: 18px 0 0 18px; }
 
 .admin-status-rail[data-action] {
   cursor: pointer;
@@ -2438,7 +2439,7 @@ body[data-page="admin"] {
 /* The Class card is always the top of its stack (Tuition card and any
    Tutor rows sit below it), so its own rail only rounds the top-right
    corner, matching the card's own shape there. */
-.class-card .admin-status-rail { border-radius: 0 18px 0 0; }
+.class-card .admin-status-rail { border-radius: 0 0 0 18px; }
 
 .class-card {
   background: var(--surface-2);

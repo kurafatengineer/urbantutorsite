@@ -2693,12 +2693,12 @@ function renderPayments() {
 
 }
 
-const PAYMENT_PARTY_TONES = { Student: "pending", Tutor: "scheduled" };
+const PAYMENT_PARTY_TONES = { Student: "new", Tutor: "scheduled" };
 const PAYMENT_PURPOSE_TONES = {
   "Subscription": "completed",
   "Agency Charge": "schedule",
   "Payments In": "running",
-  "Payments Out": "rejected"
+  "Payments Out": "declined"
 };
 
 // Total of `list` up to and including payment p, in the order the
@@ -2775,7 +2775,8 @@ function paymentSummary(p) {
 
 // Same two layers as a Subscription card: who / what / how much on top,
 // Full Payment or Dues left after it plus the time stamp below, and
-// Student/Tutor + what it was for as two separate pills on the right.
+// Student/Tutor + what it was for as two separate vertical rails on
+// the right edge.
 function paymentHead(key, p) {
   const s = paymentSummary(p);
   const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
@@ -2792,9 +2793,9 @@ function paymentHead(key, p) {
             true
           )}
         </div>
-        <span class="admin-pill admin-pill-party" data-tone="${PAYMENT_PARTY_TONES[s.kind]}">${esc(s.kind)}</span>
-        <span class="admin-pill admin-pill-purpose" data-tone="${PAYMENT_PURPOSE_TONES[s.purpose]}">${esc(s.purpose)}</span>
         <span class="admin-caret" aria-hidden="true"></span>
+        <span class="admin-status-rail admin-rail-party" data-tone="${PAYMENT_PARTY_TONES[s.kind]}" tabindex="-1">${esc(s.kind)}</span>
+        <span class="admin-status-rail admin-rail-purpose" data-tone="${PAYMENT_PURPOSE_TONES[s.purpose]}" tabindex="-1">${esc(s.purpose)}</span>
       </div>`;
 }
 
