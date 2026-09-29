@@ -3146,13 +3146,17 @@ function classCard(g, activeRow) {
     .reduce((sum, p) => sum + num(p.amount), 0);
   const studentDues = Math.max(totalAmount - collected, 0);
 
-  // Tutor's own share isn't tracked as its own running total yet (payouts
-  // aren't tied to a Demo ID) - Dues here is a first-pass estimate (Total
-  // Amount less the agency's cut and whatever's already been advanced),
-  // not a ledger of payouts actually made against this class.
+  // Payouts aren't tied to a Demo ID yet, so "paid to this tutor" is
+  // gathered by Tutor ID instead (their advance plus every payout
+  // recorded for them) - a first-pass total, not a ledger scoped to
+  // this one class specifically, since that link doesn't exist yet.
   const tutorAgencyCharge = num(activeRow.tutorAgencyCharge);
   const tutorAdvance = num(activeRow.tutorAdvancePayment);
-  const tutorDues = Math.max(totalAmount - tutorAgencyCharge - tutorAdvance, 0);
+  const tutorPayouts = (STATE.payments || [])
+    .filter(p => p.tutor_id === activeRow.tutorId && p.transaction_type === "payout")
+    .reduce((sum, p) => sum + num(p.amount), 0);
+  const tutorTotalPayment = tutorAdvance + tutorPayouts;
+  const tutorDues = Math.max(totalAmount - tutorAgencyCharge - tutorTotalPayment, 0);
 
   // Student and Tutor sit side by side as two columns (stacking on
   // narrow screens) - the full profile toggle is gone, just this
@@ -3184,6 +3188,7 @@ function classCard(g, activeRow) {
         ${box("Agency Charges (₹)", activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: cfield("Tutor Agency Charge") })}
         ${box("Payment", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
         ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, type: "number", attr: cfield("Tutor Advance Payment") })}
+        ${box("Total Payment (₹)", totalAmount ? tutorTotalPayment : "")}
         ${box("Dues (₹)", totalAmount ? tutorDues : "")}
       </div>
     </div>`;
