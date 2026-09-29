@@ -3230,7 +3230,10 @@ function classMoney(g, activeRow) {
     .reduce((sum, p) => sum + num(p.amount), 0);
   const studentDues = Math.max(studentTotalAmount - studentAdvancePaid - collected, 0);
 
-  const tutorTotalAmount = num(activeRow.tutorTotalAmount);
+  // Tutor's Total Amount is the same Tuition Fee as the Student's - it's
+  // the one class, just looked at from the other side - so it's never
+  // typed in separately either.
+  const tutorTotalAmount = studentTotalAmount;
   const tutorAgencyCharge = num(activeRow.tutorAgencyCharge);
   const tutorAdvance = num(activeRow.tutorAdvancePayment);
   const tutorPayouts = (STATE.payments || [])
@@ -3354,9 +3357,9 @@ function classCard(g, activeRow) {
         ${box("Agency Charges (₹)", editing ? (activeRow.tutorAgencyCharge || 0) : activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: cfield("Tutor Agency Charge") })}
         ${box("Payment Frequency", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
         ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, type: "number", attr: cfield("Tutor Advance Payment") })}
-        ${box("Total Amount (₹)", activeRow.tutorTotalAmount, { editable: editing, type: "number", attr: cfield("Tutor Total Amount") })}
-        ${box("Total Payment (₹)", tutorTotalAmount ? tutorTotalPayment : "")}
-        ${box("Dues (₹)", tutorTotalAmount ? tutorDues : "")}
+        ${box("Total Amount (₹)", tutorTotalAmount)}
+        ${box("Total Payment (₹)", tutorTotalPayment)}
+        ${box("Dues (₹)", tutorDues)}
       </div>
     </div>`;
 
