@@ -3372,9 +3372,15 @@ function ledgerEntries() {
 
   all.forEach(p => {
     const s = paymentSummary(p);
+    // The Tuition behind it (if any) fills in the other side's ID.
+    const g = tuitionForPayment(p) || (p.demo_id ? demoGroups().find(x => x.demoId === p.demo_id) : null);
+    const activeRow = g ? activeRowFor(g) : null;
+    const demoId = p.demo_id || (g ? g.demoId : "");
     entries.push({
       status: "paid", date: p.payment_date || "", kind: s.kind, partyId: s.partyId, partyName: s.partyName,
-      demoId: p.demo_id || "", purpose: s.purpose, amount: num(p.amount), mode: p.payment_mode || "",
+      studentId: s.kind === "Student" ? s.partyId : (g ? g.first.studentId : ""),
+      tutorId: s.kind === "Tutor" ? s.partyId : (p.tutor_id || (activeRow ? activeRow.tutorId : "")),
+      demoId, purpose: s.purpose, amount: num(p.amount), mode: p.payment_mode || "",
       recordedAt: p.created_at, target: { action: "go-to-card", tab: "payments", key: "payment:" + p.id }
     });
   });
@@ -3389,22 +3395,22 @@ function ledgerEntries() {
     const agency = all.filter(p => p.transaction_type === "agency_charge" && p.demo_id === g.demoId);
 
     if (m.studentDues > 0) due({
-      kind: "Student", partyId: studentId, partyName: person("Student", studentId).name || studentId, demoId: g.demoId,
+      kind: "Student", partyId: studentId, partyName: person("Student", studentId).name || studentId, demoId: g.demoId, studentId, tutorId,
       purpose: "Payments In", amount: m.studentDues, target: target("student-payment"),
       date: latestNextDate(all.filter(p => p.transaction_type === "collection" && p.demo_id === g.demoId)) || toDateInput(activeRow.studentNextDueDate)
     });
     if (m.tutorDues > 0) due({
-      kind: "Tutor", partyId: tutorId, partyName: person("Tutor", tutorId).name || tutorId, demoId: g.demoId,
+      kind: "Tutor", partyId: tutorId, partyName: person("Tutor", tutorId).name || tutorId, demoId: g.demoId, studentId, tutorId,
       purpose: "Payments Out", amount: m.tutorDues, target: target("tutor-payment"),
       date: latestNextDate(payoutsHere) || toDateInput(activeRow.tutorNextPaymentDate)
     });
     if (m.studentAgencyDue > 0) due({
-      kind: "Student", partyId: studentId, partyName: person("Student", studentId).name || studentId, demoId: g.demoId,
+      kind: "Student", partyId: studentId, partyName: person("Student", studentId).name || studentId, demoId: g.demoId, studentId, tutorId,
       purpose: "Agency Charge", amount: m.studentAgencyDue, target: target("student-agency"),
       date: latestNextDate(agency.filter(p => !p.tutor_id))
     });
     if (m.tutorAgencyDue > 0) due({
-      kind: "Tutor", partyId: tutorId, partyName: person("Tutor", tutorId).name || tutorId, demoId: g.demoId,
+      kind: "Tutor", partyId: tutorId, partyName: person("Tutor", tutorId).name || tutorId, demoId: g.demoId, studentId, tutorId,
       purpose: "Agency Charge", amount: m.tutorAgencyDue, target: target("tutor-agency"),
       date: latestNextDate(agency.filter(p => p.tutor_id === tutorId))
     });
@@ -3417,11 +3423,14 @@ function ledgerEntries() {
     const id = sub.student_id || sub.tutor_id;
     due({
       kind, partyId: id, partyName: person(kind, id).name || id, demoId: "",
+      studentId: sub.student_id || "", tutorId: sub.tutor_id || "",
       purpose: "Subscription", amount: dues, date: subscriptionNextDue(sub),
       target: { action: "go-to-card", tab: "subscriptions", key: "subscription:" + sub.id },
       subscriptionId: sub.id
     });
   });
+
+  entries.forEach(e => { e.mobile = person(e.kind, e.partyId).mobile || ""; });
 
   // Newest first; an upcoming entry with no due date set goes on top.
   return entries.sort((a, b) => (b.date || "9999").localeCompare(a.date || "9999"));
@@ -3434,34 +3443,55 @@ const LEDGER_STATUS = {
   overdue: { label: "Overdue", tone: "declined" }
 };
 
+const LEDGER_COLUMNS = ["Date", "Who", "Payment Type", "Name", "Mobile Number", "Tutor ID", "Student ID", "Demo ID", "Amount"];
+
+// "2026-10-06" -> "06|10|2026"
+function ledgerDate(iso) {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}|${m[2]}|${m[1]}` : "";
+}
+
+function ledgerRow(cells) {
+  return `<div class="ledger-grid">${cells.map(c => `<span class="ledger-cell">${esc(c || "-")}</span>`).join("")}</div>`;
+}
+
+// One line per entry: status rail on the left, the columns, and - while
+// it's still to be paid - a + on the right to record it.
 function ledgerCard(e) {
   const t = e.target;
-  const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
-  const left = e.status === "paid"
-    ? `Paid on ${formatDate(e.date)}${e.mode ? " · " + e.mode : ""}`
-    : e.date ? `${e.status === "overdue" ? "Overdue since" : "Due on"} ${formatDate(e.date)}` : "Due date not set";
-  const right = e.status === "paid" ? recordedAt(e.recordedAt) : "";
-  const small = `<span class="admin-hl-small-text">${esc(left)}</span><span class="admin-hl-small-right">${esc(right)}</span>`;
   const attrs = `data-action="${t.action}"` +
     (t.demo ? ` data-demo="${esc(t.demo)}"` : "") + (t.part ? ` data-part="${esc(t.part)}"` : "") +
     (t.tab ? ` data-tab="${esc(t.tab)}" data-key="${esc(t.key)}"` : "");
   const status = LEDGER_STATUS[e.status];
-  // Still to be paid: a + that opens the Payments form for exactly this.
-  const record = e.status === "paid" ? "" : `
+  const record = e.status === "paid" ? `<span class="ledger-record-space" aria-hidden="true"></span>` : `
         <button type="button" class="admin-avatar admin-avatar-link ledger-record" data-action="ledger-record"
           ${e.subscriptionId ? `data-sub="${e.subscriptionId}"` : `data-demo="${esc(t.demo)}" data-part="${esc(t.part)}"`}
           title="Record this payment" aria-label="Record this payment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>`;
+  const cells = [
+    ledgerDate(e.date), e.kind, e.purpose, e.partyName, e.mobile,
+    e.tutorId, e.studentId, e.demoId, "₹" + Number(e.amount || 0).toLocaleString("en-IN")
+  ];
   return `
     <article class="admin-card ledger-card" data-tone="neutral">
       <div class="admin-card-head" ${attrs} title="Open what this is for">
         <span class="admin-status-rail ledger-status-rail" data-tone="${status.tone}" tabindex="-1">${esc(status.label)}</span>
-        <span class="admin-status-rail ledger-purpose-rail" data-tone="black" tabindex="-1">${esc(e.purpose)}</span>
-        <div class="admin-card-title">
-          ${highlight([e.partyName, e.partyId, e.demoId, e.kind, e.purpose, rupees(e.amount)], small, "|", "neutral", true)}
-        </div>
+        ${ledgerRow(cells)}
         ${record}
       </div>
     </article>`;
+}
+
+// The column titles, as a card of its own above the list - same rail
+// and + spaces as an entry so every column lines up.
+function ledgerHeaderCard() {
+  return `
+    <div class="admin-card ledger-card ledger-header" aria-hidden="true">
+      <div class="admin-card-head">
+        <span class="admin-status-rail ledger-status-rail" data-tone="black">Status</span>
+        ${ledgerRow(LEDGER_COLUMNS)}
+        <span class="ledger-record-space"></span>
+      </div>
+    </div>`;
 }
 
 function renderLedger() {
@@ -3474,6 +3504,7 @@ function renderLedger() {
   $("ledgerList").innerHTML = rows.length
     ? rows.map(ledgerCard).join("")
     : empty(filter === "all" ? "Nothing paid or due yet." : "Nothing here.");
+  $("ledgerHeader").innerHTML = rows.length ? ledgerHeaderCard() : "";
 
   applyTextSearch("ledgerList", "ledgerSearch", "Nothing matches.");
 
