@@ -2324,6 +2324,11 @@ body[data-page="admin"] {
 .admin-card[data-tone="open"] .admin-avatar        { color: var(--blue); background: var(--blue-dim); border-color: var(--blue-line); }
 .admin-card[data-tone="running"] .admin-avatar     { color: var(--lime); background: var(--lime-dim); border-color: var(--lime-line); }
 .admin-card[data-tone="completed"] .admin-avatar   { color: var(--muted); background: var(--surface-3); border-color: var(--border-light); }
+
+/* Students / Payments: plain black - no status colour */
+.admin-card[data-tone="neutral"] .admin-avatar { color: var(--text); background: var(--surface-3); border-color: var(--border-light); }
+.admin-hl-top[data-tone="neutral"] { background: var(--surface-3); }
+.admin-hl-top[data-tone="neutral"] .admin-info b { color: var(--text); }
 .admin-card[data-tone="terminated"] .admin-avatar,
 .admin-card[data-tone="declined"] .admin-avatar    { color: var(--danger); background: rgba(255, 104, 104, 0.18); border-color: rgba(255, 104, 104, 0.3); }
 .admin-card[data-tone="schedule"] .admin-avatar    { color: var(--orange); background: rgba(255, 140, 26, 0.18); border-color: rgba(255, 140, 26, 0.3); }

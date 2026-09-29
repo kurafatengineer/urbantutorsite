@@ -2314,7 +2314,8 @@ function renderStudents() {
         r.values["Class"],
         r.values["Board"],
         fullAddress(r.values["Address"], r.values["City"], r.values["PIN Code"])
-      ], "", "|", "green"),
+      ], "", "|", "neutral"),
+      tone: "neutral",
       extra
     });
 
@@ -2413,7 +2414,7 @@ function paymentCard(p, ctx) {
     : [p.demo_id, ctx.studentName, ctx.subject, "₹" + amount.toLocaleString("en-IN"), tutorCollected ? "Tutor collected" : "Agency collected"];
 
   return `
-    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-id="${p.id}" data-key="${esc(key)}">
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${p.id}" data-key="${esc(key)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">₹</div>
@@ -2422,7 +2423,7 @@ function paymentCard(p, ctx) {
             headline,
             [!isPayout && cut != null ? `Our cut: ₹${cut.toLocaleString("en-IN")}` : "", `Recorded ${recordedAt(p.created_at)}`].filter(Boolean).join(" · "),
             "|",
-            isPayout ? "scheduled" : (tutorCollected ? "processing" : "running")
+            "neutral"
           )}
         </div>
         <span class="admin-caret" aria-hidden="true"></span>
@@ -2446,7 +2447,7 @@ function paymentCard(p, ctx) {
 function recordedAt(iso) {
   if (!iso) return "";
   return new Date(iso).toLocaleString("en-IN", {
-    day: "numeric", month: "short", year: "numeric",
+    day: "numeric", month: "long", year: "numeric",
     hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata"
   });
 }
@@ -2507,7 +2508,7 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
     </div>`;
 
   return `
-    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-id="${p.id}" data-key="${esc(key)}">
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${p.id}" data-key="${esc(key)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">₹</div>
@@ -2516,7 +2517,7 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
             [partyName, partyMobile, partyId, sub.plan_name, "Amount Paid " + rupees(paying)],
             `Recorded ${recordedAt(p.created_at)}` + (remaining > 0 ? ` · Remaining ${rupees(remaining)}` : " · Fully paid"),
             "|",
-            remaining > 0 ? "processing" : "running"
+            "neutral"
           )}
         </div>
         <span class="admin-caret" aria-hidden="true"></span>
