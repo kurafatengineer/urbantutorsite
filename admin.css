@@ -443,6 +443,20 @@ button { cursor: pointer; }
   white-space: nowrap;
 }
 
+/* Student/Tutor pill on a payment status card head - fixed width so
+   both read the same size regardless of which word is shorter, and
+   always coloured the same as the status rail's "Due" tone. */
+.admin-pill.admin-pill-party {
+  width: 56px;
+  text-align: center;
+}
+
+.admin-pill.admin-pill-party[data-tone="schedule"] {
+  color: var(--orange);
+  background: rgba(255, 140, 26, 0.18);
+  border-color: rgba(255, 140, 26, 0.3);
+}
+
 .admin-pill[data-tone="verified"],
 .admin-pill[data-tone="running"] { color: var(--lime); background: var(--lime-dim); border-color: var(--lime-line); }
 .admin-pill[data-tone="pending"] { color: var(--blue); background: var(--blue-dim); border-color: var(--blue-line); }
