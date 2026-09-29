@@ -606,12 +606,11 @@ function subscriptionRows(row: Json): [string, string][] {
   ];
 }
 
-// A subscription's one-year period counts from whenever a payment
-// actually starts a fresh cycle - either the very first payment ever
-// made against it, or a renewal payment landing after the previous
-// cycle's next_due_date has already passed. A payment that falls
-// inside the current cycle (on or before next_due_date) doesn't move
-// anything - it's just another instalment toward the same year.
+// start_date marks when the current billing cycle began - the first
+// payment ever, or a renewal landing after the previous cycle's
+// next_due_date had already passed. next_due_date follows the most
+// recent payment (its date + 1 year) and never moves backwards, so a
+// back-dated instalment can't pull it earlier.
 async function realignSubscriptionCycle(subscriptionId: number, paymentDate: string) {
   const { data: sub } = await db
     .from("subscriptions")
@@ -621,15 +620,17 @@ async function realignSubscriptionCycle(subscriptionId: number, paymentDate: str
   if (!sub) return;
 
   const startsNewCycle = !sub.start_date || !sub.next_due_date || paymentDate > sub.next_due_date;
-  if (!startsNewCycle) return;
 
   const nextDue = new Date(paymentDate);
   nextDue.setFullYear(nextDue.getFullYear() + 1);
+  const candidate = nextDue.toISOString().slice(0, 10);
 
-  await db.from("subscriptions").update({
-    start_date: paymentDate,
-    next_due_date: nextDue.toISOString().slice(0, 10),
-  }).eq("id", subscriptionId);
+  const changes: Record<string, string> = {};
+  if (startsNewCycle) changes.start_date = paymentDate;
+  if (!sub.next_due_date || candidate > sub.next_due_date) changes.next_due_date = candidate;
+  if (!Object.keys(changes).length) return;
+
+  await db.from("subscriptions").update(changes).eq("id", subscriptionId);
 }
 
 async function handle(body: Json, authHeader: string | null): Promise<Json> {

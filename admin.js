@@ -785,7 +785,7 @@ function fillPaymentSubscriptionFields(partyType, partyId) {
   $("paymentSubCycle").value = sub.billing_cycle || "";
   $("paymentSubStatus").value = SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status;
   $("paymentSubStartDate").value = cycleStart;
-  $("paymentSubNextDue").value = oneYearFrom(cycleStart);
+  $("paymentSubNextDue").value = oneYearFrom($("paymentDate").value || new Date().toISOString().slice(0, 10));
   updatePaymentRemaining();
 
   $("paymentSubPartyIdField").classList.add("hidden");
@@ -2420,7 +2420,7 @@ function paymentCard(p, ctx) {
         <div class="admin-card-title">
           ${highlight(
             headline,
-            !isPayout && cut != null ? `Our cut: ₹${cut.toLocaleString("en-IN")}` : "",
+            [!isPayout && cut != null ? `Our cut: ₹${cut.toLocaleString("en-IN")}` : "", `Recorded ${recordedAt(p.created_at)}`].filter(Boolean).join(" · "),
             "|",
             isPayout ? "scheduled" : (tutorCollected ? "processing" : "running")
           )}
@@ -2443,6 +2443,27 @@ function paymentCard(p, ctx) {
 // Payments form. Dues/Remaining are worked out as they stood when this
 // payment was made (earlier instalments only), so they don't change as
 // later payments arrive.
+function recordedAt(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("en-IN", {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata"
+  });
+}
+
+// Next Due Date follows the most recent payment made against the
+// subscription (that payment's date + 1 year), never earlier than what
+// is already stored.
+function subscriptionNextDue(sub) {
+  const dates = (STATE.payments || [])
+    .filter(p => p.subscription_id === sub.id && p.transaction_type !== "payout" && p.payment_date)
+    .map(p => p.payment_date)
+    .sort();
+  const fromPayment = dates.length ? oneYearFrom(dates[dates.length - 1]) : "";
+  const stored = sub.next_due_date || (sub.start_date ? oneYearFrom(sub.start_date) : "");
+  return fromPayment > stored ? fromPayment : stored;
+}
+
 function subscriptionPaymentCard(p, key, open, editing, buttons) {
 
   const sub = (STATE.subscriptions || []).find(s => s.id === p.subscription_id) || {};
@@ -2462,7 +2483,7 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
   const remaining = Math.max(duesThen - paying, 0);
   const rupees = n => "₹" + Number(n).toLocaleString("en-IN");
   const startDate = sub.start_date || "";
-  const nextDue = sub.next_due_date || (startDate ? oneYearFrom(startDate) : "");
+  const nextDue = subscriptionNextDue(sub);
 
   const boxes = `
     <div class="admin-boxes">
@@ -2480,7 +2501,7 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
       ${box("Received By", p.received_by || "", { editable: editing, attr: editing ? `data-pfield="receivedBy"` : "" })}
       ${box("Amount (₹)", rupees(planAmount))}
       ${box("Dues (₹)", rupees(duesThen))}
-      ${box("Paying Now (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: "number", attr: editing ? `data-pfield="amount"` : "" })}
+      ${box("Amount Paid (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: "number", attr: editing ? `data-pfield="amount"` : "" })}
       ${box("Remaining (₹)", rupees(remaining))}
       ${box("Notes", p.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
     </div>`;
@@ -2492,8 +2513,8 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
         <div class="admin-avatar">₹</div>
         <div class="admin-card-title">
           ${highlight(
-            [partyName, partyMobile, partyId, sub.plan_name, rupees(paying)],
-            remaining > 0 ? `Remaining: ${rupees(remaining)}` : "Fully paid",
+            [partyName, partyMobile, partyId, sub.plan_name, "Amount Paid " + rupees(paying)],
+            `Recorded ${recordedAt(p.created_at)}` + (remaining > 0 ? ` · Remaining ${rupees(remaining)}` : " · Fully paid"),
             "|",
             remaining > 0 ? "processing" : "running"
           )}
@@ -2554,7 +2575,7 @@ function subscriptionCard(sub) {
   const amount = Number(sub.amount || 0);
   const paid = subscriptionPaidAmount(sub.id);
   const dues = Math.max(amount - paid, 0);
-  const nextDueDate = sub.next_due_date || (sub.start_date ? oneYearFrom(sub.start_date) : "");
+  const nextDueDate = subscriptionNextDue(sub);
 
   const boxes = `
     <div class="admin-boxes">
