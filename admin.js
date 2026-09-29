@@ -240,7 +240,8 @@ const STATE = {
   open: new Set(),      // keys of expanded cards
   editing: new Set(),   // keys of records in edit mode
   studentOpen: new Set(), // keys of tuition cards whose nested Student section is expanded
-  quickOpen: new Set()  // keys opened via the status rail: only the relevant fields + Save
+  quickOpen: new Set(), // keys opened via the status rail: only the relevant fields + Save
+  paymentFocus: null    // { kind, demoId, tutorId }: Payments tab narrowed from a Class card box
 };
 
 let TUTOR_BY_MOBILE = {};
@@ -1469,7 +1470,10 @@ function resetFilter(tab) {
 
 function showTab(name) {
 
-  if (name !== STATE.tab) collapseAll();
+  if (name !== STATE.tab) {
+    collapseAll();
+    STATE.paymentFocus = null;
+  }
 
   STATE.tab = name;
 
@@ -1692,6 +1696,17 @@ async function onListClick(event) {
 
     case "go-to-card":
       goToCard(actionEl.dataset.tab, actionEl.dataset.key);
+      break;
+
+    case "go-to-payments": {
+      const card = actionEl.closest(".class-card");
+      goToPayments(actionEl.dataset.focus, card.dataset.demo, card.dataset.tutorId);
+      break;
+    }
+
+    case "clear-payment-focus":
+      STATE.paymentFocus = null;
+      renderPayments();
       break;
 
     case "edit":
@@ -2693,6 +2708,38 @@ function renderStudents() {
 
 /* ---------------- payments ---------------- */
 
+const PAYMENT_FOCUS_LABELS = {
+  "student-payment": "Student Payments",
+  "tutor-payment": "Tutor Payments",
+  "student-agency": "Student Agency Charge",
+  "tutor-agency": "Tutor Agency Charge"
+};
+
+// The payments behind one Class card figure - same selection classMoney
+// uses to add that figure up.
+function paymentMatchesFocus(p, focus) {
+  switch (focus.kind) {
+    case "student-payment": return p.transaction_type === "collection" && p.demo_id === focus.demoId;
+    case "tutor-payment":   return p.transaction_type === "payout" && p.tutor_id === focus.tutorId;
+    case "student-agency":  return p.transaction_type === "agency_charge" && p.demo_id === focus.demoId && !p.tutor_id;
+    case "tutor-agency":    return p.transaction_type === "agency_charge" && p.demo_id === focus.demoId && p.tutor_id === focus.tutorId;
+  }
+  return true;
+}
+
+// From a Class card's Agency Charge / Total Payment box: the Payments
+// tab, narrowed to just the payments behind that figure.
+function goToPayments(kind, demoId, tutorId) {
+  collapseAll();
+  STATE.tab = "payments";
+  STATE.paymentFocus = { kind, demoId, tutorId };
+  $("paymentSearch").value = "";
+  clearSearchChips("paymentSearch");
+  applyActiveTab();
+  rerenderCurrent();
+  $("mainTabs").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function renderPayments() {
 
   if (!$("paymentList")) return;
@@ -2710,7 +2757,10 @@ function renderPayments() {
 
   const query = searchQueryFor("paymentSearch");
 
+  const focus = STATE.paymentFocus;
+
   const rows = (STATE.payments || []).filter(p => {
+    if (focus && !paymentMatchesFocus(p, focus)) return false;
     const sub = p.subscription_id ? (STATE.subscriptions || []).find(s => s.id === p.subscription_id) : null;
     const subId = sub ? (sub.student_id || sub.tutor_id) : "";
     const subParty = subId ? (sub.student_id ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID)[subId] : null;
@@ -2721,9 +2771,15 @@ function renderPayments() {
     ].join(" "));
   });
 
-  $("paymentList").innerHTML = rows.length
+  const banner = focus ? `
+    <div class="admin-focus-bar">
+      <span>Showing <b>${esc(PAYMENT_FOCUS_LABELS[focus.kind])}</b> for <b>${esc(focus.demoId)}</b></span>
+      <button class="admin-ghost" data-action="clear-payment-focus" type="button">Show all payments</button>
+    </div>` : "";
+
+  $("paymentList").innerHTML = banner + (rows.length
     ? rows.map(p => paymentCard(p, context[p.demo_id] || {})).join("")
-    : empty("No payments recorded yet.");
+    : empty(focus ? "No payments recorded for this yet." : "No payments recorded yet."));
 
 }
 
@@ -2778,7 +2834,7 @@ function paymentSummary(p) {
     if (g) {
       const m = classMoney(g, activeRowFor(g));
       const paid = paidUpTo(all.filter(o => o.transaction_type === "payout" && o.tutor_id === p.tutor_id), p);
-      dues = Math.max(m.tutorTotalAmount - m.tutorAgencyCharge - m.tutorAdvance - paid, 0);
+      dues = Math.max(m.tutorTotalAmount - m.tutorAdvance - paid, 0);
     }
 
   } else {
@@ -3442,7 +3498,10 @@ function classMoney(g, activeRow) {
     .filter(p => p.tutor_id === activeRow.tutorId && p.transaction_type === "payout")
     .reduce((sum, p) => sum + num(p.amount), 0);
   const tutorTotalPayment = tutorAdvance + tutorPayouts;
-  const tutorDues = Math.max(tutorTotalAmount - tutorAgencyCharge - tutorTotalPayment, 0);
+  // The tutor's Agency Charge isn't taken off here - the tutor pays it
+  // in separately (its own "agency_charge" ledger below), so what the
+  // agency owes the tutor is the full Tuition Fee less what's been paid.
+  const tutorDues = Math.max(tutorTotalAmount - tutorTotalPayment, 0);
 
   // The agency's own cut on each side has its own real ledger - actual
   // "agency_charge" payments recorded against this Tuition, split by
@@ -3487,6 +3546,8 @@ function classCard(g, activeRow) {
   const tv = field => (tutor && tutor.values[field]) || "";
 
   const cfield = f => editing ? `data-cfield="${esc(f)}"` : "";
+  // Outside edit mode, these figures open the payments behind them.
+  const jump = kind => `data-action="go-to-payments" data-focus="${kind}" title="Show these payments"`;
 
   // Start Date defaults to today, End Date to a week out, and the two
   // Next Due/Payment Dates a week (and a week + 1 day) out - all until
@@ -3543,11 +3604,11 @@ function classCard(g, activeRow) {
         ${box("WhatsApp Number", sv("WhatsApp"))}
         ${box("Payment To", editing ? (activeRow.studentPaymentTo || "Agency") : activeRow.studentPaymentTo, { editable: editing, options: ["Agency", "Tutor"], attr: cfield("Student Payment To") })}
         ${box("Next Due Date", studentNextDueShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Student Next Due Date") })}
-        ${box("Agency Charge (₹)", editing ? (activeRow.studentAgencyCharge || 0) : activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: cfield("Student Agency Charge") })}
+        ${box("Agency Charge (₹)", editing ? (activeRow.studentAgencyCharge || 0) : activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: editing ? cfield("Student Agency Charge") : jump("student-agency") })}
         ${box("Payment Frequency", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
         ${box("Advance Payment (₹)", studentAdvancePaid)}
         ${box("Total Amount (₹)", studentTotalAmount)}
-        ${box("Total Payment (₹)", collected)}
+        ${box("Total Payment (₹)", collected, { attr: editing ? "" : jump("student-payment") })}
         ${box("Dues (₹)", studentDues)}
       </div>
     </div>`;
@@ -3561,11 +3622,11 @@ function classCard(g, activeRow) {
         ${box("WhatsApp Number", tv("WhatsApp Number"))}
         ${box("Payment From", editing ? (activeRow.tutorPaymentFrom || "Agency") : activeRow.tutorPaymentFrom, { editable: editing, options: ["Agency", "Parents"], attr: cfield("Tutor Payment From") })}
         ${box("Next Payment Date", tutorNextPaymentShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Tutor Next Payment Date") })}
-        ${box("Agency Charges (₹)", editing ? (activeRow.tutorAgencyCharge || 0) : activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: cfield("Tutor Agency Charge") })}
+        ${box("Agency Charges (₹)", editing ? (activeRow.tutorAgencyCharge || 0) : activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: editing ? cfield("Tutor Agency Charge") : jump("tutor-agency") })}
         ${box("Payment Frequency", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
         ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, type: "number", attr: cfield("Tutor Advance Payment") })}
         ${box("Total Amount (₹)", tutorTotalAmount)}
-        ${box("Total Payment (₹)", tutorTotalPayment)}
+        ${box("Total Payment (₹)", tutorTotalPayment, { attr: editing ? "" : jump("tutor-payment") })}
         ${box("Dues (₹)", tutorDues)}
       </div>
     </div>`;
