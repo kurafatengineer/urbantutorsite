@@ -139,22 +139,17 @@ button { cursor: pointer; }
 
 .admin-float input:focus { outline: none; border-color: var(--lime-line); }
 
-/* Floating label: resting state sits centered inside the pill, over
-   the input's own background, so no backing box is needed there
-   either. Floated state moves it clear above the box's top border
-   (not on top of it) - that's what removes the need for the old
-   gradient "cut border" trick, which only ever matched its own
-   context correctly (surface vs surface-2 vs page bg) by luck and
-   showed as a visible dark box everywhere it didn't. */
 .admin-float > span {
   position: absolute;
-  left: 22px;
+  left: 16px;
   top: 50%;
   padding: 0 4px;
   transform: translateY(-50%);
   font-size: 14.5px;
   color: var(--muted-2);
   pointer-events: none;
+  background: linear-gradient(to bottom, var(--surface) 50%, var(--surface-2) 50%);
+  border-radius: 4px;
   transition: top 0.15s ease, font-size 0.15s ease, color 0.15s ease;
 }
 
@@ -976,7 +971,11 @@ button { cursor: pointer; }
 .admin-stat[data-tone="red"] .admin-stat-value { color: var(--danger); }
 
 
-/* ---------- search: "Search" floats above the box ---------- */
+/* ---------- search: "Search" moves onto the top border ---------- */
+
+.admin-search-wrap > span {
+  background: linear-gradient(to bottom, var(--bg) 50%, var(--surface-2) 50%);
+}
 
 .admin-search-wrap input::-webkit-search-cancel-button {
   filter: invert(1) opacity(0.5);
@@ -1308,6 +1307,10 @@ button { cursor: pointer; }
   display: grid;
   gap: 10px;
   margin-top: 6px;
+}
+
+.admin-assign .admin-float > span {
+  background: linear-gradient(to bottom, var(--card-bg) 50%, var(--surface-2) 50%);
 }
 
 .admin-suggest {
@@ -1990,6 +1993,7 @@ body[data-page="admin"] {
 .admin-login .admin-float > span {
   left: 50%;
   transform: translate(-50%, -50%);
+  background: linear-gradient(to bottom, var(--bg) 50%, var(--surface-2) 50%);
 }
 
 .admin-pass {
@@ -2271,45 +2275,6 @@ body[data-page="admin"] {
   font-size: 11.5px;
   font-weight: 700;
   color: var(--muted-2);
-}
-
-/* Border mask: when a label floats up onto the box's top border, a strip
-   as thick as the border, a little wider than the text, and coloured
-   like the box's own fill sits behind the text and hides just that
-   segment of the border line (and any rounded-corner arc) - no
-   full-height background box, so nothing dark shows around the label. */
-.admin-float input:focus + span::before,
-.admin-float input:not(:placeholder-shown) + span::before,
-.admin-float input[type="date"] + span::before,
-.admin-float textarea:focus + span::before,
-.admin-float textarea:not(:placeholder-shown) + span::before,
-.admin-float.is-select > span::before,
-.admin-search-wrap.has-chips > span::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  background: var(--surface-2);
-  z-index: -1;
-}
-
-/* the search box is itself the bordered element, so its label's
-   containing block starts inside the 1px border - shift the strip up
-   by that border width to keep it on the line */
-html body .admin-float.admin-search-wrap > span::before { top: calc(50% - 1px); }
-
-/* whole-pixel label height so the label's centre (and the strip
-   hung from it) lands on a whole pixel, exactly on the border line */
-.admin-float input:focus + span,
-.admin-float input:not(:placeholder-shown) + span,
-.admin-float input[type="date"] + span,
-.admin-float textarea:focus + span,
-.admin-float textarea:not(:placeholder-shown) + span,
-.admin-float.is-select > span,
-.admin-search-wrap.has-chips > span {
-  line-height: 14px;
 }
 
 .admin-float.is-select select:focus + span { color: var(--lime); }
