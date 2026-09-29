@@ -2476,10 +2476,6 @@ body[data-page="admin"] {
   }
 }
 
-.admin-boxes-1col {
-  grid-template-columns: 1fr;
-}
-
 /* the name-letter avatar on the Tuition / Tutor Applied card also
    follows its own status colour */
 .admin-card[data-tone="new"] .admin-avatar,

@@ -3141,32 +3141,32 @@ function classCard(g, activeRow) {
   const studentSection = `
     <div class="admin-class-party">
       <h3 class="admin-section-title">Student</h3>
-      <div class="admin-boxes admin-boxes-1col">
-        ${box("Name", sv("Student Name"))}
+      <div class="admin-boxes">
+        ${box("Name", sv("Student Name"), { wide: true })}
         ${box("Mobile Number", sv("Phone"))}
         ${box("WhatsApp Number", sv("WhatsApp"))}
-        ${box("Payment To", activeRow.studentPaymentTo, { editable: editing, attr: cfield("Student Payment To") })}
-        ${box("Agency Charge (₹)", activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: cfield("Student Agency Charge") })}
-        ${box("Payment", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
-        ${box("Advance Payment (₹)", activeRow.studentAdvancePayment, { editable: editing, type: "number", attr: cfield("Student Advance Payment") })}
-        ${box("Total Payment (₹)", totalAmount ? collected : "")}
-        ${box("Dues (₹)", totalAmount ? studentDues : "")}
+        ${box("Payment To", activeRow.studentPaymentTo, { editable: editing, wide: true, attr: cfield("Student Payment To") })}
+        ${box("Agency Charge (₹)", activeRow.studentAgencyCharge, { editable: editing, wide: true, type: "number", attr: cfield("Student Agency Charge") })}
+        ${box("Payment", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, wide: true, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
+        ${box("Advance Payment (₹)", activeRow.studentAdvancePayment, { editable: editing, wide: true, type: "number", attr: cfield("Student Advance Payment") })}
+        ${box("Total Payment (₹)", totalAmount ? collected : "", { wide: true })}
+        ${box("Dues (₹)", totalAmount ? studentDues : "", { wide: true })}
       </div>
     </div>`;
 
   const tutorSection = `
     <div class="admin-class-party">
       <h3 class="admin-section-title">Tutor</h3>
-      <div class="admin-boxes admin-boxes-1col">
-        ${box("Tutor Name", tv("Full Name"))}
+      <div class="admin-boxes">
+        ${box("Tutor Name", tv("Full Name"), { wide: true })}
         ${box("Mobile Number", tv("Mobile Number"))}
         ${box("WhatsApp Number", tv("WhatsApp Number"))}
-        ${box("Payment From", activeRow.tutorPaymentFrom, { editable: editing, attr: cfield("Tutor Payment From") })}
-        ${box("Agency Charges (₹)", activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: cfield("Tutor Agency Charge") })}
-        ${box("Payment", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
-        ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, type: "number", attr: cfield("Tutor Advance Payment") })}
-        ${box("Total Payment (₹)", totalAmount ? tutorTotalPayment : "")}
-        ${box("Dues (₹)", totalAmount ? tutorDues : "")}
+        ${box("Payment From", activeRow.tutorPaymentFrom, { editable: editing, wide: true, attr: cfield("Tutor Payment From") })}
+        ${box("Agency Charges (₹)", activeRow.tutorAgencyCharge, { editable: editing, wide: true, type: "number", attr: cfield("Tutor Agency Charge") })}
+        ${box("Payment", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, wide: true, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
+        ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, wide: true, type: "number", attr: cfield("Tutor Advance Payment") })}
+        ${box("Total Payment (₹)", totalAmount ? tutorTotalPayment : "", { wide: true })}
+        ${box("Dues (₹)", totalAmount ? tutorDues : "", { wide: true })}
       </div>
     </div>`;
 
