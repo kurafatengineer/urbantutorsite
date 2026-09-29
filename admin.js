@@ -2837,6 +2837,7 @@ function tuitionStack(g) {
   const studentName = student ? student.values["Student Name"] : f.studentId;
   const tutorRows = g.rows.filter(r => r.hasTutor);
   const terminated = state === "terminated";
+  const assigned = railTone === "running" || railTone === "completed";
   const sv = field => (student && student.values[field]) || "";
   const studentKey = "student:" + g.demoId;
   const studentOpen = STATE.studentOpen.has(studentKey);
@@ -2929,7 +2930,7 @@ function tuitionStack(g) {
           <button class="admin-ghost admin-wide" data-action="show-full" data-key="${esc(key)}" type="button">Show Full Details</button>
         ` : `
 
-          ${terminated ? "" : assignBlock}
+          ${terminated || assigned ? "" : assignBlock}
 
           <h3 class="admin-section-title">Tuition</h3>
           ${tuitionBoxes}
