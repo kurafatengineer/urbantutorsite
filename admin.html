@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260929az">
+  <link rel="stylesheet" href="admin.css?v=20260929ba">
 </head>
 
 <body data-page="admin">
@@ -223,11 +223,11 @@
               <span>Name</span>
             </label>
           </div>
-          <div class="admin-form-row hidden" id="slotSubSearch"></div>
           <div class="admin-form-row admin-form-row-3 hidden" id="agencySlotParty"></div>
           <div class="admin-form-row admin-form-row-3 hidden" id="slotSubPlan"></div>
           <div class="admin-form-row admin-form-row-3 hidden" id="agencySlotAmount"></div>
-          <div class="admin-form-row admin-form-row-notes hidden" id="slotSubNotes"></div>
+          <div class="admin-form-row admin-form-row-3 hidden" id="slotSubDates"></div>
+          <div class="admin-form-row hidden" id="slotSubNotes"></div>
           <div class="admin-form-row admin-form-row-notes hidden" id="agencySlotNotes">
             <label class="admin-float" id="paymentNextDateField">
               <input id="paymentNextDate" type="date">
@@ -251,19 +251,6 @@
             <span>Received By</span>
           </label>
 
-          <!-- Only for a subscription payment: search by Student/Tutor
-               ID, mobile or WhatsApp number, then everything below
-               fills in from that party's own subscription. Hidden
-               once "Record a Payment for this Subscription" has
-               already resolved it. -->
-          <div class="admin-id-row wide hidden" id="paymentSubPartyIdField">
-            <label class="admin-float">
-              <input id="paymentSubPartyId" type="text" placeholder=" " autocomplete="off">
-              <span id="paymentSubPartyIdLabel">Enter Student ID, Mobile or WhatsApp Number</span>
-            </label>
-            <div class="admin-suggest hidden" data-suggest="subparty"></div>
-          </div>
-
           <label class="admin-float hidden" id="paymentSubNameField">
             <input id="paymentSubName" type="text" readonly>
             <span id="paymentSubNameLabel">Name</span>
@@ -272,10 +259,15 @@
             <input id="paymentSubMobile" type="text" readonly>
             <span>Mobile Number</span>
           </label>
-          <label class="admin-float hidden" id="paymentSubIdField">
-            <input id="paymentSubId" type="text" readonly>
-            <span id="paymentSubIdLabel">Student ID</span>
-          </label>
+          <!-- Typed into directly for a Subscription (with suggestions);
+               filled in, read-only, for an Agency Charge. -->
+          <div class="admin-id-row hidden" id="paymentSubIdField">
+            <label class="admin-float">
+              <input id="paymentSubId" type="text" readonly autocomplete="off">
+              <span id="paymentSubIdLabel">Student ID</span>
+            </label>
+            <div class="admin-suggest hidden" data-suggest="subparty"></div>
+          </div>
           <label class="admin-float hidden" id="paymentSubPlanField">
             <input id="paymentSubPlan" type="text" readonly>
             <span>Plan Name</span>
@@ -502,7 +494,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260929zzs" defer></script>
+<script src="admin.js?v=20260929zzt" defer></script>
 
 </body>
 </html>
