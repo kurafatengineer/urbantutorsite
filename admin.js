@@ -2047,13 +2047,21 @@ function infoLine(values, separator = "|") {
 //   top    - bold values, coloured by the card's status (tone)
 //   bottom - small text, light grey (left out when empty)
 // Light colour, no border, square corners.
-function highlight(boldValues, smallText, separator, tone) {
+function highlight(boldValues, smallText, separator, tone, splitSmall) {
   const line = infoLine(boldValues, separator);
   const small = String(smallText || "").trim();
   return `<div class="admin-hl">
     <div class="admin-hl-top" data-tone="${esc(tone || "")}">${line}</div>
-    ${small ? `<p class="admin-hl-small">${small}</p>` : ""}
+    ${small ? `<p class="admin-hl-small${splitSmall ? " admin-hl-small-split" : ""}">${small}</p>` : ""}
   </div>`;
+}
+
+// Left: a short status/info snippet. Right: a date/time, no label.
+function timeSplitLine(leftText, whenIso) {
+  const left = String(leftText || "").trim();
+  const when = recordedAt(whenIso);
+  if (!left && !when) return "";
+  return `<span class="admin-hl-small-text">${esc(left)}</span><span class="admin-hl-small-right">${esc(when)}</span>`;
 }
 
 // "Address, City - PIN" without repeating the city.
@@ -2448,9 +2456,10 @@ function paymentCard(p, ctx) {
         <div class="admin-card-title">
           ${highlight(
             headline,
-            [!isPayout && cut != null ? `Our cut: ₹${cut.toLocaleString("en-IN")}` : "", `Recorded ${recordedAt(p.created_at)}`].filter(Boolean).join(" · "),
+            timeSplitLine(!isPayout && cut != null ? `Our cut: ₹${cut.toLocaleString("en-IN")}` : "", p.created_at),
             "|",
-            "neutral"
+            "neutral",
+            true
           )}
         </div>
         <span class="admin-caret" aria-hidden="true"></span>
@@ -2542,9 +2551,10 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
         <div class="admin-card-title">
           ${highlight(
             [partyName, partyMobile, partyId, sub.plan_name, "Amount Paid " + rupees(paying)],
-            `Recorded ${recordedAt(p.created_at)}` + (remaining > 0 ? ` · Remaining ${rupees(remaining)}` : " · Fully paid"),
+            timeSplitLine(remaining > 0 ? `Remaining ${rupees(remaining)}` : "Fully paid", p.created_at),
             "|",
-            "neutral"
+            "neutral",
+            true
           )}
         </div>
         <span class="admin-caret" aria-hidden="true"></span>

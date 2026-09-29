@@ -783,6 +783,31 @@ button { cursor: pointer; }
   border-color: var(--border-light);
 }
 
+/* Trim the collapsed Tuition/Tutor Applied card height - tighter card
+   padding and less breathing room inside the two-layer name block,
+   scoped to this stack only so other cards keep their own sizing. */
+.admin-card.tuition-card,
+.admin-card.tutor-row-card {
+  padding: 12px;
+}
+
+.tuition-card .admin-card-head .admin-status-rail,
+.tutor-row-card .admin-card-head .admin-status-rail {
+  margin: -12px -12px -12px 4px;
+}
+
+.tuition-card .admin-hl-top,
+.tuition-card .admin-hl-small,
+.tutor-row-card .admin-hl-top,
+.tutor-row-card .admin-hl-small {
+  padding: 5px 10px;
+}
+
+.tuition-card .admin-card-head,
+.tutor-row-card .admin-card-head {
+  gap: 10px;
+}
+
 .tutor-row-card[data-tone="running"] { box-shadow: inset 3px 0 0 var(--lime); }
 .tutor-row-card[data-tone="scheduled"],
 .tutor-row-card[data-tone="processing"] { box-shadow: inset 3px 0 0 var(--violet); }
@@ -2372,6 +2397,13 @@ body[data-page="admin"] {
   flex: 0 0 auto;
   color: var(--lime);
   font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Payment card's bottom line: status text on the left, the recorded
+   date/time on the right - plain grey, no bold, no label. */
+.admin-hl-small-right {
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 
