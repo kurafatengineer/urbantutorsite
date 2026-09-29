@@ -2289,8 +2289,8 @@ body[data-page="admin"] {
   position: absolute;
   left: 0;
   right: 0;
-  top: calc(50% - 0.5px);
-  height: 2px;
+  top: 50%;
+  height: 1px;
   background: var(--surface-2);
   z-index: -1;
 }
@@ -2298,7 +2298,19 @@ body[data-page="admin"] {
 /* the search box is itself the bordered element, so its label's
    containing block starts inside the 1px border - shift the strip up
    by that border width to keep it on the line */
-html body .admin-float.admin-search-wrap > span::before { top: calc(50% - 1.5px); }
+html body .admin-float.admin-search-wrap > span::before { top: calc(50% - 1px); }
+
+/* whole-pixel label height so the label's centre (and the strip
+   hung from it) lands on a whole pixel, exactly on the border line */
+.admin-float input:focus + span,
+.admin-float input:not(:placeholder-shown) + span,
+.admin-float input[type="date"] + span,
+.admin-float textarea:focus + span,
+.admin-float textarea:not(:placeholder-shown) + span,
+.admin-float.is-select > span,
+.admin-search-wrap.has-chips > span {
+  line-height: 14px;
+}
 
 .admin-float.is-select select:focus + span { color: var(--lime); }
 
