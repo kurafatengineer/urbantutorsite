@@ -3124,7 +3124,6 @@ function classCard(g, activeRow) {
     <div class="admin-boxes">
       ${box("Duration", activeRow.classDuration, { editable: editing, attr: cfield("Class Duration") })}
       ${box("Charges (₹)", activeRow.classCharges, { editable: editing, type: "number", attr: cfield("Class Charges") })}
-      ${box("Total Amount (₹)", activeRow.classTotalAmount, { editable: editing, type: "number", attr: cfield("Class Total Amount") })}
       ${box("Start Date", editing ? toDateInput(activeRow.classStartDate) : activeRow.classStartDate, { editable: editing, type: "date", attr: cfield("Class Start Date") })}
       ${box("End Date", editing ? toDateInput(activeRow.classEndDate) : activeRow.classEndDate, { editable: editing, type: "date", attr: cfield("Class End Date") })}
     </div>`;
