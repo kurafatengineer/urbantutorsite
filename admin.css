@@ -2411,6 +2411,11 @@ body[data-page="admin"] {
    match, or it'd round against a corner that's no longer there. */
 .admin-stack.has-class-card .tuition-card .admin-status-rail { border-radius: 0; }
 
+/* Payments tab's own status cards are always standalone (never joined
+   into a stack with another card above/below), so both right corners
+   round to match the card's own full 18px radius. */
+.admin-paystatus-card .admin-status-rail { border-radius: 0 18px 18px 0; }
+
 .class-card {
   background: var(--surface-2);
 }

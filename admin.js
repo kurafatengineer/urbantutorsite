@@ -2518,16 +2518,19 @@ function renderStudents() {
 
 // A small collapsed-by-default card for the Payments tab's own status
 // summaries - same shell as any other card (head with a caret, body
-// hidden until opened) so it behaves like the rest of the page.
-function statusCard(key, tone, titleParts, subtitle, boxesHtml) {
+// hidden until opened), plus a static status-rail label on the right
+// edge (no click action, just the word) saying at a glance whether
+// this side of the money is cleared or still owed.
+function statusCard(key, tone, titleParts, subtitle, boxesHtml, railLabel) {
   const open = STATE.open.has(key);
   const titleHtml = highlight(titleParts, subtitle, "|", tone);
   return `
-    <article class="admin-card${open ? " is-open" : ""}" data-tone="${esc(tone)}" data-box data-key="${esc(key)}">
+    <article class="admin-card admin-paystatus-card${open ? " is-open" : ""}" data-tone="${esc(tone)}" data-box data-key="${esc(key)}">
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">₹</div>
         <div class="admin-card-title">${titleHtml}</div>
         <span class="admin-caret" aria-hidden="true"></span>
+        <span class="admin-status-rail" data-tone="${esc(tone)}" tabindex="-1">${esc(railLabel)}</span>
       </div>
       <div class="admin-card-body">
         <div class="admin-boxes">${boxesHtml}</div>
@@ -2556,7 +2559,8 @@ function tuitionPaymentStatusCards(g, activeRow) {
     box("Total Payment (₹)", m.collected) +
     box("Dues (₹)", m.studentDues) +
     box("Payment To", activeRow.studentPaymentTo) +
-    box("Next Due Date", activeRow.studentNextDueDate)
+    box("Next Due Date", activeRow.studentNextDueDate),
+    m.studentDues > 0 ? "Dues" : "Received"
   );
 
   const tutorCard = statusCard(
@@ -2568,7 +2572,8 @@ function tuitionPaymentStatusCards(g, activeRow) {
     box("Total Payment (₹)", m.tutorTotalPayment) +
     box("Dues (₹)", m.tutorDues) +
     box("Payment From", activeRow.tutorPaymentFrom) +
-    box("Next Payment Date", activeRow.tutorNextPaymentDate)
+    box("Next Payment Date", activeRow.tutorNextPaymentDate),
+    m.tutorDues > 0 ? "Due" : "Paid"
   );
 
   const studentAgencyCard = statusCard(
@@ -2577,7 +2582,8 @@ function tuitionPaymentStatusCards(g, activeRow) {
     [g.demoId, "Student Agency Charges"], `${studentName} · ${g.first.subject}`,
     box("Agency Charge (₹)", m.studentAgencyCharge) +
     box("Received (₹)", m.studentAgencyReceived) +
-    box("Dues (₹)", m.studentAgencyDue)
+    box("Dues (₹)", m.studentAgencyDue),
+    m.studentAgencyDue > 0 ? "Dues" : "Paid"
   );
 
   const tutorAgencyCard = statusCard(
@@ -2586,7 +2592,8 @@ function tuitionPaymentStatusCards(g, activeRow) {
     [g.demoId, "Tutor Agency Charges"], `${tutorName} · ${g.first.subject}`,
     box("Agency Charge (₹)", m.tutorAgencyCharge) +
     box("Received (₹)", m.tutorAgencyReceived) +
-    box("Dues (₹)", m.tutorAgencyDue)
+    box("Dues (₹)", m.tutorAgencyDue),
+    m.tutorAgencyDue > 0 ? "Dues" : "Paid"
   );
 
   return studentCard + tutorCard + studentAgencyCard + tutorAgencyCard;
