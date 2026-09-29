@@ -1952,9 +1952,6 @@ async function saveDemoRow(box, button) {
   const changes = {
     "Demo Date": date,
     "Demo Time": time,
-    "Price": box.querySelector("[data-rfield='price']").value.trim(),
-    "Duration": box.querySelector("[data-rfield='duration']").value.trim(),
-    "Percentage": box.querySelector("[data-rfield='percentage']").value.trim(),
     "Parent Accepted": parent === "accepted",
     "Parent Rejected": parent === "rejected",
     "Tutor Accepted": tutor === "accepted",
@@ -3315,12 +3312,6 @@ function tutorRowCard(row, terminated) {
           ${input("date", "Demo Date", toDateInput(row.demoDate), "date")}
           ${input("time", "Demo Time", toTimeInput(row.demoTime), "time")}
         </div>
-        <div class="admin-demo-grid admin-demo-3">
-          ${input("price", "Price", row.price)}
-          ${input("duration", "Duration", row.duration)}
-          ${input("percentage", "Percentage", row.percentage)}
-        </div>
-
         <h3 class="admin-section-title">Parent Status</h3>
         ${segmented("parent", parent)}
 
