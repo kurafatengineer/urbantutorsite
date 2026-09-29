@@ -3545,6 +3545,15 @@ function renderSubscriptions() {
 const SUBSCRIPTION_STATUS_LABELS = { active: "Active", paused: "Paused", cancelled: "Cancelled", completed: "Completed" };
 const SUBSCRIPTION_STATUS_TONES = { active: "running", paused: "schedule", cancelled: "rejected", completed: "completed" };
 
+// Collapsed subscription head: 7 equal centred columns split by dotted
+// lines; long text is cut with "..." and kept whole in the tooltip.
+function subscriptionRow(cells) {
+  return `<div class="sub-grid">${cells.map(c => {
+    const text = (c === undefined || c === null || c === "") ? "-" : String(c);
+    return `<span class="ledger-cell" title="${esc(text)}">${esc(text)}</span>`;
+  }).join("")}</div>`;
+}
+
 function subscriptionCard(sub) {
 
   const key = "subscription:" + sub.id;
@@ -3557,6 +3566,9 @@ function subscriptionCard(sub) {
   const partyMobile = student ? (student.values["WhatsApp"] || student.values["Phone"]) : (tutor ? tutor.values["Mobile Number"] : "");
   const partyId = sub.student_id || sub.tutor_id || "";
   const partyKind = sub.student_id ? "Student" : "Tutor";
+  const dir = sub.student_id ? DIR_STUDENT_BY_ID[sub.student_id] : DIR_TUTOR_BY_ID[sub.tutor_id];
+  const partyPhone = (student ? student.values["Phone"] : (tutor ? tutor.values["Mobile Number"] : "")) || (dir && dir.mobile) || "";
+  const partyWhatsapp = (student ? student.values["WhatsApp"] : (tutor ? tutor.values["WhatsApp Number"] : "")) || (dir && dir.whatsapp) || "";
   const amount = Number(sub.amount || 0);
   const paid = subscriptionPaidAmount(sub.id);
   const dues = Math.max(amount - paid, 0);
@@ -3594,16 +3606,9 @@ function subscriptionCard(sub) {
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">${esc(initials(partyName, "$"))}${subscriptionPayBadge(sub.student_id ? "student" : "tutor", partyId)}</div>
-        <div class="admin-card-title">
-          ${highlight(
-            [partyName || partyId, partyMobile, partyId, sub.plan_name, "₹" + amount.toLocaleString("en-IN")],
-            "",
-            "|",
-            "neutral"
-          )}
-        </div>
-        <span class="admin-pill" data-tone="${SUBSCRIPTION_STATUS_TONES[sub.status] || ""}">${esc(SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status)}</span>
+        ${subscriptionRow([partyKind, partyName || partyId, partyPhone, partyWhatsapp, partyId, sub.plan_name, "₹" + amount.toLocaleString("en-IN")])}
         <span class="admin-caret" aria-hidden="true"></span>
+        <span class="admin-status-rail admin-rail-sub" data-tone="${SUBSCRIPTION_STATUS_TONES[sub.status] || ""}" tabindex="-1">${esc(SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status)}</span>
       </div>
 
       <div class="admin-card-body">
