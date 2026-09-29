@@ -2408,6 +2408,34 @@ body[data-page="admin"] {
   white-space: nowrap;
 }
 
+/* Tuition card: Name/Mobile (and the rest of the name line) on the
+   left, Gender/Address/"N Tutors Applied" pushed to the right - both
+   inside the single (top) coloured layer, no separate line below it. */
+.admin-hl-top-split {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-hl-top-split .admin-info {
+  flex: 1 1 auto;
+}
+
+.admin-hl-top-right {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-hl-top-right-text {
+  color: var(--muted);
+}
+
 /* the name-line's ellipsis truncation, already used on Tutors/Students,
    also applies to the Tuition and Tutor Applied cards */
 #tuitionList .admin-hl-top .admin-info {

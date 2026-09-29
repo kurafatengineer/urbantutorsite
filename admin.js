@@ -2841,11 +2841,13 @@ function tuitionStack(g) {
 
   const titleHtml = `
     <div class="admin-hl">
-      <div class="admin-hl-top" data-tone="${esc(railTone)}">${nameLine}</div>
-      <p class="admin-hl-small admin-hl-small-split">
-        <span class="admin-hl-small-text">${smallText}</span>
-        <span class="admin-hl-small-applied">${esc(appliedLabel)}</span>
-      </p>
+      <div class="admin-hl-top admin-hl-top-split" data-tone="${esc(railTone)}">
+        ${nameLine}
+        <span class="admin-hl-top-right">
+          <span class="admin-hl-top-right-text">${smallText}</span>
+          <span class="admin-hl-small-applied">${esc(appliedLabel)}</span>
+        </span>
+      </div>
     </div>`;
 
   const head = `
