@@ -2554,6 +2554,7 @@ function tuitionPaymentStatusCards(g, activeRow) {
     "paystatus:student:" + g.demoId,
     m.studentDues > 0 ? "schedule" : "running",
     [g.demoId, "Payment by Student/Parent"], `${studentName} · ${g.first.subject}`,
+    box("Tuition Fee", m.studentDues > 0 ? "Dues" : "Received", { wide: true }) +
     box("Total Amount (₹)", m.studentTotalAmount) +
     box("Advance Payment (₹)", m.studentAdvancePaid) +
     box("Total Payment (₹)", m.collected) +
@@ -2567,6 +2568,7 @@ function tuitionPaymentStatusCards(g, activeRow) {
     "paystatus:tutor:" + g.demoId,
     m.tutorDues > 0 ? "schedule" : "running",
     [g.demoId, "Payment to Tutor"], `${tutorName} · ${g.first.subject}`,
+    box("Tutor Fee", m.tutorDues > 0 ? "Due" : "Paid", { wide: true }) +
     box("Total Amount (₹)", m.tutorTotalAmount) +
     box("Advance Payment (₹)", m.tutorAdvance) +
     box("Total Payment (₹)", m.tutorTotalPayment) +
@@ -2580,6 +2582,7 @@ function tuitionPaymentStatusCards(g, activeRow) {
     "paystatus:studentagency:" + g.demoId,
     m.studentAgencyDue > 0 ? "schedule" : "running",
     [g.demoId, "Student Agency Charges"], `${studentName} · ${g.first.subject}`,
+    box("Agency Charges", m.studentAgencyDue > 0 ? "Dues" : "Paid", { wide: true }) +
     box("Agency Charge (₹)", m.studentAgencyCharge) +
     box("Received (₹)", m.studentAgencyReceived) +
     box("Dues (₹)", m.studentAgencyDue),
@@ -2590,6 +2593,7 @@ function tuitionPaymentStatusCards(g, activeRow) {
     "paystatus:tutoragency:" + g.demoId,
     m.tutorAgencyDue > 0 ? "schedule" : "running",
     [g.demoId, "Tutor Agency Charges"], `${tutorName} · ${g.first.subject}`,
+    box("Agency Charges", m.tutorAgencyDue > 0 ? "Dues" : "Paid", { wide: true }) +
     box("Agency Charge (₹)", m.tutorAgencyCharge) +
     box("Received (₹)", m.tutorAgencyReceived) +
     box("Dues (₹)", m.tutorAgencyDue),
