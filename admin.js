@@ -1902,6 +1902,18 @@ async function onListClick(event) {
       goToCard(actionEl.dataset.tab, actionEl.dataset.key);
       break;
 
+    case "ledger-record": {
+      if (actionEl.dataset.sub) {
+        const sub = (STATE.subscriptions || []).find(x => String(x.id) === actionEl.dataset.sub);
+        if (sub) openPaymentFormForSubscription(sub);
+        break;
+      }
+      const g = demoGroups().find(x => x.demoId === actionEl.dataset.demo);
+      const activeRow = g ? activeRowFor(g) : null;
+      if (activeRow) openPaymentFormForClass(actionEl.dataset.part, g, activeRow);
+      break;
+    }
+
     case "class-figure": {
       const g = demoGroups().find(x => x.demoId === actionEl.closest(".class-card").dataset.demo);
       const activeRow = g ? activeRowFor(g) : null;
@@ -3406,7 +3418,8 @@ function ledgerEntries() {
     due({
       kind, partyId: id, partyName: person(kind, id).name || id, demoId: "",
       purpose: "Subscription", amount: dues, date: subscriptionNextDue(sub),
-      target: { action: "go-to-card", tab: "subscriptions", key: "subscription:" + sub.id }
+      target: { action: "go-to-card", tab: "subscriptions", key: "subscription:" + sub.id },
+      subscriptionId: sub.id
     });
   });
 
@@ -3433,15 +3446,20 @@ function ledgerCard(e) {
     (t.demo ? ` data-demo="${esc(t.demo)}"` : "") + (t.part ? ` data-part="${esc(t.part)}"` : "") +
     (t.tab ? ` data-tab="${esc(t.tab)}" data-key="${esc(t.key)}"` : "");
   const status = LEDGER_STATUS[e.status];
+  // Still to be paid: a + that opens the Payments form for exactly this.
+  const record = e.status === "paid" ? "" : `
+        <button type="button" class="admin-avatar admin-avatar-link ledger-record" data-action="ledger-record"
+          ${e.subscriptionId ? `data-sub="${e.subscriptionId}"` : `data-demo="${esc(t.demo)}" data-part="${esc(t.part)}"`}
+          title="Record this payment">+</button>`;
   return `
     <article class="admin-card ledger-card" data-tone="neutral">
       <div class="admin-card-head" ${attrs} title="Open what this is for">
-        <div class="admin-avatar">₹</div>
+        <span class="admin-status-rail ledger-status-rail" data-tone="${status.tone}" tabindex="-1">${esc(status.label)}</span>
         <div class="admin-card-title">
           ${highlight([e.partyName, e.partyId, e.demoId, e.kind, e.purpose, rupees(e.amount)], small, "|", "neutral", true)}
         </div>
-        <span class="admin-status-rail admin-rail-purpose" data-tone="black" tabindex="-1">${esc(e.purpose)}</span>
-        <span class="admin-status-rail admin-rail-party" data-tone="${status.tone}" tabindex="-1">${esc(status.label)}</span>
+        ${record}
+        <span class="admin-status-rail ledger-purpose-rail" data-tone="black" tabindex="-1">${esc(e.purpose)}</span>
       </div>
     </article>`;
 }
