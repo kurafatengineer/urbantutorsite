@@ -732,7 +732,6 @@ const PAYMENT_AMOUNT_FIELD_IDS = [
 // though the fields it's chained to may themselves still be mid-move.
 const AGENCY_LAYOUT_DOC_ORDER = [
   "paymentTransactionTypeField",
-  "paymentSubPartyIdField",
   "paymentSubNameField", "paymentSubMobileField", "paymentSubIdField",
   "paymentSubPlanField", "paymentSubCycleField", "paymentSubStatusField",
   "paymentSubStartDateField", "paymentSubNextDueField",
@@ -749,12 +748,12 @@ const ROW_TUTOR = ["slotTutor", ["paymentTutorIdField", "paymentTutorMobileField
 const ROW_PARTY = ["agencySlotParty", ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"]];
 const ROW_AMOUNT = ["agencySlotAmount", ["paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField"]];
 const ROW_NOTES = ["agencySlotNotes", ["paymentNotesField", "paymentRemainingField", "paymentNextDateField"]];
-const ROW_SUB_SEARCH = ["slotSubSearch", ["paymentSubPartyIdField"]];
 const ROW_SUB_PLAN = ["slotSubPlan", ["paymentSubPlanField", "paymentSubCycleField", "paymentSubStatusField"]];
-const ROW_SUB_NOTES = ["slotSubNotes", ["paymentNotesField", "paymentSubStartDateField", "paymentSubNextDueField"]];
+const ROW_SUB_DATES = ["slotSubDates", ["paymentSubStartDateField", "paymentRemainingField", "paymentSubNextDueField"]];
+const ROW_SUB_NOTES = ["slotSubNotes", ["paymentNotesField"]];
 
 // Rows per transaction type, top to bottom: [row container, its fields].
-const SUBSCRIPTION_ROWS = [ROW_TOP, ROW_SUB_SEARCH, ROW_PARTY, ROW_SUB_PLAN, ROW_AMOUNT, ROW_SUB_NOTES];
+const SUBSCRIPTION_ROWS = [ROW_TOP, ROW_PARTY, ROW_SUB_PLAN, ROW_AMOUNT, ROW_SUB_DATES, ROW_SUB_NOTES];
 const AGENCY_ROWS = [ROW_TOP, ROW_DEMO, ROW_PARTY, ROW_AMOUNT, ROW_NOTES];
 const PAYMENT_LAYOUT = {
   "student-subscription": SUBSCRIPTION_ROWS,
@@ -764,7 +763,7 @@ const PAYMENT_LAYOUT = {
   "collection": [ROW_TOP, ROW_DEMO, ROW_STUDENT, ROW_TUTOR, ROW_AMOUNT, ROW_NOTES],
   "payout": [ROW_TOP, ROW_TUTOR, ROW_DEMO, ROW_STUDENT, ROW_AMOUNT, ROW_NOTES]
 };
-const PAYMENT_ROW_IDS = [ROW_TOP, ROW_DEMO, ROW_STUDENT, ROW_TUTOR, ROW_PARTY, ROW_AMOUNT, ROW_NOTES, ROW_SUB_SEARCH, ROW_SUB_PLAN, ROW_SUB_NOTES]
+const PAYMENT_ROW_IDS = [ROW_TOP, ROW_DEMO, ROW_STUDENT, ROW_TUTOR, ROW_PARTY, ROW_AMOUNT, ROW_NOTES, ROW_SUB_PLAN, ROW_SUB_DATES, ROW_SUB_NOTES]
   .map(([id]) => id);
 
 // The types that end in Notes | Remaining | Next Payment Date.
@@ -836,18 +835,11 @@ function applyPaymentTransactionType() {
   PAYMENT_SUB_ONLY_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub));
   PAYMENT_PARTY_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isAgencyCharge));
   PAYMENT_AMOUNT_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isGrouped));
-  // A Subscription's last row is Notes | Start Date | Next Due Date.
-  if (isSub) $("paymentRemainingField").classList.add("hidden");
-
-  // The search box only shows in subscription mode, and only until a
-  // party has actually been resolved (typed/picked, or pre-filled by
-  // "Record a Payment for this Subscription").
-  $("paymentSubPartyIdField").classList.toggle("hidden", !isSub || !!$("paymentSubscriptionId").value);
+  // For a Subscription the Student/Tutor ID is typed straight in (with
+  // suggestions); for an Agency Charge it's filled in from the Demo ID.
+  $("paymentSubId").readOnly = !isSub;
 
   if (isSub) {
-    $("paymentSubPartyIdLabel").textContent = mode === "student-subscription"
-      ? "Enter Student ID, Mobile or WhatsApp Number"
-      : "Enter Tutor ID, Mobile or WhatsApp Number";
     $("paymentSubIdLabel").textContent = mode === "student-subscription" ? "Student ID" : "Tutor ID";
   } else if (isAgencyCharge) {
     $("paymentSubIdLabel").textContent = mode === "student-agency-charge" ? "Student ID" : "Tutor ID";
@@ -934,7 +926,6 @@ function fillPaymentSubscriptionFields(partyType, partyId) {
   const cycleStart = subscriptionCycleStartDate(sub);
 
   $("paymentSubscriptionId").value = sub.id;
-  $("paymentSubPartyId").value = partyId;
   $("paymentSubName").value = (party && party.name) || partyId;
   $("paymentSubMobile").value = (party && party.mobile) || "";
   $("paymentSubId").value = partyId;
@@ -950,8 +941,6 @@ function fillPaymentSubscriptionFields(partyType, partyId) {
   $("paymentSubNextDueField").classList.toggle("needs-reminder", dues > 0);
   updatePaymentRemaining();
 
-  $("paymentSubPartyIdField").classList.add("hidden");
-
   return true;
 
 }
@@ -964,7 +953,6 @@ function paymentModeValue() {
 function resetPaymentForm() {
   $("paymentDemoId").value = "";
   $("paymentSubscriptionId").value = "";
-  $("paymentSubPartyId").value = "";
   $("paymentForSubscription").classList.add("hidden");
   $("paymentDemoIdField").classList.remove("hidden");
   $("paymentTransactionType").value = "collection";
@@ -980,7 +968,7 @@ function resetPaymentForm() {
   clearPaymentSubFields();
   updateIdDetail($("paymentDemoDetail"), null);
   updateIdDetail($("paymentTutorDetail"), null);
-  document.querySelectorAll('#paymentDemoIdField .admin-suggest, #paymentTutorIdField .admin-suggest, #paymentSubPartyIdField .admin-suggest')
+  document.querySelectorAll('#paymentDemoIdField .admin-suggest, #paymentTutorIdField .admin-suggest, #paymentSubIdField .admin-suggest')
     .forEach(el => el.classList.add("hidden"));
   applyPaymentTransactionType();
 }
@@ -1151,7 +1139,6 @@ function wirePaymentForm() {
 
   $("paymentTransactionType").addEventListener("change", () => {
     $("paymentSubscriptionId").value = "";
-    $("paymentSubPartyId").value = "";
     clearPaymentSubFields();
     $("paymentForSubscription").classList.add("hidden");
     applyPaymentTransactionType();
@@ -1173,7 +1160,7 @@ function wirePaymentForm() {
     const tutorId = $("paymentTutorId").value.trim();
 
     if (isSub && !subscriptionId) {
-      toast("Search and select the student/tutor first.", true);
+      toast("Enter a Student/Tutor ID that has a subscription.", true);
       return;
     }
 
@@ -1251,16 +1238,30 @@ function wirePaymentForm() {
 
 function wirePaymentSubPartySuggestion() {
 
-  const input = $("paymentSubPartyId");
-  const suggest = document.querySelector('#paymentSubPartyIdField [data-suggest="subparty"]');
+  const input = $("paymentSubId");
+  const suggest = document.querySelector('#paymentSubIdField [data-suggest="subparty"]');
 
   const isStudent = () => $("paymentTransactionType").value === "student-subscription";
 
+  // Typing a different ID drops whatever subscription was filled in
+  // before; an exact Student/Tutor ID fills its subscription straight away.
   input.addEventListener("input", () => {
-    renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent(), { excludeFullyPaid: true }), "party");
+    if (input.readOnly) return;
+    const text = input.value.trim();
+    $("paymentSubscriptionId").value = "";
+    clearPaymentSubFields();
+    input.value = text;
+    const dir = isStudent() ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID;
+    if (dir[text] && subscriptionFor(isStudent() ? "student" : "tutor", text)) {
+      fillPaymentSubscriptionFields(isStudent() ? "student" : "tutor", text);
+      suggest.classList.add("hidden");
+      return;
+    }
+    renderIdSuggestions(suggest, studentOrTutorSuggestions(text, isStudent(), { excludeFullyPaid: true }), "party");
   });
 
   input.addEventListener("focus", () => {
+    if (input.readOnly) return;
     renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent(), { excludeFullyPaid: true }), "party");
   });
 
@@ -1272,7 +1273,7 @@ function wirePaymentSubPartySuggestion() {
   });
 
   document.addEventListener("click", (event) => {
-    if (!event.target.closest("#paymentSubPartyIdField")) suggest.classList.add("hidden");
+    if (!event.target.closest("#paymentSubIdField")) suggest.classList.add("hidden");
   });
 
 }
@@ -3165,9 +3166,10 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
       ${box("Amount (₹)", rupees(planAmount))}
       ${box("Dues (₹)", rupees(duesThen))}
       ${box("Paying Now (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: editing ? "number" : "text", attr: editing ? `data-pfield="amount"` : "" })}
-      ${box("Notes", p.notes || "", { editable: editing, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
       ${box("Start Date", formatDate(startDate))}
+      ${box("Remaining (₹)", rupees(remaining))}
       ${box("Next Due Date", formatDate(nextDue), { attr: remaining > 0 ? `data-reminder="1"` : "" })}
+      ${box("Notes", p.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
     </div>`;
 
   return `
