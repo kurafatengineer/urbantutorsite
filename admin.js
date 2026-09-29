@@ -1561,13 +1561,25 @@ async function onListClick(event) {
     }
 
     case "toggle-completed": {
-      await save({
+      // save() sets button.textContent while saving, but that's a no-op
+      // on a checkbox input - swap the pill's own label text instead so
+      // "Saving..." is actually visible while the request is in flight.
+      const textEl = actionEl.closest(".pill-check")?.querySelector(".pill-check-text");
+      const original = textEl ? textEl.textContent : "";
+      if (textEl) textEl.textContent = "Saving...";
+      actionEl.disabled = true;
+      const ok = await save({
         action: "adminUpdateDemoRow",
         rowNumber: Number(actionEl.dataset.row),
         demoId: box.dataset.demo,
         tutorId: actionEl.dataset.tutorId,
         changes: { "Classes Completed": actionEl.checked }
-      }, actionEl);
+      });
+      if (!ok) {
+        actionEl.checked = !actionEl.checked;
+        actionEl.disabled = false;
+        if (textEl) textEl.textContent = original;
+      }
       break;
     }
 
@@ -2844,9 +2856,9 @@ function tuitionStack(g) {
   const appliedLabel = `${tutorRows.length} Tutor${tutorRows.length === 1 ? "" : "s"} Applied`;
   const quickOpen = STATE.quickOpen.has(key);
   // Tapping "Finding Tutor" quick-opens to the assign field; tapping
-  // "Running" quick-opens to just the Classes Completed checkbox - in
-  // neither case should the whole tuition card expand.
-  const canQuickOpen = !terminated && (railTone === "new" || railTone === "running");
+  // "Running" or "Completed" quick-opens to just the Classes Completed
+  // checkbox - in none of those cases should the whole card expand.
+  const canQuickOpen = !terminated && (railTone === "new" || railTone === "running" || railTone === "completed");
 
   // "Classes Completed" moved up from the Tutor Applied card - it only
   // makes sense once a tutor is actually running the tuition, so it's
