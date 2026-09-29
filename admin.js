@@ -3026,24 +3026,22 @@ function tutorRowCard(row, terminated) {
           ${input("percentage", "Percentage", row.percentage)}
         </div>
 
-        ${quickOpen ? "" : `
+        <h3 class="admin-section-title">Parent Status</h3>
+        ${segmented("parent", parent)}
 
-          <h3 class="admin-section-title">Tutor</h3>
-          ${tutor ? fieldsBoxes("tutors", tutor, false) : note(`No tutor has mobile ${row.mobile}.`)}
-
-          <h3 class="admin-section-title">Parent</h3>
-          ${segmented("parent", parent)}
-
-          <h3 class="admin-section-title">Tutor</h3>
-          ${segmented("tutor", tut)}
-
-        `}
+        <h3 class="admin-section-title">Tutor Status</h3>
+        ${segmented("tutor", tut)}
 
         ${terminated
           ? note("This tuition is terminated. Reopen it to make changes.")
           : `<button class="admin-primary admin-wide" data-action="save-row" type="button">Save</button>`}
 
-        ${quickOpen ? `<button class="admin-ghost admin-wide" data-action="show-full" data-key="${esc(key)}" type="button">Show Full Details</button>` : ""}
+        ${quickOpen ? `<button class="admin-ghost admin-wide" data-action="show-full" data-key="${esc(key)}" type="button">Show Full Details</button>` : `
+
+          <h3 class="admin-section-title">Tutor</h3>
+          ${tutor ? fieldsBoxes("tutors", tutor, false) : note(`No tutor has mobile ${row.mobile}.`)}
+
+        `}
 
       </div>
 
