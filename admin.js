@@ -1330,6 +1330,14 @@ async function onListClick(event) {
     case "quick-open": {
       const head = box.querySelector("[data-toggle]");
       const key = head.dataset.toggle;
+      // A second tap on the status while it's open (quick or full)
+      // collapses the card again, instead of re-opening it.
+      if (STATE.open.has(key)) {
+        STATE.open.delete(key);
+        STATE.quickOpen.delete(key);
+        rerenderCurrent();
+        break;
+      }
       openQuickCard(head);
       requestAnimationFrame(() => {
         const newHead = Array.from(document.querySelectorAll("[data-toggle]")).find(h => h.dataset.toggle === key);
@@ -1348,6 +1356,17 @@ async function onListClick(event) {
     case "show-full": {
       STATE.quickOpen.delete(actionEl.dataset.key);
       rerenderCurrent();
+      break;
+    }
+
+    case "toggle-completed": {
+      await save({
+        action: "adminUpdateDemoRow",
+        rowNumber: Number(actionEl.dataset.row),
+        demoId: box.dataset.demo,
+        tutorId: actionEl.dataset.tutorId,
+        changes: { "Classes Completed": actionEl.checked }
+      }, actionEl);
       break;
     }
 
@@ -1656,7 +1675,7 @@ function rowState(row) {
 const ROW_LABELS = {
   open: "Open", schedule: "Schedule Demo", scheduled: "Demo Scheduled",
   processing: "Processing", running: "Running", completed: "Completed",
-  declined: "Declined", terminated: "Terminated"
+  declined: "Declined", terminated: "Closed"
 };
 
 function groupState(group) {
@@ -1682,7 +1701,7 @@ function tuitionRailTone(state) {
 }
 
 const TUITION_RAIL_LABELS = {
-  new: "Finding Tutor", running: "Running", completed: "Completed", terminated: "Rejected"
+  new: "Finding Tutor", running: "Running", completed: "Completed", terminated: "Closed"
 };
 
 
@@ -2457,6 +2476,22 @@ function tuitionStack(g) {
   const quickOpen = STATE.quickOpen.has(key);
   const canQuickOpen = !terminated && railTone === "new";
 
+  // "Classes Completed" moved up from the Tutor Applied card - it only
+  // makes sense once a tutor is actually running the tuition, so it's
+  // shown here (against that tutor's row) only while Running/Completed.
+  const activeRow = (railTone === "running" || railTone === "completed")
+    ? tutorRows.find(r => ["running", "completed"].includes(rowState(r)))
+    : null;
+
+  const completedBlock = activeRow ? `
+    <label class="pill-check">
+      <input type="checkbox" data-action="toggle-completed" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}"${activeRow.classesCompleted ? " checked" : ""}>
+      <span class="pill-check-text">Classes Completed</span>
+      <span class="pill-check-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </span>
+    </label>` : "";
+
   const assignBlock = `
     <div class="admin-assign">
       <label class="admin-float">
@@ -2513,6 +2548,8 @@ function tuitionStack(g) {
       </div>
 
       <div class="admin-card-body">
+
+        ${completedBlock}
 
         ${quickOpen ? `
           ${assignBlock}
@@ -2625,14 +2662,6 @@ function tutorRowCard(row, terminated) {
 
           <h3 class="admin-section-title">Tutor</h3>
           ${segmented("tutor", tut)}
-
-          <label class="pill-check">
-            <input data-rfield="completed" type="checkbox"${row.classesCompleted ? " checked" : ""}${off}>
-            <span class="pill-check-text">Classes Completed</span>
-            <span class="pill-check-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            </span>
-          </label>
 
         `}
 
