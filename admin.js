@@ -3169,6 +3169,7 @@ function classCard(g, activeRow) {
         ${box("Total Amount (₹)", activeRow.studentTotalAmount, { editable: editing, type: "number", attr: cfield("Student Total Amount") })}
         ${box("Total Payment (₹)", studentTotalAmount ? collected : "")}
         ${box("Dues (₹)", studentTotalAmount ? studentDues : "")}
+        ${box("Next Due Date", editing ? toDateInput(activeRow.studentNextDueDate) : activeRow.studentNextDueDate, { editable: editing, wide: true, type: editing ? "date" : "text", attr: cfield("Student Next Due Date") })}
       </div>
     </div>`;
 
@@ -3186,6 +3187,7 @@ function classCard(g, activeRow) {
         ${box("Total Amount (₹)", activeRow.tutorTotalAmount, { editable: editing, type: "number", attr: cfield("Tutor Total Amount") })}
         ${box("Total Payment (₹)", tutorTotalAmount ? tutorTotalPayment : "")}
         ${box("Dues (₹)", tutorTotalAmount ? tutorDues : "")}
+        ${box("Next Payment Date", editing ? toDateInput(activeRow.tutorNextPaymentDate) : activeRow.tutorNextPaymentDate, { editable: editing, wide: true, type: editing ? "date" : "text", attr: cfield("Tutor Next Payment Date") })}
       </div>
     </div>`;
 
