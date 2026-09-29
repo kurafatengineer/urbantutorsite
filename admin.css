@@ -2460,6 +2460,26 @@ body[data-page="admin"] {
   color: var(--text);
 }
 
+/* Student and Tutor sit side by side as two columns - each one's own
+   fields stack single-file within its column (a 2-up grid here would
+   be four columns wide and unreadable), and it collapses to one
+   column on a narrow screen instead of squeezing both. */
+.admin-class-parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 560px) {
+  .admin-class-parties {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-boxes-1col {
+  grid-template-columns: 1fr;
+}
+
 /* the name-letter avatar on the Tuition / Tutor Applied card also
    follows its own status colour */
 .admin-card[data-tone="new"] .admin-avatar,

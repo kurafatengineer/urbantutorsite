@@ -3119,11 +3119,6 @@ function classCard(g, activeRow) {
   const sv = field => (student && student.values[field]) || "";
   const tv = field => (tutor && tutor.values[field]) || "";
 
-  const studentKey = "classstudent:" + g.demoId;
-  const studentOpen = STATE.studentOpen.has(studentKey);
-  const tutorKey = "classtutor:" + g.demoId;
-  const tutorOpen = STATE.studentOpen.has(tutorKey);
-
   const cfield = f => editing ? `data-cfield="${esc(f)}"` : "";
 
   // Start/End Date default to today until the admin actually picks a
@@ -3159,39 +3154,38 @@ function classCard(g, activeRow) {
   const tutorAdvance = num(activeRow.tutorAdvancePayment);
   const tutorDues = Math.max(totalAmount - tutorAgencyCharge - tutorAdvance, 0);
 
+  // Student and Tutor sit side by side as two columns (stacking on
+  // narrow screens) - the full profile toggle is gone, just this
+  // party's own name/contact/payment terms for this class.
   const studentSection = `
-    <h3 class="admin-section-title admin-section-toggle" data-action="toggle-student" data-key="${esc(studentKey)}">
-      Student Profile
-      <span class="admin-caret-mini${studentOpen ? " is-open" : ""}" aria-hidden="true"></span>
-    </h3>
-    ${studentOpen ? (student ? fieldsBoxes("students", student, false) : note(`Student ${g.first.studentId} was not found.`)) : ""}
-    <div class="admin-boxes">
-      ${box("Name", sv("Student Name"))}
-      ${box("Mobile Number", sv("Phone"))}
-      ${box("WhatsApp Number", sv("WhatsApp"))}
-      ${box("Payment To", activeRow.studentPaymentTo, { editable: editing, attr: cfield("Student Payment To") })}
-      ${box("Agency Charge (₹)", activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: cfield("Student Agency Charge") })}
-      ${box("Payment", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
-      ${box("Advance Payment (₹)", activeRow.studentAdvancePayment, { editable: editing, type: "number", attr: cfield("Student Advance Payment") })}
-      ${box("Total Payment (₹)", totalAmount ? collected : "")}
-      ${box("Dues (₹)", totalAmount ? studentDues : "")}
+    <div class="admin-class-party">
+      <h3 class="admin-section-title">Student</h3>
+      <div class="admin-boxes admin-boxes-1col">
+        ${box("Name", sv("Student Name"))}
+        ${box("Mobile Number", sv("Phone"))}
+        ${box("WhatsApp Number", sv("WhatsApp"))}
+        ${box("Payment To", activeRow.studentPaymentTo, { editable: editing, attr: cfield("Student Payment To") })}
+        ${box("Agency Charge (₹)", activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: cfield("Student Agency Charge") })}
+        ${box("Payment", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
+        ${box("Advance Payment (₹)", activeRow.studentAdvancePayment, { editable: editing, type: "number", attr: cfield("Student Advance Payment") })}
+        ${box("Total Payment (₹)", totalAmount ? collected : "")}
+        ${box("Dues (₹)", totalAmount ? studentDues : "")}
+      </div>
     </div>`;
 
   const tutorSection = `
-    <h3 class="admin-section-title admin-section-toggle" data-action="toggle-student" data-key="${esc(tutorKey)}">
-      Tutor Profile
-      <span class="admin-caret-mini${tutorOpen ? " is-open" : ""}" aria-hidden="true"></span>
-    </h3>
-    ${tutorOpen ? (tutor ? fieldsBoxes("tutors", tutor, false) : note(`Tutor ${activeRow.tutorId} was not found.`)) : ""}
-    <div class="admin-boxes">
-      ${box("Tutor Name", tv("Full Name"))}
-      ${box("Mobile Number", tv("Mobile Number"))}
-      ${box("WhatsApp Number", tv("WhatsApp Number"))}
-      ${box("Payment From", activeRow.tutorPaymentFrom, { editable: editing, attr: cfield("Tutor Payment From") })}
-      ${box("Agency Charges (₹)", activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: cfield("Tutor Agency Charge") })}
-      ${box("Payment", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
-      ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, type: "number", attr: cfield("Tutor Advance Payment") })}
-      ${box("Dues (₹)", totalAmount ? tutorDues : "")}
+    <div class="admin-class-party">
+      <h3 class="admin-section-title">Tutor</h3>
+      <div class="admin-boxes admin-boxes-1col">
+        ${box("Tutor Name", tv("Full Name"))}
+        ${box("Mobile Number", tv("Mobile Number"))}
+        ${box("WhatsApp Number", tv("WhatsApp Number"))}
+        ${box("Payment From", activeRow.tutorPaymentFrom, { editable: editing, attr: cfield("Tutor Payment From") })}
+        ${box("Agency Charges (₹)", activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: cfield("Tutor Agency Charge") })}
+        ${box("Payment", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
+        ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, type: "number", attr: cfield("Tutor Advance Payment") })}
+        ${box("Dues (₹)", totalAmount ? tutorDues : "")}
+      </div>
     </div>`;
 
   const ctx = {
@@ -3230,11 +3224,10 @@ function classCard(g, activeRow) {
           <button class="admin-ghost" data-action="increment-class-count" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}" type="button">+1 Class</button>
         </div>
 
-        <h3 class="admin-section-title">Student</h3>
-        ${studentSection}
-
-        <h3 class="admin-section-title">Tutor</h3>
-        ${tutorSection}
+        <div class="admin-class-parties">
+          ${studentSection}
+          ${tutorSection}
+        </div>
 
         ${editButtons(key, editing, "save-class-details", "Edit Class Details")}
 
