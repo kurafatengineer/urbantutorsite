@@ -1623,7 +1623,7 @@ async function onListClick(event) {
       const demoId = box.dataset.demo;
       const tutorId = actionEl.dataset.tutorId;
       const row = (STATE.data.demos || []).find(r => r.rowNumber === rowNumber && r.demoId === demoId);
-      const current = new Set((row && row.classDays) || []);
+      const current = new Set((row && row.classDays && row.classDays.length) ? row.classDays : DEFAULT_CLASS_DAYS);
       const adding = !current.has(day);
       if (adding) current.add(day); else current.delete(day);
       const days = WEEKDAYS.filter(d => current.has(d));
@@ -1995,6 +1995,11 @@ const WEEKDAY_LABELS = {
   Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday",
   Fri: "Friday", Sat: "Saturday", Sun: "Sunday"
 };
+
+// A brand-new class defaults to Mon/Wed/Fri until the admin changes it -
+// both the chips shown and what a toggle actually starts from, so the
+// two never disagree about what's "currently selected".
+const DEFAULT_CLASS_DAYS = ["Mon", "Wed", "Fri"];
 
 function groupState(group) {
   const states = group.rows.map(rowState);
@@ -3098,7 +3103,7 @@ function classCard(g, activeRow) {
   const key = "class:" + g.demoId;
   const open = STATE.open.has(key);
   const editing = STATE.editing.has(key);
-  const days = new Set(activeRow.classDays || []);
+  const days = new Set((activeRow.classDays && activeRow.classDays.length) ? activeRow.classDays : DEFAULT_CLASS_DAYS);
 
   const dayChips = WEEKDAYS.map(d => `
     <button type="button" class="admin-chip admin-day-chip${days.has(d) ? " is-on" : ""}"
@@ -3112,13 +3117,26 @@ function classCard(g, activeRow) {
 
   const cfield = f => editing ? `data-cfield="${esc(f)}"` : "";
 
-  // Start/End Date default to today until the admin actually picks a
-  // date of their own - both in the edit form (so saving without
-  // touching it still records today) and in the plain display.
+  // Start Date defaults to today, End Date to a week out, and the two
+  // Next Due/Payment Dates a week (and a week + 1 day) out - all until
+  // the admin actually picks a date of their own, both in the edit form
+  // (so saving without touching it still records the default) and in
+  // the plain display.
+  const addDaysISO = (iso, n) => {
+    const d = new Date(iso + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
   const todayISO = new Date().toISOString().slice(0, 10);
   const todayDMY = todayISO.split("-").reverse().join("/");
+  const nextWeekISO = addDaysISO(todayISO, 7);
+  const nextWeekDMY = nextWeekISO.split("-").reverse().join("/");
+  const nextWeekPlusOneISO = addDaysISO(todayISO, 8);
+  const nextWeekPlusOneDMY = nextWeekPlusOneISO.split("-").reverse().join("/");
   const startDateShown = editing ? (toDateInput(activeRow.classStartDate) || todayISO) : (activeRow.classStartDate || todayDMY);
-  const endDateShown = editing ? (toDateInput(activeRow.classEndDate) || todayISO) : (activeRow.classEndDate || todayDMY);
+  const endDateShown = editing ? (toDateInput(activeRow.classEndDate) || nextWeekISO) : (activeRow.classEndDate || nextWeekDMY);
+  const studentNextDueShown = editing ? (toDateInput(activeRow.studentNextDueDate) || nextWeekISO) : (activeRow.studentNextDueDate || nextWeekDMY);
+  const tutorNextPaymentShown = editing ? (toDateInput(activeRow.tutorNextPaymentDate) || nextWeekPlusOneISO) : (activeRow.tutorNextPaymentDate || nextWeekPlusOneDMY);
 
   const tuitionTermsBoxes = `
     <div class="admin-boxes">
@@ -3169,7 +3187,7 @@ function classCard(g, activeRow) {
         ${box("Total Amount (₹)", activeRow.studentTotalAmount, { editable: editing, type: "number", attr: cfield("Student Total Amount") })}
         ${box("Total Payment (₹)", studentTotalAmount ? collected : "")}
         ${box("Dues (₹)", studentTotalAmount ? studentDues : "")}
-        ${box("Next Due Date", editing ? toDateInput(activeRow.studentNextDueDate) : activeRow.studentNextDueDate, { editable: editing, wide: true, type: editing ? "date" : "text", attr: cfield("Student Next Due Date") })}
+        ${box("Next Due Date", studentNextDueShown, { editable: editing, wide: true, type: editing ? "date" : "text", attr: cfield("Student Next Due Date") })}
       </div>
     </div>`;
 
@@ -3187,7 +3205,7 @@ function classCard(g, activeRow) {
         ${box("Total Amount (₹)", activeRow.tutorTotalAmount, { editable: editing, type: "number", attr: cfield("Tutor Total Amount") })}
         ${box("Total Payment (₹)", tutorTotalAmount ? tutorTotalPayment : "")}
         ${box("Dues (₹)", tutorTotalAmount ? tutorDues : "")}
-        ${box("Next Payment Date", editing ? toDateInput(activeRow.tutorNextPaymentDate) : activeRow.tutorNextPaymentDate, { editable: editing, wide: true, type: editing ? "date" : "text", attr: cfield("Tutor Next Payment Date") })}
+        ${box("Next Payment Date", tutorNextPaymentShown, { editable: editing, wide: true, type: editing ? "date" : "text", attr: cfield("Tutor Next Payment Date") })}
       </div>
     </div>`;
 
