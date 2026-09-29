@@ -2234,9 +2234,10 @@ body[data-page="admin"] {
 
 
 /* =========================================================
-   SUBSCRIPTION PAY-STATUS BADGE - a small Twitter-verified-style
-   rosette on the avatar circle, coloured by how much of the
-   student's / tutor's current subscription has been paid.
+   SUBSCRIPTION PAY-STATUS BADGE - a small verified-style seal
+   (two rounded squares overlapped 45deg, plus a checkmark) on the
+   avatar circle, coloured by how much of the student's / tutor's
+   current subscription has been paid.
 ========================================================= */
 
 .admin-avatar {
@@ -2245,21 +2246,23 @@ body[data-page="admin"] {
 
 .admin-sub-badge {
   position: absolute;
-  right: -3px;
-  bottom: -3px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid var(--card-bg, var(--surface));
-  background: var(--card-bg, var(--surface));
+  right: -4px;
+  bottom: -4px;
+  width: 18px;
+  height: 18px;
+  color: var(--muted-2);
+  filter: drop-shadow(0 0 1.5px var(--card-bg, var(--surface)));
 }
 
 .admin-sub-badge svg {
   display: block;
   width: 100%;
   height: 100%;
+  overflow: visible;
 }
 
-.admin-sub-badge[data-tone="paid"] svg path:first-child    { fill: var(--lime); }
-.admin-sub-badge[data-tone="partial"] svg path:first-child { fill: var(--orange); }
-.admin-sub-badge[data-tone="unpaid"] svg path:first-child  { fill: var(--danger); }
+.admin-sub-badge svg rect { fill: currentColor; }
+
+.admin-sub-badge[data-tone="paid"]    { color: var(--lime); }
+.admin-sub-badge[data-tone="partial"] { color: var(--orange); }
+.admin-sub-badge[data-tone="unpaid"]  { color: var(--danger); }

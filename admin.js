@@ -1886,27 +1886,41 @@ function note(text) {
   return `<p class="admin-note">${esc(text)}</p>`;
 }
 
-// A small Twitter-style verified badge on the avatar circle, coloured by
-// how much of the party's (student's or tutor's) current subscription
-// has been paid - green (fully paid / exempted), orange (partially paid),
-// red (nothing paid). Nothing is shown if they have no subscription at
-// all. Only visible to roles that can see Payments/Subscriptions, since
-// STATE.subscriptions/STATE.payments are empty otherwise.
-function subscriptionPayBadge(partyType, partyId) {
+// Sum of everything actually paid in (payouts don't count) against one
+// subscription - shared by the avatar badge and the Subscription card's
+// own "Dues" field, so both always agree.
+function subscriptionPaidAmount(subscriptionId) {
+  return (STATE.payments || [])
+    .filter(p => p.subscription_id === subscriptionId && p.transaction_type !== "payout")
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+}
 
-  if (!partyId) return "";
-
+// Which subscription "represents" a student/tutor for the avatar badge -
+// their active one, or their most recent if none is active.
+function subscriptionFor(partyType, partyId) {
+  if (!partyId) return null;
   const subs = (STATE.subscriptions || []).filter(s =>
     partyType === "student" ? s.student_id === partyId : s.tutor_id === partyId
   );
+  if (!subs.length) return null;
+  return subs.find(s => s.status === "active") || subs[0];
+}
 
-  if (!subs.length) return "";
+// A small verified-style badge on the avatar circle - two rounded
+// squares overlapped 45deg (the classic 8-point seal shape) with a
+// checkmark - coloured by how much of the party's current subscription
+// has been paid: green (fully paid / exempted), orange (partially
+// paid), red (nothing paid). Nothing is shown if they have no
+// subscription at all. Only visible to roles that can see Payments/
+// Subscriptions, since STATE.subscriptions/STATE.payments are empty
+// otherwise.
+function subscriptionPayBadge(partyType, partyId) {
 
-  const sub = subs.find(s => s.status === "active") || subs[0];
+  const sub = subscriptionFor(partyType, partyId);
+  if (!sub) return "";
+
   const due = Number(sub.amount || 0);
-  const paid = (STATE.payments || [])
-    .filter(p => p.subscription_id === sub.id && p.transaction_type !== "payout")
-    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const paid = subscriptionPaidAmount(sub.id);
 
   const tone = due <= 0 || paid >= due ? "paid" : paid > 0 ? "partial" : "unpaid";
   const title = due <= 0
@@ -1915,9 +1929,10 @@ function subscriptionPayBadge(partyType, partyId) {
 
   return `
     <span class="admin-sub-badge" data-tone="${tone}" title="${esc(title)}">
-      <svg viewBox="0 0 22 22" aria-hidden="true">
-        <path d="M11 0l2.09 1.36 2.48-.36 1.02 2.3 2.3 1.02-.36 2.48L20 11l-1.36 2.09.36 2.48-2.3 1.02-1.02 2.3-2.48-.36L11 20l-2.09-1.36-2.48.36-1.02-2.3-2.3-1.02.36-2.48L2 11l1.36-2.09-.36-2.48 2.3-1.02 1.02-2.3 2.48.36z"/>
-        <path d="M7.2 11.2l2.4 2.4 5-5.4" stroke="#fff" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="6" y="6" width="28" height="28" rx="9"/>
+        <rect x="6" y="6" width="28" height="28" rx="9" transform="rotate(45 20 20)"/>
+        <path d="M13 20.5l5 5 10-12" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </span>`;
 
@@ -2286,19 +2301,25 @@ const SUBSCRIPTION_STATUS_TONES = { active: "running", paused: "schedule", cance
 function subscriptionCard(sub) {
 
   const key = "subscription:" + sub.id;
+  const open = STATE.open.has(key);
   const editing = STATE.editing.has(key);
 
   const student = sub.student_id ? STUDENT_BY_ID[sub.student_id] : null;
   const tutor = sub.tutor_id ? TUTOR_BY_ID[sub.tutor_id] : null;
   const partyName = student ? (student.values["Student Name"] || sub.student_id) : (tutor ? (tutor.values["Full Name"] || sub.tutor_id) : "");
+  const partyMobile = student ? (student.values["WhatsApp"] || student.values["Phone"]) : (tutor ? tutor.values["Mobile Number"] : "");
+  const partyId = sub.student_id || sub.tutor_id || "";
   const partyKind = sub.student_id ? "Student" : "Tutor";
   const amount = Number(sub.amount || 0);
+  const paid = subscriptionPaidAmount(sub.id);
+  const dues = Math.max(amount - paid, 0);
 
   const boxes = `
     <div class="admin-boxes">
-      ${box(partyKind + " ID", sub.student_id || sub.tutor_id || "")}
-      ${box("Plan Name", sub.plan_name, { editable: editing, wide: true, attr: editing ? `data-subfield="planName"` : "" })}
+      ${box(partyKind + " ID", partyId)}
+      ${box("Plan Name", sub.plan_name, { editable: editing, attr: editing ? `data-subfield="planName"` : "" })}
       ${box("Amount (₹)", sub.amount, { editable: editing, type: "number", attr: editing ? `data-subfield="amount"` : "" })}
+      ${box("Dues (₹)", dues)}
       ${box("Billing Cycle", sub.billing_cycle, { editable: editing, attr: editing ? `data-subfield="billingCycle"` : "" })}
       ${box("Status", SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status, {
         editable: editing,
@@ -2321,19 +2342,20 @@ function subscriptionCard(sub) {
        </div>`;
 
   return `
-    <article class="admin-card is-open${editing ? " is-editing" : ""}" data-tone="${SUBSCRIPTION_STATUS_TONES[sub.status] || ""}" data-box data-id="${sub.id}" data-key="${esc(key)}">
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="${SUBSCRIPTION_STATUS_TONES[sub.status] || ""}" data-box data-id="${sub.id}" data-key="${esc(key)}">
 
-      <div class="admin-card-head">
-        <div class="admin-avatar">${esc(initials(partyName, "$"))}${subscriptionPayBadge(sub.student_id ? "student" : "tutor", sub.student_id || sub.tutor_id)}</div>
+      <div class="admin-card-head" data-toggle="${esc(key)}">
+        <div class="admin-avatar">${esc(initials(partyName, "$"))}${subscriptionPayBadge(sub.student_id ? "student" : "tutor", partyId)}</div>
         <div class="admin-card-title">
           ${highlight(
-            [partyName || (sub.student_id || sub.tutor_id), sub.plan_name, "₹" + amount.toLocaleString("en-IN"), sub.billing_cycle],
-            sub.next_due_date ? `Next due: ${sub.next_due_date}` : "",
+            [partyName || partyId, partyMobile, partyId, sub.plan_name, "₹" + amount.toLocaleString("en-IN")],
+            "",
             "|",
             SUBSCRIPTION_STATUS_TONES[sub.status] || "schedule"
           )}
         </div>
         <span class="admin-pill" data-tone="${SUBSCRIPTION_STATUS_TONES[sub.status] || ""}">${esc(SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status)}</span>
+        <span class="admin-caret" aria-hidden="true"></span>
       </div>
 
       <div class="admin-card-body">
