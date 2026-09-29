@@ -1668,8 +1668,9 @@ function waveHighlight(el) {
 // From a student's "Tuitions" pill: jump to the Tuitions tab with that
 // one tuition opened, ignoring whatever filter/search was active there.
 // highlight (a payment's ₹): leave it collapsed and wave-highlight
-// instead - the one Class card figure named ("student-payment",
-// "tutor-agency", ...) when there is one, else the Tuition card.
+// instead - the whole Class card plus the one figure in it named
+// ("student-payment", "tutor-agency", ...) when there is one, else the
+// Tuition card.
 function goToTuition(demoId, highlight) {
 
   collapseAll();
@@ -1685,12 +1686,14 @@ function goToTuition(demoId, highlight) {
 
   requestAnimationFrame(() => {
     const demo = CSS.escape(demoId);
-    const part = highlight && highlight !== true
-      ? document.querySelector(`.class-card[data-demo="${demo}"] [data-part="${CSS.escape(highlight)}"]`)
+    const classCardEl = document.querySelector(`#tab-tuitions .class-card[data-demo="${demo}"]`);
+    const part = highlight && highlight !== true && classCardEl
+      ? classCardEl.querySelector(`[data-part="${CSS.escape(highlight)}"]`)
       : null;
-    const target = part || document.querySelector(`.tuition-card[data-demo="${demo}"]`);
+    const target = part ? classCardEl : document.querySelector(`#tab-tuitions .tuition-card[data-demo="${demo}"]`);
     if (!target) return;
     if (highlight) waveHighlight(target);
+    if (part) waveHighlight(part);
     target.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 
@@ -1715,7 +1718,7 @@ function goToCard(tab, key) {
   rerenderCurrent();
 
   requestAnimationFrame(() => {
-    const card = document.querySelector(`[data-key="${CSS.escape(key)}"]`);
+    const card = document.querySelector(`#tab-${tab} article[data-key="${CSS.escape(key)}"]`);
     if (!card) return;
     waveHighlight(card);
     card.scrollIntoView({ behavior: "smooth", block: "center" });
