@@ -2474,23 +2474,35 @@ body[data-page="admin"] {
   gap: 10px;
 }
 
+/* Same typography as the status word on a Tuition/Tutor card's own
+   status rail (font-size/weight/letter-spacing/case), just laid out
+   horizontally here instead of vertically. */
 .admin-class-fracs-label {
   flex: 0 0 auto;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 9px;
+  font-weight: 800;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--muted-2);
 }
 
 .admin-class-frac {
   display: inline-flex;
   flex-direction: column;
-  align-items: center;
+  /* stretch (not center) so the numerator/denominator spans - and the
+     dividing line drawn under the numerator - both take the width of
+     whichever of the two is wider, not just the numerator's own text. */
+  align-items: stretch;
   line-height: 1.2;
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
+  padding: 0 4px;
+}
+
+.admin-class-frac-num,
+.admin-class-frac-den {
+  text-align: center;
 }
 
 .admin-class-frac-num {
