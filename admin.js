@@ -1327,6 +1327,28 @@ function goToFilter(tab, filter) {
 
 }
 
+// From a student's "Tuitions" pill: jump to the Tuitions tab with that
+// one tuition opened, ignoring whatever filter/search was active there.
+function goToTuition(demoId) {
+
+  collapseAll();
+  STATE.tab = "tuitions";
+  STATE.tuitionFilter = "all";
+  $("tuitionSearch").value = "";
+  clearSearchChips("tuitionSearch");
+  $("tuitionFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === "all"));
+  STATE.open.add("tuition:" + demoId);
+
+  applyActiveTab();
+  rerenderCurrent();
+
+  requestAnimationFrame(() => {
+    const card = document.querySelector(`.tuition-card[data-demo="${CSS.escape(demoId)}"]`);
+    if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+}
+
 function chipGroup(id, onChange) {
   $(id).addEventListener("click", (event) => {
     const chip = event.target.closest(".admin-chip");
@@ -1457,6 +1479,10 @@ async function onListClick(event) {
   const box = actionEl.closest("[data-box]");
 
   switch (action) {
+
+    case "go-to-tuition":
+      goToTuition(actionEl.dataset.demo);
+      break;
 
     case "edit":
       STATE.editing.add(actionEl.dataset.key);
@@ -2324,7 +2350,7 @@ function renderStudents() {
     const extra = mine.length ? `
       <div class="admin-mini-list">
         <span class="admin-mini-title">Tuitions</span>
-        ${mine.map(g => `<span class="admin-pill" data-tone="${groupState(g)}">${esc(g.first.subject)} · ${esc(GROUP_LABELS[groupState(g)])}</span>`).join("")}
+        ${mine.map(g => `<button type="button" class="admin-pill admin-pill-link" data-tone="${esc(tuitionRailTone(groupState(g)))}" data-action="go-to-tuition" data-demo="${esc(g.demoId)}">${esc(g.first.subject)} · ${esc(GROUP_LABELS[groupState(g)])}</button>`).join("")}
       </div>` : "";
 
     return recordCard("students", r, {

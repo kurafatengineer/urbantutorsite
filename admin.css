@@ -913,6 +913,24 @@ button { cursor: pointer; }
   margin-right: 4px;
 }
 
+/* A student's "Tuitions" pill is a real button - jumps straight to
+   that tuition's own card, coloured the same as its status rail. */
+.admin-pill-link {
+  font: inherit;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.admin-pill-link:hover {
+  filter: brightness(1.15);
+}
+
+/* Exact same colours as .admin-status-rail's 4 tones, so a tuition's
+   pill here always matches its own card's status strip - "new" is
+   blue on the rail (not the lime .admin-pill normally uses). */
+.admin-pill-link[data-tone="new"] { color: var(--blue); background: var(--blue-dim); border-color: var(--blue-line); }
+.admin-pill-link[data-tone="completed"] { color: var(--muted); background: var(--surface-3); border-color: var(--border-light); }
+
 @media (max-width: 520px) {
 
   .admin-form { grid-template-columns: 1fr; }
