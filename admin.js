@@ -2350,7 +2350,10 @@ function renderStudents() {
     const extra = mine.length ? `
       <div class="admin-mini-list">
         <span class="admin-mini-title">Tuitions</span>
-        ${mine.map(g => `<button type="button" class="admin-pill admin-pill-link" data-tone="${esc(tuitionRailTone(groupState(g)))}" data-action="go-to-tuition" data-demo="${esc(g.demoId)}">${esc(g.first.subject)} · ${esc(GROUP_LABELS[groupState(g)])}</button>`).join("")}
+        ${mine.map(g => {
+          const tone = tuitionRailTone(groupState(g));
+          return `<button type="button" class="admin-pill admin-pill-link" data-tone="${esc(tone)}" data-action="go-to-tuition" data-demo="${esc(g.demoId)}">${esc(g.first.subject)} · ${esc(TUITION_RAIL_LABELS[tone])}</button>`;
+        }).join("")}
       </div>` : "";
 
     return recordCard("students", r, {
