@@ -2460,21 +2460,28 @@ body[data-page="admin"] {
 /* While a payment is being recorded, the payments list below is hidden. */
 #paymentForm:not(.hidden) ~ #paymentList { display: none; }
 
-/* Ledger: one line per entry - status rail on the left edge, then 9
+/* Ledger: one line per entry - status and payment type rails on the
+   left edge, then 8
    centred columns split by dotted lines, then the + (or an equal blank
    space) on the right. The header card uses the same shape so every
    column lines up. Rails are drawn rotated 180deg, so the radius is
    written for the rotated box. */
 .admin-card-head .ledger-status-rail {
-  order: -1;
-  margin: -16px 4px -16px -16px;
+  order: -2;
+  margin: -16px 0 -16px -16px;
   border-radius: 0 18px 18px 0;
+}
+.admin-card-head .ledger-purpose-rail {
+  order: -1;
+  margin: -16px 4px -16px -12px;
+  border-radius: 0;
+  border-right: 1px solid var(--border);
 }
 .ledger-grid {
   flex: 1 1 auto;
   min-width: 0;
   display: grid;
-  grid-template-columns: 1fr 0.8fr 1.1fr 1.3fr 1.1fr 1.1fr 1.1fr 1fr 0.9fr;
+  grid-template-columns: 1fr 0.8fr 1.3fr 1.1fr 1.1fr 1.1fr 1fr 0.9fr;
   align-items: center;
 }
 .ledger-cell {
@@ -2508,6 +2515,9 @@ body[data-page="admin"] {
   color: var(--muted);
 }
 .ledger-header .admin-card-head { cursor: default; }
+/* Tall enough for the longest vertical rail word ("SUBSCRIPTION",
+   "AGENCY CHARGE") so every row is the same height. */
+.ledger-card .admin-card-head { min-height: 66px; }
 
 /* Class card figures that open a New Payment when tapped. */
 .admin-box input[data-action] { cursor: pointer; }

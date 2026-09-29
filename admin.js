@@ -3443,7 +3443,7 @@ const LEDGER_STATUS = {
   overdue: { label: "Overdue", tone: "declined" }
 };
 
-const LEDGER_COLUMNS = ["Date", "Who", "Payment Type", "Name", "Mobile Number", "Tutor ID", "Student ID", "Demo ID", "Amount"];
+const LEDGER_COLUMNS = ["Date", "Who", "Name", "Mobile Number", "Tutor ID", "Student ID", "Demo ID", "Amount"];
 
 // "2026-10-06" -> "06|10|2026"
 function ledgerDate(iso) {
@@ -3455,7 +3455,8 @@ function ledgerRow(cells) {
   return `<div class="ledger-grid">${cells.map(c => `<span class="ledger-cell">${esc(c || "-")}</span>`).join("")}</div>`;
 }
 
-// One line per entry: status rail on the left, the columns, and - while
+// One line per entry: status + payment type rails on the left, the
+// columns, and - while
 // it's still to be paid - a + on the right to record it.
 function ledgerCard(e) {
   const t = e.target;
@@ -3468,13 +3469,14 @@ function ledgerCard(e) {
           ${e.subscriptionId ? `data-sub="${e.subscriptionId}"` : `data-demo="${esc(t.demo)}" data-part="${esc(t.part)}"`}
           title="Record this payment" aria-label="Record this payment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>`;
   const cells = [
-    ledgerDate(e.date), e.kind, e.purpose, e.partyName, e.mobile,
+    ledgerDate(e.date), e.kind, e.partyName, e.mobile,
     e.tutorId, e.studentId, e.demoId, "₹" + Number(e.amount || 0).toLocaleString("en-IN")
   ];
   return `
     <article class="admin-card ledger-card" data-tone="neutral">
       <div class="admin-card-head" ${attrs} title="Open what this is for">
         <span class="admin-status-rail ledger-status-rail" data-tone="${status.tone}" tabindex="-1">${esc(status.label)}</span>
+        <span class="admin-status-rail ledger-purpose-rail" data-tone="black" tabindex="-1">${esc(e.purpose)}</span>
         ${ledgerRow(cells)}
         ${record}
       </div>
@@ -3488,6 +3490,7 @@ function ledgerHeaderCard() {
     <div class="admin-card ledger-card ledger-header" aria-hidden="true">
       <div class="admin-card-head">
         <span class="admin-status-rail ledger-status-rail" data-tone="black">Status</span>
+        <span class="admin-status-rail ledger-purpose-rail" data-tone="black">Type</span>
         ${ledgerRow(LEDGER_COLUMNS)}
         <span class="ledger-record-space"></span>
       </div>
