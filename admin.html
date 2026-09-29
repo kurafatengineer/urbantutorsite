@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260929b">
+  <link rel="stylesheet" href="admin.css?v=20260929c">
 </head>
 
 <body data-page="admin">
@@ -114,6 +114,7 @@
       <button class="admin-tab" data-tab="tutors" type="button" role="tab">Tutors</button>
       <button class="admin-tab" data-tab="students" type="button" role="tab">Students</button>
       <button class="admin-tab hidden" data-tab="payments" data-role-tab="payments" type="button" role="tab">Payments</button>
+      <button class="admin-tab hidden" data-tab="subscriptions" data-role-tab="payments" type="button" role="tab">Subscriptions</button>
       <button class="admin-tab hidden" data-tab="employees" data-role-tab="employees" type="button" role="tab">Employees</button>
     </div>
 
@@ -167,10 +168,6 @@
 
     <!-- ================= PAYMENTS ================= -->
     <section id="tab-payments" class="admin-panel hidden">
-
-      <div id="subtab-payments">
-
-      <h3 class="admin-section-title" style="font-size:13px;margin-bottom:4px;">Payments</h3>
 
       <div class="admin-tools">
         <label class="admin-float admin-search-wrap">
@@ -341,11 +338,10 @@
 
       <div id="paymentList" class="admin-stack-list"></div>
 
-      </div>
+    </section>
 
-      <div id="subtab-subscriptions" style="margin-top:24px;">
-
-      <h3 class="admin-section-title" style="font-size:13px;margin-bottom:4px;">Subscriptions</h3>
+    <!-- ================= SUBSCRIPTIONS ================= -->
+    <section id="tab-subscriptions" class="admin-panel hidden">
 
       <div class="admin-tools">
         <label class="admin-float admin-search-wrap">
@@ -407,8 +403,6 @@
 
       <div id="subscriptionList" class="admin-stack-list"></div>
 
-      </div>
-
     </section>
 
     <!-- ================= EMPLOYEES ================= -->
@@ -455,7 +449,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260929b" defer></script>
+<script src="admin.js?v=20260929c" defer></script>
 
 </body>
 </html>

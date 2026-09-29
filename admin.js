@@ -343,12 +343,13 @@ function applyRoleUI() {
     tutors: perms.tutorsEdit || perms.tutorsVerify,
     students: perms.students,
     payments: perms.payments,
+    subscriptions: perms.payments,
     employees: perms.employees
   };
 
   let firstVisible = null;
 
-  ["tuitions", "tutors", "students", "payments", "employees"].forEach(name => {
+  ["tuitions", "tutors", "students", "payments", "subscriptions", "employees"].forEach(name => {
     const tabButton = document.querySelector(`.admin-tab[data-tab="${name}"]`);
     if (tabButton) tabButton.classList.toggle("hidden", !visibility[name]);
     if (visibility[name] && !firstVisible) firstVisible = name;
@@ -366,7 +367,7 @@ function applyRoleUI() {
 
 function applyActiveTab() {
   document.querySelectorAll(".admin-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === STATE.tab));
-  ["tuitions", "tutors", "students", "payments", "employees"].forEach(n => {
+  ["tuitions", "tutors", "students", "payments", "subscriptions", "employees"].forEach(n => {
     const sec = $("tab-" + n);
     if (sec) sec.classList.toggle("hidden", n !== STATE.tab);
   });
@@ -822,6 +823,7 @@ function resetPaymentForm() {
 
 // Opens the payment form pre-filled for one subscription's renewal.
 function openPaymentFormForSubscription(sub) {
+  if (STATE.tab !== "payments") showTab("payments");
   resetPaymentForm();
   $("paymentTransactionType").value = sub.student_id ? "student-subscription" : "tutor-subscription";
   $("paymentForSubscription").classList.remove("hidden");
@@ -1432,7 +1434,8 @@ function rerenderCurrent() {
   if (STATE.tab === "tuitions") renderTuitions();
   if (STATE.tab === "tutors") renderTutors();
   if (STATE.tab === "students") renderStudents();
-  if (STATE.tab === "payments") { renderPayments(); renderSubscriptions(); }
+  if (STATE.tab === "payments") renderPayments();
+  if (STATE.tab === "subscriptions") renderSubscriptions();
   if (STATE.tab === "employees") renderEmployees();
 }
 
@@ -1842,7 +1845,7 @@ function rowState(row) {
 }
 
 const ROW_LABELS = {
-  open: "Open", schedule: "Schedule", scheduled: "Scheduled",
+  open: "Open", schedule: "Schedule Demo", scheduled: "Demo Scheduled",
   processing: "Processing", running: "Running", completed: "Completed",
   declined: "Declined", terminated: "Closed"
 };
@@ -1870,7 +1873,7 @@ function tuitionRailTone(state) {
 }
 
 const TUITION_RAIL_LABELS = {
-  new: "New", running: "Running", completed: "Completed", terminated: "Closed"
+  new: "Finding Tutor", running: "Running", completed: "Completed", terminated: "Closed"
 };
 
 
@@ -2330,6 +2333,7 @@ function renderStudents() {
       titleHtml: highlight([
         r.values["Student Name"] || r.id,
         r.values["WhatsApp"] || r.values["Phone"],
+        r.values["Gender"],
         r.values["Class"],
         r.values["Board"],
         fullAddress(r.values["Address"], r.values["City"], r.values["PIN Code"])
