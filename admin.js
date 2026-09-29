@@ -720,6 +720,62 @@ const PAYMENT_AMOUNT_FIELD_IDS = [
   "paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField", "paymentRemainingField"
 ];
 
+// Only an Agency Charge payment gets its own grouped layout (Transaction/
+// Payment Mode/Payment Date on one line, the paying party's ID/Mobile/
+// Name on another, Amount/Dues/Paying Now/Remaining on a third) - every
+// other transaction type, Subscription included, keeps the plain field
+// order it always had. Rather than a second copy of these fields (ids
+// must be unique), the same DOM nodes are physically relocated into the
+// #agencySlot... containers for Agency Charge mode and moved back to
+// their original spot otherwise.
+//
+// listed in true original document order, since restoring depends on
+// each field's original *next sibling* still being a valid anchor -
+// walking that chain back-to-front (see layoutAgencyChargeFields)
+// guarantees every field lands back exactly where it started, even
+// though the fields it's chained to may themselves still be mid-move.
+const AGENCY_LAYOUT_DOC_ORDER = [
+  "paymentTransactionTypeField",
+  "paymentSubNameField", "paymentSubMobileField", "paymentSubIdField",
+  "paymentDateField", "paymentModeField",
+  "paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField", "paymentRemainingField"
+];
+
+let agencyLayoutOriginalPos = null;
+
+function layoutAgencyChargeFields(isAgencyCharge) {
+
+  if (!agencyLayoutOriginalPos) {
+    agencyLayoutOriginalPos = new Map();
+    AGENCY_LAYOUT_DOC_ORDER.forEach(id => {
+      const el = $(id);
+      agencyLayoutOriginalPos.set(id, { parent: el.parentNode, next: el.nextSibling });
+    });
+  }
+
+  const topSlot = $("agencySlotTop"), partySlot = $("agencySlotParty"), amountSlot = $("agencySlotAmount");
+
+  if (isAgencyCharge) {
+    ["paymentTransactionTypeField", "paymentModeField", "paymentDateField"].forEach(id => topSlot.appendChild($(id)));
+    ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"].forEach(id => partySlot.appendChild($(id)));
+    PAYMENT_AMOUNT_FIELD_IDS.forEach(id => amountSlot.appendChild($(id)));
+  } else {
+    // Reverse document order: each field is reinserted right before its
+    // own original next-sibling, so a field chained to another moved
+    // field (not yet restored) still ends up in the right place once
+    // that later field's own restore runs first.
+    [...AGENCY_LAYOUT_DOC_ORDER].reverse().forEach(id => {
+      const pos = agencyLayoutOriginalPos.get(id);
+      pos.parent.insertBefore($(id), pos.next);
+    });
+  }
+
+  topSlot.classList.toggle("hidden", !isAgencyCharge);
+  partySlot.classList.toggle("hidden", !isAgencyCharge);
+  amountSlot.classList.toggle("hidden", !isAgencyCharge);
+
+}
+
 // Shows/hides the fields for whichever transaction kind is picked:
 // Student/Tutor Subscription, Student/Tutor Agency Charge, Collection
 // (from a parent) or Payout (agency paying a tutor out of what it
@@ -731,6 +787,8 @@ function applyPaymentTransactionType() {
   const isSub = mode === "student-subscription" || mode === "tutor-subscription";
   const isAgencyCharge = mode === "student-agency-charge" || mode === "tutor-agency-charge";
   const isCollection = mode === "collection";
+
+  layoutAgencyChargeFields(isAgencyCharge);
 
   $("paymentTypeField").classList.toggle("hidden", !isCollection);
   $("collectedByField").classList.toggle("hidden", !isCollection);

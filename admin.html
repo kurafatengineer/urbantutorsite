@@ -184,37 +184,25 @@
         <input id="paymentSubscriptionId" type="hidden">
         <div class="admin-form">
 
-          <div class="admin-form-row admin-form-row-3">
-            <label class="admin-float is-select">
-              <select id="paymentTransactionType">
-                <option value="payout">Payout (Tutor)</option>
-                <option value="collection">Collection (Parent)</option>
-                <option value="tutor-subscription">Subscription (Tutor)</option>
-                <option value="student-subscription">Subscription (Student)</option>
-                <option value="student-agency-charge">Agency Charge (Student)</option>
-                <option value="tutor-agency-charge">Agency Charge (Tutor)</option>
-              </select>
-              <span>Transaction</span>
-            </label>
-            <div class="admin-float is-select admin-mode-field" id="paymentModeField">
-              <div class="admin-mode-seg" role="radiogroup" aria-label="Payment Mode">
-                <label>
-                  <input type="radio" name="paymentModeChoice" id="paymentModeOnline" value="Online" checked>
-                  <span class="admin-mode-opt"><i class="admin-mode-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></i>Online</span>
-                </label>
-                <label>
-                  <input type="radio" name="paymentModeChoice" id="paymentModeOffline" value="Offline">
-                  <span class="admin-mode-opt"><i class="admin-mode-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></i>Offline</span>
-                </label>
-              </div>
-              <span>Payment Mode</span>
-            </div>
-            <label class="admin-float">
-              <input id="paymentDate" type="date" placeholder=" ">
-              <span>Payment Date</span>
-            </label>
-          </div>
+          <!-- Empty slots an Agency Charge payment's own fields get
+               moved into (see layoutAgencyChargeFields in admin.js) -
+               every other transaction type (Subscription included)
+               keeps its original flat field order below untouched. -->
+          <div class="admin-form-row admin-form-row-3 hidden" id="agencySlotTop"></div>
+          <div class="admin-form-row admin-form-row-3 hidden" id="agencySlotParty"></div>
+          <div class="admin-form-row admin-form-row-4 hidden" id="agencySlotAmount"></div>
 
+          <label class="admin-float is-select" id="paymentTransactionTypeField">
+            <select id="paymentTransactionType">
+              <option value="payout">Payout (Tutor)</option>
+              <option value="collection">Collection (Parent)</option>
+              <option value="tutor-subscription">Subscription (Tutor)</option>
+              <option value="student-subscription">Subscription (Student)</option>
+              <option value="student-agency-charge">Agency Charge (Student)</option>
+              <option value="tutor-agency-charge">Agency Charge (Tutor)</option>
+            </select>
+            <span>Transaction</span>
+          </label>
           <label class="admin-float hidden" id="paymentReceivedByField">
             <input id="paymentReceivedBy" type="text" placeholder=" ">
             <span>Received By</span>
@@ -233,24 +221,18 @@
             <div class="admin-suggest hidden" data-suggest="subparty"></div>
           </div>
 
-          <!-- Party ID/Mobile/Name: shown together for a Subscription
-               or Agency Charge payment - whichever single party (the
-               one paying) that transaction is against. -->
-          <div class="admin-form-row admin-form-row-3">
-            <label class="admin-float hidden" id="paymentSubIdField">
-              <input id="paymentSubId" type="text" readonly>
-              <span id="paymentSubIdLabel">Student ID</span>
-            </label>
-            <label class="admin-float hidden" id="paymentSubMobileField">
-              <input id="paymentSubMobile" type="text" readonly>
-              <span>Mobile Number</span>
-            </label>
-            <label class="admin-float hidden" id="paymentSubNameField">
-              <input id="paymentSubName" type="text" readonly>
-              <span>Name</span>
-            </label>
-          </div>
-
+          <label class="admin-float hidden" id="paymentSubNameField">
+            <input id="paymentSubName" type="text" readonly>
+            <span>Name</span>
+          </label>
+          <label class="admin-float hidden" id="paymentSubMobileField">
+            <input id="paymentSubMobile" type="text" readonly>
+            <span>Mobile Number</span>
+          </label>
+          <label class="admin-float hidden" id="paymentSubIdField">
+            <input id="paymentSubId" type="text" readonly>
+            <span id="paymentSubIdLabel">Student ID</span>
+          </label>
           <label class="admin-float hidden" id="paymentSubPlanField">
             <input id="paymentSubPlan" type="text" readonly>
             <span>Plan Name</span>
@@ -305,6 +287,23 @@
             <input id="paymentAmount" type="number" min="1" step="1" placeholder=" ">
             <span>Amount (₹)</span>
           </label>
+          <label class="admin-float" id="paymentDateField">
+            <input id="paymentDate" type="date" placeholder=" ">
+            <span>Payment Date</span>
+          </label>
+          <div class="admin-float is-select admin-mode-field" id="paymentModeField">
+            <div class="admin-mode-seg" role="radiogroup" aria-label="Payment Mode">
+              <label>
+                <input type="radio" name="paymentModeChoice" id="paymentModeOnline" value="Online" checked>
+                <span class="admin-mode-opt"><i class="admin-mode-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></i>Online</span>
+              </label>
+              <label>
+                <input type="radio" name="paymentModeChoice" id="paymentModeOffline" value="Offline">
+                <span class="admin-mode-opt"><i class="admin-mode-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></i>Offline</span>
+              </label>
+            </div>
+            <span>Payment Mode</span>
+          </div>
           <label class="admin-float is-select" id="collectedByField">
             <select id="paymentCollectedBy">
               <option value="agency">Agency (we received it)</option>
@@ -318,24 +317,22 @@
           </label>
 
           <!-- Amount/Dues/Paying Now/Remaining sit right above Notes -->
-          <div class="admin-form-row admin-form-row-4">
-            <label class="admin-float hidden" id="paymentSubAmountField">
-              <input id="paymentSubAmount" type="text" readonly>
-              <span>Amount (₹)</span>
-            </label>
-            <label class="admin-float hidden" id="paymentSubDuesField">
-              <input id="paymentSubDues" type="text" readonly>
-              <span>Dues (₹)</span>
-            </label>
-            <label class="admin-float hidden" id="paymentPayingNowField">
-              <input id="paymentPayingNow" type="number" min="0" step="1" placeholder=" ">
-              <span>Paying Now (₹)</span>
-            </label>
-            <label class="admin-float hidden" id="paymentRemainingField">
-              <input id="paymentRemaining" type="text" readonly>
-              <span>Remaining (₹)</span>
-            </label>
-          </div>
+          <label class="admin-float hidden" id="paymentSubAmountField">
+            <input id="paymentSubAmount" type="text" readonly>
+            <span>Amount (₹)</span>
+          </label>
+          <label class="admin-float hidden" id="paymentSubDuesField">
+            <input id="paymentSubDues" type="text" readonly>
+            <span>Dues (₹)</span>
+          </label>
+          <label class="admin-float hidden" id="paymentPayingNowField">
+            <input id="paymentPayingNow" type="number" min="0" step="1" placeholder=" ">
+            <span>Paying Now (₹)</span>
+          </label>
+          <label class="admin-float hidden" id="paymentRemainingField">
+            <input id="paymentRemaining" type="text" readonly>
+            <span>Remaining (₹)</span>
+          </label>
 
           <label class="admin-float wide">
             <textarea id="paymentNotes" rows="2" placeholder=" "></textarea>
@@ -464,7 +461,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260929zo" defer></script>
+<script src="admin.js?v=20260929zp" defer></script>
 
 </body>
 </html>
