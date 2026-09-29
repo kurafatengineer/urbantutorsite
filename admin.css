@@ -2493,6 +2493,35 @@ body[data-page="admin"] {
   overflow-wrap: anywhere;
 }
 .ledger-cell + .ledger-cell { border-left: 1px dotted var(--border-light); }
+/* Money in / out arrow, right after the Type rail. */
+.ledger-flow {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+.ledger-flow svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ledger-flow[data-flow="in"] { color: var(--lime); background: var(--lime-dim); }
+.ledger-flow[data-flow="out"] { color: var(--danger); background: var(--danger-dim); }
+.ledger-flow.ledger-flow-head {
+  height: auto;
+  white-space: nowrap;
+  font-size: 7px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .ledger-record-space {
   flex: 0 0 42px;
   width: 42px;
@@ -2525,7 +2554,7 @@ body[data-page="admin"] {
    the columns still line up with the rows below. */
 .ledger-card.ledger-header { padding-top: 6px; padding-bottom: 6px; }
 .ledger-header .admin-card-head { min-height: 0; }
-.ledger-header .ledger-cell { padding-top: 2px; padding-bottom: 2px; }
+.ledger-header .ledger-cell { padding-top: 2px; padding-bottom: 2px; white-space: nowrap; }
 .ledger-header .admin-status-rail {
   writing-mode: horizontal-tb;
   transform: none;
