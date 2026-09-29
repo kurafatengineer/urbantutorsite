@@ -2461,12 +2461,25 @@ body[data-page="admin"] {
 .admin-box input[data-action] { cursor: pointer; }
 .admin-box:has(input[data-action]):hover { filter: brightness(1.2); }
 
-/* Card a payment's ₹ jumped to - border only, stays until the next
-   re-render. */
-.admin-card.is-highlighted {
-  border-color: var(--lime);
-  box-shadow: 0 0 0 1px var(--lime);
+/* What a payment's ₹ jumped to: a white band sweeps across it once,
+   left to right, over 5 seconds. */
+.admin-wave {
+  position: relative;
+  overflow: hidden;
 }
+.admin-wave::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.45) 50%, transparent 100%);
+  transform: translateX(-100%);
+  animation: admin-wave 5s ease-in-out forwards;
+}
+@keyframes admin-wave {
+  to { transform: translateX(100%); }
+}
+.admin-class-frac.admin-wave { border-radius: 8px; }
 
 .admin-status-rail[data-action] {
   cursor: pointer;
