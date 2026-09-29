@@ -1118,6 +1118,13 @@ button { cursor: pointer; }
   padding-top: 8px;
 }
 
+/* Agency Charge cards: Demo ID/Student/Student Mobile, Tutor ID/Tutor/
+   Tutor Mobile, and Agency Charge/Received/Dues each sit on their own
+   line of 3. */
+.admin-boxes.admin-boxes-triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .admin-box {
   position: relative;
   display: block;
@@ -1585,6 +1592,8 @@ button { cursor: pointer; }
 
   /* demo date + time stay side by side (50 / 50) */
   .admin-boxes.admin-demo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .admin-boxes.admin-boxes-triple { grid-template-columns: 1fr; }
   .admin-boxes.admin-demo > .admin-box:nth-child(n + 3) { grid-column: 1 / -1; }
 
   .admin-chips-7 .admin-chip { padding: 7px 2px; border-radius: 10px; }

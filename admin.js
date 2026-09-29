@@ -2594,7 +2594,7 @@ function renderStudents() {
 // hidden until opened), plus a static status-rail label on the right
 // edge (no click action, just the word) saying at a glance whether
 // this side of the money is cleared or still owed.
-function statusCard(key, tone, titleParts, subtitle, boxesHtml, railLabel, footerHtml) {
+function statusCard(key, tone, titleParts, subtitle, boxesHtml, railLabel, footerHtml, boxesClass) {
   const open = STATE.open.has(key);
   const titleHtml = highlight(titleParts, subtitle, "|", tone);
   return `
@@ -2606,7 +2606,7 @@ function statusCard(key, tone, titleParts, subtitle, boxesHtml, railLabel, foote
         <span class="admin-status-rail" data-tone="${esc(tone)}" tabindex="-1">${esc(railLabel)}</span>
       </div>
       <div class="admin-card-body">
-        <div class="admin-boxes">${boxesHtml}</div>
+        <div class="admin-boxes${boxesClass ? " " + boxesClass : ""}">${boxesHtml}</div>
         ${footerHtml || ""}
       </div>
     </article>`;
@@ -2659,34 +2659,36 @@ function tuitionPaymentStatusCards(g, activeRow) {
     "paystatus:studentagency:" + g.demoId,
     m.studentAgencyDue > 0 ? "schedule" : "running",
     [g.demoId, "Student Agency Charges"], `${studentName} · ${g.first.subject}`,
-    box("Agency Charges", m.studentAgencyDue > 0 ? "Dues" : "Paid", { wide: true }) +
     box("Demo ID", g.demoId) +
     box("Student Name", studentName) +
     box("Student Mobile", studentMobile) +
+    box("Tutor ID", activeRow.tutorId) +
     box("Tutor Name", tutorName) +
     box("Tutor Mobile", tutorMobile) +
     box("Agency Charge (₹)", m.studentAgencyCharge) +
     box("Received (₹)", m.studentAgencyReceived) +
     box("Dues (₹)", m.studentAgencyDue),
     m.studentAgencyDue > 0 ? "Dues" : "Paid",
-    m.studentAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="student" type="button">+ Record a Payment</button>` : ""
+    m.studentAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="student" type="button">+ Record a Payment</button>` : "",
+    "admin-boxes-triple"
   );
 
   const tutorAgencyCard = statusCard(
     "paystatus:tutoragency:" + g.demoId,
     m.tutorAgencyDue > 0 ? "schedule" : "running",
     [g.demoId, "Tutor Agency Charges"], `${tutorName} · ${g.first.subject}`,
-    box("Agency Charges", m.tutorAgencyDue > 0 ? "Dues" : "Paid", { wide: true }) +
     box("Demo ID", g.demoId) +
     box("Student Name", studentName) +
     box("Student Mobile", studentMobile) +
+    box("Tutor ID", activeRow.tutorId) +
     box("Tutor Name", tutorName) +
     box("Tutor Mobile", tutorMobile) +
     box("Agency Charge (₹)", m.tutorAgencyCharge) +
     box("Received (₹)", m.tutorAgencyReceived) +
     box("Dues (₹)", m.tutorAgencyDue),
     m.tutorAgencyDue > 0 ? "Dues" : "Paid",
-    m.tutorAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="tutor" type="button">+ Record a Payment</button>` : ""
+    m.tutorAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="tutor" type="button">+ Record a Payment</button>` : "",
+    "admin-boxes-triple"
   );
 
   return studentCard + tutorCard + studentAgencyCard + tutorAgencyCard;
