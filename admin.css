@@ -2029,6 +2029,17 @@ body[data-page="admin"] {
   min-width: 0;
   max-width: 100%;
   width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.admin-float input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+
+.admin-float input[type="date"]::-webkit-datetime-edit {
+  padding: 0;
 }
 
 /* computed/read-only preview fields (e.g. a subscription payment's

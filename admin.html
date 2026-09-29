@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260928q">
+  <link rel="stylesheet" href="admin.css?v=20260928r">
 </head>
 
 <body data-page="admin">
@@ -190,7 +190,7 @@
         <input id="paymentSubscriptionId" type="hidden">
         <div class="admin-form">
 
-          <label class="admin-float is-select wide">
+          <label class="admin-float is-select">
             <select id="paymentTransactionType">
               <option value="student-subscription">Student Subscription</option>
               <option value="tutor-subscription">Tutor Subscription</option>
@@ -198,6 +198,10 @@
               <option value="payout">Payout — agency pays a tutor</option>
             </select>
             <span>Transaction</span>
+          </label>
+          <label class="admin-float hidden" id="paymentReceivedByField">
+            <input id="paymentReceivedBy" type="text" placeholder=" ">
+            <span>Received By</span>
           </label>
 
           <!-- Only for a subscription payment: search by Student/Tutor
@@ -228,22 +232,6 @@
           <label class="admin-float hidden" id="paymentSubPlanField">
             <input id="paymentSubPlan" type="text" readonly>
             <span>Plan Name</span>
-          </label>
-          <label class="admin-float hidden" id="paymentSubAmountField">
-            <input id="paymentSubAmount" type="text" readonly>
-            <span>Amount (₹)</span>
-          </label>
-          <label class="admin-float hidden" id="paymentSubDuesField">
-            <input id="paymentSubDues" type="text" readonly>
-            <span>Dues (₹)</span>
-          </label>
-          <label class="admin-float hidden" id="paymentPayingNowField">
-            <input id="paymentPayingNow" type="number" min="0" step="1" placeholder=" ">
-            <span>Paying Now (₹)</span>
-          </label>
-          <label class="admin-float hidden" id="paymentRemainingField">
-            <input id="paymentRemaining" type="text" readonly>
-            <span>Remaining (₹)</span>
           </label>
           <label class="admin-float hidden" id="paymentSubCycleField">
             <input id="paymentSubCycle" type="text" readonly>
@@ -310,14 +298,29 @@
             <input id="paymentMode" type="text" placeholder=" " required>
             <span>Payment Mode</span>
           </label>
-          <label class="admin-float hidden" id="paymentReceivedByField">
-            <input id="paymentReceivedBy" type="text" placeholder=" ">
-            <span>Received By</span>
-          </label>
           <label class="admin-float" id="ourCutField">
             <input id="paymentOurCut" type="number" min="0" step="1" placeholder=" ">
             <span>Our Cut Amount (₹)</span>
           </label>
+
+          <!-- Amount/Dues/Paying Now/Remaining sit right above Notes -->
+          <label class="admin-float hidden" id="paymentSubAmountField">
+            <input id="paymentSubAmount" type="text" readonly>
+            <span>Amount (₹)</span>
+          </label>
+          <label class="admin-float hidden" id="paymentSubDuesField">
+            <input id="paymentSubDues" type="text" readonly>
+            <span>Dues (₹)</span>
+          </label>
+          <label class="admin-float hidden" id="paymentPayingNowField">
+            <input id="paymentPayingNow" type="number" min="0" step="1" placeholder=" ">
+            <span>Paying Now (₹)</span>
+          </label>
+          <label class="admin-float hidden" id="paymentRemainingField">
+            <input id="paymentRemaining" type="text" readonly>
+            <span>Remaining (₹)</span>
+          </label>
+
           <label class="admin-float wide">
             <textarea id="paymentNotes" rows="2" placeholder=" "></textarea>
             <span>Notes</span>
