@@ -2443,6 +2443,11 @@ body[data-page="admin"] {
    match, or it'd round against a corner that's no longer there. */
 .admin-stack.has-class-card .tuition-card .admin-status-rail { border-radius: 0; }
 
+/* The Class card is always the top of its stack (Tuition card and any
+   Tutor rows sit below it), so its own rail only rounds the top-right
+   corner, matching the card's own shape there. */
+.class-card .admin-status-rail { border-radius: 0 18px 0 0; }
+
 /* Payments tab's own status cards are always standalone (never joined
    into a stack with another card above/below), so both right corners
    round to match the card's own full 18px radius. */
@@ -2460,30 +2465,10 @@ body[data-page="admin"] {
 .admin-class-fracs {
   display: flex;
   align-items: center;
-  width: 100%;
-  gap: 14px;
-  overflow: hidden;
-}
-
-.admin-class-fracs-figures {
-  display: flex;
-  align-items: center;
   justify-content: space-between;
-  flex: 1 1 auto;
-  min-width: 0;
+  width: 100%;
   gap: 10px;
-}
-
-/* Same typography as the status word on a Tuition/Tutor card's own
-   status rail (font-size/weight/letter-spacing/case), just laid out
-   horizontally here instead of vertically. */
-.admin-class-fracs-label {
-  flex: 0 0 auto;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--muted-2);
+  overflow: hidden;
 }
 
 .admin-class-frac {
