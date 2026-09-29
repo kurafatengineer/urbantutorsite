@@ -702,33 +702,43 @@ function wireEvents() {
 }
 
 // Fields that only appear for a Student/Tutor Subscription payment.
-const PAYMENT_SUB_FIELD_IDS = [
+const PAYMENT_SUB_ONLY_FIELD_IDS = [
   "paymentSubNameField", "paymentSubMobileField", "paymentSubIdField", "paymentSubPlanField",
-  "paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField", "paymentRemainingField",
   "paymentSubCycleField", "paymentSubStatusField", "paymentSubStartDateField", "paymentSubNextDueField"
 ];
 
-// Shows/hides the fields for whichever of the 4 transaction kinds is
-// picked: Student Subscription, Tutor Subscription, Collection (from a
-// parent) or Payout (agency paying a tutor out of what it collected).
+// The Amount/Dues/Paying Now/Remaining group is shared by both a
+// Subscription payment and an Agency Charge payment - anywhere the
+// admin is clearing a Dues figure by typing in how much is being paid
+// now.
+const PAYMENT_AMOUNT_FIELD_IDS = [
+  "paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField", "paymentRemainingField"
+];
+
+// Shows/hides the fields for whichever transaction kind is picked:
+// Student/Tutor Subscription, Student/Tutor Agency Charge, Collection
+// (from a parent) or Payout (agency paying a tutor out of what it
+// collected).
 function applyPaymentTransactionType() {
 
   const mode = $("paymentTransactionType").value;
   const isPayout = mode === "payout";
   const isSub = mode === "student-subscription" || mode === "tutor-subscription";
+  const isAgencyCharge = mode === "student-agency-charge" || mode === "tutor-agency-charge";
   const isCollection = mode === "collection";
 
   $("paymentTypeField").classList.toggle("hidden", !isCollection);
   $("collectedByField").classList.toggle("hidden", !isCollection);
   $("ourCutField").classList.toggle("hidden", !isCollection);
 
-  $("paymentAmountField").classList.toggle("hidden", isSub);
+  $("paymentAmountField").classList.toggle("hidden", isSub || isAgencyCharge);
   $("paymentDemoIdField").classList.toggle("hidden", isSub || isPayout);
   $("paymentTutorIdField").classList.toggle("hidden", isSub);
-  if (!isSub) $("paymentTutorIdField").querySelector("span").textContent = isPayout ? "Tutor ID" : "Tutor ID (optional)";
+  if (!isSub) $("paymentTutorIdField").querySelector("span").textContent = (isPayout || mode === "tutor-agency-charge") ? "Tutor ID" : "Tutor ID (optional)";
 
   $("paymentReceivedByField").classList.toggle("hidden", !isSub);
-  PAYMENT_SUB_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub));
+  PAYMENT_SUB_ONLY_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub));
+  PAYMENT_AMOUNT_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isAgencyCharge));
 
   // The search box only shows in subscription mode, and only until a
   // party has actually been resolved (typed/picked, or pre-filled by
@@ -869,6 +879,47 @@ function openPaymentFormForSubscription(sub) {
   $("paymentForm").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
+// Fills the Demo ID / Tutor ID detail lines and the shared Amount/
+// Dues/Paying Now/Remaining group for an Agency Charge payment - same
+// numbers as the status card it was opened from, so it can never
+// disagree with what the admin was just looking at.
+function fillPaymentAgencyChargeFields(g, activeRow, side) {
+
+  const m = classMoney(g, activeRow);
+  const charge = side === "tutor" ? m.tutorAgencyCharge : m.studentAgencyCharge;
+  const dues = side === "tutor" ? m.tutorAgencyDue : m.studentAgencyDue;
+
+  $("paymentDemoId").value = g.demoId;
+  updateIdDetail($("paymentDemoDetail"), DIR_STUDENT_BY_ID[g.first.studentId] || null);
+
+  $("paymentTutorId").value = activeRow.tutorId;
+  updateIdDetail($("paymentTutorDetail"), DIR_TUTOR_BY_ID[activeRow.tutorId] || null);
+
+  $("paymentSubAmount").value = "₹" + charge.toLocaleString("en-IN");
+  $("paymentSubDues").value = "₹" + dues.toLocaleString("en-IN");
+  $("paymentPayingNow").max = dues;
+  $("paymentPayingNow").value = dues;
+  updatePaymentRemaining();
+
+}
+
+// Opens the payment form pre-filled for one Tuition's Student or
+// Tutor Agency Charge - same "+ Record a Payment" pattern as a
+// Subscription, but tracked against this Tuition's own Agency Charge
+// instead of a subscription plan.
+function openPaymentFormForAgencyCharge(g, activeRow, side) {
+  if (STATE.tab !== "payments") showTab("payments");
+  resetPaymentForm();
+  $("paymentTransactionType").value = side === "tutor" ? "tutor-agency-charge" : "student-agency-charge";
+  $("paymentForSubscription").classList.remove("hidden");
+  $("paymentForSubscription").textContent = `For ${g.demoId}'s ${side === "tutor" ? "Tutor" : "Student"} Agency Charge`;
+  applyPaymentTransactionType();
+  fillPaymentAgencyChargeFields(g, activeRow, side);
+
+  $("paymentForm").classList.remove("hidden");
+  $("paymentForm").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 function wirePaymentForm() {
 
   $("addPaymentButton").addEventListener("click", () => {
@@ -899,6 +950,7 @@ function wirePaymentForm() {
     const mode = $("paymentTransactionType").value;
     const isPayout = mode === "payout";
     const isSub = mode === "student-subscription" || mode === "tutor-subscription";
+    const isAgencyCharge = mode === "student-agency-charge" || mode === "tutor-agency-charge";
     const demoId = $("paymentDemoId").value.trim();
     const subscriptionId = $("paymentSubscriptionId").value;
     const tutorId = $("paymentTutorId").value.trim();
@@ -913,18 +965,29 @@ function wirePaymentForm() {
       return;
     }
 
-    if (!isPayout && !isSub && !demoId) {
+    if (isAgencyCharge && !demoId) {
       toast("Enter the Demo ID.", true);
       return;
     }
 
-    const enteredAmount = Number(isSub ? $("paymentPayingNow").value : $("paymentAmount").value);
-    if (!(enteredAmount > 0)) {
-      toast(isSub ? "Enter the amount being paid now." : "Enter a valid amount.", true);
+    if (mode === "tutor-agency-charge" && !tutorId) {
+      toast("Enter which Tutor ID this Agency Charge is against.", true);
       return;
     }
 
-    if (isSub) {
+    if (!isPayout && !isSub && !isAgencyCharge && !demoId) {
+      toast("Enter the Demo ID.", true);
+      return;
+    }
+
+    const usesPayingNow = isSub || isAgencyCharge;
+    const enteredAmount = Number(usesPayingNow ? $("paymentPayingNow").value : $("paymentAmount").value);
+    if (!(enteredAmount > 0)) {
+      toast(usesPayingNow ? "Enter the amount being paid now." : "Enter a valid amount.", true);
+      return;
+    }
+
+    if (usesPayingNow) {
       const dues = Number(String($("paymentSubDues").value).replace(/[^\d.-]/g, "")) || 0;
       if (enteredAmount > dues) {
         toast(`Amount Paid can't be more than the Dues (₹${dues.toLocaleString("en-IN")}).`, true);
@@ -934,12 +997,15 @@ function wirePaymentForm() {
 
     const payload = {
       action: "adminAddPayment",
-      transactionType: isPayout ? "payout" : "collection",
+      transactionType: isPayout ? "payout" : (isAgencyCharge ? "agency_charge" : "collection"),
       demoId: isSub ? undefined : demoId,
       subscriptionId: isSub ? subscriptionId : undefined,
-      tutorId: isSub ? undefined : tutorId,
-      amount: isSub ? $("paymentPayingNow").value : $("paymentAmount").value,
-      paymentType: $("paymentType").value,
+      // A Student Agency Charge payment always has tutor_id null - it's
+      // the student/parent paying, even though the Tutor ID field is
+      // shown alongside it for context.
+      tutorId: isSub ? undefined : (mode === "student-agency-charge" ? "" : tutorId),
+      amount: usesPayingNow ? $("paymentPayingNow").value : $("paymentAmount").value,
+      paymentType: isAgencyCharge ? "agency" : $("paymentType").value,
       collectedBy: $("paymentCollectedBy").value,
       ourCutAmount: $("paymentOurCut").value,
       paymentMode: paymentModeValue(),
@@ -1734,6 +1800,13 @@ async function onListClick(event) {
       break;
     }
 
+    case "record-agency-payment": {
+      const g = demoGroups().find(x => x.demoId === actionEl.dataset.demoId);
+      const activeRow = g ? activeRowFor(g) : null;
+      if (g && activeRow) openPaymentFormForAgencyCharge(g, activeRow, actionEl.dataset.side);
+      break;
+    }
+
   }
 
 }
@@ -2521,7 +2594,7 @@ function renderStudents() {
 // hidden until opened), plus a static status-rail label on the right
 // edge (no click action, just the word) saying at a glance whether
 // this side of the money is cleared or still owed.
-function statusCard(key, tone, titleParts, subtitle, boxesHtml, railLabel) {
+function statusCard(key, tone, titleParts, subtitle, boxesHtml, railLabel, footerHtml) {
   const open = STATE.open.has(key);
   const titleHtml = highlight(titleParts, subtitle, "|", tone);
   return `
@@ -2534,6 +2607,7 @@ function statusCard(key, tone, titleParts, subtitle, boxesHtml, railLabel) {
       </div>
       <div class="admin-card-body">
         <div class="admin-boxes">${boxesHtml}</div>
+        ${footerHtml || ""}
       </div>
     </article>`;
 }
@@ -2578,15 +2652,24 @@ function tuitionPaymentStatusCards(g, activeRow) {
     m.tutorDues > 0 ? "Due" : "Paid"
   );
 
+  const studentMobile = student ? (student.values["Phone"] || student.values["WhatsApp"]) : "";
+  const tutorMobile = tutor ? (tutor.values["Mobile Number"] || tutor.values["WhatsApp Number"]) : "";
+
   const studentAgencyCard = statusCard(
     "paystatus:studentagency:" + g.demoId,
     m.studentAgencyDue > 0 ? "schedule" : "running",
     [g.demoId, "Student Agency Charges"], `${studentName} · ${g.first.subject}`,
     box("Agency Charges", m.studentAgencyDue > 0 ? "Dues" : "Paid", { wide: true }) +
+    box("Demo ID", g.demoId) +
+    box("Student Name", studentName) +
+    box("Student Mobile", studentMobile) +
+    box("Tutor Name", tutorName) +
+    box("Tutor Mobile", tutorMobile) +
     box("Agency Charge (₹)", m.studentAgencyCharge) +
     box("Received (₹)", m.studentAgencyReceived) +
     box("Dues (₹)", m.studentAgencyDue),
-    m.studentAgencyDue > 0 ? "Dues" : "Paid"
+    m.studentAgencyDue > 0 ? "Dues" : "Paid",
+    m.studentAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="student" type="button">+ Record a Payment</button>` : ""
   );
 
   const tutorAgencyCard = statusCard(
@@ -2594,10 +2677,16 @@ function tuitionPaymentStatusCards(g, activeRow) {
     m.tutorAgencyDue > 0 ? "schedule" : "running",
     [g.demoId, "Tutor Agency Charges"], `${tutorName} · ${g.first.subject}`,
     box("Agency Charges", m.tutorAgencyDue > 0 ? "Dues" : "Paid", { wide: true }) +
+    box("Demo ID", g.demoId) +
+    box("Student Name", studentName) +
+    box("Student Mobile", studentMobile) +
+    box("Tutor Name", tutorName) +
+    box("Tutor Mobile", tutorMobile) +
     box("Agency Charge (₹)", m.tutorAgencyCharge) +
     box("Received (₹)", m.tutorAgencyReceived) +
     box("Dues (₹)", m.tutorAgencyDue),
-    m.tutorAgencyDue > 0 ? "Dues" : "Paid"
+    m.tutorAgencyDue > 0 ? "Dues" : "Paid",
+    m.tutorAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="tutor" type="button">+ Record a Payment</button>` : ""
   );
 
   return studentCard + tutorCard + studentAgencyCard + tutorAgencyCard;
@@ -3242,17 +3331,20 @@ function classMoney(g, activeRow) {
   const tutorTotalPayment = tutorAdvance + tutorPayouts;
   const tutorDues = Math.max(tutorTotalAmount - tutorAgencyCharge - tutorTotalPayment, 0);
 
-  // The agency's own cut on each side isn't its own tracked ledger -
-  // it's realised out of whatever money has actually moved on that
-  // side so far (capped at the charge itself), and whatever's left of
-  // the charge once that's accounted for is still due to the agency.
+  // The agency's own cut on each side has its own real ledger - actual
+  // "agency_charge" payments recorded against this Tuition, split by
+  // whether it's the student/parent or the tutor paying it in (tutor_id
+  // null vs set), never guessed from other money that moved.
+  const agencyChargePayments = (STATE.payments || []).filter(p => p.demo_id === g.demoId && p.transaction_type === "agency_charge");
   const studentAgencyCharge = num(activeRow.studentAgencyCharge);
-  const studentAgencyMoved = studentAdvancePaid + collected;
-  const studentAgencyReceived = Math.min(studentAgencyCharge, studentAgencyMoved);
+  const studentAgencyReceived = agencyChargePayments
+    .filter(p => !p.tutor_id)
+    .reduce((sum, p) => sum + num(p.amount), 0);
   const studentAgencyDue = Math.max(studentAgencyCharge - studentAgencyReceived, 0);
 
-  const tutorAgencyMoved = tutorTotalPayment;
-  const tutorAgencyReceived = Math.min(tutorAgencyCharge, tutorAgencyMoved);
+  const tutorAgencyReceived = agencyChargePayments
+    .filter(p => p.tutor_id === activeRow.tutorId)
+    .reduce((sum, p) => sum + num(p.amount), 0);
   const tutorAgencyDue = Math.max(tutorAgencyCharge - tutorAgencyReceived, 0);
 
   return {

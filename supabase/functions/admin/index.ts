@@ -252,9 +252,9 @@ async function linkDocuments(overview: Json): Promise<Json> {
   return overview;
 }
 
-const PAYMENT_TYPES = ["advance", "regular", "final"];
+const PAYMENT_TYPES = ["advance", "regular", "final", "agency"];
 const COLLECTED_BY = ["agency", "tutor"];
-const TRANSACTION_TYPES = ["collection", "payout"];
+const TRANSACTION_TYPES = ["collection", "payout", "agency_charge"];
 
 function paymentChangesFromBody(body: Json, partial: boolean): Json | { error: string } {
   const changes: Json = {};
@@ -262,8 +262,11 @@ function paymentChangesFromBody(body: Json, partial: boolean): Json | { error: s
   const assign = (key: string, value: unknown) => { if (value !== undefined) changes[key] = value; };
 
   // What kind of transaction this is: money coming in from a parent
-  // ("collection", the default) or the agency paying a tutor out of
-  // money it already collected ("payout").
+  // ("collection", the default), the agency paying a tutor out of
+  // money it already collected ("payout"), or money paid straight
+  // towards the agency's own Agency Charge, from either side
+  // ("agency_charge" - demo_id always set, tutor_id set only when
+  // it's the tutor paying, not the student/parent).
   let transactionType: string | undefined;
 
   if (!partial || body.transactionType !== undefined) {
@@ -273,6 +276,7 @@ function paymentChangesFromBody(body: Json, partial: boolean): Json | { error: s
   }
 
   const isPayout = transactionType === "payout";
+  const isAgencyCharge = transactionType === "agency_charge";
 
   if (!partial || body.amount !== undefined) {
     const amount = Number(body.amount);
@@ -281,20 +285,21 @@ function paymentChangesFromBody(body: Json, partial: boolean): Json | { error: s
   }
 
   if (!partial || body.paymentType !== undefined) {
-    const t = String(body.paymentType ?? "regular");
+    const t = String(body.paymentType ?? (isAgencyCharge ? "agency" : "regular"));
     if (!PAYMENT_TYPES.includes(t)) return { error: "Unknown payment type." };
     changes.payment_type = t;
   }
 
   // Collected By / Our Cut only apply to a collection from a parent -
-  // a payout has no "collector", the agency is always the one paying.
-  if (!isPayout && (!partial || body.collectedBy !== undefined)) {
+  // a payout or an agency-charge payment has no "collector", the
+  // agency is always the party being paid.
+  if (!isPayout && !isAgencyCharge && (!partial || body.collectedBy !== undefined)) {
     const c = String(body.collectedBy ?? "agency");
     if (!COLLECTED_BY.includes(c)) return { error: "Unknown collector." };
     changes.collected_by = c;
   }
 
-  if (!isPayout && body.ourCutAmount !== undefined) {
+  if (!isPayout && !isAgencyCharge && body.ourCutAmount !== undefined) {
     changes.our_cut_amount = body.ourCutAmount === "" || body.ourCutAmount === null
       ? null : Number(body.ourCutAmount);
   }
@@ -311,7 +316,8 @@ function paymentChangesFromBody(body: Json, partial: boolean): Json | { error: s
 
   if (!partial) {
     if (isPayout && !body.tutorId) return { error: "Choose which tutor is being paid." };
-    if (!isPayout && !body.demoId && !body.subscriptionId) return { error: "Demo ID or Subscription is required." };
+    if (isAgencyCharge && !body.demoId) return { error: "Demo ID is required for an Agency Charge payment." };
+    if (!isPayout && !isAgencyCharge && !body.demoId && !body.subscriptionId) return { error: "Demo ID or Subscription is required." };
     changes.demo_id = body.demoId || null;
     changes.tutor_id = body.tutorId || null;
     changes.subscription_id = body.subscriptionId || null;
@@ -572,7 +578,7 @@ function changeSummaryRows(changes: Json): [string, string][] {
 }
 
 async function resolvePaymentParty(row: Json): Promise<Party | null> {
-  if (row.transaction_type === "payout" && row.tutor_id) return lookupTutor(row.tutor_id);
+  if ((row.transaction_type === "payout" || row.transaction_type === "agency_charge") && row.tutor_id) return lookupTutor(row.tutor_id);
   if (row.demo_id) return studentForDemo(row.demo_id);
   if (row.subscription_id) {
     const { data: sub } = await db.from("subscriptions").select("student_id, tutor_id").eq("id", row.subscription_id).maybeSingle();
