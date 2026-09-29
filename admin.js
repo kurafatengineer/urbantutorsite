@@ -3143,16 +3143,22 @@ function classCard(g, activeRow) {
       ${box("End Date", endDateShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Class End Date") })}
     </div>`;
 
-  // Student and Tutor each have their own Total Amount (what's owed to/
-  // by that party for this class) - Total Payment / Dues are never
-  // typed in themselves, they're worked out from the payments actually
-  // recorded, so they can't drift out of sync the way a hand-entered
-  // number could.
-  const studentTotalAmount = num(activeRow.studentTotalAmount);
-  const collected = (STATE.payments || [])
-    .filter(p => p.demo_id === g.demoId && p.transaction_type !== "payout")
+  // Student's Total Amount is never typed in - it's Class Duration x
+  // Per hour Charges x Number of Classes, so it moves on its own the
+  // moment any of those change. Advance Payment and Total Payment are
+  // the same: both read straight off the payments actually recorded
+  // against this Tuition ID (split by Payment Type - "advance" feeds
+  // Advance Payment, "regular"/"final" feed Total Payment, so the two
+  // never double-count each other), and Dues is Total Amount less both.
+  const studentTotalAmount = num(activeRow.classDuration) * num(activeRow.classCharges) * num(activeRow.classCount);
+  const demoCollections = (STATE.payments || []).filter(p => p.demo_id === g.demoId && p.transaction_type !== "payout");
+  const studentAdvancePaid = demoCollections
+    .filter(p => p.payment_type === "advance")
     .reduce((sum, p) => sum + num(p.amount), 0);
-  const studentDues = Math.max(studentTotalAmount - collected, 0);
+  const collected = demoCollections
+    .filter(p => p.payment_type !== "advance")
+    .reduce((sum, p) => sum + num(p.amount), 0);
+  const studentDues = Math.max(studentTotalAmount - studentAdvancePaid - collected, 0);
 
   // Payouts aren't tied to a Demo ID yet, so "paid to this tutor" is
   // gathered by Tutor ID instead (their advance plus every payout
@@ -3181,10 +3187,10 @@ function classCard(g, activeRow) {
         ${box("Next Due Date", studentNextDueShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Student Next Due Date") })}
         ${box("Agency Charge (₹)", activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: cfield("Student Agency Charge") })}
         ${box("Payment Frequency", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
-        ${box("Advance Payment (₹)", activeRow.studentAdvancePayment, { editable: editing, type: "number", attr: cfield("Student Advance Payment") })}
-        ${box("Total Amount (₹)", activeRow.studentTotalAmount, { editable: editing, type: "number", attr: cfield("Student Total Amount") })}
-        ${box("Total Payment (₹)", studentTotalAmount ? collected : "")}
-        ${box("Dues (₹)", studentTotalAmount ? studentDues : "")}
+        ${box("Advance Payment (₹)", studentAdvancePaid)}
+        ${box("Total Amount (₹)", studentTotalAmount)}
+        ${box("Total Payment (₹)", collected)}
+        ${box("Dues (₹)", studentDues)}
       </div>
     </div>`;
 
