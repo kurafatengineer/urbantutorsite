@@ -3163,12 +3163,12 @@ function classCard(g, activeRow) {
         ${box("Mobile Number", sv("Phone"))}
         ${box("WhatsApp Number", sv("WhatsApp"))}
         ${box("Payment To", editing ? (activeRow.studentPaymentTo || "Agency") : activeRow.studentPaymentTo, { editable: editing, wide: true, options: ["Agency", "Tutor"], attr: cfield("Student Payment To") })}
-        ${box("Agency Charge (₹)", activeRow.studentAgencyCharge, { editable: editing, wide: true, type: "number", attr: cfield("Student Agency Charge") })}
-        ${box("Payment", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, wide: true, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
-        ${box("Advance Payment (₹)", activeRow.studentAdvancePayment, { editable: editing, wide: true, type: "number", attr: cfield("Student Advance Payment") })}
-        ${box("Total Amount (₹)", activeRow.studentTotalAmount, { editable: editing, wide: true, type: "number", attr: cfield("Student Total Amount") })}
-        ${box("Total Payment (₹)", studentTotalAmount ? collected : "", { wide: true })}
-        ${box("Dues (₹)", studentTotalAmount ? studentDues : "", { wide: true })}
+        ${box("Agency Charge (₹)", activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: cfield("Student Agency Charge") })}
+        ${box("Payment", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
+        ${box("Advance Payment (₹)", activeRow.studentAdvancePayment, { editable: editing, type: "number", attr: cfield("Student Advance Payment") })}
+        ${box("Total Amount (₹)", activeRow.studentTotalAmount, { editable: editing, type: "number", attr: cfield("Student Total Amount") })}
+        ${box("Total Payment (₹)", studentTotalAmount ? collected : "")}
+        ${box("Dues (₹)", studentTotalAmount ? studentDues : "")}
       </div>
     </div>`;
 
@@ -3180,12 +3180,12 @@ function classCard(g, activeRow) {
         ${box("Mobile Number", tv("Mobile Number"))}
         ${box("WhatsApp Number", tv("WhatsApp Number"))}
         ${box("Payment From", editing ? (activeRow.tutorPaymentFrom || "Agency") : activeRow.tutorPaymentFrom, { editable: editing, wide: true, options: ["Agency", "Parents"], attr: cfield("Tutor Payment From") })}
-        ${box("Agency Charges (₹)", activeRow.tutorAgencyCharge, { editable: editing, wide: true, type: "number", attr: cfield("Tutor Agency Charge") })}
-        ${box("Payment", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, wide: true, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
-        ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, wide: true, type: "number", attr: cfield("Tutor Advance Payment") })}
-        ${box("Total Amount (₹)", activeRow.tutorTotalAmount, { editable: editing, wide: true, type: "number", attr: cfield("Tutor Total Amount") })}
-        ${box("Total Payment (₹)", tutorTotalAmount ? tutorTotalPayment : "", { wide: true })}
-        ${box("Dues (₹)", tutorTotalAmount ? tutorDues : "", { wide: true })}
+        ${box("Agency Charges (₹)", activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: cfield("Tutor Agency Charge") })}
+        ${box("Payment", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
+        ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, type: "number", attr: cfield("Tutor Advance Payment") })}
+        ${box("Total Amount (₹)", activeRow.tutorTotalAmount, { editable: editing, type: "number", attr: cfield("Tutor Total Amount") })}
+        ${box("Total Payment (₹)", tutorTotalAmount ? tutorTotalPayment : "")}
+        ${box("Dues (₹)", tutorTotalAmount ? tutorDues : "")}
       </div>
     </div>`;
 
