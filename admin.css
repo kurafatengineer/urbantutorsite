@@ -1148,6 +1148,13 @@ button { cursor: pointer; }
 
 /* Agency Charge payment card: same rows of 3 as its entry form. */
 .admin-boxes.admin-boxes-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.admin-boxes-3 .admin-box textarea {
+  height: 46px;
+  min-height: 46px;
+  resize: none;
+  font-family: inherit;
+  scrollbar-width: none;
+}
 
 .admin-box {
   position: relative;
