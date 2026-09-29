@@ -2460,19 +2460,28 @@ body[data-page="admin"] {
 /* While a payment is being recorded, the payments list below is hidden. */
 #paymentForm:not(.hidden) ~ #paymentList { display: none; }
 
-/* Ledger entries: status rail on the left edge, what it's for on the
-   right edge. Rails are drawn rotated 180deg, so each radius is written
-   for the rotated box (element bottom-left = visual top-right). */
+/* Ledger entries: status rail on the card's left edge, then what it's
+   for right beside it, split by a thin line. Rails are drawn rotated
+   180deg, so each radius is written for the rotated box (element
+   top-right = visual bottom-left). */
 .admin-card-head .ledger-status-rail {
-  order: -1;
-  margin: -16px 4px -16px -16px;
+  order: -2;
+  margin: -16px 0 -16px -16px;
   border-radius: 0 18px 18px 0;
 }
-.admin-card-head .ledger-purpose-rail { border-radius: 18px 0 0 18px; }
-.ledger-record {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1;
+.admin-card-head .ledger-purpose-rail {
+  order: -1;
+  margin: -16px 4px -16px -12px;
+  border-radius: 0;
+  border-right: 1px solid var(--border);
+}
+.ledger-record svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  fill: none;
 }
 
 /* Class card figures that open a New Payment when tapped. */
