@@ -2843,7 +2843,10 @@ function tuitionStack(g) {
   const studentOpen = STATE.studentOpen.has(studentKey);
   const appliedLabel = `${tutorRows.length} Tutor${tutorRows.length === 1 ? "" : "s"} Applied`;
   const quickOpen = STATE.quickOpen.has(key);
-  const canQuickOpen = !terminated && railTone === "new";
+  // Tapping "Finding Tutor" quick-opens to the assign field; tapping
+  // "Running" quick-opens to just the Classes Completed checkbox - in
+  // neither case should the whole tuition card expand.
+  const canQuickOpen = !terminated && (railTone === "new" || railTone === "running");
 
   // "Classes Completed" moved up from the Tutor Applied card - it only
   // makes sense once a tutor is actually running the tuition, so it's
@@ -2926,7 +2929,7 @@ function tuitionStack(g) {
         ${completedBlock}
 
         ${quickOpen ? `
-          ${assignBlock}
+          ${assigned ? "" : assignBlock}
           <button class="admin-ghost admin-wide" data-action="show-full" data-key="${esc(key)}" type="button">Show Full Details</button>
         ` : `
 
