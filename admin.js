@@ -3108,8 +3108,8 @@ function classCard(g, activeRow) {
 
   const tuitionTermsBoxes = `
     <div class="admin-boxes">
-      ${box("Duration", activeRow.classDuration, { editable: editing, attr: cfield("Class Duration") })}
-      ${box("Charges (₹)", activeRow.classCharges, { editable: editing, type: "number", attr: cfield("Class Charges") })}
+      ${box("Class Duration", activeRow.classDuration, { editable: editing, attr: cfield("Class Duration") })}
+      ${box("Per hour Charges (₹)", activeRow.classCharges, { editable: editing, type: "number", attr: cfield("Class Charges") })}
       ${box("Start Date", startDateShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Class Start Date") })}
       ${box("End Date", endDateShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Class End Date") })}
     </div>`;
