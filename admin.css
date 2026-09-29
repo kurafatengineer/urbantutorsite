@@ -2423,23 +2423,10 @@ body[data-page="admin"] {
 }
 .admin-avatar-link:hover { filter: brightness(1.3); }
 
-/* Class card figures that open the payments behind them. */
+/* Class card figures that offer "Record a Payment" when tapped. */
 .admin-box input[data-action] { cursor: pointer; }
 .admin-box:has(input[data-action]):hover { filter: brightness(1.2); }
-
-/* Payments tab narrowed from a Class card figure. */
-.admin-focus-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px 10px 16px;
-  border: 1px solid var(--lime-line);
-  border-radius: 14px;
-  background: var(--lime-dim);
-  font-size: 13px;
-  color: var(--text);
-}
+.admin-class-party .admin-record-option { margin-top: 12px; }
 
 /* Card a payment's ₹ jumped to - border only, stays until the next
    re-render. */
