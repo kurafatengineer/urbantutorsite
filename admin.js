@@ -3432,8 +3432,8 @@ function ledgerEntries() {
 
   entries.forEach(e => { e.mobile = person(e.kind, e.partyId).mobile || ""; });
 
-  // Newest first; an upcoming entry with no due date set goes on top.
-  return entries.sort((a, b) => (b.date || "9999").localeCompare(a.date || "9999"));
+  // By date, earliest first; anything with no due date set goes last.
+  return entries.sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
 
 }
 
@@ -3443,7 +3443,7 @@ const LEDGER_STATUS = {
   overdue: { label: "Overdue", tone: "declined" }
 };
 
-const LEDGER_COLUMNS = ["Date", "Who", "Name", "Mobile Number", "Tutor ID", "Student ID", "Demo ID", "Amount"];
+const LEDGER_COLUMNS = ["Due Date", "Who", "Name", "Mobile Number", "Tutor ID", "Student ID", "Demo ID", "Amount"];
 
 // "2026-10-06" -> "06|10|2026"
 function ledgerDate(iso) {
@@ -3455,8 +3455,15 @@ function ledgerRow(cells) {
   return `<div class="ledger-grid">${cells.map(c => `<span class="ledger-cell">${esc(c || "-")}</span>`).join("")}</div>`;
 }
 
-// One line per entry: status + payment type rails on the left, the
-// columns, and - while
+// Money in (green) or out (red) - only a Tutor payout goes out.
+function ledgerFlow(out) {
+  return `<span class="ledger-flow" data-flow="${out ? "out" : "in"}" title="${out ? "Money going out" : "Money coming in"}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="${out ? "M7 17L17 7M9 7h8v8" : "M17 7L7 17M15 17H7V9"}"/></svg>
+  </span>`;
+}
+
+// One line per entry: status + payment type rails and the in/out arrow
+// on the left, the columns, and - while
 // it's still to be paid - a + on the right to record it.
 function ledgerCard(e) {
   const t = e.target;
@@ -3477,6 +3484,7 @@ function ledgerCard(e) {
       <div class="admin-card-head" ${attrs} title="Open what this is for">
         <span class="admin-status-rail ledger-status-rail" data-tone="${status.tone}" tabindex="-1">${esc(status.label)}</span>
         <span class="admin-status-rail ledger-purpose-rail" data-tone="black" tabindex="-1">${esc(e.purpose)}</span>
+        ${ledgerFlow(e.purpose === "Payments Out")}
         ${ledgerRow(cells)}
         ${record}
       </div>
@@ -3491,6 +3499,7 @@ function ledgerHeaderCard() {
       <div class="admin-card-head">
         <span class="admin-status-rail ledger-status-rail" data-tone="black">Status</span>
         <span class="admin-status-rail ledger-purpose-rail" data-tone="black">Type</span>
+        <span class="ledger-flow ledger-flow-head">In/Out</span>
         ${ledgerRow(LEDGER_COLUMNS)}
         <span class="ledger-record-space"></span>
       </div>
