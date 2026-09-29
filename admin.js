@@ -835,6 +835,24 @@ function openPaymentFormForSubscription(sub) {
   $("paymentForm").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
+// Opens the payment form pre-filled from a running/completed class's own
+// card, so a payment collected against that Tuition doesn't need its
+// Demo ID / Tutor ID typed in from scratch.
+function openPaymentFormForDemo(demoId, tutorId) {
+  if (STATE.tab !== "payments") showTab("payments");
+  resetPaymentForm();
+  $("paymentTransactionType").value = "collection";
+  $("paymentDemoId").value = demoId || "";
+  $("paymentTutorId").value = tutorId || "";
+  const demoItem = DIR_DEMO_BY_ID[demoId];
+  updateIdDetail($("paymentDemoDetail"), demoItem ? DIR_STUDENT_BY_ID[demoItem.studentId] : null);
+  updateIdDetail($("paymentTutorDetail"), tutorId ? DIR_TUTOR_BY_ID[tutorId] : null);
+  applyPaymentTransactionType();
+
+  $("paymentForm").classList.remove("hidden");
+  $("paymentForm").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 function wirePaymentForm() {
 
   $("addPaymentButton").addEventListener("click", () => {
@@ -1583,6 +1601,37 @@ async function onListClick(event) {
       break;
     }
 
+    case "toggle-class-day": {
+      const day = actionEl.dataset.day;
+      const rowNumber = Number(actionEl.dataset.row);
+      const demoId = box.dataset.demo;
+      const tutorId = actionEl.dataset.tutorId;
+      const row = (STATE.data.demos || []).find(r => r.rowNumber === rowNumber && r.demoId === demoId);
+      const current = new Set((row && row.classDays) || []);
+      const adding = !current.has(day);
+      if (adding) current.add(day); else current.delete(day);
+      const days = WEEKDAYS.filter(d => current.has(d));
+      actionEl.classList.toggle("is-on", adding);
+      actionEl.disabled = true;
+      const ok = await save({
+        action: "adminUpdateDemoRow",
+        rowNumber,
+        demoId,
+        tutorId,
+        changes: { "Class Days": days }
+      });
+      if (!ok) {
+        actionEl.classList.toggle("is-on", !adding);
+        actionEl.disabled = false;
+      }
+      break;
+    }
+
+    case "record-class-payment": {
+      openPaymentFormForDemo(box.dataset.demo, actionEl.dataset.tutorId);
+      break;
+    }
+
     case "verify": {
       // Accept / Reject a Pending tutor, or Accept / Suspend a Verified
       // one (Suspend has the exact same effect as Reject).
@@ -1887,6 +1936,8 @@ const ROW_LABELS = {
   processing: "Processing", running: "Running", completed: "Completed",
   declined: "Declined", terminated: "Closed"
 };
+
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function groupState(group) {
   const states = group.rows.map(rowState);
@@ -2970,7 +3021,49 @@ function tuitionStack(g) {
     .map(r => tutorRowCard(r, terminated))
     .join("");
 
-  return `<div class="admin-stack${tutorRows.length ? " has-tutors" : ""}">${head}${tutorCards}</div>`;
+  // Once a tutor is actually Running/Completed, the money side of this
+  // Tuition (which days it meets, what's been paid against it) gets its
+  // own card, sat above the Tuition card itself.
+  const classCardHtml = activeRow ? classCard(g, activeRow) : "";
+
+  return `<div class="admin-stack${tutorRows.length ? " has-tutors" : ""}${classCardHtml ? " has-class-card" : ""}">${classCardHtml}${head}${tutorCards}</div>`;
+
+}
+
+// A separate card for the currently Running/Completed class's own
+// schedule and money - which days it meets, and every payment recorded
+// against this Tuition (regardless of which tutor collected it), with a
+// shortcut into recording a new one pre-filled with this Demo/Tutor ID.
+function classCard(g, activeRow) {
+
+  const days = new Set(activeRow.classDays || []);
+
+  const dayChips = WEEKDAYS.map(d => `
+    <button type="button" class="admin-chip admin-day-chip${days.has(d) ? " is-on" : ""}"
+      data-action="toggle-class-day" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}" data-day="${esc(d)}">${esc(d)}</button>
+  `).join("");
+
+  const student = STUDENT_BY_ID[g.first.studentId];
+  const ctx = {
+    studentName: student ? student.values["Student Name"] : g.first.studentId,
+    subject: g.first.subject
+  };
+
+  const demoPayments = (STATE.payments || [])
+    .filter(p => p.demo_id === g.demoId)
+    .sort((a, b) => (b.payment_date || "").localeCompare(a.payment_date || "") || (b.id - a.id));
+
+  return `
+    <article class="admin-card class-card" data-box data-demo="${esc(g.demoId)}">
+
+      <h3 class="admin-section-title">Class Days</h3>
+      <div class="admin-day-chips">${dayChips}</div>
+
+      <h3 class="admin-section-title">Payments for this Class</h3>
+      ${demoPayments.length ? demoPayments.map(p => paymentCard(p, ctx)).join("") : note("No payments recorded yet for this class.")}
+      <button class="admin-ghost admin-wide" data-action="record-class-payment" data-tutor-id="${esc(activeRow.tutorId)}" type="button">+ Record a Payment</button>
+
+    </article>`;
 
 }
 

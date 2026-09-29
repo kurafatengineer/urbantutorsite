@@ -2401,6 +2401,42 @@ body[data-page="admin"] {
 .admin-status-rail[data-tone="scheduled"],
 .admin-status-rail[data-tone="processing"]  { background: var(--violet-dim); color: var(--violet); }
 
+/* Once a class is Running/Completed, this card sits above the Tuition
+   card in the same stack, holding its own schedule (which days it
+   meets) and every payment collected against it. It's a plain
+   .admin-card so the existing first-child/last-child rules above round
+   it exactly like any other top-of-stack card - but that also makes
+   the Tuition card beneath it a middle card now, so its own status
+   rail (keyed by .tuition-card, not by position) needs to go square to
+   match, or it'd round against a corner that's no longer there. */
+.admin-stack.has-class-card .tuition-card .admin-status-rail { border-radius: 0; }
+
+.class-card {
+  background: var(--surface-2);
+}
+
+.admin-day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-day-chip {
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-day-chip.is-on {
+  color: #050505;
+  background: var(--lime);
+  border-color: var(--lime);
+}
+
+.admin-day-chip:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 /* the name-letter avatar on the Tuition / Tutor Applied card also
    follows its own status colour */
 .admin-card[data-tone="new"] .admin-avatar,
