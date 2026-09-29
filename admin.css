@@ -2457,6 +2457,9 @@ body[data-page="admin"] {
 }
 .admin-avatar-link:hover { filter: brightness(1.3); }
 
+/* While a payment is being recorded, the payments list below is hidden. */
+#paymentForm:not(.hidden) ~ #paymentList { display: none; }
+
 /* Class card figures that open a New Payment when tapped. */
 .admin-box input[data-action] { cursor: pointer; }
 .admin-box:has(input[data-action]):hover { filter: brightness(1.2); }
