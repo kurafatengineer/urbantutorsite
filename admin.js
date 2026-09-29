@@ -3137,7 +3137,7 @@ function classCard(g, activeRow) {
 
   const tuitionTermsBoxes = `
     <div class="admin-boxes">
-      ${box("Class Duration", activeRow.classDuration, { editable: editing, attr: cfield("Class Duration") })}
+      ${box("Class Duration (Minutes)", activeRow.classDuration, { editable: editing, type: "number", attr: cfield("Class Duration") })}
       ${box("Per hour Charges (₹)", activeRow.classCharges, { editable: editing, type: "number", attr: cfield("Class Charges") })}
       ${box("Start Date", startDateShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Class Start Date") })}
       ${box("End Date", endDateShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Class End Date") })}
@@ -3150,7 +3150,7 @@ function classCard(g, activeRow) {
   // against this Tuition ID (split by Payment Type - "advance" feeds
   // Advance Payment, "regular"/"final" feed Total Payment, so the two
   // never double-count each other), and Dues is Total Amount less both.
-  const studentTotalAmount = num(activeRow.classDuration) * num(activeRow.classCharges) * num(activeRow.classCount);
+  const studentTotalAmount = (num(activeRow.classDuration) / 60) * num(activeRow.classCharges) * num(activeRow.classCount);
   const demoCollections = (STATE.payments || []).filter(p => p.demo_id === g.demoId && p.transaction_type !== "payout");
   const studentAdvancePaid = demoCollections
     .filter(p => p.payment_type === "advance")
@@ -3185,7 +3185,7 @@ function classCard(g, activeRow) {
         ${box("WhatsApp Number", sv("WhatsApp"))}
         ${box("Payment To", editing ? (activeRow.studentPaymentTo || "Agency") : activeRow.studentPaymentTo, { editable: editing, options: ["Agency", "Tutor"], attr: cfield("Student Payment To") })}
         ${box("Next Due Date", studentNextDueShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Student Next Due Date") })}
-        ${box("Agency Charge (₹)", activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: cfield("Student Agency Charge") })}
+        ${box("Agency Charge (₹)", editing ? (activeRow.studentAgencyCharge || 0) : activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: cfield("Student Agency Charge") })}
         ${box("Payment Frequency", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
         ${box("Advance Payment (₹)", studentAdvancePaid)}
         ${box("Total Amount (₹)", studentTotalAmount)}
@@ -3203,7 +3203,7 @@ function classCard(g, activeRow) {
         ${box("WhatsApp Number", tv("WhatsApp Number"))}
         ${box("Payment From", editing ? (activeRow.tutorPaymentFrom || "Agency") : activeRow.tutorPaymentFrom, { editable: editing, options: ["Agency", "Parents"], attr: cfield("Tutor Payment From") })}
         ${box("Next Payment Date", tutorNextPaymentShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Tutor Next Payment Date") })}
-        ${box("Agency Charges (₹)", activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: cfield("Tutor Agency Charge") })}
+        ${box("Agency Charges (₹)", editing ? (activeRow.tutorAgencyCharge || 0) : activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: cfield("Tutor Agency Charge") })}
         ${box("Payment Frequency", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
         ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, type: "number", attr: cfield("Tutor Advance Payment") })}
         ${box("Total Amount (₹)", activeRow.tutorTotalAmount, { editable: editing, type: "number", attr: cfield("Tutor Total Amount") })}
