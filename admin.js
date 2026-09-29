@@ -85,6 +85,13 @@ function esc(value) {
     .replace(/'/g, "&#039;");
 }
 
+// Strips currency symbols/commas etc. off a display value like "₹1,200"
+// and returns a plain number, or 0 if there's nothing usable in it.
+function num(value) {
+  const n = Number(String(value == null ? "" : value).replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
 async function getAccessToken() {
   try {
     const { data } = await window.sb.auth.getSession();
@@ -1632,6 +1639,26 @@ async function onListClick(event) {
       break;
     }
 
+    case "increment-class-count": {
+      const rowNumber = Number(actionEl.dataset.row);
+      const demoId = box.dataset.demo;
+      const tutorId = actionEl.dataset.tutorId;
+      const row = (STATE.data.demos || []).find(r => r.rowNumber === rowNumber && r.demoId === demoId);
+      const next = (row ? Number(row.classCount) || 0 : 0) + 1;
+      await save({
+        action: "adminUpdateDemoRow",
+        rowNumber,
+        demoId,
+        tutorId,
+        changes: { "Class Count": next }
+      }, actionEl);
+      break;
+    }
+
+    case "save-class-details":
+      await saveClassDetails(box, actionEl);
+      break;
+
     case "verify": {
       // Accept / Reject a Pending tutor, or Accept / Suspend a Verified
       // one (Suspend has the exact same effect as Reject).
@@ -1838,6 +1865,26 @@ async function saveTuition(box, button) {
 
   if (ok) {
     STATE.editing.delete("tuition:" + demoId);
+    rerenderCurrent();
+  }
+
+}
+
+async function saveClassDetails(box, button) {
+
+  const rowNumber = Number(box.dataset.row);
+  const demoId = box.dataset.demo;
+  const tutorId = box.dataset.tutorId;
+  const changes = {};
+
+  box.querySelectorAll("[data-cfield]").forEach(input => {
+    changes[input.dataset.cfield] = input.value.trim();
+  });
+
+  const ok = await save({ action: "adminUpdateDemoRow", rowNumber, demoId, tutorId, changes }, button);
+
+  if (ok) {
+    STATE.editing.delete("class:" + demoId);
     rerenderCurrent();
   }
 
@@ -3031,11 +3078,15 @@ function tuitionStack(g) {
 }
 
 // A separate card for the currently Running/Completed class's own
-// schedule and money - which days it meets, and every payment recorded
-// against this Tuition (regardless of which tutor collected it), with a
-// shortcut into recording a new one pre-filled with this Demo/Tutor ID.
+// schedule and money - which days it meets, its own charges/term dates,
+// the Student's and Tutor's own payment terms (computed Total
+// Payment/Dues, not typed in), their profiles, and every payment
+// recorded against this Tuition, with a shortcut into recording a new
+// one pre-filled with this Demo/Tutor ID.
 function classCard(g, activeRow) {
 
+  const key = "class:" + g.demoId;
+  const editing = STATE.editing.has(key);
   const days = new Set(activeRow.classDays || []);
 
   const dayChips = WEEKDAYS.map(d => `
@@ -3044,6 +3095,78 @@ function classCard(g, activeRow) {
   `).join("");
 
   const student = STUDENT_BY_ID[g.first.studentId];
+  const tutor = TUTOR_BY_ID[activeRow.tutorId];
+  const sv = field => (student && student.values[field]) || "";
+  const tv = field => (tutor && tutor.values[field]) || "";
+
+  const studentKey = "classstudent:" + g.demoId;
+  const studentOpen = STATE.studentOpen.has(studentKey);
+  const tutorKey = "classtutor:" + g.demoId;
+  const tutorOpen = STATE.studentOpen.has(tutorKey);
+
+  const cfield = f => editing ? `data-cfield="${esc(f)}"` : "";
+
+  const tuitionTermsBoxes = `
+    <div class="admin-boxes">
+      ${box("Duration", activeRow.classDuration, { editable: editing, attr: cfield("Class Duration") })}
+      ${box("Charges (₹)", activeRow.classCharges, { editable: editing, type: "number", attr: cfield("Class Charges") })}
+      ${box("Total Amount (₹)", activeRow.classTotalAmount, { editable: editing, type: "number", attr: cfield("Class Total Amount") })}
+      ${box("Start Date", editing ? toDateInput(activeRow.classStartDate) : activeRow.classStartDate, { editable: editing, type: "date", attr: cfield("Class Start Date") })}
+      ${box("End Date", editing ? toDateInput(activeRow.classEndDate) : activeRow.classEndDate, { editable: editing, type: "date", attr: cfield("Class End Date") })}
+    </div>`;
+
+  // Total Payment / Dues are never typed in - they're worked out from
+  // the payments actually recorded below, so they can't drift out of
+  // sync with them the way a hand-entered number could.
+  const totalAmount = num(activeRow.classTotalAmount);
+  const collected = (STATE.payments || [])
+    .filter(p => p.demo_id === g.demoId && p.transaction_type !== "payout")
+    .reduce((sum, p) => sum + num(p.amount), 0);
+  const studentDues = Math.max(totalAmount - collected, 0);
+
+  // Tutor's own share isn't tracked as its own running total yet (payouts
+  // aren't tied to a Demo ID) - Dues here is a first-pass estimate (Total
+  // Amount less the agency's cut and whatever's already been advanced),
+  // not a ledger of payouts actually made against this class.
+  const tutorAgencyCharge = num(activeRow.tutorAgencyCharge);
+  const tutorAdvance = num(activeRow.tutorAdvancePayment);
+  const tutorDues = Math.max(totalAmount - tutorAgencyCharge - tutorAdvance, 0);
+
+  const studentSection = `
+    <h3 class="admin-section-title admin-section-toggle" data-action="toggle-student" data-key="${esc(studentKey)}">
+      Student Profile
+      <span class="admin-caret-mini${studentOpen ? " is-open" : ""}" aria-hidden="true"></span>
+    </h3>
+    ${studentOpen ? (student ? fieldsBoxes("students", student, false) : note(`Student ${g.first.studentId} was not found.`)) : ""}
+    <div class="admin-boxes">
+      ${box("Name", sv("Student Name"))}
+      ${box("Mobile Number", sv("Phone"))}
+      ${box("WhatsApp Number", sv("WhatsApp"))}
+      ${box("Payment To", activeRow.studentPaymentTo, { editable: editing, attr: cfield("Student Payment To") })}
+      ${box("Agency Charge (₹)", activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: cfield("Student Agency Charge") })}
+      ${box("Payment", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
+      ${box("Advance Payment (₹)", activeRow.studentAdvancePayment, { editable: editing, type: "number", attr: cfield("Student Advance Payment") })}
+      ${box("Total Payment (₹)", totalAmount ? collected : "")}
+      ${box("Dues (₹)", totalAmount ? studentDues : "")}
+    </div>`;
+
+  const tutorSection = `
+    <h3 class="admin-section-title admin-section-toggle" data-action="toggle-student" data-key="${esc(tutorKey)}">
+      Tutor Profile
+      <span class="admin-caret-mini${tutorOpen ? " is-open" : ""}" aria-hidden="true"></span>
+    </h3>
+    ${tutorOpen ? (tutor ? fieldsBoxes("tutors", tutor, false) : note(`Tutor ${activeRow.tutorId} was not found.`)) : ""}
+    <div class="admin-boxes">
+      ${box("Tutor Name", tv("Full Name"))}
+      ${box("Mobile Number", tv("Mobile Number"))}
+      ${box("WhatsApp Number", tv("WhatsApp Number"))}
+      ${box("Payment From", activeRow.tutorPaymentFrom, { editable: editing, attr: cfield("Tutor Payment From") })}
+      ${box("Agency Charges (₹)", activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: cfield("Tutor Agency Charge") })}
+      ${box("Payment", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
+      ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, type: "number", attr: cfield("Tutor Advance Payment") })}
+      ${box("Dues (₹)", totalAmount ? tutorDues : "")}
+    </div>`;
+
   const ctx = {
     studentName: student ? student.values["Student Name"] : g.first.studentId,
     subject: g.first.subject
@@ -3054,10 +3177,25 @@ function classCard(g, activeRow) {
     .sort((a, b) => (b.payment_date || "").localeCompare(a.payment_date || "") || (b.id - a.id));
 
   return `
-    <article class="admin-card class-card" data-box data-demo="${esc(g.demoId)}">
+    <article class="admin-card class-card" data-box data-demo="${esc(g.demoId)}" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}">
 
       <h3 class="admin-section-title">Class Days</h3>
       <div class="admin-day-chips">${dayChips}</div>
+
+      <h3 class="admin-section-title">Tuition ID: ${esc(g.demoId)}</h3>
+      ${tuitionTermsBoxes}
+      <div class="admin-class-count">
+        <span>Number of Classes: <strong>${esc(activeRow.classCount || 0)}</strong></span>
+        <button class="admin-ghost" data-action="increment-class-count" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}" type="button">+1 Class</button>
+      </div>
+
+      <h3 class="admin-section-title">Student</h3>
+      ${studentSection}
+
+      <h3 class="admin-section-title">Tutor</h3>
+      ${tutorSection}
+
+      ${editButtons(key, editing, "save-class-details", "Edit Class Details")}
 
       <h3 class="admin-section-title">Payments for this Class</h3>
       ${demoPayments.length ? demoPayments.map(p => paymentCard(p, ctx)).join("") : note("No payments recorded yet for this class.")}

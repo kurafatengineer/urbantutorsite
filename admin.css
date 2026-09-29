@@ -2437,6 +2437,23 @@ body[data-page="admin"] {
   cursor: default;
 }
 
+.admin-class-count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-class-count strong {
+  color: var(--text);
+}
+
 /* the name-letter avatar on the Tuition / Tutor Applied card also
    follows its own status colour */
 .admin-card[data-tone="new"] .admin-avatar,
