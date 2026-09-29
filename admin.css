@@ -2548,22 +2548,16 @@ body[data-page="admin"] {
    "AGENCY CHARGE") so every row is the same height. */
 .ledger-card .admin-card-head { min-height: 66px; }
 
-/* The header card is kept as short as it can be: tight padding, its
-   "Status"/"Type" labels written across instead of down (so they don't
-   need a tall row), and no + space height - same widths throughout, so
-   the columns still line up with the rows below. */
-.ledger-card.ledger-header { padding-top: 6px; padding-bottom: 6px; border-radius: 0; }
+/* The header card is kept as short as it can be: tight padding, just
+   tall enough for its vertical "Status"/"Type" labels (same size as the
+   rows' rails), and no + space height - same widths throughout, so the
+   columns still line up with the rows below. */
+.ledger-card.ledger-header { padding-top: 6px; padding-bottom: 6px; }
 .ledger-header .admin-card-head { min-height: 0; }
 .ledger-header .ledger-cell { padding-top: 2px; padding-bottom: 2px; white-space: nowrap; }
-.ledger-header .admin-status-rail {
-  writing-mode: horizontal-tb;
-  transform: none;
-  font-size: 8px;
-  letter-spacing: 0;
-  padding: 0;
-}
-.ledger-header .ledger-status-rail { margin: -6px 0 -6px -16px; border-radius: 0; }
-.ledger-header .ledger-purpose-rail { margin: -6px 4px -6px -12px; border-right: 0; border-left: 1px solid var(--border); }
+.ledger-header .admin-status-rail { padding: 0; }
+.ledger-header .ledger-status-rail { margin: -6px 0 -6px -16px; }
+.ledger-header .ledger-purpose-rail { margin: -6px 4px -6px -12px; }
 .ledger-header .ledger-record-space { height: 0; }
 
 /* Class card figures that open a New Payment when tapped. */
