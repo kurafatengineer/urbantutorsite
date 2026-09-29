@@ -850,8 +850,8 @@ function updatePaymentRemaining() {
   updateNextPaymentDate();
 }
 
-// An Agency Charge payment that doesn't clear the dues asks when the
-// rest is due.
+// An Agency Charge payment that doesn't clear the dues highlights Next
+// Payment Date (always shown, left blank) as a nudge to set a follow-up.
 function agencyChargeLeftAfterPayment() {
   const mode = $("paymentTransactionType").value;
   if (mode !== "student-agency-charge" && mode !== "tutor-agency-charge") return 0;
@@ -860,7 +860,7 @@ function agencyChargeLeftAfterPayment() {
 }
 
 function updateNextPaymentDate() {
-  $("paymentNextDateField").classList.toggle("hidden", !(agencyChargeLeftAfterPayment() > 0));
+  $("paymentNextDateField").classList.toggle("needs-reminder", agencyChargeLeftAfterPayment() > 0);
 }
 
 // The subscription's current billing cycle "starts" from whichever
@@ -1135,11 +1135,7 @@ function wirePaymentForm() {
       }
     }
 
-    const nextPaymentDate = isAgencyCharge && agencyChargeLeftAfterPayment() > 0 ? $("paymentNextDate").value : "";
-    if (isAgencyCharge && agencyChargeLeftAfterPayment() > 0 && !nextPaymentDate) {
-      toast("This doesn't clear the dues - pick the Next Payment Date.", true);
-      return;
-    }
+    const nextPaymentDate = isAgencyCharge ? $("paymentNextDate").value : "";
 
     const payload = {
       action: "adminAddPayment",

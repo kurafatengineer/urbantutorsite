@@ -704,12 +704,20 @@ button { cursor: pointer; }
 }
 
 .admin-form-row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-/* Agency Charge form's last row: Notes | Remaining | Next Payment Date
-   (that last one shown only when the payment doesn't clear the dues -
-   Notes widens to fill its place otherwise). */
+/* Agency Charge form's last row: Notes | Remaining | Next Payment Date,
+   Notes kept to the same single-line pill as the other two. */
 .admin-form-row-notes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.admin-form-row-notes:has(> .hidden) { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .admin-form-row-notes > .admin-float.wide { grid-column: auto; }
+#agencySlotNotes input { height: 52px; }
+#agencySlotNotes textarea {
+  height: 52px;
+  min-height: 52px;
+  padding: 15px 20px 13px;
+  border-radius: 999px;
+  resize: none;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
 /* The Student's own Mobile/Name sit beside Demo ID on this row. */
 #agencySlotDemo .admin-id-detail { display: none; }
 .admin-form-row-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -1578,6 +1586,7 @@ button { cursor: pointer; }
    can't auto-set it - the admin should pick a follow-up date) ---------- */
 
 #paymentSubNextDueField.needs-reminder input,
+#paymentNextDateField.needs-reminder input,
 .admin-box:has(input[data-reminder]) input {
   border-color: var(--orange);
   background: var(--warn-dim);
@@ -1585,6 +1594,7 @@ button { cursor: pointer; }
 }
 
 #paymentSubNextDueField.needs-reminder > span,
+#paymentNextDateField.needs-reminder > span,
 .admin-box:has(input[data-reminder]) > span {
   color: var(--orange);
 }
