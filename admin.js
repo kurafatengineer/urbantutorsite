@@ -3113,7 +3113,11 @@ function agencyChargePaymentCard(p, key, open, editing, buttons) {
       ${box("Paying Now (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: editing ? "number" : "text", attr: editing ? `data-pfield="amount"` : "" })}
       ${box("Notes", p.notes || "", { editable: editing, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
       ${box("Remaining (₹)", rupees(Math.max(duesThen - paying, 0)))}
-      ${(p.next_payment_date || editing) ? box("Next Payment Date", editing ? (p.next_payment_date || "") : formatDate(p.next_payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="nextPaymentDate"` : "" }) : ""}
+      ${box("Next Payment Date", editing ? (p.next_payment_date || "") : formatDate(p.next_payment_date), {
+        editable: editing,
+        type: editing ? "date" : "text",
+        attr: (editing ? `data-pfield="nextPaymentDate"` : "") + (duesThen - paying > 0 ? ` data-reminder="1"` : "")
+      })}
     </div>`;
 
   return `
