@@ -720,35 +720,57 @@ const PAYMENT_AMOUNT_FIELD_IDS = [
   "paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField", "paymentRemainingField"
 ];
 
-// Agency Charge, Collection and Payout payments get their own grouped
-// layout of rows of 3 (see GROUPED_ROWS) - Subscription keeps the plain
-// field order it always had. Rather than a second copy of these fields
-// (ids must be unique), the same DOM nodes are physically relocated into
-// the row containers for a grouped mode and moved back to their original
-// spot otherwise.
+// Every transaction type is laid out in rows of 3 (see PAYMENT_LAYOUT).
+// Rather than a second copy of these fields (ids must be unique), the
+// same DOM nodes are physically relocated into the row containers for
+// the picked mode, after first going back to their original spot.
 //
-// listed in true original document order, since restoring depends on
+// Listed in true original document order, since restoring depends on
 // each field's original *next sibling* still being a valid anchor -
 // walking that chain back-to-front (see layoutGroupedFields)
 // guarantees every field lands back exactly where it started, even
 // though the fields it's chained to may themselves still be mid-move.
 const AGENCY_LAYOUT_DOC_ORDER = [
   "paymentTransactionTypeField",
+  "paymentSubPartyIdField",
   "paymentSubNameField", "paymentSubMobileField", "paymentSubIdField",
+  "paymentSubPlanField", "paymentSubCycleField", "paymentSubStatusField",
+  "paymentSubStartDateField", "paymentSubNextDueField",
   "paymentDemoIdField", "paymentTutorIdField",
   "paymentDateField", "paymentModeField",
   "paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField", "paymentRemainingField",
   "paymentNotesField"
 ];
 
-// Row order per grouped mode, top to bottom.
-const GROUPED_ROWS = {
-  "student-agency-charge": ["agencySlotTop", "agencySlotDemo", "agencySlotParty", "agencySlotAmount", "agencySlotNotes"],
-  "tutor-agency-charge":   ["agencySlotTop", "agencySlotDemo", "agencySlotParty", "agencySlotAmount", "agencySlotNotes"],
-  "collection":            ["agencySlotTop", "agencySlotDemo", "slotStudent", "slotTutor", "agencySlotAmount", "agencySlotNotes"],
-  "payout":                ["agencySlotTop", "slotTutor", "agencySlotDemo", "slotStudent", "agencySlotAmount", "agencySlotNotes"]
+const ROW_TOP = ["agencySlotTop", ["paymentTransactionTypeField", "paymentModeField", "paymentDateField"]];
+const ROW_DEMO = ["agencySlotDemo", ["paymentDemoIdField", "paymentStudentMobileField", "paymentStudentNameField"]];
+const ROW_STUDENT = ["slotStudent", ["paymentStuIdField", "paymentStuWhatsappField", "paymentParentNameField"]];
+const ROW_TUTOR = ["slotTutor", ["paymentTutorIdField", "paymentTutorMobileField", "paymentTutorNameField"]];
+const ROW_PARTY = ["agencySlotParty", ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"]];
+const ROW_AMOUNT = ["agencySlotAmount", ["paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField"]];
+const ROW_NOTES = ["agencySlotNotes", ["paymentNotesField", "paymentRemainingField", "paymentNextDateField"]];
+const ROW_SUB_SEARCH = ["slotSubSearch", ["paymentSubPartyIdField"]];
+const ROW_SUB_PLAN = ["slotSubPlan", ["paymentSubPlanField", "paymentSubCycleField", "paymentSubStatusField"]];
+const ROW_SUB_NOTES = ["slotSubNotes", ["paymentNotesField", "paymentSubStartDateField", "paymentSubNextDueField"]];
+
+// Rows per transaction type, top to bottom: [row container, its fields].
+const SUBSCRIPTION_ROWS = [ROW_TOP, ROW_SUB_SEARCH, ROW_PARTY, ROW_SUB_PLAN, ROW_AMOUNT, ROW_SUB_NOTES];
+const AGENCY_ROWS = [ROW_TOP, ROW_DEMO, ROW_PARTY, ROW_AMOUNT, ROW_NOTES];
+const PAYMENT_LAYOUT = {
+  "student-subscription": SUBSCRIPTION_ROWS,
+  "tutor-subscription": SUBSCRIPTION_ROWS,
+  "student-agency-charge": AGENCY_ROWS,
+  "tutor-agency-charge": AGENCY_ROWS,
+  "collection": [ROW_TOP, ROW_DEMO, ROW_STUDENT, ROW_TUTOR, ROW_AMOUNT, ROW_NOTES],
+  "payout": [ROW_TOP, ROW_TUTOR, ROW_DEMO, ROW_STUDENT, ROW_AMOUNT, ROW_NOTES]
 };
-const GROUPED_SLOT_IDS = ["agencySlotTop", "agencySlotDemo", "slotStudent", "slotTutor", "agencySlotParty", "agencySlotAmount", "agencySlotNotes"];
+const PAYMENT_ROW_IDS = [ROW_TOP, ROW_DEMO, ROW_STUDENT, ROW_TUTOR, ROW_PARTY, ROW_AMOUNT, ROW_NOTES, ROW_SUB_SEARCH, ROW_SUB_PLAN, ROW_SUB_NOTES]
+  .map(([id]) => id);
+
+// The types that end in Notes | Remaining | Next Payment Date.
+function usesNextPaymentDate(mode) {
+  return (PAYMENT_LAYOUT[mode] || []).includes(ROW_NOTES);
+}
 
 let agencyLayoutOriginalPos = null;
 
@@ -762,42 +784,21 @@ function layoutGroupedFields(mode) {
     });
   }
 
-  const rows = GROUPED_ROWS[mode];
-  const topSlot = $("agencySlotTop"), demoSlot = $("agencySlotDemo"), partySlot = $("agencySlotParty"),
-    amountSlot = $("agencySlotAmount"), notesSlot = $("agencySlotNotes"), tutorSlot = $("slotTutor");
+  // Everything back to where it started first (reverse document order:
+  // each field is reinserted right before its own original next-sibling,
+  // so one chained to a later field still lands right once that later
+  // field's own restore has run), then into this mode's rows.
+  [...AGENCY_LAYOUT_DOC_ORDER].reverse().forEach(id => {
+    const pos = agencyLayoutOriginalPos.get(id);
+    pos.parent.insertBefore($(id), pos.next);
+  });
 
-  if (rows) {
-    ["paymentTransactionTypeField", "paymentModeField", "paymentDateField"].forEach(id => topSlot.appendChild($(id)));
-    // Demo ID leads the Student's own Mobile/Name (always in that slot).
-    demoSlot.insertBefore($("paymentDemoIdField"), demoSlot.firstChild);
-    if (rows.includes("agencySlotParty")) {
-      ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"].forEach(id => partySlot.appendChild($(id)));
-    } else {
-      [...AGENCY_LAYOUT_DOC_ORDER].reverse()
-        .filter(id => ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"].includes(id))
-        .forEach(id => { const pos = agencyLayoutOriginalPos.get(id); pos.parent.insertBefore($(id), pos.next); });
-    }
-    // Tutor ID leads the Tutor's own Mobile/Name (always in that slot).
-    if (rows.includes("slotTutor")) tutorSlot.insertBefore($("paymentTutorIdField"), tutorSlot.firstChild);
-    ["paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField"].forEach(id => amountSlot.appendChild($(id)));
-    // Notes | Remaining | Next Payment Date (that one lives in the slot).
-    ["paymentNotesField", "paymentRemainingField"].forEach(id => notesSlot.insertBefore($(id), $("paymentNextDateField")));
-  } else {
-    // Reverse document order: each field is reinserted right before its
-    // own original next-sibling, so a field chained to another moved
-    // field (not yet restored) still ends up in the right place once
-    // that later field's own restore runs first.
-    [...AGENCY_LAYOUT_DOC_ORDER].reverse().forEach(id => {
-      const pos = agencyLayoutOriginalPos.get(id);
-      pos.parent.insertBefore($(id), pos.next);
-    });
-  }
+  const rows = PAYMENT_LAYOUT[mode] || [];
+  rows.forEach(([slotId, fieldIds]) => fieldIds.forEach(id => $(slotId).appendChild($(id))));
 
-  GROUPED_SLOT_IDS.forEach(id => $(id).classList.toggle("hidden", !(rows && rows.includes(id))));
-  if (rows) {
-    let prev = $(rows[0]);
-    rows.slice(1).forEach(id => { prev.after($(id)); prev = $(id); });
-  }
+  const shown = rows.map(([id]) => id);
+  PAYMENT_ROW_IDS.forEach(id => $(id).classList.toggle("hidden", !shown.includes(id)));
+  shown.slice(1).reduce((prev, id) => { prev.after($(id)); return $(id); }, $(shown[0] || PAYMENT_ROW_IDS[0]));
 
 }
 
@@ -829,10 +830,14 @@ function applyPaymentTransactionType() {
   // in from the Demo ID, not typed.
   $("paymentTutorId").readOnly = isCollection;
 
-  $("paymentReceivedByField").classList.toggle("hidden", !isSub);
+  // Received By is still sent (it's pre-filled with the admin's name),
+  // just no longer shown.
+  $("paymentReceivedByField").classList.add("hidden");
   PAYMENT_SUB_ONLY_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub));
   PAYMENT_PARTY_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isAgencyCharge));
   PAYMENT_AMOUNT_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isGrouped));
+  // A Subscription's last row is Notes | Start Date | Next Due Date.
+  if (isSub) $("paymentRemainingField").classList.add("hidden");
 
   // The search box only shows in subscription mode, and only until a
   // party has actually been resolved (typed/picked, or pre-filled by
@@ -877,7 +882,7 @@ function updatePaymentRemaining() {
 // doesn't clear the dues highlights Next Payment Date (always shown,
 // left blank) as a nudge to set a follow-up.
 function agencyChargeLeftAfterPayment() {
-  if (!GROUPED_ROWS[$("paymentTransactionType").value]) return 0;
+  if (!usesNextPaymentDate($("paymentTransactionType").value)) return 0;
   const dues = Number(String($("paymentSubDues").value).replace(/[^\d.-]/g, "")) || 0;
   return Math.max(dues - (Number($("paymentPayingNow").value) || 0), 0);
 }
@@ -1197,7 +1202,7 @@ function wirePaymentForm() {
       return;
     }
 
-    const isGrouped = !!GROUPED_ROWS[mode];
+    const isGrouped = usesNextPaymentDate(mode);
     const usesPayingNow = isSub || isGrouped;
     const enteredAmount = Number(usesPayingNow ? $("paymentPayingNow").value : $("paymentAmount").value);
     if (!(enteredAmount > 0)) {
@@ -3145,25 +3150,24 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
   const startDate = sub.start_date || "";
   const nextDue = subscriptionNextDue(sub);
 
+  // Same rows, in the same order, as the Subscription entry form.
   const boxes = `
-    <div class="admin-boxes">
-      ${box("Transaction", isStudent ? "Student Subscription" : "Tutor Subscription")}
-      ${box("Name", partyName)}
-      ${box("Mobile Number", partyMobile)}
+    <div class="admin-boxes admin-boxes-3">
+      ${box("Transaction", isStudent ? "Subscription (Student)" : "Subscription (Tutor)")}
+      ${box("Payment Mode", p.payment_mode, { editable: editing, options: ["Online", "Offline"], attr: editing ? `data-pfield="paymentMode"` : "" })}
+      ${box("Payment Date", editing ? p.payment_date : formatDate(p.payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" })}
       ${box(isStudent ? "Student ID" : "Tutor ID", partyId)}
+      ${box("Mobile Number", partyMobile)}
+      ${box("Name", partyName)}
       ${box("Plan Name", sub.plan_name || "")}
       ${box("Billing Cycle", sub.billing_cycle || "")}
       ${box("Status", SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status || "")}
-      ${box("Start Date", formatDate(startDate))}
-      ${box("Next Due Date", formatDate(nextDue))}
-      ${box("Payment Date", editing ? p.payment_date : formatDate(p.payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" })}
-      ${box("Payment Mode", p.payment_mode, { editable: editing, options: ["Online", "Offline"], attr: editing ? `data-pfield="paymentMode"` : "" })}
-      ${box("Received By", p.received_by || "", { editable: editing, attr: editing ? `data-pfield="receivedBy"` : "" })}
       ${box("Amount (₹)", rupees(planAmount))}
       ${box("Dues (₹)", rupees(duesThen))}
-      ${box("Amount Paid (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: editing ? "number" : "text", attr: editing ? `data-pfield="amount"` : "" })}
-      ${box("Remaining (₹)", rupees(remaining))}
-      ${box("Notes", p.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
+      ${box("Paying Now (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: editing ? "number" : "text", attr: editing ? `data-pfield="amount"` : "" })}
+      ${box("Notes", p.notes || "", { editable: editing, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
+      ${box("Start Date", formatDate(startDate))}
+      ${box("Next Due Date", formatDate(nextDue), { attr: remaining > 0 ? `data-reminder="1"` : "" })}
     </div>`;
 
   return `

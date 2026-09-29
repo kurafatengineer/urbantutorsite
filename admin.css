@@ -704,12 +704,17 @@ button { cursor: pointer; }
 }
 
 .admin-form-row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* A row whose fields are all hidden takes no space. */
+.admin-form-row:not(:has(> :not(.hidden))) { display: none; }
+
 /* Agency Charge form's last row: Notes | Remaining | Next Payment Date,
    Notes kept to the same single-line pill as the other two. */
 .admin-form-row-notes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .admin-form-row-notes > .admin-float.wide { grid-column: auto; }
-#agencySlotNotes input { height: 52px; }
-#agencySlotNotes textarea {
+#agencySlotNotes input,
+#slotSubNotes input { height: 52px; }
+#agencySlotNotes textarea,
+#slotSubNotes textarea {
   height: 52px;
   min-height: 52px;
   padding: 15px 20px 13px;
