@@ -2255,9 +2255,9 @@ body[data-page="admin"] {
 
 
 /* =========================================================
-   SUBSCRIPTION PAY-STATUS BADGE - a small verified-style seal
-   (two rounded squares overlapped 45deg, plus a checkmark) on the
-   avatar circle, coloured by how much of the student's / tutor's
+   SUBSCRIPTION PAY-STATUS BADGE - the classic scalloped verified seal
+   (its checkmark is cut out of the seal itself, not drawn on top) on
+   the avatar circle, coloured by how much of the student's / tutor's
    current subscription has been paid.
 ========================================================= */
 
@@ -2267,22 +2267,26 @@ body[data-page="admin"] {
 
 .admin-sub-badge {
   position: absolute;
-  right: -4px;
-  bottom: -4px;
-  width: 18px;
-  height: 18px;
+  right: -3px;
+  bottom: -3px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  /* a solid backing behind the seal, so the cut-out checkmark reads as
+     a clean neutral hole no matter what colour the avatar behind it is */
+  background: var(--card-bg, var(--surface));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   color: var(--muted-2);
-  filter: drop-shadow(0 0 1.5px var(--card-bg, var(--surface)));
 }
 
 .admin-sub-badge svg {
   display: block;
   width: 100%;
   height: 100%;
-  overflow: visible;
+  padding: 1.5px;
 }
 
-.admin-sub-badge svg rect { fill: currentColor; }
+.admin-sub-badge svg path { fill: currentColor; }
 
 .admin-sub-badge[data-tone="paid"]    { color: var(--lime); }
 .admin-sub-badge[data-tone="partial"] { color: var(--orange); }
