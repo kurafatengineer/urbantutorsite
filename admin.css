@@ -2289,7 +2289,7 @@ body[data-page="admin"] {
   position: absolute;
   left: 0;
   right: 0;
-  top: 50%;
+  top: calc(50% - 0.5px);
   height: 2px;
   background: var(--surface-2);
   z-index: -1;
