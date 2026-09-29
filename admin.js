@@ -1704,7 +1704,7 @@ function goToTuition(demoId, highlight) {
 // then wave-highlighted and scrolled into view, left collapsed.
 function goToCard(tab, key) {
 
-  const searchId = { subscriptions: "subscriptionSearch", tutors: "tutorSearch" }[tab];
+  const searchId = { subscriptions: "subscriptionSearch", tutors: "tutorSearch", students: "studentSearch" }[tab];
 
   collapseAll();
   STATE.tab = tab;
@@ -2597,6 +2597,16 @@ function subscriptionFor(partyType, partyId) {
 // subscription at all. Only visible to roles that can see Payments/
 // Subscriptions, since STATE.subscriptions/STATE.payments are empty
 // otherwise.
+// A Tuition's student/tutor initials circle, which opens (and wave-
+// highlights) that person's own card on the Students/Tutors tab - a
+// plain circle when there's no such card to go to.
+function profileAvatar(kind, id, letters, badgeHtml) {
+  const exists = id && (kind === "students" ? STUDENT_BY_ID : TUTOR_BY_ID)[id];
+  return exists
+    ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="go-to-card" data-tab="${kind}" data-key="${esc(kind + ":" + id)}" title="Open profile">${esc(letters)}${badgeHtml}</button>`
+    : `<div class="admin-avatar">${esc(letters)}${badgeHtml}</div>`;
+}
+
 function subscriptionPayBadge(partyType, partyId) {
 
   const sub = subscriptionFor(partyType, partyId);
@@ -2679,8 +2689,34 @@ function recordCard(kind, record, opts) {
    now visible and removable one word at a time instead of hidden
    inside a single line of text. */
 
-function haystackOfRecord(record) {
-  return record ? Object.values(record.values || {}).join(" ") : "";
+// Everything a card shows - its own text, every box's value (boxes are
+// inputs, so their values aren't part of the text), and the picked
+// option of any dropdown - so a search matches whatever is on the card,
+// wherever on it, collapsed or not.
+function cardSearchText(el) {
+  const parts = [el.textContent];
+  el.querySelectorAll("input, textarea").forEach(i => {
+    if (!["hidden", "radio", "checkbox"].includes(i.type)) parts.push(i.value);
+  });
+  el.querySelectorAll("select").forEach(sel => {
+    const opt = sel.options[sel.selectedIndex];
+    if (opt) parts.push(opt.text);
+  });
+  return parts.join(" ");
+}
+
+// Hides every card in the list that doesn't match that tab's search.
+function applyTextSearch(listId, searchId, noMatchText) {
+  const list = $(listId);
+  const query = searchQueryFor(searchId);
+  const items = [...list.children].filter(c => !c.classList.contains("admin-empty"));
+  let shown = 0;
+  items.forEach(c => {
+    const ok = matchesAll(query, cardSearchText(c));
+    c.classList.toggle("hidden", !ok);
+    if (ok) shown++;
+  });
+  if (items.length && !shown) list.insertAdjacentHTML("beforeend", empty(noMatchText));
 }
 
 function matchesAll(query, text) {
@@ -2786,7 +2822,6 @@ function renderTutors() {
 
   const rows = STATE.data.tutors.rows
     .filter(r => STATE.tutorFilter === "all" || statusGroup(r.values["Verification Status"]) === STATE.tutorFilter)
-    .filter(r => matchesAll(searchQueryFor("tutorSearch"), haystackOfRecord(r)))
     .slice()
     .sort((a, b) => {
       const order = { pending: 0, rejected: 1, verified: 2 };
@@ -2821,6 +2856,8 @@ function renderTutors() {
     });
   }).join("") : empty("No tutors match.");
 
+  applyTextSearch("tutorList", "tutorSearch", "No tutors match.");
+
 }
 
 
@@ -2830,11 +2867,7 @@ function renderStudents() {
 
   const groups = demoGroups();
 
-  const rows = STATE.data.students.rows
-    .filter(r => matchesAll(searchQueryFor("studentSearch"),
-      haystackOfRecord(r) + " " + groups.filter(g => g.first.studentId === r.id).map(g => g.demoId + " " + g.first.subject).join(" ")))
-    .slice()
-    .reverse();
+  const rows = STATE.data.students.rows.slice().reverse();
 
   $("studentList").innerHTML = rows.length ? rows.map(r => {
 
@@ -2866,6 +2899,8 @@ function renderStudents() {
 
   }).join("") : empty("No students match.");
 
+  applyTextSearch("studentList", "studentSearch", "No students match.");
+
 }
 
 
@@ -2886,22 +2921,13 @@ function renderPayments() {
     };
   });
 
-  const query = searchQueryFor("paymentSearch");
-
-  const rows = (STATE.payments || []).filter(p => {
-    const sub = p.subscription_id ? (STATE.subscriptions || []).find(s => s.id === p.subscription_id) : null;
-    const subId = sub ? (sub.student_id || sub.tutor_id) : "";
-    const subParty = subId ? (sub.student_id ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID)[subId] : null;
-    return matchesAll(query, [
-      p.demo_id, p.tutor_id, p.payment_mode, p.notes, subId,
-      subParty && subParty.name, subParty && subParty.mobile,
-      context[p.demo_id] && context[p.demo_id].studentName
-    ].join(" "));
-  });
+  const rows = STATE.payments || [];
 
   $("paymentList").innerHTML = rows.length
     ? rows.map(p => paymentCard(p, context[p.demo_id] || {})).join("")
     : empty("No payments recorded yet.");
+
+  applyTextSearch("paymentList", "paymentSearch", "No payments match.");
 
 }
 
@@ -3277,21 +3303,13 @@ function renderSubscriptions() {
 
   if (!$("subscriptionList")) return;
 
-  const query = searchQueryFor("subscriptionSearch");
-
-  const rows = (STATE.subscriptions || []).filter(sub => {
-    const student = sub.student_id ? STUDENT_BY_ID[sub.student_id] : null;
-    const tutor = sub.tutor_id ? TUTOR_BY_ID[sub.tutor_id] : null;
-    return matchesAll(query, [
-      sub.plan_name, sub.student_id, sub.tutor_id,
-      student && student.values["Student Name"],
-      tutor && tutor.values["Full Name"]
-    ].join(" "));
-  });
+  const rows = STATE.subscriptions || [];
 
   $("subscriptionList").innerHTML = rows.length
     ? rows.map(subscriptionCard).join("")
     : empty("No subscriptions yet.");
+
+  applyTextSearch("subscriptionList", "subscriptionSearch", "No subscriptions match.");
 
 }
 
@@ -3449,21 +3467,9 @@ function employeeCard(e) {
 
 function renderTuitions() {
 
-  const query = searchQueryFor("tuitionSearch");
   const filter = STATE.tuitionFilter;
 
   const list = demoGroups().filter(g => {
-
-    const student = STUDENT_BY_ID[g.first.studentId];
-
-    const text = [
-      g.demoId, g.first.subject, g.first.medium, g.first.preferredTutor, g.first.preferredTiming,
-      GROUP_LABELS[groupState(g)],
-      haystackOfRecord(student),
-      ...g.rows.map(r => haystackOfRecord(TUTOR_BY_MOBILE[r.mobileKey]) + " " + (r.mobile || ""))
-    ].join(" ");
-
-    if (!matchesAll(query, text)) return false;
 
     if (filter === "today") {
       return g.rows.some(r => {
@@ -3477,6 +3483,8 @@ function renderTuitions() {
   }).reverse();
 
   $("tuitionList").innerHTML = list.length ? list.map(tuitionStack).join("") : empty("No tuitions match.");
+
+  applyTextSearch("tuitionList", "tuitionSearch", "No tuitions match.");
 
 }
 
@@ -3582,7 +3590,7 @@ function tuitionStack(g) {
     <article class="admin-card tuition-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-box data-tone="${esc(railTone)}" data-demo="${esc(g.demoId)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar">${esc(initials(studentName, "S"))}${subscriptionPayBadge("student", f.studentId)}</div>
+        ${profileAvatar("students", f.studentId, initials(studentName, "S"), subscriptionPayBadge("student", f.studentId))}
         <div class="admin-card-title">${titleHtml}</div>
         <span class="admin-caret" aria-hidden="true"></span>
         <button type="button" class="admin-status-rail" data-tone="${railTone}"${canQuickOpen ? ` data-action="quick-open"` : ` tabindex="-1"`}>${esc(TUITION_RAIL_LABELS[railTone])}</button>
@@ -3890,7 +3898,7 @@ function tutorRowCard(row, terminated) {
       data-box data-row="${row.rowNumber}" data-demo="${esc(row.demoId)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar">${esc(initials(name, "T"))}${subscriptionPayBadge("tutor", tutor ? tutor.id : "")}</div>
+        ${profileAvatar("tutors", tutor ? tutor.id : "", initials(name, "T"), subscriptionPayBadge("tutor", tutor ? tutor.id : ""))}
         <div class="admin-card-title">
           ${highlight(
             [name, tv("WhatsApp Number"), tv("Mobile Number"), tutor ? tutor.id : row.mobile, tv("Subject You Teach")],
