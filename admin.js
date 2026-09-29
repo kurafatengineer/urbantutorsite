@@ -250,6 +250,13 @@ let DIR_DEMO_BY_ID = {};
 let DIR_STUDENT_BY_ID = {};
 let DIR_TUTOR_BY_ID = {};
 
+// Payment IDs already shown stacked under one of the Payments tab's own
+// status cards (Payment by Student/Parent, Payment to Tutor, Student/
+// Tutor Agency Charges) - rebuilt on every renderTuitionPaymentStatus(),
+// then used by renderPayments() to keep the same payment from also
+// floating loose in the flat list below.
+let STACKED_PAYMENT_IDS = new Set();
+
 function indexData() {
 
   TUTOR_BY_MOBILE = {};
@@ -2701,10 +2708,34 @@ function tuitionPaymentStatusCards(g, activeRow) {
   const tutor = TUTOR_BY_ID[activeRow.tutorId];
   const studentName = student ? student.values["Student Name"] : g.first.studentId;
   const tutorName = tutor ? tutor.values["Full Name"] : activeRow.tutorId;
+  const studentMobile = student ? (student.values["Phone"] || student.values["WhatsApp"]) : "";
+  const tutorMobile = tutor ? (tutor.values["Mobile Number"] || tutor.values["WhatsApp Number"]) : "";
 
+  // Top layer for every one of these 4 cards: the relevant party's own
+  // Name/Mobile/Demo ID on the left, a plain label naming the card
+  // pushed to the right - no bottom line, nothing else.
+  const partyCardTitleHtml = (partyName, partyMobile, tone, rightLabel) => `
+    <div class="admin-hl">
+      <div class="admin-hl-top admin-hl-top-split" data-tone="${esc(tone)}">
+        ${infoLine([partyName, partyMobile, g.demoId])}
+        <span class="admin-hl-top-right">${esc(rightLabel)}</span>
+      </div>
+    </div>`;
+
+  // Stacks each payment record actually made under the status card it
+  // was made against - same joined-card look as a Tuition and its
+  // Tutor rows - and tracks it in STACKED_PAYMENT_IDS so the flat
+  // payments list below doesn't also show it loose.
+  const stack = (cardHtml, payments) => {
+    payments.forEach(p => STACKED_PAYMENT_IDS.add(p.id));
+    const paymentsHtml = payments.map(p => paymentCard(p, {})).join("");
+    return `<div class="admin-stack${paymentsHtml ? " has-tutors" : ""}">${cardHtml}${paymentsHtml}</div>`;
+  };
+
+  const studentTone = m.studentDues > 0 ? "schedule" : "running";
   const studentCard = statusCard(
     "paystatus:student:" + g.demoId,
-    m.studentDues > 0 ? "schedule" : "running",
+    studentTone,
     [g.demoId, "Payment by Student/Parent"], `${studentName} · ${g.first.subject}`,
     box("Tuition Fee", m.studentDues > 0 ? "Dues" : "Received", { wide: true }) +
     box("Total Amount (₹)", m.studentTotalAmount) +
@@ -2713,12 +2744,16 @@ function tuitionPaymentStatusCards(g, activeRow) {
     box("Dues (₹)", m.studentDues) +
     box("Payment To", activeRow.studentPaymentTo) +
     box("Next Due Date", activeRow.studentNextDueDate),
-    m.studentDues > 0 ? "Dues" : "Received"
+    m.studentDues > 0 ? "Dues" : "Received",
+    "",
+    undefined,
+    partyCardTitleHtml(studentName, studentMobile, studentTone, "Student Payments")
   );
 
+  const tutorTone = m.tutorDues > 0 ? "schedule" : "running";
   const tutorCard = statusCard(
     "paystatus:tutor:" + g.demoId,
-    m.tutorDues > 0 ? "schedule" : "running",
+    tutorTone,
     [g.demoId, "Payment to Tutor"], `${tutorName} · ${g.first.subject}`,
     box("Tutor Fee", m.tutorDues > 0 ? "Due" : "Paid", { wide: true }) +
     box("Total Amount (₹)", m.tutorTotalAmount) +
@@ -2727,21 +2762,11 @@ function tuitionPaymentStatusCards(g, activeRow) {
     box("Dues (₹)", m.tutorDues) +
     box("Payment From", activeRow.tutorPaymentFrom) +
     box("Next Payment Date", activeRow.tutorNextPaymentDate),
-    m.tutorDues > 0 ? "Due" : "Paid"
+    m.tutorDues > 0 ? "Due" : "Paid",
+    "",
+    undefined,
+    partyCardTitleHtml(tutorName, tutorMobile, tutorTone, "Tutor Payments")
   );
-
-  const studentMobile = student ? (student.values["Phone"] || student.values["WhatsApp"]) : "";
-  const tutorMobile = tutor ? (tutor.values["Mobile Number"] || tutor.values["WhatsApp Number"]) : "";
-
-  // Top layer: the paying party's own Name/Mobile/Demo ID on the left,
-  // "Agency Charges" pushed to the right - no bottom line, nothing else.
-  const agencyCardTitleHtml = (partyName, partyMobile, tone) => `
-    <div class="admin-hl">
-      <div class="admin-hl-top admin-hl-top-split" data-tone="${esc(tone)}">
-        ${infoLine([partyName, partyMobile, g.demoId])}
-        <span class="admin-hl-top-right">Agency Charges</span>
-      </div>
-    </div>`;
 
   const studentAgencyTone = m.studentAgencyDue > 0 ? "schedule" : "running";
   const tutorAgencyTone = m.tutorAgencyDue > 0 ? "schedule" : "running";
@@ -2762,7 +2787,7 @@ function tuitionPaymentStatusCards(g, activeRow) {
     m.studentAgencyDue > 0 ? "Dues" : "Paid",
     m.studentAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="student" type="button">+ Record a Payment</button>` : "",
     "admin-boxes-triple",
-    agencyCardTitleHtml(studentName, studentMobile, studentAgencyTone)
+    partyCardTitleHtml(studentName, studentMobile, studentAgencyTone, "Agency Charges")
   );
 
   const tutorAgencyCard = statusCard(
@@ -2781,24 +2806,22 @@ function tuitionPaymentStatusCards(g, activeRow) {
     m.tutorAgencyDue > 0 ? "Dues" : "Paid",
     m.tutorAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="tutor" type="button">+ Record a Payment</button>` : "",
     "admin-boxes-triple",
-    agencyCardTitleHtml(tutorName, tutorMobile, tutorAgencyTone)
+    partyCardTitleHtml(tutorName, tutorMobile, tutorAgencyTone, "Agency Charges")
   );
 
-  // Every Agency Charge payment actually made against this side sits
-  // stacked right under its own status card (same joined-card look as
-  // a Tuition and its Tutor rows), instead of floating loose in the
-  // flat payments list below.
+  const studentPayments = (STATE.payments || [])
+    .filter(p => p.transaction_type === "collection" && p.demo_id === g.demoId);
+  const tutorPayments = (STATE.payments || [])
+    .filter(p => p.transaction_type === "payout" && p.tutor_id === activeRow.tutorId);
   const studentAgencyPayments = (STATE.payments || [])
-    .filter(p => p.transaction_type === "agency_charge" && p.demo_id === g.demoId && !p.tutor_id)
-    .map(p => paymentCard(p, {})).join("");
+    .filter(p => p.transaction_type === "agency_charge" && p.demo_id === g.demoId && !p.tutor_id);
   const tutorAgencyPayments = (STATE.payments || [])
-    .filter(p => p.transaction_type === "agency_charge" && p.demo_id === g.demoId && p.tutor_id === activeRow.tutorId)
-    .map(p => paymentCard(p, {})).join("");
+    .filter(p => p.transaction_type === "agency_charge" && p.demo_id === g.demoId && p.tutor_id === activeRow.tutorId);
 
-  const studentAgencyStack = `<div class="admin-stack${studentAgencyPayments ? " has-tutors" : ""}">${studentAgencyCard}${studentAgencyPayments}</div>`;
-  const tutorAgencyStack = `<div class="admin-stack${tutorAgencyPayments ? " has-tutors" : ""}">${tutorAgencyCard}${tutorAgencyPayments}</div>`;
-
-  return studentCard + tutorCard + studentAgencyStack + tutorAgencyStack;
+  return stack(studentCard, studentPayments)
+    + stack(tutorCard, tutorPayments)
+    + stack(studentAgencyCard, studentAgencyPayments)
+    + stack(tutorAgencyCard, tutorAgencyPayments);
 
 }
 
@@ -2808,15 +2831,23 @@ function renderTuitionPaymentStatus() {
 
   const query = searchQueryFor("paymentSearch");
 
+  // Built for every Running/Completed Tuition regardless of the search
+  // box (not just the ones about to be shown), so STACKED_PAYMENT_IDS
+  // always covers every payment actually stacked somewhere - otherwise
+  // narrowing the search here would wrongly unhide those payments in
+  // the flat list below, which runs its own separate search match.
+  STACKED_PAYMENT_IDS = new Set();
+
   const cards = demoGroups()
     .map(g => ({ g, activeRow: activeRowFor(g) }))
     .filter(({ activeRow }) => activeRow)
-    .filter(({ g, activeRow }) => {
+    .map(({ g, activeRow }) => {
       const student = STUDENT_BY_ID[g.first.studentId];
       const studentName = student ? student.values["Student Name"] : g.first.studentId;
-      return matchesAll(query, [g.demoId, studentName, g.first.subject, activeRow.tutorId].join(" "));
+      const matches = matchesAll(query, [g.demoId, studentName, g.first.subject, activeRow.tutorId].join(" "));
+      const html = tuitionPaymentStatusCards(g, activeRow);
+      return matches ? html : "";
     })
-    .map(({ g, activeRow }) => tuitionPaymentStatusCards(g, activeRow))
     .join("");
 
   $("tuitionPaymentStatusList").innerHTML = cards || "";
@@ -2843,9 +2874,9 @@ function renderPayments() {
   const query = searchQueryFor("paymentSearch");
 
   const rows = (STATE.payments || []).filter(p => {
-    // Agency Charge payments are stacked under their own status card
-    // in the list above instead (see tuitionPaymentStatusCards).
-    if (p.transaction_type === "agency_charge") return false;
+    // Collection/Payout/Agency Charge payments already shown stacked
+    // under one of the status cards above don't also float loose here.
+    if (STACKED_PAYMENT_IDS.has(p.id)) return false;
     const sub = p.subscription_id ? (STATE.subscriptions || []).find(s => s.id === p.subscription_id) : null;
     const subId = sub ? (sub.student_id || sub.tutor_id) : "";
     const subParty = subId ? (sub.student_id ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID)[subId] : null;
@@ -2868,9 +2899,7 @@ function paymentCard(p, ctx) {
   const open = STATE.open.has(key);
   const editing = STATE.editing.has(key);
   const amount = Number(p.amount || 0);
-  const cut = p.our_cut_amount != null && p.our_cut_amount !== "" ? Number(p.our_cut_amount) : null;
   const isPayout = p.transaction_type === "payout";
-  const tutorCollected = p.collected_by === "tutor";
 
   // So the payment can be verified against the right person by phone.
   const demoDir = p.demo_id ? DIR_DEMO_BY_ID[p.demo_id] : null;
@@ -2915,23 +2944,18 @@ function paymentCard(p, ctx) {
     return agencyChargePaymentCard(p, key, open, editing, buttons);
   }
 
-  const headline = isPayout
-    ? [p.tutor_id, "Payout to Tutor", "₹" + amount.toLocaleString("en-IN")]
-    : [p.demo_id, ctx.studentName, ctx.subject, "₹" + amount.toLocaleString("en-IN"), tutorCollected ? "Tutor collected" : "Agency collected"];
-
   return `
-    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${p.id}" data-key="${esc(key)}">
+    <article class="admin-card tutor-row-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${p.id}" data-key="${esc(key)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">₹</div>
         <div class="admin-card-title">
-          ${highlight(
-            headline,
-            timeSplitLine(!isPayout && cut != null ? `Our cut: ₹${cut.toLocaleString("en-IN")}` : "", p.created_at),
-            "|",
-            "neutral",
-            true
-          )}
+          <div class="admin-hl">
+            <div class="admin-hl-top admin-hl-top-split" data-tone="neutral">
+              ${infoLine(["Paid ₹" + amount.toLocaleString("en-IN")])}
+              <span class="admin-hl-top-right">${esc(recordedAt(p.created_at))}</span>
+            </div>
+          </div>
         </div>
         <span class="admin-caret" aria-hidden="true"></span>
       </div>
