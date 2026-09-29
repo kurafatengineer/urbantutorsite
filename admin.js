@@ -3128,26 +3128,29 @@ function classCard(g, activeRow) {
       ${box("End Date", endDateShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Class End Date") })}
     </div>`;
 
-  // Total Payment / Dues are never typed in - they're worked out from
-  // the payments actually recorded below, so they can't drift out of
-  // sync with them the way a hand-entered number could.
-  const totalAmount = num(activeRow.classTotalAmount);
+  // Student and Tutor each have their own Total Amount (what's owed to/
+  // by that party for this class) - Total Payment / Dues are never
+  // typed in themselves, they're worked out from the payments actually
+  // recorded, so they can't drift out of sync the way a hand-entered
+  // number could.
+  const studentTotalAmount = num(activeRow.studentTotalAmount);
   const collected = (STATE.payments || [])
     .filter(p => p.demo_id === g.demoId && p.transaction_type !== "payout")
     .reduce((sum, p) => sum + num(p.amount), 0);
-  const studentDues = Math.max(totalAmount - collected, 0);
+  const studentDues = Math.max(studentTotalAmount - collected, 0);
 
   // Payouts aren't tied to a Demo ID yet, so "paid to this tutor" is
   // gathered by Tutor ID instead (their advance plus every payout
   // recorded for them) - a first-pass total, not a ledger scoped to
   // this one class specifically, since that link doesn't exist yet.
+  const tutorTotalAmount = num(activeRow.tutorTotalAmount);
   const tutorAgencyCharge = num(activeRow.tutorAgencyCharge);
   const tutorAdvance = num(activeRow.tutorAdvancePayment);
   const tutorPayouts = (STATE.payments || [])
     .filter(p => p.tutor_id === activeRow.tutorId && p.transaction_type === "payout")
     .reduce((sum, p) => sum + num(p.amount), 0);
   const tutorTotalPayment = tutorAdvance + tutorPayouts;
-  const tutorDues = Math.max(totalAmount - tutorAgencyCharge - tutorTotalPayment, 0);
+  const tutorDues = Math.max(tutorTotalAmount - tutorAgencyCharge - tutorTotalPayment, 0);
 
   // Student and Tutor sit side by side as two columns (stacking on
   // narrow screens) - the full profile toggle is gone, just this
@@ -3163,8 +3166,9 @@ function classCard(g, activeRow) {
         ${box("Agency Charge (₹)", activeRow.studentAgencyCharge, { editable: editing, wide: true, type: "number", attr: cfield("Student Agency Charge") })}
         ${box("Payment", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, wide: true, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
         ${box("Advance Payment (₹)", activeRow.studentAdvancePayment, { editable: editing, wide: true, type: "number", attr: cfield("Student Advance Payment") })}
-        ${box("Total Payment (₹)", totalAmount ? collected : "", { wide: true })}
-        ${box("Dues (₹)", totalAmount ? studentDues : "", { wide: true })}
+        ${box("Total Amount (₹)", activeRow.studentTotalAmount, { editable: editing, wide: true, type: "number", attr: cfield("Student Total Amount") })}
+        ${box("Total Payment (₹)", studentTotalAmount ? collected : "", { wide: true })}
+        ${box("Dues (₹)", studentTotalAmount ? studentDues : "", { wide: true })}
       </div>
     </div>`;
 
@@ -3179,8 +3183,9 @@ function classCard(g, activeRow) {
         ${box("Agency Charges (₹)", activeRow.tutorAgencyCharge, { editable: editing, wide: true, type: "number", attr: cfield("Tutor Agency Charge") })}
         ${box("Payment", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, wide: true, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
         ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, wide: true, type: "number", attr: cfield("Tutor Advance Payment") })}
-        ${box("Total Payment (₹)", totalAmount ? tutorTotalPayment : "", { wide: true })}
-        ${box("Dues (₹)", totalAmount ? tutorDues : "", { wide: true })}
+        ${box("Total Amount (₹)", activeRow.tutorTotalAmount, { editable: editing, wide: true, type: "number", attr: cfield("Tutor Total Amount") })}
+        ${box("Total Payment (₹)", tutorTotalAmount ? tutorTotalPayment : "", { wide: true })}
+        ${box("Dues (₹)", tutorTotalAmount ? tutorDues : "", { wide: true })}
       </div>
     </div>`;
 
