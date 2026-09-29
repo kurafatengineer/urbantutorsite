@@ -2493,6 +2493,22 @@ body[data-page="admin"] {
   overflow-wrap: anywhere;
 }
 .ledger-cell + .ledger-cell { border-left: 1px dotted var(--border-light); }
+/* Subscription card head: 7 equal columns, one line each, cut with "...". */
+.sub-grid {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: center;
+}
+.sub-grid .ledger-cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+}
+/* Standalone card, so the status rail rounds both right corners. */
+.admin-card-head .admin-rail-sub { border-radius: 18px 0 0 18px; }
 /* Money in / out arrow, right after the Type rail. */
 .ledger-flow {
   flex: 0 0 34px;
@@ -2598,6 +2614,7 @@ body[data-page="admin"] {
 .admin-status-rail[data-tone="running"]     { background: var(--lime-dim); color: var(--lime); }
 .admin-status-rail[data-tone="completed"]   { background: var(--surface-3); color: var(--muted); }
 .admin-status-rail[data-tone="terminated"],
+.admin-status-rail[data-tone="rejected"],
 .admin-status-rail[data-tone="declined"]    { background: rgba(255, 104, 104, 0.18); color: var(--danger); }
 .admin-status-rail[data-tone="schedule"]    { background: rgba(255, 140, 26, 0.18); color: var(--orange); }
 .admin-status-rail[data-tone="scheduled"],
