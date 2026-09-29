@@ -443,17 +443,6 @@ button { cursor: pointer; }
   white-space: nowrap;
 }
 
-/* Student/Tutor pill on a payment status card head - sized to fit the
-   longer of the two words ("Student") in ch units (so it tracks the
-   font rather than a guessed pixel number), and both pills share that
-   same width regardless of which one is actually shown. Colour comes
-   from the shared data-tone rules below (same green/orange as the
-   card's own paid/due status). */
-.admin-pill.admin-pill-party {
-  width: 9ch;
-  text-align: center;
-}
-
 .admin-pill[data-tone="verified"],
 .admin-pill[data-tone="running"] { color: var(--lime); background: var(--lime-dim); border-color: var(--lime-line); }
 .admin-pill[data-tone="pending"] { color: var(--blue); background: var(--blue-dim); border-color: var(--blue-line); }
@@ -1141,13 +1130,6 @@ button { cursor: pointer; }
   padding-top: 8px;
 }
 
-/* Agency Charge cards: Demo ID/Student/Student Mobile, Tutor ID/Tutor/
-   Tutor Mobile, and Agency Charge/Received/Dues each sit on their own
-   line of 3. */
-.admin-boxes.admin-boxes-triple {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 .admin-box {
   position: relative;
   display: block;
@@ -1616,7 +1598,6 @@ button { cursor: pointer; }
   /* demo date + time stay side by side (50 / 50) */
   .admin-boxes.admin-demo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-  .admin-boxes.admin-boxes-triple { grid-template-columns: 1fr; }
   .admin-boxes.admin-demo > .admin-box:nth-child(n + 3) { grid-column: 1 / -1; }
 
   .admin-chips-7 .admin-chip { padding: 7px 2px; border-radius: 10px; }
@@ -2450,11 +2431,6 @@ body[data-page="admin"] {
    Tutor rows sit below it), so its own rail only rounds the top-right
    corner, matching the card's own shape there. */
 .class-card .admin-status-rail { border-radius: 0 18px 0 0; }
-
-/* Payments tab's own status cards are always standalone (never joined
-   into a stack with another card above/below), so both right corners
-   round to match the card's own full 18px radius. */
-.admin-paystatus-card .admin-status-rail { border-radius: 0 18px 18px 0; }
 
 .class-card {
   background: var(--surface-2);

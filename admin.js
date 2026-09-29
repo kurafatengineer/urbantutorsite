@@ -250,13 +250,6 @@ let DIR_DEMO_BY_ID = {};
 let DIR_STUDENT_BY_ID = {};
 let DIR_TUTOR_BY_ID = {};
 
-// Payment IDs already shown stacked under one of the Payments tab's own
-// status cards (Payment by Student/Parent, Payment to Tutor, Student/
-// Tutor Agency Charges) - rebuilt on every renderTuitionPaymentStatus(),
-// then used by renderPayments() to keep the same payment from also
-// floating loose in the flat list below.
-let STACKED_PAYMENT_IDS = new Set();
-
 function indexData() {
 
   TUTOR_BY_MOBILE = {};
@@ -693,7 +686,7 @@ function wireEvents() {
   wireChipSearch("paymentSearch", renderPayments);
   wireChipSearch("subscriptionSearch", renderSubscriptions);
 
-  ["tuitionList", "tutorList", "studentList", "tuitionPaymentStatusList", "paymentList", "employeeList", "subscriptionList"].forEach(id =>
+  ["tuitionList", "tutorList", "studentList", "paymentList", "employeeList", "subscriptionList"].forEach(id =>
     $(id).addEventListener("click", onListClick)
   );
 
@@ -744,6 +737,7 @@ const PAYMENT_AMOUNT_FIELD_IDS = [
 const AGENCY_LAYOUT_DOC_ORDER = [
   "paymentTransactionTypeField",
   "paymentSubNameField", "paymentSubMobileField", "paymentSubIdField",
+  "paymentDemoIdField",
   "paymentDateField", "paymentModeField",
   "paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField", "paymentRemainingField"
 ];
@@ -764,6 +758,7 @@ function layoutAgencyChargeFields(isAgencyCharge) {
 
   if (isAgencyCharge) {
     ["paymentTransactionTypeField", "paymentModeField", "paymentDateField"].forEach(id => topSlot.appendChild($(id)));
+    partySlot.parentNode.insertBefore($("paymentDemoIdField"), partySlot);
     ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"].forEach(id => partySlot.appendChild($(id)));
     // No Remaining here - Paying Now already starts at the full Dues,
     // so it would just show ₹0 until the admin deliberately changes it.
@@ -804,10 +799,10 @@ function applyPaymentTransactionType() {
   $("ourCutField").classList.toggle("hidden", !isCollection);
 
   $("paymentAmountField").classList.toggle("hidden", isSub || isAgencyCharge);
-  // A Subscription or Agency Charge payment is always against one
-  // single party (see PAYMENT_PARTY_FIELD_IDS below), never a Demo ID/
-  // Tutor ID pair.
-  $("paymentDemoIdField").classList.toggle("hidden", isSub || isPayout || isAgencyCharge);
+  // A Subscription payment is always against one single party (see
+  // PAYMENT_PARTY_FIELD_IDS below), never a Demo ID/Tutor ID pair. An
+  // Agency Charge still needs the Demo ID typed in to find its Tuition.
+  $("paymentDemoIdField").classList.toggle("hidden", isSub || isPayout);
   $("paymentTutorIdField").classList.toggle("hidden", isSub || isAgencyCharge);
   if (!isSub && !isAgencyCharge) $("paymentTutorIdField").querySelector("span").textContent = isPayout ? "Tutor ID" : "Tutor ID (optional)";
 
@@ -962,10 +957,22 @@ function openPaymentFormForSubscription(sub) {
 
 // Fills the one party's ID/Mobile/Name (Student for a Student Agency
 // Charge, Tutor for a Tutor Agency Charge) and the shared Amount/Dues/
-// Paying Now/Remaining group - same numbers as the status card it was
-// opened from, so it can never disagree with what the admin was just
-// looking at. Demo ID/Tutor ID still get set (hidden) since the
-// payload still needs them.
+// Paying Now group from the typed Demo ID's own Tuition - same numbers
+// as its Class card. Tutor ID still gets set (hidden) since the payload
+// needs it.
+function refreshAgencyChargeFromDemo() {
+  const mode = $("paymentTransactionType").value;
+  if (mode !== "student-agency-charge" && mode !== "tutor-agency-charge") return;
+  const g = demoGroups().find(x => x.demoId === $("paymentDemoId").value.trim());
+  const activeRow = g ? activeRowFor(g) : null;
+  if (!activeRow) {
+    clearPaymentSubFields();
+    $("paymentTutorId").value = "";
+    return;
+  }
+  fillPaymentAgencyChargeFields(g, activeRow, mode === "tutor-agency-charge" ? "tutor" : "student");
+}
+
 function fillPaymentAgencyChargeFields(g, activeRow, side) {
 
   const m = classMoney(g, activeRow);
@@ -973,7 +980,6 @@ function fillPaymentAgencyChargeFields(g, activeRow, side) {
   const dues = side === "tutor" ? m.tutorAgencyDue : m.studentAgencyDue;
   const party = side === "tutor" ? (DIR_TUTOR_BY_ID[activeRow.tutorId] || null) : (DIR_STUDENT_BY_ID[g.first.studentId] || null);
 
-  $("paymentDemoId").value = g.demoId;
   $("paymentTutorId").value = activeRow.tutorId;
 
   $("paymentSubId").value = side === "tutor" ? activeRow.tutorId : g.first.studentId;
@@ -986,23 +992,6 @@ function fillPaymentAgencyChargeFields(g, activeRow, side) {
   $("paymentPayingNow").value = dues;
   updatePaymentRemaining();
 
-}
-
-// Opens the payment form pre-filled for one Tuition's Student or
-// Tutor Agency Charge - same "+ Record a Payment" pattern as a
-// Subscription, but tracked against this Tuition's own Agency Charge
-// instead of a subscription plan.
-function openPaymentFormForAgencyCharge(g, activeRow, side) {
-  if (STATE.tab !== "payments") showTab("payments");
-  resetPaymentForm();
-  $("paymentTransactionType").value = side === "tutor" ? "tutor-agency-charge" : "student-agency-charge";
-  $("paymentForSubscription").classList.remove("hidden");
-  $("paymentForSubscription").textContent = `For ${g.demoId}'s ${side === "tutor" ? "Tutor" : "Student"} Agency Charge`;
-  applyPaymentTransactionType();
-  fillPaymentAgencyChargeFields(g, activeRow, side);
-
-  $("paymentForm").classList.remove("hidden");
-  $("paymentForm").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function wirePaymentForm() {
@@ -1024,6 +1013,7 @@ function wirePaymentForm() {
     clearPaymentSubFields();
     $("paymentForSubscription").classList.add("hidden");
     applyPaymentTransactionType();
+    refreshAgencyChargeFromDemo();
   });
 
   $("paymentPayingNow").addEventListener("input", updatePaymentRemaining);
@@ -1341,6 +1331,7 @@ function wirePaymentIdSuggestions() {
     const text = demoInput.value.trim();
     const exact = DIR_DEMO_BY_ID[text];
     updateIdDetail(demoDetail, exact ? DIR_STUDENT_BY_ID[exact.studentId] : null);
+    refreshAgencyChargeFromDemo();
     renderIdSuggestions(demoSuggest, paymentDemoSuggestions(text, exactTutorId()), "demo");
   });
 
@@ -1885,12 +1876,6 @@ async function onListClick(event) {
       break;
     }
 
-    case "record-agency-payment": {
-      const g = demoGroups().find(x => x.demoId === actionEl.dataset.demoId);
-      const activeRow = g ? activeRowFor(g) : null;
-      if (g && activeRow) openPaymentFormForAgencyCharge(g, activeRow, actionEl.dataset.side);
-      break;
-    }
 
   }
 
@@ -2674,201 +2659,9 @@ function renderStudents() {
 
 /* ---------------- payments ---------------- */
 
-// A small collapsed-by-default card for the Payments tab's own status
-// summaries - same shell as any other card (head with a caret, body
-// hidden until opened), plus a static status-rail label on the right
-// edge (no click action, just the word) saying at a glance whether
-// this side of the money is cleared or still owed.
-function statusCard(key, tone, titleParts, subtitle, boxesHtml, railLabel, footerHtml, boxesClass, titleHtmlOverride, partyLabel) {
-  const open = STATE.open.has(key);
-  const titleHtml = titleHtmlOverride || highlight(titleParts, subtitle, "|", tone);
-  return `
-    <article class="admin-card admin-paystatus-card${open ? " is-open" : ""}" data-tone="${esc(tone)}" data-box data-key="${esc(key)}">
-      <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar">₹</div>
-        <div class="admin-card-title">${titleHtml}</div>
-        ${partyLabel ? `<span class="admin-pill admin-pill-party" data-tone="${esc(tone)}">${esc(partyLabel)}</span>` : ""}
-        <span class="admin-caret" aria-hidden="true"></span>
-        <span class="admin-status-rail" data-tone="${esc(tone)}" tabindex="-1">${esc(railLabel)}</span>
-      </div>
-      <div class="admin-card-body">
-        <div class="admin-boxes${boxesClass ? " " + boxesClass : ""}">${boxesHtml}</div>
-        ${footerHtml || ""}
-      </div>
-    </article>`;
-}
-
-// The 4 payment-status cards for one Running/Completed Tuition: what
-// the Student/Parent owes, what's owed to the Tutor, and each side's
-// own Agency Charge status - a read-only summary view in the Payments
-// tab, backed by the exact same numbers as the Class card in Tuitions.
-function tuitionPaymentStatusCards(g, activeRow) {
-
-  const m = classMoney(g, activeRow);
-  const student = STUDENT_BY_ID[g.first.studentId];
-  const tutor = TUTOR_BY_ID[activeRow.tutorId];
-  const studentName = student ? student.values["Student Name"] : g.first.studentId;
-  const tutorName = tutor ? tutor.values["Full Name"] : activeRow.tutorId;
-  const studentMobile = student ? student.values["Phone"] : "";
-  const studentWhatsapp = student ? student.values["WhatsApp"] : "";
-  const tutorMobile = tutor ? tutor.values["Mobile Number"] : "";
-  const tutorWhatsapp = tutor ? tutor.values["WhatsApp Number"] : "";
-
-  // Top layer for every one of these 4 cards: the relevant party's own
-  // details on the left, a plain label naming the card pushed to the
-  // right - no bottom line, nothing else.
-  const partyCardTitleHtml = (parts, tone, rightLabel) => `
-    <div class="admin-hl">
-      <div class="admin-hl-top admin-hl-top-split" data-tone="${esc(tone)}">
-        ${infoLine(parts)}
-        <span class="admin-hl-top-right">${esc(rightLabel)}</span>
-      </div>
-    </div>`;
-
-  const studentTitleParts = [studentName, studentMobile, studentWhatsapp, g.first.studentId, g.demoId];
-  const tutorTitleParts = [tutorName, tutorMobile, tutorWhatsapp, activeRow.tutorId];
-
-  // Stacks each payment record actually made under the status card it
-  // was made against - same joined-card look as a Tuition and its
-  // Tutor rows - and tracks it in STACKED_PAYMENT_IDS so the flat
-  // payments list below doesn't also show it loose.
-  const stack = (cardHtml, payments) => {
-    payments.forEach(p => STACKED_PAYMENT_IDS.add(p.id));
-    const paymentsHtml = payments.map(p => paymentCard(p, {})).join("");
-    return `<div class="admin-stack${paymentsHtml ? " has-tutors" : ""}">${cardHtml}${paymentsHtml}</div>`;
-  };
-
-  const studentTone = m.studentDues > 0 ? "schedule" : "running";
-  const studentCard = statusCard(
-    "paystatus:student:" + g.demoId,
-    studentTone,
-    [g.demoId, "Payment by Student/Parent"], `${studentName} · ${g.first.subject}`,
-    box("Tuition Fee", m.studentDues > 0 ? "Dues" : "Received", { wide: true }) +
-    box("Total Amount (₹)", m.studentTotalAmount) +
-    box("Advance Payment (₹)", m.studentAdvancePaid) +
-    box("Total Payment (₹)", m.collected) +
-    box("Dues (₹)", m.studentDues) +
-    box("Payment To", activeRow.studentPaymentTo) +
-    box("Next Due Date", activeRow.studentNextDueDate),
-    m.studentDues > 0 ? "Dues" : "Received",
-    "",
-    undefined,
-    partyCardTitleHtml(studentTitleParts, studentTone, "Payment To"),
-    "Student"
-  );
-
-  const tutorTone = m.tutorDues > 0 ? "schedule" : "running";
-  const tutorCard = statusCard(
-    "paystatus:tutor:" + g.demoId,
-    tutorTone,
-    [g.demoId, "Payment to Tutor"], `${tutorName} · ${g.first.subject}`,
-    box("Tutor Fee", m.tutorDues > 0 ? "Due" : "Paid", { wide: true }) +
-    box("Total Amount (₹)", m.tutorTotalAmount) +
-    box("Advance Payment (₹)", m.tutorAdvance) +
-    box("Total Payment (₹)", m.tutorTotalPayment) +
-    box("Dues (₹)", m.tutorDues) +
-    box("Payment From", activeRow.tutorPaymentFrom) +
-    box("Next Payment Date", activeRow.tutorNextPaymentDate),
-    m.tutorDues > 0 ? "Due" : "Paid",
-    "",
-    undefined,
-    partyCardTitleHtml(tutorTitleParts, tutorTone, "Payment To"),
-    "Tutor"
-  );
-
-  const studentAgencyTone = m.studentAgencyDue > 0 ? "schedule" : "running";
-  const tutorAgencyTone = m.tutorAgencyDue > 0 ? "schedule" : "running";
-
-  const studentAgencyCard = statusCard(
-    "paystatus:studentagency:" + g.demoId,
-    studentAgencyTone,
-    [g.demoId, "Student Agency Charges"], `${studentName} · ${g.first.subject}`,
-    box("Demo ID", g.demoId) +
-    box("Student Name", studentName) +
-    box("Student Mobile", studentMobile) +
-    box("Tutor ID", activeRow.tutorId) +
-    box("Tutor Name", tutorName) +
-    box("Tutor Mobile", tutorMobile) +
-    box("Agency Charge (₹)", m.studentAgencyCharge) +
-    box("Received (₹)", m.studentAgencyReceived) +
-    box("Dues (₹)", m.studentAgencyDue),
-    m.studentAgencyDue > 0 ? "Dues" : "Paid",
-    m.studentAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="student" type="button">+ Record a Payment</button>` : "",
-    "admin-boxes-triple",
-    partyCardTitleHtml(studentTitleParts, studentAgencyTone, "Agency Charge"),
-    "Student"
-  );
-
-  const tutorAgencyCard = statusCard(
-    "paystatus:tutoragency:" + g.demoId,
-    tutorAgencyTone,
-    [g.demoId, "Tutor Agency Charges"], `${tutorName} · ${g.first.subject}`,
-    box("Demo ID", g.demoId) +
-    box("Student Name", studentName) +
-    box("Student Mobile", studentMobile) +
-    box("Tutor ID", activeRow.tutorId) +
-    box("Tutor Name", tutorName) +
-    box("Tutor Mobile", tutorMobile) +
-    box("Agency Charge (₹)", m.tutorAgencyCharge) +
-    box("Received (₹)", m.tutorAgencyReceived) +
-    box("Dues (₹)", m.tutorAgencyDue),
-    m.tutorAgencyDue > 0 ? "Dues" : "Paid",
-    m.tutorAgencyDue > 0 ? `<button class="admin-ghost admin-wide" data-action="record-agency-payment" data-demo-id="${esc(g.demoId)}" data-side="tutor" type="button">+ Record a Payment</button>` : "",
-    "admin-boxes-triple",
-    partyCardTitleHtml(tutorTitleParts, tutorAgencyTone, "Agency Charge"),
-    "Tutor"
-  );
-
-  const studentPayments = (STATE.payments || [])
-    .filter(p => p.transaction_type === "collection" && p.demo_id === g.demoId);
-  const tutorPayments = (STATE.payments || [])
-    .filter(p => p.transaction_type === "payout" && p.tutor_id === activeRow.tutorId);
-  const studentAgencyPayments = (STATE.payments || [])
-    .filter(p => p.transaction_type === "agency_charge" && p.demo_id === g.demoId && !p.tutor_id);
-  const tutorAgencyPayments = (STATE.payments || [])
-    .filter(p => p.transaction_type === "agency_charge" && p.demo_id === g.demoId && p.tutor_id === activeRow.tutorId);
-
-  return stack(studentCard, studentPayments)
-    + stack(tutorCard, tutorPayments)
-    + stack(studentAgencyCard, studentAgencyPayments)
-    + stack(tutorAgencyCard, tutorAgencyPayments);
-
-}
-
-function renderTuitionPaymentStatus() {
-
-  if (!$("tuitionPaymentStatusList")) return;
-
-  const query = searchQueryFor("paymentSearch");
-
-  // Built for every Running/Completed Tuition regardless of the search
-  // box (not just the ones about to be shown), so STACKED_PAYMENT_IDS
-  // always covers every payment actually stacked somewhere - otherwise
-  // narrowing the search here would wrongly unhide those payments in
-  // the flat list below, which runs its own separate search match.
-  STACKED_PAYMENT_IDS = new Set();
-
-  const cards = demoGroups()
-    .map(g => ({ g, activeRow: activeRowFor(g) }))
-    .filter(({ activeRow }) => activeRow)
-    .map(({ g, activeRow }) => {
-      const student = STUDENT_BY_ID[g.first.studentId];
-      const studentName = student ? student.values["Student Name"] : g.first.studentId;
-      const matches = matchesAll(query, [g.demoId, studentName, g.first.subject, activeRow.tutorId].join(" "));
-      const html = tuitionPaymentStatusCards(g, activeRow);
-      return matches ? html : "";
-    })
-    .join("");
-
-  $("tuitionPaymentStatusList").innerHTML = cards || "";
-
-}
-
 function renderPayments() {
 
   if (!$("paymentList")) return;
-
-  renderTuitionPaymentStatus();
 
   const groups = demoGroups();
   const context = {};
@@ -2884,9 +2677,6 @@ function renderPayments() {
   const query = searchQueryFor("paymentSearch");
 
   const rows = (STATE.payments || []).filter(p => {
-    // Collection/Payout/Agency Charge payments already shown stacked
-    // under one of the status cards above don't also float loose here.
-    if (STACKED_PAYMENT_IDS.has(p.id)) return false;
     const sub = p.subscription_id ? (STATE.subscriptions || []).find(s => s.id === p.subscription_id) : null;
     const subId = sub ? (sub.student_id || sub.tutor_id) : "";
     const subParty = subId ? (sub.student_id ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID)[subId] : null;
@@ -3367,7 +3157,7 @@ function renderTuitions() {
 
 // The one tutor row actually Running/Completed for a Tuition group, if
 // any - the same row the Class card is keyed off, shared with anywhere
-// else (like the Payments tab's status cards) that needs to know
+// else (like the Agency Charge payment form) that needs to know
 // whether a Tuition is currently live and who its active tutor is.
 function activeRowFor(g) {
   const state = groupState(g);
@@ -3523,8 +3313,8 @@ function tuitionStack(g) {
 // recorded against this Tuition, with a shortcut into recording a new
 // one pre-filled with this Demo/Tutor ID.
 // All the money maths shared between the Class card's Student/Tutor
-// sections and the Payments tab's own 4 status cards for this Tuition,
-// so the two views can never disagree about what's owed.
+// sections and the Agency Charge payment form, so the two can never
+// disagree about what's owed.
 function classMoney(g, activeRow) {
 
   const studentTotalAmount = (num(activeRow.classDuration) / 60) * num(activeRow.classCharges) * num(activeRow.classCount);
