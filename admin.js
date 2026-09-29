@@ -1657,10 +1657,20 @@ function goToFilter(tab, filter) {
 
 }
 
+// A white band sweeping left to right across el, once, over 5s.
+function waveHighlight(el) {
+  el.classList.remove("admin-wave");
+  void el.offsetWidth;
+  el.classList.add("admin-wave");
+  el.addEventListener("animationend", () => el.classList.remove("admin-wave"), { once: true });
+}
+
 // From a student's "Tuitions" pill: jump to the Tuitions tab with that
 // one tuition opened, ignoring whatever filter/search was active there.
-// highlightOnly (a payment's ₹): leave it collapsed, just outline it.
-function goToTuition(demoId, highlightOnly) {
+// highlight (a payment's ₹): leave it collapsed and wave-highlight
+// instead - the one Class card figure named ("student-payment",
+// "tutor-agency", ...) when there is one, else the Tuition card.
+function goToTuition(demoId, highlight) {
 
   collapseAll();
   STATE.tab = "tuitions";
@@ -1668,23 +1678,27 @@ function goToTuition(demoId, highlightOnly) {
   $("tuitionSearch").value = "";
   clearSearchChips("tuitionSearch");
   $("tuitionFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === "all"));
-  if (!highlightOnly) STATE.open.add("tuition:" + demoId);
+  if (!highlight) STATE.open.add("tuition:" + demoId);
 
   applyActiveTab();
   rerenderCurrent();
 
   requestAnimationFrame(() => {
-    const card = document.querySelector(`.tuition-card[data-demo="${CSS.escape(demoId)}"]`);
-    if (!card) return;
-    if (highlightOnly) card.classList.add("is-highlighted");
-    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    const demo = CSS.escape(demoId);
+    const part = highlight && highlight !== true
+      ? document.querySelector(`.class-card[data-demo="${demo}"] [data-part="${CSS.escape(highlight)}"]`)
+      : null;
+    const target = part || document.querySelector(`.tuition-card[data-demo="${demo}"]`);
+    if (!target) return;
+    if (highlight) waveHighlight(target);
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 
 }
 
-// Same as goToTuition's highlightOnly, for one Subscription or Tutor
-// card: that tab's search (and Tutor filter) cleared so the card is
-// shown, then outlined and scrolled into view, left collapsed.
+// Same as goToTuition's highlight, for one Subscription or Tutor card:
+// that tab's search (and Tutor filter) cleared so the card is shown,
+// then wave-highlighted and scrolled into view, left collapsed.
 function goToCard(tab, key) {
 
   const searchId = { subscriptions: "subscriptionSearch", tutors: "tutorSearch" }[tab];
@@ -1703,7 +1717,7 @@ function goToCard(tab, key) {
   requestAnimationFrame(() => {
     const card = document.querySelector(`[data-key="${CSS.escape(key)}"]`);
     if (!card) return;
-    card.classList.add("is-highlighted");
+    waveHighlight(card);
     card.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 
@@ -1841,7 +1855,7 @@ async function onListClick(event) {
   switch (action) {
 
     case "go-to-tuition":
-      goToTuition(actionEl.dataset.demo, actionEl.dataset.highlight === "1");
+      goToTuition(actionEl.dataset.demo, actionEl.dataset.part || actionEl.dataset.highlight === "1");
       break;
 
     case "go-to-card":
@@ -2947,7 +2961,7 @@ function paymentSummary(p) {
     kind = p.tutor_id ? "Tutor" : "Student";
     partyId = p.tutor_id || (g ? g.first.studentId : "");
     purpose = "Agency Charge";
-    if (p.demo_id) target = { action: "go-to-tuition", demo: p.demo_id };
+    if (p.demo_id) target = { action: "go-to-tuition", demo: p.demo_id, part: p.tutor_id ? "tutor-agency" : "student-agency" };
     if (activeRow) {
       const m = classMoney(g, activeRow);
       const charge = p.tutor_id ? m.tutorAgencyCharge : m.studentAgencyCharge;
@@ -2961,7 +2975,7 @@ function paymentSummary(p) {
     purpose = "Payments Out";
     const t = tuitionPaymentDues(p);
     target = t
-      ? { action: "go-to-tuition", demo: t.g.demoId }
+      ? { action: "go-to-tuition", demo: t.g.demoId, part: "tutor-payment" }
       : (p.tutor_id ? { action: "go-to-card", tab: "tutors", key: "tutors:" + p.tutor_id } : null);
     if (t) dues = Math.max(t.duesBefore - num(p.amount), 0);
 
@@ -2970,7 +2984,7 @@ function paymentSummary(p) {
     kind = "Student";
     partyId = demo ? demo.studentId : "";
     purpose = "Payments In";
-    if (p.demo_id) target = { action: "go-to-tuition", demo: p.demo_id };
+    if (p.demo_id) target = { action: "go-to-tuition", demo: p.demo_id, part: "student-payment" };
     const t = tuitionPaymentDues(p);
     if (t) dues = Math.max(t.duesBefore - num(p.amount), 0);
   }
@@ -2997,7 +3011,7 @@ function paymentHead(key, p) {
   return `
       <div class="admin-card-head" data-toggle="${esc(key)}">
         ${s.target
-          ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="${s.target.action}" data-highlight="1"${s.target.demo ? ` data-demo="${esc(s.target.demo)}"` : ""}${s.target.tab ? ` data-tab="${esc(s.target.tab)}" data-key="${esc(s.target.key)}"` : ""} title="Open what this payment is for">₹</button>`
+          ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="${s.target.action}" data-highlight="1"${s.target.demo ? ` data-demo="${esc(s.target.demo)}"` : ""}${s.target.part ? ` data-part="${esc(s.target.part)}"` : ""}${s.target.tab ? ` data-tab="${esc(s.target.tab)}" data-key="${esc(s.target.key)}"` : ""} title="Open what this payment is for">₹</button>`
           : `<div class="admin-avatar">₹</div>`}
         <div class="admin-card-title">
           ${highlight(
@@ -3792,12 +3806,12 @@ function classCard(g, activeRow) {
 
   const titleHtml = `
     <div class="admin-class-fracs">
-      <span class="admin-class-frac admin-class-frac-left">${frac(collected, studentTotalAmount)}</span>
+      <span class="admin-class-frac admin-class-frac-left" data-part="student-payment">${frac(collected, studentTotalAmount)}</span>
       <span class="admin-class-frac-center">
-        <span class="admin-class-frac">${frac(studentAgencyReceived, studentAgencyCharge)}</span>
-        <span class="admin-class-frac">${frac(tutorAgencyReceived, tutorAgencyCharge)}</span>
+        <span class="admin-class-frac" data-part="student-agency">${frac(studentAgencyReceived, studentAgencyCharge)}</span>
+        <span class="admin-class-frac" data-part="tutor-agency">${frac(tutorAgencyReceived, tutorAgencyCharge)}</span>
       </span>
-      <span class="admin-class-frac admin-class-frac-right">${frac(tutorTotalPayment, tutorTotalAmount)}</span>
+      <span class="admin-class-frac admin-class-frac-right" data-part="tutor-payment">${frac(tutorTotalPayment, tutorTotalAmount)}</span>
     </div>`;
 
   return `
