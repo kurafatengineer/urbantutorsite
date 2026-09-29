@@ -463,7 +463,8 @@ async function buildPaymentDirectory(): Promise<Json> {
       tutorIds: [...(tutorsByDemo.get(t.demo_id) ?? [])],
     })),
     students: (students ?? []).map((s: Json) => ({
-      id: s.student_id, name: s.student_name, parentsName: s.parents_name || "", mobile: s.phone || s.whatsapp || "",
+      id: s.student_id, name: s.student_name, parentsName: s.parents_name || "",
+      mobile: s.phone || s.whatsapp || "", whatsapp: s.whatsapp || "",
     })),
     tutors: (tutors ?? []).map((t: Json) => ({
       id: t.tutor_id, name: t.full_name, mobile: t.mobile_number || t.whatsapp_number || "",

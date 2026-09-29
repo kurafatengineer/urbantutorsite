@@ -719,7 +719,8 @@ button { cursor: pointer; }
   scrollbar-width: none;
 }
 /* The Student's own Mobile/Name sit beside Demo ID on this row. */
-#agencySlotDemo .admin-id-detail { display: none; }
+#agencySlotDemo .admin-id-detail,
+#slotTutor .admin-id-detail { display: none; }
 .admin-form-row-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 .admin-field {

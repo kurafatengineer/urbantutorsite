@@ -720,32 +720,39 @@ const PAYMENT_AMOUNT_FIELD_IDS = [
   "paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField", "paymentRemainingField"
 ];
 
-// Only an Agency Charge payment gets its own grouped layout (Transaction/
-// Payment Mode/Payment Date on one line, the paying party's ID/Mobile/
-// Name on another, Amount/Dues/Paying Now/Remaining on a third) - every
-// other transaction type, Subscription included, keeps the plain field
-// order it always had. Rather than a second copy of these fields (ids
-// must be unique), the same DOM nodes are physically relocated into the
-// #agencySlot... containers for Agency Charge mode and moved back to
-// their original spot otherwise.
+// Agency Charge, Collection and Payout payments get their own grouped
+// layout of rows of 3 (see GROUPED_ROWS) - Subscription keeps the plain
+// field order it always had. Rather than a second copy of these fields
+// (ids must be unique), the same DOM nodes are physically relocated into
+// the row containers for a grouped mode and moved back to their original
+// spot otherwise.
 //
 // listed in true original document order, since restoring depends on
 // each field's original *next sibling* still being a valid anchor -
-// walking that chain back-to-front (see layoutAgencyChargeFields)
+// walking that chain back-to-front (see layoutGroupedFields)
 // guarantees every field lands back exactly where it started, even
 // though the fields it's chained to may themselves still be mid-move.
 const AGENCY_LAYOUT_DOC_ORDER = [
   "paymentTransactionTypeField",
   "paymentSubNameField", "paymentSubMobileField", "paymentSubIdField",
-  "paymentDemoIdField",
+  "paymentDemoIdField", "paymentTutorIdField",
   "paymentDateField", "paymentModeField",
   "paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField", "paymentRemainingField",
   "paymentNotesField"
 ];
 
+// Row order per grouped mode, top to bottom.
+const GROUPED_ROWS = {
+  "student-agency-charge": ["agencySlotTop", "agencySlotDemo", "agencySlotParty", "agencySlotAmount", "agencySlotNotes"],
+  "tutor-agency-charge":   ["agencySlotTop", "agencySlotDemo", "agencySlotParty", "agencySlotAmount", "agencySlotNotes"],
+  "collection":            ["agencySlotTop", "agencySlotDemo", "slotStudent", "slotTutor", "agencySlotAmount", "agencySlotNotes"],
+  "payout":                ["agencySlotTop", "slotTutor", "agencySlotDemo", "slotStudent", "agencySlotAmount", "agencySlotNotes"]
+};
+const GROUPED_SLOT_IDS = ["agencySlotTop", "agencySlotDemo", "slotStudent", "slotTutor", "agencySlotParty", "agencySlotAmount", "agencySlotNotes"];
+
 let agencyLayoutOriginalPos = null;
 
-function layoutAgencyChargeFields(isAgencyCharge) {
+function layoutGroupedFields(mode) {
 
   if (!agencyLayoutOriginalPos) {
     agencyLayoutOriginalPos = new Map();
@@ -755,14 +762,23 @@ function layoutAgencyChargeFields(isAgencyCharge) {
     });
   }
 
+  const rows = GROUPED_ROWS[mode];
   const topSlot = $("agencySlotTop"), demoSlot = $("agencySlotDemo"), partySlot = $("agencySlotParty"),
-    amountSlot = $("agencySlotAmount"), notesSlot = $("agencySlotNotes");
+    amountSlot = $("agencySlotAmount"), notesSlot = $("agencySlotNotes"), tutorSlot = $("slotTutor");
 
-  if (isAgencyCharge) {
+  if (rows) {
     ["paymentTransactionTypeField", "paymentModeField", "paymentDateField"].forEach(id => topSlot.appendChild($(id)));
     // Demo ID leads the Student's own Mobile/Name (always in that slot).
     demoSlot.insertBefore($("paymentDemoIdField"), demoSlot.firstChild);
-    ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"].forEach(id => partySlot.appendChild($(id)));
+    if (rows.includes("agencySlotParty")) {
+      ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"].forEach(id => partySlot.appendChild($(id)));
+    } else {
+      [...AGENCY_LAYOUT_DOC_ORDER].reverse()
+        .filter(id => ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"].includes(id))
+        .forEach(id => { const pos = agencyLayoutOriginalPos.get(id); pos.parent.insertBefore($(id), pos.next); });
+    }
+    // Tutor ID leads the Tutor's own Mobile/Name (always in that slot).
+    if (rows.includes("slotTutor")) tutorSlot.insertBefore($("paymentTutorIdField"), tutorSlot.firstChild);
     ["paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField"].forEach(id => amountSlot.appendChild($(id)));
     // Notes | Remaining | Next Payment Date (that one lives in the slot).
     ["paymentNotesField", "paymentRemainingField"].forEach(id => notesSlot.insertBefore($(id), $("paymentNextDateField")));
@@ -777,7 +793,11 @@ function layoutAgencyChargeFields(isAgencyCharge) {
     });
   }
 
-  [topSlot, demoSlot, partySlot, amountSlot, notesSlot].forEach(slot => slot.classList.toggle("hidden", !isAgencyCharge));
+  GROUPED_SLOT_IDS.forEach(id => $(id).classList.toggle("hidden", !(rows && rows.includes(id))));
+  if (rows) {
+    let prev = $(rows[0]);
+    rows.slice(1).forEach(id => { prev.after($(id)); prev = $(id); });
+  }
 
 }
 
@@ -792,25 +812,27 @@ function applyPaymentTransactionType() {
   const isSub = mode === "student-subscription" || mode === "tutor-subscription";
   const isAgencyCharge = mode === "student-agency-charge" || mode === "tutor-agency-charge";
   const isCollection = mode === "collection";
+  // Collection and Payout are laid out like an Agency Charge: fixed rows,
+  // with Amount/Dues/Paying Now/Remaining worked out from the Tuition.
+  const isGrouped = isAgencyCharge || isCollection || isPayout;
 
-  layoutAgencyChargeFields(isAgencyCharge);
+  layoutGroupedFields(mode);
 
-  $("paymentTypeField").classList.toggle("hidden", !isCollection);
-  $("collectedByField").classList.toggle("hidden", !isCollection);
-  $("ourCutField").classList.toggle("hidden", !isCollection);
+  ["paymentTypeField", "collectedByField", "ourCutField", "paymentAmountField"]
+    .forEach(id => $(id).classList.add("hidden"));
 
-  $("paymentAmountField").classList.toggle("hidden", isSub || isAgencyCharge);
   // A Subscription payment is always against one single party (see
-  // PAYMENT_PARTY_FIELD_IDS below), never a Demo ID/Tutor ID pair. An
-  // Agency Charge still needs the Demo ID typed in to find its Tuition.
-  $("paymentDemoIdField").classList.toggle("hidden", isSub || isPayout);
+  // PAYMENT_PARTY_FIELD_IDS below), never a Demo ID/Tutor ID pair.
+  $("paymentDemoIdField").classList.toggle("hidden", isSub);
   $("paymentTutorIdField").classList.toggle("hidden", isSub || isAgencyCharge);
-  if (!isSub && !isAgencyCharge) $("paymentTutorIdField").querySelector("span").textContent = isPayout ? "Tutor ID" : "Tutor ID (optional)";
+  // The tutor on a Collection is whoever is taking that Tuition - filled
+  // in from the Demo ID, not typed.
+  $("paymentTutorId").readOnly = isCollection;
 
   $("paymentReceivedByField").classList.toggle("hidden", !isSub);
   PAYMENT_SUB_ONLY_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub));
   PAYMENT_PARTY_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isAgencyCharge));
-  PAYMENT_AMOUNT_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isAgencyCharge));
+  PAYMENT_AMOUNT_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isGrouped));
 
   // The search box only shows in subscription mode, and only until a
   // party has actually been resolved (typed/picked, or pre-filled by
@@ -835,7 +857,8 @@ function clearPaymentSubFields() {
   ["paymentSubName", "paymentSubMobile", "paymentSubId", "paymentSubPlan", "paymentSubAmount",
    "paymentSubDues", "paymentPayingNow", "paymentRemaining", "paymentSubCycle", "paymentSubStatus",
    "paymentSubStartDate", "paymentSubNextDue", "paymentStudentMobile", "paymentStudentName",
-   "paymentNextDate"].forEach(id => { $(id).value = ""; });
+   "paymentNextDate", "paymentStuId", "paymentStuWhatsapp", "paymentParentName",
+   "paymentTutorMobile", "paymentTutorName"].forEach(id => { $(id).value = ""; });
 }
 
 function updatePaymentRemaining() {
@@ -850,11 +873,11 @@ function updatePaymentRemaining() {
   updateNextPaymentDate();
 }
 
-// An Agency Charge payment that doesn't clear the dues highlights Next
-// Payment Date (always shown, left blank) as a nudge to set a follow-up.
+// A grouped-layout payment (Agency Charge, Collection, Payout) that
+// doesn't clear the dues highlights Next Payment Date (always shown,
+// left blank) as a nudge to set a follow-up.
 function agencyChargeLeftAfterPayment() {
-  const mode = $("paymentTransactionType").value;
-  if (mode !== "student-agency-charge" && mode !== "tutor-agency-charge") return 0;
+  if (!GROUPED_ROWS[$("paymentTransactionType").value]) return 0;
   const dues = Number(String($("paymentSubDues").value).replace(/[^\d.-]/g, "")) || 0;
   return Math.max(dues - (Number($("paymentPayingNow").value) || 0), 0);
 }
@@ -978,6 +1001,7 @@ function openPaymentFormForSubscription(sub) {
 // needs it.
 function refreshAgencyChargeFromDemo() {
   const mode = $("paymentTransactionType").value;
+  if (mode === "collection" || mode === "payout") return refreshTuitionPaymentFields(mode);
   if (mode !== "student-agency-charge" && mode !== "tutor-agency-charge") return;
   const g = demoGroups().find(x => x.demoId === $("paymentDemoId").value.trim());
   const activeRow = g ? activeRowFor(g) : null;
@@ -987,6 +1011,60 @@ function refreshAgencyChargeFromDemo() {
     return;
   }
   fillPaymentAgencyChargeFields(g, activeRow, mode === "tutor-agency-charge" ? "tutor" : "student");
+}
+
+// Collection (from the parent) or Payout (to the tutor) against one
+// Tuition: the Student's and Tutor's own rows filled from the Demo ID
+// (Collection) or Tutor ID + Demo ID (Payout - a tutor teaching just one
+// Tuition gets its Demo ID filled in too), and Amount/Dues/Paying Now
+// from that Tuition's own fee, same numbers as its Class card.
+function refreshTuitionPaymentFields(mode) {
+
+  const isPayout = mode === "payout";
+  let demoId = $("paymentDemoId").value.trim();
+  const typedTutor = $("paymentTutorId").value.trim();
+
+  if (isPayout && !demoId && DIR_TUTOR_BY_ID[typedTutor]) {
+    const own = demoGroups().filter(x => { const r = activeRowFor(x); return r && r.tutorId === typedTutor; });
+    if (own.length === 1) {
+      demoId = own[0].demoId;
+      $("paymentDemoId").value = demoId;
+      updateIdDetail($("paymentDemoDetail"), DIR_STUDENT_BY_ID[own[0].first.studentId] || null);
+    }
+  }
+
+  const g = demoGroups().find(x => x.demoId === demoId);
+  const activeRow = g ? activeRowFor(g) : null;
+  if (!isPayout && activeRow) $("paymentTutorId").value = activeRow.tutorId;
+  if (!isPayout && !activeRow) $("paymentTutorId").value = "";
+  const tutorId = $("paymentTutorId").value.trim();
+
+  const student = g ? (DIR_STUDENT_BY_ID[g.first.studentId] || null) : null;
+  const tutor = DIR_TUTOR_BY_ID[tutorId] || null;
+  $("paymentStudentMobile").value = (student && student.mobile) || "";
+  $("paymentStudentName").value = (student && student.name) || "";
+  $("paymentStuId").value = g ? g.first.studentId : "";
+  $("paymentStuWhatsapp").value = (student && (student.whatsapp || student.mobile)) || "";
+  $("paymentParentName").value = (student && student.parentsName) || "";
+  $("paymentTutorMobile").value = (tutor && tutor.mobile) || "";
+  $("paymentTutorName").value = (tutor && tutor.name) || "";
+
+  // Money only once the Tuition and (for a Payout) the tutor taking it line up.
+  const matches = activeRow && (!isPayout || activeRow.tutorId === tutorId);
+  if (!matches) {
+    ["paymentSubAmount", "paymentSubDues", "paymentPayingNow", "paymentRemaining"].forEach(id => { $(id).value = ""; });
+    updateNextPaymentDate();
+    return;
+  }
+  const m = classMoney(g, activeRow);
+  const total = isPayout ? m.tutorTotalAmount : m.studentTotalAmount;
+  const dues = isPayout ? m.tutorDues : m.studentDues;
+  $("paymentSubAmount").value = "₹" + total.toLocaleString("en-IN");
+  $("paymentSubDues").value = "₹" + dues.toLocaleString("en-IN");
+  $("paymentPayingNow").max = dues;
+  $("paymentPayingNow").value = dues;
+  updatePaymentRemaining();
+
 }
 
 function fillPaymentAgencyChargeFields(g, activeRow, side) {
@@ -1019,7 +1097,7 @@ function fillPaymentAgencyChargeFields(g, activeRow, side) {
 // Tapping a Class card figure: the Payments form opened on the matching
 // transaction type - Agency Charge (Student/Tutor), Collection (Parent)
 // for the Student's Total Amount/Payment, Payout (Tutor) for the
-// Tutor's - with this Tuition's Demo/Tutor ID
+// Tutor's - each with its Tuition's details filled in. with this Tuition's Demo/Tutor ID
 // (and, for a plain Collection/Payout, its dues as the amount) filled in.
 function openPaymentFormForClass(kind, g, activeRow) {
 
@@ -1042,16 +1120,10 @@ function openPaymentFormForClass(kind, g, activeRow) {
   $("paymentTransactionType").value = types[kind];
   applyPaymentTransactionType();
 
-  if (kind !== "tutor-payment") {
-    $("paymentDemoId").value = g.demoId;
-    $("paymentDemoId").dispatchEvent(new Event("input", { bubbles: true }));
-  }
-  if (kind === "tutor-payment") {
-    $("paymentTutorId").value = activeRow.tutorId;
-    $("paymentTutorId").dispatchEvent(new Event("input", { bubbles: true }));
-  }
-  if (kind === "student-payment") $("paymentAmount").value = m.studentDues;
-  if (kind === "tutor-payment") $("paymentAmount").value = m.tutorDues;
+  if (kind === "tutor-payment") $("paymentTutorId").value = activeRow.tutorId;
+  $("paymentDemoId").value = g.demoId;
+  $("paymentDemoId").dispatchEvent(new Event("input", { bubbles: true }));
+  updateIdDetail($("paymentTutorDetail"), DIR_TUTOR_BY_ID[activeRow.tutorId] || null);
   document.querySelectorAll("#paymentForm .admin-suggest").forEach(el => el.classList.add("hidden"));
 
   $("paymentForm").classList.remove("hidden");
@@ -1105,6 +1177,11 @@ function wirePaymentForm() {
       return;
     }
 
+    if (isPayout && !demoId) {
+      toast("Enter the Demo ID this payment is for.", true);
+      return;
+    }
+
     if (isAgencyCharge && !demoId) {
       toast("Enter the Demo ID.", true);
       return;
@@ -1120,7 +1197,8 @@ function wirePaymentForm() {
       return;
     }
 
-    const usesPayingNow = isSub || isAgencyCharge;
+    const isGrouped = !!GROUPED_ROWS[mode];
+    const usesPayingNow = isSub || isGrouped;
     const enteredAmount = Number(usesPayingNow ? $("paymentPayingNow").value : $("paymentAmount").value);
     if (!(enteredAmount > 0)) {
       toast(usesPayingNow ? "Enter the amount being paid now." : "Enter a valid amount.", true);
@@ -1135,7 +1213,7 @@ function wirePaymentForm() {
       }
     }
 
-    const nextPaymentDate = isAgencyCharge ? $("paymentNextDate").value : "";
+    const nextPaymentDate = isGrouped ? $("paymentNextDate").value : "";
 
     const payload = {
       action: "adminAddPayment",
@@ -1411,6 +1489,7 @@ function wirePaymentIdSuggestions() {
     const text = tutorInput.value.trim();
     const exact = DIR_TUTOR_BY_ID[text];
     updateIdDetail(tutorDetail, exact || null);
+    refreshAgencyChargeFromDemo();
     renderIdSuggestions(tutorSuggest, paymentTutorSuggestions(text, exactDemoId()), "tutor");
   });
 
@@ -2802,6 +2881,33 @@ function renderPayments() {
 
 }
 
+// The Tuition a Collection/Payout was made against: its own Demo ID, or
+// (an older payout saved without one) the tutor's live Tuition.
+function tuitionForPayment(p) {
+  const byDemo = p.demo_id ? demoGroups().find(x => x.demoId === p.demo_id) : null;
+  if (byDemo) return byDemo;
+  if (p.transaction_type !== "payout") return null;
+  return demoGroups().find(x => { const r = activeRowFor(x); return r && r.tutorId === p.tutor_id; }) || null;
+}
+
+// Dues on this Tuition's own fee just before payment p (same payment
+// kind only), and the fee itself - null when there's no live Tuition.
+function tuitionPaymentDues(p) {
+  const g = tuitionForPayment(p);
+  const activeRow = g ? activeRowFor(g) : null;
+  if (!activeRow) return null;
+  const m = classMoney(g, activeRow);
+  const isPayout = p.transaction_type === "payout";
+  const same = (STATE.payments || []).filter(o => isPayout
+    ? o.transaction_type === "payout" && o.tutor_id === p.tutor_id && (!o.demo_id || o.demo_id === g.demoId)
+    : o.transaction_type === "collection" && o.demo_id === p.demo_id);
+  const before = same.filter(o => o.payment_date < p.payment_date || (o.payment_date === p.payment_date && o.id < p.id))
+    .reduce((sum, o) => sum + num(o.amount), 0);
+  const total = isPayout ? m.tutorTotalAmount : m.studentTotalAmount;
+  const duesBefore = Math.max(total - (isPayout ? m.tutorAdvance : 0) - before, 0);
+  return { g, activeRow, total, duesBefore };
+}
+
 // Total of `list` up to and including payment p, in the order the
 // payments were made.
 function paidUpTo(list, p) {
@@ -2846,29 +2952,20 @@ function paymentSummary(p) {
     kind = "Tutor";
     partyId = p.tutor_id || "";
     purpose = "Payments Out";
-    const g = demoGroups().find(x => { const r = activeRowFor(x); return r && r.tutorId === p.tutor_id; });
-    target = g
-      ? { action: "go-to-tuition", demo: g.demoId }
+    const t = tuitionPaymentDues(p);
+    target = t
+      ? { action: "go-to-tuition", demo: t.g.demoId }
       : (p.tutor_id ? { action: "go-to-card", tab: "tutors", key: "tutors:" + p.tutor_id } : null);
-    if (g) {
-      const m = classMoney(g, activeRowFor(g));
-      const paid = paidUpTo(all.filter(o => o.transaction_type === "payout" && o.tutor_id === p.tutor_id), p);
-      dues = Math.max(m.tutorTotalAmount - m.tutorAdvance - paid, 0);
-    }
+    if (t) dues = Math.max(t.duesBefore - num(p.amount), 0);
 
   } else {
     const demo = p.demo_id ? DIR_DEMO_BY_ID[p.demo_id] : null;
-    const g = groupFor(p.demo_id);
-    const activeRow = g ? activeRowFor(g) : null;
     kind = "Student";
     partyId = demo ? demo.studentId : "";
     purpose = "Payments In";
     if (p.demo_id) target = { action: "go-to-tuition", demo: p.demo_id };
-    if (activeRow) {
-      const m = classMoney(g, activeRow);
-      const paid = paidUpTo(all.filter(o => o.transaction_type === "collection" && o.demo_id === p.demo_id), p);
-      dues = Math.max(m.studentTotalAmount - paid, 0);
-    }
+    const t = tuitionPaymentDues(p);
+    if (t) dues = Math.max(t.duesBefore - num(p.amount), 0);
   }
 
   const party = partyId ? (kind === "Student" ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID)[partyId] : null;
@@ -2917,31 +3014,6 @@ function paymentCard(p, ctx) {
   const editing = STATE.editing.has(key);
   const isPayout = p.transaction_type === "payout";
 
-  // So the payment can be verified against the right person by phone.
-  const demoDir = p.demo_id ? DIR_DEMO_BY_ID[p.demo_id] : null;
-  const studentDir = demoDir ? DIR_STUDENT_BY_ID[demoDir.studentId] : null;
-  const tutorDir = p.tutor_id ? DIR_TUTOR_BY_ID[p.tutor_id] : null;
-
-  const boxes = `
-    <div class="admin-boxes">
-      ${box("Transaction", isPayout ? "Payout" : "Collection", {
-        editable: editing,
-        options: ["Collection", "Payout"],
-        attr: editing ? `data-pfield="transactionType"` : ""
-      })}
-      ${!isPayout ? box("Demo ID", p.demo_id) : ""}
-      ${!isPayout && studentDir ? box("Student Mobile", `${studentDir.name} · ${studentDir.mobile || "No mobile"}`) : ""}
-      ${box("Tutor ID", p.tutor_id || "")}
-      ${tutorDir ? box("Tutor Mobile", `${tutorDir.name} · ${tutorDir.mobile || "No mobile"}`) : ""}
-      ${box("Amount (₹)", p.amount, { editable: editing, type: "number", attr: editing ? `data-pfield="amount"` : "" })}
-      ${box("Payment Date", editing ? p.payment_date : formatDate(p.payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" })}
-      ${!isPayout ? box("Payment Type", p.payment_type, { editable: editing, options: ["advance", "regular", "final"], attr: editing ? `data-pfield="paymentType"` : "" }) : ""}
-      ${!isPayout ? box("Collected By", p.collected_by, { editable: editing, options: ["agency", "tutor"], attr: editing ? `data-pfield="collectedBy"` : "" }) : ""}
-      ${box("Payment Mode", p.payment_mode, { editable: editing, attr: editing ? `data-pfield="paymentMode"` : "" })}
-      ${!isPayout ? box("Our Cut (₹)", p.our_cut_amount == null ? "" : p.our_cut_amount, { editable: editing, type: "number", attr: editing ? `data-pfield="ourCutAmount"` : "" }) : ""}
-      ${box("Notes", p.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
-    </div>`;
-
   const buttons = editing
     ? `<div class="admin-pair">
          <button class="admin-primary" data-action="save-payment" type="button">Save changes</button>
@@ -2959,6 +3031,46 @@ function paymentCard(p, ctx) {
   if (p.transaction_type === "agency_charge") {
     return agencyChargePaymentCard(p, key, open, editing, buttons);
   }
+
+  // Same rows, in the same order, as the Collection/Payout entry form.
+  const t = tuitionPaymentDues(p);
+  const g = t ? t.g : (p.demo_id ? demoGroups().find(x => x.demoId === p.demo_id) : null);
+  const studentId = g ? g.first.studentId : ((DIR_DEMO_BY_ID[p.demo_id] || {}).studentId || "");
+  const student = DIR_STUDENT_BY_ID[studentId] || {};
+  const tutorId = p.tutor_id || (t ? t.activeRow.tutorId : "");
+  const tutor = DIR_TUTOR_BY_ID[tutorId] || {};
+  const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
+  const paying = num(p.amount);
+  const remaining = t ? Math.max(t.duesBefore - paying, 0) : null;
+
+  const topRow =
+    box("Transaction", isPayout ? "Payout (Tutor)" : "Collection (Parent)") +
+    box("Payment Mode", p.payment_mode, { editable: editing, options: ["Online", "Offline"], attr: editing ? `data-pfield="paymentMode"` : "" }) +
+    box("Payment Date", editing ? p.payment_date : formatDate(p.payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" });
+  const demoRow = box("Demo ID", p.demo_id || (t ? t.g.demoId : "")) + box("Student Mobile Number", student.mobile || "") + box("Name", student.name || "");
+  const studentRow = box("Student ID", studentId) + box("WhatsApp Number", student.whatsapp || student.mobile || "") + box("Parent Name", student.parentsName || "");
+  const tutorRow = box("Tutor ID", tutorId) + box("Mobile Number", tutor.mobile || "") + box("Name", tutor.name || "");
+  const amountRow =
+    box("Amount (₹)", t ? rupees(t.total) : "") +
+    box("Dues (₹)", t ? rupees(t.duesBefore) : "") +
+    box("Paying Now (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: editing ? "number" : "text", attr: editing ? `data-pfield="amount"` : "" });
+  const notesRow =
+    box("Notes", p.notes || "", { editable: editing, multiline: true, attr: editing ? `data-pfield="notes"` : "" }) +
+    box("Remaining (₹)", remaining == null ? "" : rupees(remaining)) +
+    box("Next Payment Date", editing ? (p.next_payment_date || "") : formatDate(p.next_payment_date), {
+      editable: editing,
+      type: editing ? "date" : "text",
+      attr: (editing ? `data-pfield="nextPaymentDate"` : "") + (remaining > 0 ? ` data-reminder="1"` : "")
+    });
+
+  const boxes = `
+    <div class="admin-boxes admin-boxes-3">
+      ${topRow}
+      ${isPayout ? tutorRow + demoRow + studentRow : demoRow + studentRow + tutorRow}
+      ${amountRow}
+      ${notesRow}
+    </div>`;
+
 
   return `
     <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${p.id}" data-key="${esc(key)}">
@@ -3522,8 +3634,10 @@ function classMoney(g, activeRow) {
   const tutorTotalAmount = studentTotalAmount;
   const tutorAgencyCharge = num(activeRow.tutorAgencyCharge);
   const tutorAdvance = num(activeRow.tutorAdvancePayment);
+  // A payout records which Tuition it's for; older ones without a Demo
+  // ID still count against every Tuition that tutor is taking.
   const tutorPayouts = (STATE.payments || [])
-    .filter(p => p.tutor_id === activeRow.tutorId && p.transaction_type === "payout")
+    .filter(p => p.tutor_id === activeRow.tutorId && p.transaction_type === "payout" && (!p.demo_id || p.demo_id === g.demoId))
     .reduce((sum, p) => sum + num(p.amount), 0);
   const tutorTotalPayment = tutorAdvance + tutorPayouts;
   // The tutor's Agency Charge isn't taken off here - the tutor pays it
