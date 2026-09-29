@@ -1505,7 +1505,8 @@ function goToFilter(tab, filter) {
 
 // From a student's "Tuitions" pill: jump to the Tuitions tab with that
 // one tuition opened, ignoring whatever filter/search was active there.
-function goToTuition(demoId) {
+// highlightOnly (a payment's ₹): leave it collapsed, just outline it.
+function goToTuition(demoId, highlightOnly) {
 
   collapseAll();
   STATE.tab = "tuitions";
@@ -1513,21 +1514,23 @@ function goToTuition(demoId) {
   $("tuitionSearch").value = "";
   clearSearchChips("tuitionSearch");
   $("tuitionFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === "all"));
-  STATE.open.add("tuition:" + demoId);
+  if (!highlightOnly) STATE.open.add("tuition:" + demoId);
 
   applyActiveTab();
   rerenderCurrent();
 
   requestAnimationFrame(() => {
     const card = document.querySelector(`.tuition-card[data-demo="${CSS.escape(demoId)}"]`);
-    if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (!card) return;
+    if (highlightOnly) card.classList.add("is-highlighted");
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 
 }
 
-// Same as goToTuition, for one Subscription or Tutor card: that tab's
-// search (and Tutor filter) cleared so the card is shown, then opened
-// and scrolled into view.
+// Same as goToTuition's highlightOnly, for one Subscription or Tutor
+// card: that tab's search (and Tutor filter) cleared so the card is
+// shown, then outlined and scrolled into view, left collapsed.
 function goToCard(tab, key) {
 
   const searchId = { subscriptions: "subscriptionSearch", tutors: "tutorSearch" }[tab];
@@ -1540,14 +1543,14 @@ function goToCard(tab, key) {
     STATE.tutorFilter = "all";
     $("tutorFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === "all"));
   }
-  STATE.open.add(key);
-
   applyActiveTab();
   rerenderCurrent();
 
   requestAnimationFrame(() => {
     const card = document.querySelector(`[data-key="${CSS.escape(key)}"]`);
-    if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (!card) return;
+    card.classList.add("is-highlighted");
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 
 }
@@ -1684,7 +1687,7 @@ async function onListClick(event) {
   switch (action) {
 
     case "go-to-tuition":
-      goToTuition(actionEl.dataset.demo);
+      goToTuition(actionEl.dataset.demo, actionEl.dataset.highlight === "1");
       break;
 
     case "go-to-card":
@@ -2805,8 +2808,9 @@ function paymentSummary(p) {
 // Same two layers as a Subscription card: who / what / how much on top,
 // Full Payment or Dues left after it plus the time stamp below, and
 // what it was for + Student/Tutor as two vertical rails on the right
-// edge. The ₹ avatar jumps to whatever the payment belongs to - its
-// Tuition, Subscription, or (a payout with no live Tuition) its Tutor.
+// edge. The ₹ avatar jumps to (and outlines, without opening) whatever
+// the payment belongs to - its Tuition, Subscription, or (a payout with
+// no live Tuition) its Tutor.
 function paymentHead(key, p) {
   const s = paymentSummary(p);
   const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
@@ -2814,7 +2818,7 @@ function paymentHead(key, p) {
   return `
       <div class="admin-card-head" data-toggle="${esc(key)}">
         ${s.target
-          ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="${s.target.action}"${s.target.demo ? ` data-demo="${esc(s.target.demo)}"` : ""}${s.target.tab ? ` data-tab="${esc(s.target.tab)}" data-key="${esc(s.target.key)}"` : ""} title="Open what this payment is for">₹</button>`
+          ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="${s.target.action}" data-highlight="1"${s.target.demo ? ` data-demo="${esc(s.target.demo)}"` : ""}${s.target.tab ? ` data-tab="${esc(s.target.tab)}" data-key="${esc(s.target.key)}"` : ""} title="Open what this payment is for">₹</button>`
           : `<div class="admin-avatar">₹</div>`}
         <div class="admin-card-title">
           ${highlight(
