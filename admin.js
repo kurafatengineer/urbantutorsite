@@ -3686,15 +3686,12 @@ function classCard(g, activeRow) {
 
   const titleHtml = `
     <div class="admin-class-fracs">
-      <span class="admin-class-fracs-figures">
-        <span class="admin-class-frac admin-class-frac-left">${frac(collected, studentTotalAmount)}</span>
-        <span class="admin-class-frac-center">
-          <span class="admin-class-frac">${frac(studentAgencyReceived, studentAgencyCharge)}</span>
-          <span class="admin-class-frac">${frac(tutorAgencyReceived, tutorAgencyCharge)}</span>
-        </span>
-        <span class="admin-class-frac admin-class-frac-right">${frac(tutorTotalPayment, tutorTotalAmount)}</span>
+      <span class="admin-class-frac admin-class-frac-left">${frac(collected, studentTotalAmount)}</span>
+      <span class="admin-class-frac-center">
+        <span class="admin-class-frac">${frac(studentAgencyReceived, studentAgencyCharge)}</span>
+        <span class="admin-class-frac">${frac(tutorAgencyReceived, tutorAgencyCharge)}</span>
       </span>
-      <span class="admin-class-fracs-label">Payments</span>
+      <span class="admin-class-frac admin-class-frac-right">${frac(tutorTotalPayment, tutorTotalAmount)}</span>
     </div>`;
 
   return `
@@ -3704,6 +3701,7 @@ function classCard(g, activeRow) {
         <div class="admin-avatar">₹</div>
         <div class="admin-card-title">${titleHtml}</div>
         <span class="admin-caret" aria-hidden="true"></span>
+        <span class="admin-status-rail" data-tone="completed" tabindex="-1">Payments</span>
       </div>
 
       <div class="admin-card-body">
