@@ -891,6 +891,12 @@ function wirePaymentForm() {
       return;
     }
 
+    const enteredAmount = Number(isSub ? $("paymentPayingNow").value : $("paymentAmount").value);
+    if (!(enteredAmount > 0)) {
+      toast(isSub ? "Enter the amount being paid now." : "Enter a valid amount.", true);
+      return;
+    }
+
     const payload = {
       action: "adminAddPayment",
       transactionType: isPayout ? "payout" : "collection",

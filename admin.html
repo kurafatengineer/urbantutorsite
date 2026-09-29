@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260928u">
+  <link rel="stylesheet" href="admin.css?v=20260928v">
 </head>
 
 <body data-page="admin">
@@ -184,7 +184,7 @@
 
       <button id="addPaymentButton" class="admin-ghost admin-wide" type="button" style="margin-bottom:14px;">+ Record a Payment</button>
 
-      <form id="paymentForm" class="admin-card hidden" style="margin-bottom:14px;">
+      <form id="paymentForm" class="admin-card hidden" novalidate style="margin-bottom:14px;">
         <h3 class="admin-section-title">New Payment</h3>
         <p id="paymentForSubscription" class="admin-note hidden"></p>
         <input id="paymentSubscriptionId" type="hidden">
@@ -280,7 +280,7 @@
             <span>Payment Type</span>
           </label>
           <label class="admin-float" id="paymentAmountField">
-            <input id="paymentAmount" type="number" min="1" step="1" placeholder=" " required>
+            <input id="paymentAmount" type="number" min="1" step="1" placeholder=" ">
             <span>Amount (₹)</span>
           </label>
           <label class="admin-float">
@@ -291,11 +291,11 @@
             <div class="admin-mode-seg" role="radiogroup" aria-label="Payment Mode">
               <label>
                 <input type="radio" name="paymentModeChoice" id="paymentModeOnline" value="Online" checked>
-                <span>Online</span>
+                <span class="admin-mode-opt"><i class="admin-mode-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></i>Online</span>
               </label>
               <label>
                 <input type="radio" name="paymentModeChoice" id="paymentModeOffline" value="Offline">
-                <span>Offline</span>
+                <span class="admin-mode-opt"><i class="admin-mode-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></i>Offline</span>
               </label>
             </div>
             <span>Payment Mode</span>
@@ -456,7 +456,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260928t" defer></script>
+<script src="admin.js?v=20260928u" defer></script>
 
 </body>
 </html>
