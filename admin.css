@@ -452,6 +452,14 @@ button { cursor: pointer; }
 .admin-pill[data-tone="scheduled"] { color: var(--violet); background: var(--violet-dim); border-color: rgba(180, 144, 255, 0.3); }
 .admin-pill[data-tone="completed"] { color: var(--muted); background: var(--surface-2); border-color: var(--border-light); }
 
+/* Payment card pills: fixed widths sized to the longest word each can
+   hold ("Student", "Agency Charge"/"Payments Out") so they line up
+   down the list. */
+.admin-pill.admin-pill-party,
+.admin-pill.admin-pill-purpose { text-align: center; box-sizing: content-box; }
+.admin-pill.admin-pill-party { width: 8ch; }
+.admin-pill.admin-pill-purpose { width: 14ch; }
+
 .admin-facts {
   margin: 0;
   display: grid;

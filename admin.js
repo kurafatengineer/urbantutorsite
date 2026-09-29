@@ -2693,12 +2693,116 @@ function renderPayments() {
 
 }
 
+const PAYMENT_PARTY_TONES = { Student: "pending", Tutor: "scheduled" };
+const PAYMENT_PURPOSE_TONES = {
+  "Subscription": "completed",
+  "Agency Charge": "schedule",
+  "Payments In": "running",
+  "Payments Out": "rejected"
+};
+
+// Total of `list` up to and including payment p, in the order the
+// payments were made.
+function paidUpTo(list, p) {
+  return list
+    .filter(o => o.payment_date < p.payment_date || (o.payment_date === p.payment_date && o.id <= p.id))
+    .reduce((sum, o) => sum + num(o.amount), 0);
+}
+
+// Who a payment is from (or, for a payout, to), what it was for, and
+// the dues still left right after it - null when there's nothing to
+// measure it against (e.g. a payout to a tutor with no live Tuition).
+function paymentSummary(p) {
+
+  const all = STATE.payments || [];
+  const groupFor = demoId => demoGroups().find(x => x.demoId === demoId);
+  let kind, partyId, purpose, dues = null;
+
+  if (p.subscription_id) {
+    const sub = (STATE.subscriptions || []).find(x => x.id === p.subscription_id) || {};
+    kind = sub.student_id ? "Student" : "Tutor";
+    partyId = sub.student_id || sub.tutor_id || "";
+    purpose = "Subscription";
+    const paid = paidUpTo(all.filter(o => o.subscription_id === p.subscription_id && o.transaction_type !== "payout"), p);
+    dues = Math.max(num(sub.amount) - paid, 0);
+
+  } else if (p.transaction_type === "agency_charge") {
+    const g = groupFor(p.demo_id);
+    const activeRow = g ? activeRowFor(g) : null;
+    kind = p.tutor_id ? "Tutor" : "Student";
+    partyId = p.tutor_id || (g ? g.first.studentId : "");
+    purpose = "Agency Charge";
+    if (activeRow) {
+      const m = classMoney(g, activeRow);
+      const charge = p.tutor_id ? m.tutorAgencyCharge : m.studentAgencyCharge;
+      const paid = paidUpTo(all.filter(o => o.transaction_type === "agency_charge" && o.demo_id === p.demo_id && !!o.tutor_id === !!p.tutor_id), p);
+      dues = Math.max(charge - paid, 0);
+    }
+
+  } else if (p.transaction_type === "payout") {
+    kind = "Tutor";
+    partyId = p.tutor_id || "";
+    purpose = "Payments Out";
+    const g = demoGroups().find(x => { const r = activeRowFor(x); return r && r.tutorId === p.tutor_id; });
+    if (g) {
+      const m = classMoney(g, activeRowFor(g));
+      const paid = paidUpTo(all.filter(o => o.transaction_type === "payout" && o.tutor_id === p.tutor_id), p);
+      dues = Math.max(m.tutorTotalAmount - m.tutorAgencyCharge - m.tutorAdvance - paid, 0);
+    }
+
+  } else {
+    const demo = p.demo_id ? DIR_DEMO_BY_ID[p.demo_id] : null;
+    const g = groupFor(p.demo_id);
+    const activeRow = g ? activeRowFor(g) : null;
+    kind = "Student";
+    partyId = demo ? demo.studentId : "";
+    purpose = "Payments In";
+    if (activeRow) {
+      const m = classMoney(g, activeRow);
+      const paid = paidUpTo(all.filter(o => o.transaction_type === "collection" && o.demo_id === p.demo_id), p);
+      dues = Math.max(m.studentTotalAmount - paid, 0);
+    }
+  }
+
+  const party = partyId ? (kind === "Student" ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID)[partyId] : null;
+  return {
+    kind, partyId, purpose, dues,
+    partyName: (party && party.name) || partyId,
+    partyMobile: (party && party.mobile) || ""
+  };
+
+}
+
+// Same two layers as a Subscription card: who / what / how much on top,
+// Full Payment or Dues left after it plus the time stamp below, and
+// Student/Tutor + what it was for as two separate pills on the right.
+function paymentHead(key, p) {
+  const s = paymentSummary(p);
+  const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
+  const status = s.dues == null ? "" : (s.dues > 0 ? "Dues " + rupees(s.dues) : "Full Payment");
+  return `
+      <div class="admin-card-head" data-toggle="${esc(key)}">
+        <div class="admin-avatar">₹</div>
+        <div class="admin-card-title">
+          ${highlight(
+            [s.partyName, s.partyMobile, s.partyId, s.purpose, "Amount Paid " + rupees(p.amount)],
+            timeSplitLine(status, p.created_at),
+            "|",
+            "neutral",
+            true
+          )}
+        </div>
+        <span class="admin-pill admin-pill-party" data-tone="${PAYMENT_PARTY_TONES[s.kind]}">${esc(s.kind)}</span>
+        <span class="admin-pill admin-pill-purpose" data-tone="${PAYMENT_PURPOSE_TONES[s.purpose]}">${esc(s.purpose)}</span>
+        <span class="admin-caret" aria-hidden="true"></span>
+      </div>`;
+}
+
 function paymentCard(p, ctx) {
 
   const key = "payment:" + p.id;
   const open = STATE.open.has(key);
   const editing = STATE.editing.has(key);
-  const amount = Number(p.amount || 0);
   const isPayout = p.transaction_type === "payout";
 
   // So the payment can be verified against the right person by phone.
@@ -2745,20 +2849,8 @@ function paymentCard(p, ctx) {
   }
 
   return `
-    <article class="admin-card tutor-row-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${p.id}" data-key="${esc(key)}">
-
-      <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar">₹</div>
-        <div class="admin-card-title">
-          <div class="admin-hl">
-            <div class="admin-hl-top admin-hl-top-split" data-tone="neutral">
-              ${infoLine(["Paid ₹" + amount.toLocaleString("en-IN")])}
-              <span class="admin-hl-top-right">${esc(recordedAt(p.created_at))}</span>
-            </div>
-          </div>
-        </div>
-        <span class="admin-caret" aria-hidden="true"></span>
-      </div>
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${p.id}" data-key="${esc(key)}">
+${paymentHead(key, p)}
 
       <div class="admin-card-body">
         ${boxes}
@@ -2853,19 +2945,7 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
   return `
     <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${p.id}" data-key="${esc(key)}">
 
-      <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar">₹</div>
-        <div class="admin-card-title">
-          ${highlight(
-            [partyName, partyMobile, partyId, sub.plan_name, "Amount Paid " + rupees(paying)],
-            timeSplitLine(remaining > 0 ? `Remaining ${rupees(remaining)}` : "Fully paid", p.created_at),
-            "|",
-            "neutral",
-            true
-          )}
-        </div>
-        <span class="admin-caret" aria-hidden="true"></span>
-      </div>
+${paymentHead(key, p)}
 
       <div class="admin-card-body">
         ${boxes}
@@ -2920,20 +3000,8 @@ function agencyChargePaymentCard(p, key, open, editing, buttons) {
     </div>`;
 
   return `
-    <article class="admin-card tutor-row-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${p.id}" data-key="${esc(key)}">
-
-      <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar">₹</div>
-        <div class="admin-card-title">
-          <div class="admin-hl">
-            <div class="admin-hl-top admin-hl-top-split" data-tone="neutral">
-              ${infoLine(["Paid " + rupees(paying)])}
-              <span class="admin-hl-top-right">${esc(recordedAt(p.created_at))}</span>
-            </div>
-          </div>
-        </div>
-        <span class="admin-caret" aria-hidden="true"></span>
-      </div>
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${p.id}" data-key="${esc(key)}">
+${paymentHead(key, p)}
 
       <div class="admin-card-body">
         ${boxes}
@@ -3318,7 +3386,7 @@ function tuitionStack(g) {
 function classMoney(g, activeRow) {
 
   const studentTotalAmount = (num(activeRow.classDuration) / 60) * num(activeRow.classCharges) * num(activeRow.classCount);
-  const demoCollections = (STATE.payments || []).filter(p => p.demo_id === g.demoId && p.transaction_type !== "payout");
+  const demoCollections = (STATE.payments || []).filter(p => p.demo_id === g.demoId && p.transaction_type === "collection");
   const studentAdvancePaid = demoCollections
     .filter(p => p.payment_type === "advance")
     .reduce((sum, p) => sum + num(p.amount), 0);
