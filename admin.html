@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260929ar">
+  <link rel="stylesheet" href="admin.css?v=20260929at">
 </head>
 
 <body data-page="admin">
@@ -189,8 +189,24 @@
                every other transaction type (Subscription included)
                keeps its original flat field order below untouched. -->
           <div class="admin-form-row admin-form-row-3 hidden" id="agencySlotTop"></div>
+          <div class="admin-form-row admin-form-row-3 hidden" id="agencySlotDemo">
+            <label class="admin-float" id="paymentStudentMobileField">
+              <input id="paymentStudentMobile" type="text" readonly>
+              <span>Student Mobile Number</span>
+            </label>
+            <label class="admin-float" id="paymentStudentNameField">
+              <input id="paymentStudentName" type="text" readonly>
+              <span>Name</span>
+            </label>
+          </div>
           <div class="admin-form-row admin-form-row-3 hidden" id="agencySlotParty"></div>
           <div class="admin-form-row admin-form-row-3 hidden" id="agencySlotAmount"></div>
+          <div class="admin-form-row admin-form-row-notes hidden" id="agencySlotNotes">
+            <label class="admin-float hidden" id="paymentNextDateField">
+              <input id="paymentNextDate" type="date">
+              <span>Next Payment Date</span>
+            </label>
+          </div>
 
           <label class="admin-float is-select" id="paymentTransactionTypeField">
             <select id="paymentTransactionType">
@@ -223,7 +239,7 @@
 
           <label class="admin-float hidden" id="paymentSubNameField">
             <input id="paymentSubName" type="text" readonly>
-            <span>Name</span>
+            <span id="paymentSubNameLabel">Name</span>
           </label>
           <label class="admin-float hidden" id="paymentSubMobileField">
             <input id="paymentSubMobile" type="text" readonly>
@@ -334,7 +350,7 @@
             <span>Remaining (₹)</span>
           </label>
 
-          <label class="admin-float wide">
+          <label class="admin-float wide" id="paymentNotesField">
             <textarea id="paymentNotes" rows="2" placeholder=" "></textarea>
             <span>Notes</span>
           </label>
@@ -459,7 +475,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260929zzm" defer></script>
+<script src="admin.js?v=20260929zzn" defer></script>
 
 </body>
 </html>

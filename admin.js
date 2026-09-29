@@ -739,7 +739,8 @@ const AGENCY_LAYOUT_DOC_ORDER = [
   "paymentSubNameField", "paymentSubMobileField", "paymentSubIdField",
   "paymentDemoIdField",
   "paymentDateField", "paymentModeField",
-  "paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField", "paymentRemainingField"
+  "paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField", "paymentRemainingField",
+  "paymentNotesField"
 ];
 
 let agencyLayoutOriginalPos = null;
@@ -754,15 +755,18 @@ function layoutAgencyChargeFields(isAgencyCharge) {
     });
   }
 
-  const topSlot = $("agencySlotTop"), partySlot = $("agencySlotParty"), amountSlot = $("agencySlotAmount");
+  const topSlot = $("agencySlotTop"), demoSlot = $("agencySlotDemo"), partySlot = $("agencySlotParty"),
+    amountSlot = $("agencySlotAmount"), notesSlot = $("agencySlotNotes");
 
   if (isAgencyCharge) {
     ["paymentTransactionTypeField", "paymentModeField", "paymentDateField"].forEach(id => topSlot.appendChild($(id)));
-    partySlot.parentNode.insertBefore($("paymentDemoIdField"), partySlot);
+    // Demo ID leads the Student's own Mobile/Name (always in that slot).
+    demoSlot.insertBefore($("paymentDemoIdField"), demoSlot.firstChild);
     ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"].forEach(id => partySlot.appendChild($(id)));
     // No Remaining here - Paying Now already starts at the full Dues,
     // so it would just show ₹0 until the admin deliberately changes it.
     ["paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField"].forEach(id => amountSlot.appendChild($(id)));
+    notesSlot.insertBefore($("paymentNotesField"), notesSlot.firstChild);
   } else {
     // Reverse document order: each field is reinserted right before its
     // own original next-sibling, so a field chained to another moved
@@ -774,9 +778,7 @@ function layoutAgencyChargeFields(isAgencyCharge) {
     });
   }
 
-  topSlot.classList.toggle("hidden", !isAgencyCharge);
-  partySlot.classList.toggle("hidden", !isAgencyCharge);
-  amountSlot.classList.toggle("hidden", !isAgencyCharge);
+  [topSlot, demoSlot, partySlot, amountSlot, notesSlot].forEach(slot => slot.classList.toggle("hidden", !isAgencyCharge));
 
 }
 
@@ -827,13 +829,17 @@ function applyPaymentTransactionType() {
   } else if (isAgencyCharge) {
     $("paymentSubIdLabel").textContent = mode === "student-agency-charge" ? "Student ID" : "Tutor ID";
   }
+  // A Student Agency Charge is paid by the parent, so that row names them.
+  $("paymentSubNameLabel").textContent = mode === "student-agency-charge" ? "Parent Name" : "Name";
+  updateNextPaymentDate();
 
 }
 
 function clearPaymentSubFields() {
   ["paymentSubName", "paymentSubMobile", "paymentSubId", "paymentSubPlan", "paymentSubAmount",
    "paymentSubDues", "paymentPayingNow", "paymentRemaining", "paymentSubCycle", "paymentSubStatus",
-   "paymentSubStartDate", "paymentSubNextDue"].forEach(id => { $(id).value = ""; });
+   "paymentSubStartDate", "paymentSubNextDue", "paymentStudentMobile", "paymentStudentName",
+   "paymentNextDate"].forEach(id => { $(id).value = ""; });
 }
 
 function updatePaymentRemaining() {
@@ -845,6 +851,20 @@ function updatePaymentRemaining() {
   }
   $("paymentRemaining").value = "₹" + Math.max(dues - payingNow, 0).toLocaleString("en-IN");
   $("paymentSubNextDueField").classList.toggle("needs-reminder", dues - payingNow > 0);
+  updateNextPaymentDate();
+}
+
+// An Agency Charge payment that doesn't clear the dues asks when the
+// rest is due.
+function agencyChargeLeftAfterPayment() {
+  const mode = $("paymentTransactionType").value;
+  if (mode !== "student-agency-charge" && mode !== "tutor-agency-charge") return 0;
+  const dues = Number(String($("paymentSubDues").value).replace(/[^\d.-]/g, "")) || 0;
+  return Math.max(dues - (Number($("paymentPayingNow").value) || 0), 0);
+}
+
+function updateNextPaymentDate() {
+  $("paymentNextDateField").classList.toggle("hidden", !(agencyChargeLeftAfterPayment() > 0));
 }
 
 // The subscription's current billing cycle "starts" from whichever
@@ -982,9 +1002,15 @@ function fillPaymentAgencyChargeFields(g, activeRow, side) {
 
   $("paymentTutorId").value = activeRow.tutorId;
 
+  const studentDir = DIR_STUDENT_BY_ID[g.first.studentId] || null;
+  $("paymentStudentMobile").value = (studentDir && studentDir.mobile) || "";
+  $("paymentStudentName").value = (studentDir && studentDir.name) || "";
+
   $("paymentSubId").value = side === "tutor" ? activeRow.tutorId : g.first.studentId;
   $("paymentSubMobile").value = (party && party.mobile) || "";
-  $("paymentSubName").value = (party && party.name) || "";
+  $("paymentSubName").value = side === "tutor"
+    ? ((party && party.name) || "")
+    : ((studentDir && studentDir.parentsName) || "");
 
   $("paymentSubAmount").value = "₹" + charge.toLocaleString("en-IN");
   $("paymentSubDues").value = "₹" + dues.toLocaleString("en-IN");
@@ -1113,6 +1139,12 @@ function wirePaymentForm() {
       }
     }
 
+    const nextPaymentDate = isAgencyCharge && agencyChargeLeftAfterPayment() > 0 ? $("paymentNextDate").value : "";
+    if (isAgencyCharge && agencyChargeLeftAfterPayment() > 0 && !nextPaymentDate) {
+      toast("This doesn't clear the dues - pick the Next Payment Date.", true);
+      return;
+    }
+
     const payload = {
       action: "adminAddPayment",
       transactionType: isPayout ? "payout" : (isAgencyCharge ? "agency_charge" : "collection"),
@@ -1129,6 +1161,7 @@ function wirePaymentForm() {
       paymentMode: paymentModeValue(),
       receivedBy: isSub ? $("paymentReceivedBy").value.trim() : undefined,
       paymentDate: $("paymentDate").value,
+      nextPaymentDate: nextPaymentDate || undefined,
       notes: $("paymentNotes").value.trim()
     };
 
@@ -3059,7 +3092,8 @@ function agencyChargePaymentCard(p, key, open, editing, buttons) {
 
   const partyId = isTutorSide ? p.tutor_id : (g ? g.first.studentId : "");
   const party = partyId ? (isTutorSide ? DIR_TUTOR_BY_ID : DIR_STUDENT_BY_ID)[partyId] : null;
-  const partyName = (party && party.name) || partyId;
+  const studentDir = g ? (DIR_STUDENT_BY_ID[g.first.studentId] || null) : null;
+  const partyName = isTutorSide ? ((party && party.name) || partyId) : ((studentDir && studentDir.parentsName) || "");
   const partyMobile = (party && party.mobile) || "";
 
   const paying = Number(p.amount || 0);
@@ -3072,18 +3106,21 @@ function agencyChargePaymentCard(p, key, open, editing, buttons) {
   const transactionLabel = isTutorSide ? "Tutor Agency Charge" : "Student Agency Charge";
 
   const boxes = `
-    <div class="admin-boxes">
+    <div class="admin-boxes admin-boxes-3">
       ${box("Transaction", transactionLabel)}
+      ${box("Payment Mode", p.payment_mode, { editable: editing, options: ["Online", "Offline"], attr: editing ? `data-pfield="paymentMode"` : "" })}
+      ${box("Payment Date", editing ? p.payment_date : formatDate(p.payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" })}
       ${box("Demo ID", p.demo_id || "")}
+      ${box("Student Mobile Number", (studentDir && studentDir.mobile) || "")}
+      ${box("Name", (studentDir && studentDir.name) || "")}
       ${box(isTutorSide ? "Tutor ID" : "Student ID", partyId)}
       ${box("Mobile Number", partyMobile)}
-      ${box("Name", partyName)}
-      ${box("Agency Charge (₹)", rupees(charge))}
+      ${box(isTutorSide ? "Name" : "Parent Name", partyName)}
+      ${box("Amount (₹)", rupees(charge))}
       ${box("Dues (₹)", rupees(duesThen))}
       ${box("Paying Now (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: editing ? "number" : "text", attr: editing ? `data-pfield="amount"` : "" })}
-      ${box("Payment Date", editing ? p.payment_date : formatDate(p.payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" })}
-      ${box("Payment Mode", p.payment_mode, { editable: editing, options: ["Online", "Offline"], attr: editing ? `data-pfield="paymentMode"` : "" })}
-      ${box("Notes", p.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
+      ${box("Notes", p.notes || "", { editable: editing, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
+      ${(p.next_payment_date || editing) ? box("Next Payment Date", editing ? (p.next_payment_date || "") : formatDate(p.next_payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="nextPaymentDate"` : "" }) : ""}
     </div>`;
 
   return `

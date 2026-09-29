@@ -311,6 +311,8 @@ function paymentChangesFromBody(body: Json, partial: boolean): Json | { error: s
   }
 
   assign("payment_date", body.paymentDate || undefined);
+  // When the rest of a part-paid Agency Charge is due.
+  assign("next_payment_date", body.nextPaymentDate !== undefined ? (body.nextPaymentDate || null) : undefined);
   assign("notes", body.notes !== undefined ? String(body.notes ?? "").trim() : undefined);
   assign("received_by", body.receivedBy !== undefined ? (String(body.receivedBy ?? "").trim() || null) : undefined);
 
@@ -414,7 +416,7 @@ async function buildPaymentDirectory(): Promise<Json> {
     db.from("applications").select(
       "demo_id, tutor_id, parent_accepted, tutor_accepted, parent_rejected, tutor_rejected, classes_completed, demo_date"
     ),
-    db.from("students").select("student_id, student_name, phone, whatsapp"),
+    db.from("students").select("student_id, student_name, parents_name, phone, whatsapp"),
     db.from("tutors").select("tutor_id, full_name, mobile_number, whatsapp_number"),
   ]);
 
@@ -461,7 +463,7 @@ async function buildPaymentDirectory(): Promise<Json> {
       tutorIds: [...(tutorsByDemo.get(t.demo_id) ?? [])],
     })),
     students: (students ?? []).map((s: Json) => ({
-      id: s.student_id, name: s.student_name, mobile: s.phone || s.whatsapp || "",
+      id: s.student_id, name: s.student_name, parentsName: s.parents_name || "", mobile: s.phone || s.whatsapp || "",
     })),
     tutors: (tutors ?? []).map((t: Json) => ({
       id: t.tutor_id, name: t.full_name, mobile: t.mobile_number || t.whatsapp_number || "",
