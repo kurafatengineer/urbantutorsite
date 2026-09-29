@@ -3062,7 +3062,6 @@ function agencyChargePaymentCard(p, key, open, editing, buttons) {
       (o.payment_date < p.payment_date || (o.payment_date === p.payment_date && o.id < p.id)))
     .reduce((sum, o) => sum + Number(o.amount || 0), 0);
   const duesThen = Math.max(charge - paidBefore, 0);
-  const duesAfter = Math.max(duesThen - paying, 0);
   const rupees = n => "₹" + Number(n).toLocaleString("en-IN");
   const transactionLabel = isTutorSide ? "Tutor Agency Charge" : "Student Agency Charge";
 
@@ -3087,13 +3086,12 @@ function agencyChargePaymentCard(p, key, open, editing, buttons) {
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">₹</div>
         <div class="admin-card-title">
-          ${highlight(
-            [p.demo_id, partyName, transactionLabel, "Paid " + rupees(paying)],
-            timeSplitLine(duesAfter > 0 ? `Dues ${rupees(duesAfter)}` : "Fully paid", p.created_at),
-            "|",
-            "neutral",
-            true
-          )}
+          <div class="admin-hl">
+            <div class="admin-hl-top admin-hl-top-split" data-tone="neutral">
+              ${infoLine(["Paid " + rupees(paying)])}
+              <span class="admin-hl-top-right">${esc(recordedAt(p.created_at))}</span>
+            </div>
+          </div>
         </div>
         <span class="admin-caret" aria-hidden="true"></span>
       </div>
