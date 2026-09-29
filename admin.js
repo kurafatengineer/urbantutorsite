@@ -747,9 +747,10 @@ const ROW_STUDENT = ["slotStudent", ["paymentStuIdField", "paymentStuWhatsappFie
 const ROW_TUTOR = ["slotTutor", ["paymentTutorIdField", "paymentTutorMobileField", "paymentTutorNameField"]];
 const ROW_PARTY = ["agencySlotParty", ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"]];
 const ROW_AMOUNT = ["agencySlotAmount", ["paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField"]];
-const ROW_NOTES = ["agencySlotNotes", ["paymentNotesField", "paymentRemainingField", "paymentNextDateField"]];
+// Remaining always sits in the last column, right under Paying Now.
+const ROW_NOTES = ["agencySlotNotes", ["paymentNotesField", "paymentNextDateField", "paymentRemainingField"]];
 const ROW_SUB_PLAN = ["slotSubPlan", ["paymentSubPlanField", "paymentSubCycleField", "paymentSubStatusField"]];
-const ROW_SUB_DATES = ["slotSubDates", ["paymentSubStartDateField", "paymentRemainingField", "paymentSubNextDueField"]];
+const ROW_SUB_DATES = ["slotSubDates", ["paymentSubStartDateField", "paymentSubNextDueField", "paymentRemainingField"]];
 const ROW_SUB_NOTES = ["slotSubNotes", ["paymentNotesField"]];
 
 // Rows per transaction type, top to bottom: [row container, its fields].
@@ -3062,12 +3063,12 @@ function paymentCard(p, ctx) {
     box("Paying Now (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: editing ? "number" : "text", attr: editing ? `data-pfield="amount"` : "" });
   const notesRow =
     box("Notes", p.notes || "", { editable: editing, multiline: true, attr: editing ? `data-pfield="notes"` : "" }) +
-    box("Remaining (₹)", remaining == null ? "" : rupees(remaining)) +
     box("Next Payment Date", editing ? (p.next_payment_date || "") : formatDate(p.next_payment_date), {
       editable: editing,
       type: editing ? "date" : "text",
       attr: (editing ? `data-pfield="nextPaymentDate"` : "") + (remaining > 0 ? ` data-reminder="1"` : "")
-    });
+    }) +
+    box("Remaining (₹)", remaining == null ? "" : rupees(remaining));
 
   const boxes = `
     <div class="admin-boxes admin-boxes-3">
@@ -3167,8 +3168,8 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
       ${box("Dues (₹)", rupees(duesThen))}
       ${box("Paying Now (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: editing ? "number" : "text", attr: editing ? `data-pfield="amount"` : "" })}
       ${box("Start Date", formatDate(startDate))}
-      ${box("Remaining (₹)", rupees(remaining))}
       ${box("Next Due Date", formatDate(nextDue), { attr: remaining > 0 ? `data-reminder="1"` : "" })}
+      ${box("Remaining (₹)", rupees(remaining))}
       ${box("Notes", p.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
     </div>`;
 
@@ -3230,12 +3231,12 @@ function agencyChargePaymentCard(p, key, open, editing, buttons) {
       ${box("Dues (₹)", rupees(duesThen))}
       ${box("Paying Now (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: editing ? "number" : "text", attr: editing ? `data-pfield="amount"` : "" })}
       ${box("Notes", p.notes || "", { editable: editing, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
-      ${box("Remaining (₹)", rupees(Math.max(duesThen - paying, 0)))}
       ${box("Next Payment Date", editing ? (p.next_payment_date || "") : formatDate(p.next_payment_date), {
         editable: editing,
         type: editing ? "date" : "text",
         attr: (editing ? `data-pfield="nextPaymentDate"` : "") + (duesThen - paying > 0 ? ` data-reminder="1"` : "")
       })}
+      ${box("Remaining (₹)", rupees(Math.max(duesThen - paying, 0)))}
     </div>`;
 
   return `
