@@ -3450,16 +3450,16 @@ function ledgerCard(e) {
   const record = e.status === "paid" ? "" : `
         <button type="button" class="admin-avatar admin-avatar-link ledger-record" data-action="ledger-record"
           ${e.subscriptionId ? `data-sub="${e.subscriptionId}"` : `data-demo="${esc(t.demo)}" data-part="${esc(t.part)}"`}
-          title="Record this payment">+</button>`;
+          title="Record this payment" aria-label="Record this payment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>`;
   return `
     <article class="admin-card ledger-card" data-tone="neutral">
       <div class="admin-card-head" ${attrs} title="Open what this is for">
         <span class="admin-status-rail ledger-status-rail" data-tone="${status.tone}" tabindex="-1">${esc(status.label)}</span>
+        <span class="admin-status-rail ledger-purpose-rail" data-tone="black" tabindex="-1">${esc(e.purpose)}</span>
         <div class="admin-card-title">
           ${highlight([e.partyName, e.partyId, e.demoId, e.kind, e.purpose, rupees(e.amount)], small, "|", "neutral", true)}
         </div>
         ${record}
-        <span class="admin-status-rail ledger-purpose-rail" data-tone="black" tabindex="-1">${esc(e.purpose)}</span>
       </div>
     </article>`;
 }
