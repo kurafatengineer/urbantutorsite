@@ -2452,6 +2452,33 @@ body[data-page="admin"] {
   background: var(--surface-2);
 }
 
+/* Class card's collapsed head: Student's own Total Payment/Total
+   Amount on the far left, Tutor's on the far right, both sides' own
+   Agency Payment/Agency Amount centred between them. */
+.admin-class-fracs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  overflow: hidden;
+}
+
+.admin-class-frac {
+  white-space: nowrap;
+}
+
+.admin-class-frac-center {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 0 1 auto;
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .admin-day-chips {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));

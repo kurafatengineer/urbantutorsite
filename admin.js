@@ -3631,7 +3631,9 @@ function classCard(g, activeRow) {
   // never double-count each other), and Dues is Total Amount less both.
   const {
     studentTotalAmount, studentAdvancePaid, collected, studentDues,
-    tutorTotalAmount, tutorTotalPayment, tutorDues
+    tutorTotalAmount, tutorTotalPayment, tutorDues,
+    studentAgencyCharge, studentAgencyReceived,
+    tutorAgencyCharge, tutorAgencyReceived
   } = classMoney(g, activeRow);
 
   // Student and Tutor sit side by side as two columns (stacking on
@@ -3673,17 +3675,22 @@ function classCard(g, activeRow) {
       </div>
     </div>`;
 
-  const ctx = {
-    studentName: student ? student.values["Student Name"] : g.first.studentId,
-    subject: g.first.subject
-  };
+  // Collapsed head: 4 fraction figures in one row - Student's own Total
+  // Payment/Total Amount on the far left, Tutor's on the far right, and
+  // each side's own Agency Payment/Agency Amount centred between them
+  // (Student's agency fraction first, then Tutor's).
+  const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
+  const frac = (paid, total) => `${rupees(paid)}/${rupees(total)}`;
 
-  const titleHtml = highlight(
-    [g.demoId, "Class Details"],
-    [ctx.studentName, tv("Full Name")].filter(Boolean).join(" · "),
-    "|",
-    "neutral"
-  );
+  const titleHtml = `
+    <div class="admin-class-fracs">
+      <span class="admin-class-frac admin-class-frac-left">${esc(frac(collected, studentTotalAmount))}</span>
+      <span class="admin-class-frac-center">
+        <span class="admin-class-frac">${esc(frac(studentAgencyReceived, studentAgencyCharge))}</span>
+        <span class="admin-class-frac">${esc(frac(tutorAgencyReceived, tutorAgencyCharge))}</span>
+      </span>
+      <span class="admin-class-frac admin-class-frac-right">${esc(frac(tutorTotalPayment, tutorTotalAmount))}</span>
+    </div>`;
 
   return `
     <article class="admin-card class-card${open ? " is-open" : ""}" data-box data-demo="${esc(g.demoId)}" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}">
