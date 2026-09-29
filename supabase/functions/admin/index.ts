@@ -605,6 +605,27 @@ function subscriptionRows(row: Json): [string, string][] {
   ];
 }
 
+// The subscription's one-year period counts from whenever the FIRST
+// payment against it was actually made, not from whenever the
+// subscription record itself was created - so once a payment lands
+// (and only the first one), pull start_date up to that payment's date
+// and push next_due_date out to a year after it.
+async function alignSubscriptionToFirstPayment(subscriptionId: number, paymentDate: string) {
+  const { count } = await db
+    .from("payments")
+    .select("id", { count: "exact", head: true })
+    .eq("subscription_id", subscriptionId);
+  if (count !== 1) return; // not the first payment on this subscription
+
+  const nextDue = new Date(paymentDate);
+  nextDue.setFullYear(nextDue.getFullYear() + 1);
+
+  await db.from("subscriptions").update({
+    start_date: paymentDate,
+    next_due_date: nextDue.toISOString().slice(0, 10),
+  }).eq("id", subscriptionId);
+}
+
 async function handle(body: Json, authHeader: string | null): Promise<Json> {
 
   const action = String(body?.action ?? "");
@@ -737,6 +758,9 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
       const { data: inserted, error } = await db.from("payments").insert({ ...changes, recorded_by: caller.id }).select().maybeSingle();
       if (error) return { success: false, message: error.message };
       if (inserted) {
+        if (inserted.subscription_id) {
+          await alignSubscriptionToFirstPayment(inserted.subscription_id, inserted.payment_date);
+        }
         const party = await resolvePaymentParty(inserted);
         await notify(party, "A payment was recorded", "Payment Recorded",
           `${caller.fullName} has recorded a payment on your account.`, paymentRows(inserted));
