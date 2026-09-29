@@ -2975,7 +2975,7 @@ function tutorRowCard(row, terminated) {
 
   const parent = row.parentAccepted ? "accepted" : row.parentRejected ? "rejected" : "pending";
   const tut = row.tutorAccepted ? "accepted" : row.tutorRejected ? "rejected" : "pending";
-  const canQuickOpen = !terminated && ["schedule", "scheduled", "processing"].includes(state);
+  const canQuickOpen = !terminated && ["schedule", "scheduled", "processing", "running", "completed"].includes(state);
   const quickOpen = STATE.quickOpen.has(key);
 
   const segmented = (who, value) => `
