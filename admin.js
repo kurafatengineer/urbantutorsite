@@ -758,7 +758,9 @@ function layoutAgencyChargeFields(isAgencyCharge) {
   if (isAgencyCharge) {
     ["paymentTransactionTypeField", "paymentModeField", "paymentDateField"].forEach(id => topSlot.appendChild($(id)));
     ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"].forEach(id => partySlot.appendChild($(id)));
-    PAYMENT_AMOUNT_FIELD_IDS.forEach(id => amountSlot.appendChild($(id)));
+    // No Remaining here - Paying Now already starts at the full Dues,
+    // so it would just show ₹0 until the admin deliberately changes it.
+    ["paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField"].forEach(id => amountSlot.appendChild($(id)));
   } else {
     // Reverse document order: each field is reinserted right before its
     // own original next-sibling, so a field chained to another moved
@@ -806,6 +808,9 @@ function applyPaymentTransactionType() {
   PAYMENT_SUB_ONLY_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub));
   PAYMENT_PARTY_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isAgencyCharge));
   PAYMENT_AMOUNT_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isAgencyCharge));
+  // Remaining stays Subscription-only - an Agency Charge payment never
+  // shows it (see layoutAgencyChargeFields).
+  if (isAgencyCharge) $("paymentRemainingField").classList.add("hidden");
 
   // The search box only shows in subscription mode, and only until a
   // party has actually been resolved (typed/picked, or pre-filled by
