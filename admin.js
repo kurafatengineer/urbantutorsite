@@ -483,6 +483,20 @@ function wireEvents() {
     if (changed) rerenderCurrent();
   });
 
+  // Payment To (Student side) and Payment From (Tutor side) describe
+  // the same money movement from two ends, so picking one sets the
+  // other rather than leaving it to drift out of sync: Tutor collecting
+  // straight from the parent, or the Agency handling both ends itself.
+  document.addEventListener("change", (event) => {
+    const to = event.target.closest('[data-cfield="Student Payment To"]');
+    if (!to) return;
+    const card = to.closest("[data-box]");
+    const from = card && card.querySelector('[data-cfield="Tutor Payment From"]');
+    if (!from) return;
+    if (to.value === "Tutor") from.value = "Parents";
+    else if (to.value === "Agency") from.value = "Agency";
+  });
+
   $("emailStepForm").addEventListener("submit", async (event) => {
 
     event.preventDefault();
@@ -3145,7 +3159,7 @@ function classCard(g, activeRow) {
         ${box("Name", sv("Student Name"), { wide: true })}
         ${box("Mobile Number", sv("Phone"))}
         ${box("WhatsApp Number", sv("WhatsApp"))}
-        ${box("Payment To", activeRow.studentPaymentTo, { editable: editing, wide: true, attr: cfield("Student Payment To") })}
+        ${box("Payment To", editing ? (activeRow.studentPaymentTo || "Agency") : activeRow.studentPaymentTo, { editable: editing, wide: true, options: ["Agency", "Tutor"], attr: cfield("Student Payment To") })}
         ${box("Agency Charge (₹)", activeRow.studentAgencyCharge, { editable: editing, wide: true, type: "number", attr: cfield("Student Agency Charge") })}
         ${box("Payment", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, wide: true, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
         ${box("Advance Payment (₹)", activeRow.studentAdvancePayment, { editable: editing, wide: true, type: "number", attr: cfield("Student Advance Payment") })}
@@ -3161,7 +3175,7 @@ function classCard(g, activeRow) {
         ${box("Tutor Name", tv("Full Name"), { wide: true })}
         ${box("Mobile Number", tv("Mobile Number"))}
         ${box("WhatsApp Number", tv("WhatsApp Number"))}
-        ${box("Payment From", activeRow.tutorPaymentFrom, { editable: editing, wide: true, attr: cfield("Tutor Payment From") })}
+        ${box("Payment From", editing ? (activeRow.tutorPaymentFrom || "Agency") : activeRow.tutorPaymentFrom, { editable: editing, wide: true, options: ["Agency", "Parents"], attr: cfield("Tutor Payment From") })}
         ${box("Agency Charges (₹)", activeRow.tutorAgencyCharge, { editable: editing, wide: true, type: "number", attr: cfield("Tutor Agency Charge") })}
         ${box("Payment", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, wide: true, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
         ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, wide: true, type: "number", attr: cfield("Tutor Advance Payment") })}
