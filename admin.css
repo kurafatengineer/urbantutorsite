@@ -1445,10 +1445,11 @@ button { cursor: pointer; }
 
 .admin-mode-seg .admin-mode-opt {
   display: flex;
+  flex-direction: row-reverse;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 8px;
-  padding: 8px 4px;
+  padding: 8px 12px 8px 14px;
   border-radius: 999px;
   font-size: 14px;
   font-weight: 700;

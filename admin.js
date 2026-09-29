@@ -1014,6 +1014,12 @@ function wireSubscriptionForm() {
       return;
     }
 
+    const existingSub = subscriptionFor(partyType, partyId);
+    if (existingSub && existingSub.status !== "cancelled") {
+      toast(`${partyId} already has a subscription. Record a payment against it instead of creating another.`, true);
+      return;
+    }
+
     const payload = {
       action: "adminAddSubscription",
       partyType,
@@ -2502,7 +2508,7 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
       ${box("Received By", p.received_by || "", { editable: editing, attr: editing ? `data-pfield="receivedBy"` : "" })}
       ${box("Amount (₹)", rupees(planAmount))}
       ${box("Dues (₹)", rupees(duesThen))}
-      ${box("Amount Paid (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: "number", attr: editing ? `data-pfield="amount"` : "" })}
+      ${box("Amount Paid (₹)", editing ? p.amount : rupees(paying), { editable: editing, type: editing ? "number" : "text", attr: editing ? `data-pfield="amount"` : "" })}
       ${box("Remaining (₹)", rupees(remaining))}
       ${box("Notes", p.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-pfield="notes"` : "" })}
     </div>`;
@@ -2606,7 +2612,7 @@ function subscriptionCard(sub) {
        </div>`;
 
   return `
-    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="${SUBSCRIPTION_STATUS_TONES[sub.status] || ""}" data-box data-id="${sub.id}" data-key="${esc(key)}">
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${sub.id}" data-key="${esc(key)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">${esc(initials(partyName, "$"))}${subscriptionPayBadge(sub.student_id ? "student" : "tutor", partyId)}</div>
@@ -2615,7 +2621,7 @@ function subscriptionCard(sub) {
             [partyName || partyId, partyMobile, partyId, sub.plan_name, "₹" + amount.toLocaleString("en-IN")],
             "",
             "|",
-            SUBSCRIPTION_STATUS_TONES[sub.status] || "schedule"
+            "neutral"
           )}
         </div>
         <span class="admin-pill" data-tone="${SUBSCRIPTION_STATUS_TONES[sub.status] || ""}">${esc(SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status)}</span>

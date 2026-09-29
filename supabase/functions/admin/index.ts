@@ -805,6 +805,17 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
     case "adminAddSubscription": {
       const changes = subscriptionChangesFromBody(body, false);
       if ("error" in changes) return { success: false, message: changes.error };
+
+      // One subscription per student/tutor: while it isn't cancelled a
+      // second one can't be opened - payments are added to the existing one.
+      const partyColumn = changes.student_id ? "student_id" : "tutor_id";
+      const partyId = changes.student_id ?? changes.tutor_id;
+      const { data: existingSub } = await db.from("subscriptions")
+        .select("id").eq(partyColumn, partyId).neq("status", "cancelled").limit(1).maybeSingle();
+      if (existingSub) {
+        return { success: false, message: `${partyId} already has a subscription. Record a payment against it instead of creating another.` };
+      }
+
       const { data: inserted, error } = await db.from("subscriptions").insert({ ...changes, created_by: caller.id }).select().maybeSingle();
       if (error) return { success: false, message: error.message };
       if (inserted) {
