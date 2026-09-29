@@ -2295,6 +2295,11 @@ body[data-page="admin"] {
   z-index: -1;
 }
 
+/* the search box is itself the bordered element, so its label's
+   containing block starts inside the 1px border - shift the strip up
+   by that border width to keep it on the line */
+html body .admin-float.admin-search-wrap > span::before { top: calc(50% - 1.5px); }
+
 .admin-float.is-select select:focus + span { color: var(--lime); }
 
 .admin-float textarea:focus + span,
