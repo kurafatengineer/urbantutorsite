@@ -1997,7 +1997,13 @@ const ROW_LABELS = {
   declined: "Declined", terminated: "Closed"
 };
 
+// Short codes are what's actually stored (data-day / Class Days); the
+// full names are only ever shown on the chip itself.
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAY_LABELS = {
+  Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday",
+  Fri: "Friday", Sat: "Saturday", Sun: "Sunday"
+};
 
 function groupState(group) {
   const states = group.rows.map(rowState);
@@ -3105,7 +3111,7 @@ function classCard(g, activeRow) {
 
   const dayChips = WEEKDAYS.map(d => `
     <button type="button" class="admin-chip admin-day-chip${days.has(d) ? " is-on" : ""}"
-      data-action="toggle-class-day" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}" data-day="${esc(d)}">${esc(d)}</button>
+      data-action="toggle-class-day" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}" data-day="${esc(d)}">${esc(WEEKDAY_LABELS[d])}</button>
   `).join("");
 
   const student = STUDENT_BY_ID[g.first.studentId];
@@ -3120,12 +3126,20 @@ function classCard(g, activeRow) {
 
   const cfield = f => editing ? `data-cfield="${esc(f)}"` : "";
 
+  // Start/End Date default to today until the admin actually picks a
+  // date of their own - both in the edit form (so saving without
+  // touching it still records today) and in the plain display.
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayDMY = todayISO.split("-").reverse().join("/");
+  const startDateShown = editing ? (toDateInput(activeRow.classStartDate) || todayISO) : (activeRow.classStartDate || todayDMY);
+  const endDateShown = editing ? (toDateInput(activeRow.classEndDate) || todayISO) : (activeRow.classEndDate || todayDMY);
+
   const tuitionTermsBoxes = `
     <div class="admin-boxes">
       ${box("Duration", activeRow.classDuration, { editable: editing, attr: cfield("Class Duration") })}
       ${box("Charges (₹)", activeRow.classCharges, { editable: editing, type: "number", attr: cfield("Class Charges") })}
-      ${box("Start Date", editing ? toDateInput(activeRow.classStartDate) : activeRow.classStartDate, { editable: editing, type: "date", attr: cfield("Class Start Date") })}
-      ${box("End Date", editing ? toDateInput(activeRow.classEndDate) : activeRow.classEndDate, { editable: editing, type: "date", attr: cfield("Class End Date") })}
+      ${box("Start Date", startDateShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Class Start Date") })}
+      ${box("End Date", endDateShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Class End Date") })}
     </div>`;
 
   // Total Payment / Dues are never typed in - they're worked out from
@@ -3207,10 +3221,9 @@ function classCard(g, activeRow) {
 
       <div class="admin-card-body">
 
-        <h3 class="admin-section-title">Class Days</h3>
         <div class="admin-day-chips">${dayChips}</div>
 
-        <h3 class="admin-section-title">Tuition ID: ${esc(g.demoId)}</h3>
+        <h3 class="admin-section-title admin-section-title-center">Tuition ID: ${esc(g.demoId)}</h3>
         ${tuitionTermsBoxes}
         <div class="admin-class-count">
           <span>Number of Classes: <strong>${esc(activeRow.classCount || 0)}</strong></span>

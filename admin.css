@@ -2416,14 +2416,20 @@ body[data-page="admin"] {
 }
 
 .admin-day-chips {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   gap: 8px;
 }
 
 .admin-day-chip {
+  width: 100%;
+  text-align: center;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-section-title-center {
+  text-align: center;
 }
 
 .admin-day-chip.is-on {
