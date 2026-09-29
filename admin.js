@@ -470,6 +470,19 @@ async function save(payload, button) {
 
 function wireEvents() {
 
+  // The Class card starts collapsed and opens on tap like any other
+  // card, but - unlike the others - also closes itself the moment you
+  // click anywhere outside it, since it's easy to lose track of an open
+  // one sitting above the Tuition card it belongs to.
+  document.addEventListener("click", (event) => {
+    if (event.target.closest(".class-card")) return;
+    let changed = false;
+    STATE.open.forEach(k => {
+      if (k.startsWith("class:")) { STATE.open.delete(k); changed = true; }
+    });
+    if (changed) rerenderCurrent();
+  });
+
   $("emailStepForm").addEventListener("submit", async (event) => {
 
     event.preventDefault();
@@ -3086,6 +3099,7 @@ function tuitionStack(g) {
 function classCard(g, activeRow) {
 
   const key = "class:" + g.demoId;
+  const open = STATE.open.has(key);
   const editing = STATE.editing.has(key);
   const days = new Set(activeRow.classDays || []);
 
@@ -3176,30 +3190,47 @@ function classCard(g, activeRow) {
     .filter(p => p.demo_id === g.demoId)
     .sort((a, b) => (b.payment_date || "").localeCompare(a.payment_date || "") || (b.id - a.id));
 
+  const titleHtml = highlight(
+    [g.demoId, "Class Details"],
+    [ctx.studentName, tv("Full Name")].filter(Boolean).join(" · "),
+    "|",
+    "neutral"
+  );
+
   return `
-    <article class="admin-card class-card" data-box data-demo="${esc(g.demoId)}" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}">
+    <article class="admin-card class-card${open ? " is-open" : ""}" data-box data-demo="${esc(g.demoId)}" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}">
 
-      <h3 class="admin-section-title">Class Days</h3>
-      <div class="admin-day-chips">${dayChips}</div>
-
-      <h3 class="admin-section-title">Tuition ID: ${esc(g.demoId)}</h3>
-      ${tuitionTermsBoxes}
-      <div class="admin-class-count">
-        <span>Number of Classes: <strong>${esc(activeRow.classCount || 0)}</strong></span>
-        <button class="admin-ghost" data-action="increment-class-count" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}" type="button">+1 Class</button>
+      <div class="admin-card-head" data-toggle="${esc(key)}">
+        <div class="admin-avatar">₹</div>
+        <div class="admin-card-title">${titleHtml}</div>
+        <span class="admin-caret" aria-hidden="true"></span>
       </div>
 
-      <h3 class="admin-section-title">Student</h3>
-      ${studentSection}
+      <div class="admin-card-body">
 
-      <h3 class="admin-section-title">Tutor</h3>
-      ${tutorSection}
+        <h3 class="admin-section-title">Class Days</h3>
+        <div class="admin-day-chips">${dayChips}</div>
 
-      ${editButtons(key, editing, "save-class-details", "Edit Class Details")}
+        <h3 class="admin-section-title">Tuition ID: ${esc(g.demoId)}</h3>
+        ${tuitionTermsBoxes}
+        <div class="admin-class-count">
+          <span>Number of Classes: <strong>${esc(activeRow.classCount || 0)}</strong></span>
+          <button class="admin-ghost" data-action="increment-class-count" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}" type="button">+1 Class</button>
+        </div>
 
-      <h3 class="admin-section-title">Payments for this Class</h3>
-      ${demoPayments.length ? demoPayments.map(p => paymentCard(p, ctx)).join("") : note("No payments recorded yet for this class.")}
-      <button class="admin-ghost admin-wide" data-action="record-class-payment" data-tutor-id="${esc(activeRow.tutorId)}" type="button">+ Record a Payment</button>
+        <h3 class="admin-section-title">Student</h3>
+        ${studentSection}
+
+        <h3 class="admin-section-title">Tutor</h3>
+        ${tutorSection}
+
+        ${editButtons(key, editing, "save-class-details", "Edit Class Details")}
+
+        <h3 class="admin-section-title">Payments for this Class</h3>
+        ${demoPayments.length ? demoPayments.map(p => paymentCard(p, ctx)).join("") : note("No payments recorded yet for this class.")}
+        <button class="admin-ghost admin-wide" data-action="record-class-payment" data-tutor-id="${esc(activeRow.tutorId)}" type="button">+ Record a Payment</button>
+
+      </div>
 
     </article>`;
 
