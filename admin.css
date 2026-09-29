@@ -695,6 +695,17 @@ button { cursor: pointer; }
   gap: 10px 12px;
 }
 
+/* A group of fields that must sit on their own line, at its own
+   column count, inside the otherwise-2-column .admin-form grid. */
+.admin-form-row {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px 12px;
+}
+
+.admin-form-row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.admin-form-row-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
 .admin-field {
   display: flex;
   flex-direction: column;
@@ -936,6 +947,7 @@ button { cursor: pointer; }
 @media (max-width: 520px) {
 
   .admin-form { grid-template-columns: 1fr; }
+  .admin-form-row-3, .admin-form-row-4 { grid-template-columns: 1fr; }
 
   .admin-stack > .tutor-row-card { margin-left: 8px; }
 

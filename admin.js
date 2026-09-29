@@ -703,9 +703,14 @@ function wireEvents() {
 
 // Fields that only appear for a Student/Tutor Subscription payment.
 const PAYMENT_SUB_ONLY_FIELD_IDS = [
-  "paymentSubNameField", "paymentSubMobileField", "paymentSubIdField", "paymentSubPlanField",
-  "paymentSubCycleField", "paymentSubStatusField", "paymentSubStartDateField", "paymentSubNextDueField"
+  "paymentSubPlanField", "paymentSubCycleField", "paymentSubStatusField",
+  "paymentSubStartDateField", "paymentSubNextDueField"
 ];
+
+// ID/Mobile/Name for the one party a Subscription or Agency Charge
+// payment is against - whichever side is actually paying, never both
+// at once.
+const PAYMENT_PARTY_FIELD_IDS = ["paymentSubIdField", "paymentSubMobileField", "paymentSubNameField"];
 
 // The Amount/Dues/Paying Now/Remaining group is shared by both a
 // Subscription payment and an Agency Charge payment - anywhere the
@@ -732,12 +737,16 @@ function applyPaymentTransactionType() {
   $("ourCutField").classList.toggle("hidden", !isCollection);
 
   $("paymentAmountField").classList.toggle("hidden", isSub || isAgencyCharge);
-  $("paymentDemoIdField").classList.toggle("hidden", isSub || isPayout);
-  $("paymentTutorIdField").classList.toggle("hidden", isSub);
-  if (!isSub) $("paymentTutorIdField").querySelector("span").textContent = (isPayout || mode === "tutor-agency-charge") ? "Tutor ID" : "Tutor ID (optional)";
+  // A Subscription or Agency Charge payment is always against one
+  // single party (see PAYMENT_PARTY_FIELD_IDS below), never a Demo ID/
+  // Tutor ID pair.
+  $("paymentDemoIdField").classList.toggle("hidden", isSub || isPayout || isAgencyCharge);
+  $("paymentTutorIdField").classList.toggle("hidden", isSub || isAgencyCharge);
+  if (!isSub && !isAgencyCharge) $("paymentTutorIdField").querySelector("span").textContent = isPayout ? "Tutor ID" : "Tutor ID (optional)";
 
   $("paymentReceivedByField").classList.toggle("hidden", !isSub);
   PAYMENT_SUB_ONLY_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub));
+  PAYMENT_PARTY_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isAgencyCharge));
   PAYMENT_AMOUNT_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isAgencyCharge));
 
   // The search box only shows in subscription mode, and only until a
@@ -750,6 +759,8 @@ function applyPaymentTransactionType() {
       ? "Enter Student ID, Mobile or WhatsApp Number"
       : "Enter Tutor ID, Mobile or WhatsApp Number";
     $("paymentSubIdLabel").textContent = mode === "student-subscription" ? "Student ID" : "Tutor ID";
+  } else if (isAgencyCharge) {
+    $("paymentSubIdLabel").textContent = mode === "student-agency-charge" ? "Student ID" : "Tutor ID";
   }
 
 }
@@ -879,21 +890,25 @@ function openPaymentFormForSubscription(sub) {
   $("paymentForm").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-// Fills the Demo ID / Tutor ID detail lines and the shared Amount/
-// Dues/Paying Now/Remaining group for an Agency Charge payment - same
-// numbers as the status card it was opened from, so it can never
-// disagree with what the admin was just looking at.
+// Fills the one party's ID/Mobile/Name (Student for a Student Agency
+// Charge, Tutor for a Tutor Agency Charge) and the shared Amount/Dues/
+// Paying Now/Remaining group - same numbers as the status card it was
+// opened from, so it can never disagree with what the admin was just
+// looking at. Demo ID/Tutor ID still get set (hidden) since the
+// payload still needs them.
 function fillPaymentAgencyChargeFields(g, activeRow, side) {
 
   const m = classMoney(g, activeRow);
   const charge = side === "tutor" ? m.tutorAgencyCharge : m.studentAgencyCharge;
   const dues = side === "tutor" ? m.tutorAgencyDue : m.studentAgencyDue;
+  const party = side === "tutor" ? (DIR_TUTOR_BY_ID[activeRow.tutorId] || null) : (DIR_STUDENT_BY_ID[g.first.studentId] || null);
 
   $("paymentDemoId").value = g.demoId;
-  updateIdDetail($("paymentDemoDetail"), DIR_STUDENT_BY_ID[g.first.studentId] || null);
-
   $("paymentTutorId").value = activeRow.tutorId;
-  updateIdDetail($("paymentTutorDetail"), DIR_TUTOR_BY_ID[activeRow.tutorId] || null);
+
+  $("paymentSubId").value = side === "tutor" ? activeRow.tutorId : g.first.studentId;
+  $("paymentSubMobile").value = (party && party.mobile) || "";
+  $("paymentSubName").value = (party && party.name) || "";
 
   $("paymentSubAmount").value = "₹" + charge.toLocaleString("en-IN");
   $("paymentSubDues").value = "₹" + dues.toLocaleString("en-IN");
