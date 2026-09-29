@@ -1097,6 +1097,27 @@ button { cursor: pointer; }
   min-height: 48px;
 }
 
+/* Same fix as .admin-float input[type="date"] below: a date input's
+   own UA stylesheet gives it a min-width wide enough to show its
+   segments unbroken, which width:100%/min-width:0 above doesn't
+   reset by itself - and its internal segments need their own reset
+   too, or they push past the box and overlap the next field. */
+.admin-box input[type="date"] {
+  min-width: 0;
+  max-width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.admin-box input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+
+.admin-box input[type="date"]::-webkit-datetime-edit {
+  padding: 0;
+}
+
 .admin-box input[readonly],
 .admin-box textarea[readonly] {
   cursor: default;

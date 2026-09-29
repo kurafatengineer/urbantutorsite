@@ -2313,6 +2313,7 @@ function subscriptionCard(sub) {
   const amount = Number(sub.amount || 0);
   const paid = subscriptionPaidAmount(sub.id);
   const dues = Math.max(amount - paid, 0);
+  const nextDueDate = sub.next_due_date || (sub.start_date ? oneYearFrom(sub.start_date) : "");
 
   const boxes = `
     <div class="admin-boxes">
@@ -2327,7 +2328,7 @@ function subscriptionCard(sub) {
         attr: editing ? `data-subfield="status"` : ""
       })}
       ${box("Start Date", sub.start_date, { editable: editing, type: "date", attr: editing ? `data-subfield="startDate"` : "" })}
-      ${box("Next Due Date", sub.next_due_date || "", { editable: editing, type: "date", attr: editing ? `data-subfield="nextDueDate"` : "" })}
+      ${box("Next Due Date", nextDueDate, { editable: editing, type: "date", attr: editing ? `data-subfield="nextDueDate"` : "" })}
       ${box("Notes", sub.notes || "", { editable: editing, wide: true, multiline: true, attr: editing ? `data-subfield="notes"` : "" })}
     </div>`;
 
