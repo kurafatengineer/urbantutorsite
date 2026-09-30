@@ -446,21 +446,30 @@
             </div>
 
 
-            <!-- SUBJECTS -->
+            <!-- SUBJECTS
+                 Typed as free text, comma-separated (subject names can
+                 contain spaces, so a space can't be the separator); each
+                 comma turns whatever was just typed into a chip, and
+                 Backspace on an empty box removes the last chip. #subjects
+                 is a hidden field the rest of the form's JS already reads,
+                 kept in sync with the chips + whatever's still being typed. -->
 
             <div class="field">
 
-              <label class="float-field">
-                <input
-                  id="subjects"
-                  aria-label="Subjects"
-                  type="text"
-                  maxlength="250"
-                  placeholder=" "
-                  required
-                >
+              <label class="float-field is-area chip-field" id="subjectsField">
+                <div class="chip-box" id="subjectsChipBox">
+                  <input
+                    id="subjectsTyping"
+                    aria-label="Subjects"
+                    type="text"
+                    placeholder=" "
+                    autocomplete="off"
+                  >
+                </div>
                 <span>Add Subjects separated by commas</span>
               </label>
+
+              <input type="hidden" id="subjects" maxlength="250" required>
 
               <small
                 id="subjectsError"
