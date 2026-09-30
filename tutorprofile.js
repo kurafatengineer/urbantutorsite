@@ -631,7 +631,7 @@ function renderClassCard(item) {
 
         <div class="class-mini class-row-top">
           <span class="status-badge subject-badge">${escapeHTML(item.subject || "Subject")}</span>
-          ${item.medium ? `<span class="status-badge ${statusClass}">${escapeHTML(mediumText(item.medium))}</span>` : ""}
+          ${item.className ? `<span class="status-badge ${statusClass}">${escapeHTML(item.className)}</span>` : ""}
         </div>
 
         <div class="class-row-top">
