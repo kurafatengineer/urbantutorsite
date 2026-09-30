@@ -185,11 +185,16 @@ $("mobile").addEventListener("input", () => {
 /* ---- Basic Information: collapse behind one line once everything
    below (Mobile, WhatsApp, Name, DOB, Gender, Tutor type) is filled
    in - same pill as "WhatsApp same as mobile number", but for the
-   whole section. Unticking it re-opens the fields to edit. ---- */
+   whole section. A short pause after the last field before it
+   collapses, so it doesn't vanish the instant it's picked. Unticking
+   the pill re-opens the fields to edit. ---- */
+
+const COLLAPSE_DELAY = 600;
 
 const basicInfoToggleField = $("basicInfoToggleField");
 const basicInfoToggle = $("basicInfoToggle");
 const basicInfoFields = $("basicInfoFields");
+let basicInfoTimer = null;
 
 function basicInfoDone() {
   return /^\d{10}$/.test(val("mobile"))
@@ -207,6 +212,7 @@ function collapseBasicInfo() {
 }
 
 function expandBasicInfo() {
+  clearTimeout(basicInfoTimer);
   basicInfoToggle.checked = false;
   basicInfoToggleField.classList.add("hidden");
   basicInfoFields.classList.remove("hidden");
@@ -214,7 +220,8 @@ function expandBasicInfo() {
 
 function checkBasicInfoDone() {
   if (basicInfoFields.classList.contains("hidden")) return;
-  if (basicInfoDone()) collapseBasicInfo();
+  clearTimeout(basicInfoTimer);
+  if (basicInfoDone()) basicInfoTimer = setTimeout(collapseBasicInfo, COLLAPSE_DELAY);
 }
 
 ["whatsapp", "fullName", "birthDate"].forEach(id =>
@@ -227,6 +234,52 @@ $("sameWhatsapp").addEventListener("change", checkBasicInfoDone);
 
 basicInfoToggle.addEventListener("change", () => {
   if (!basicInfoToggle.checked) expandBasicInfo();
+});
+
+/* ---- Languages Known + Identity Proof: same collapse pattern,
+   once a language is picked and both files are uploaded. ---- */
+
+const langIdentityToggleField = $("langIdentityToggleField");
+const langIdentityToggle = $("langIdentityToggle");
+const langIdentityFields = $("langIdentityFields");
+let langIdentityTimer = null;
+
+function langIdentityDone() {
+  if (values("languages").length === 0) return false;
+  if (!$("identityProof").files[0] || !$("profileImage").files[0]) return false;
+  const idOk = validateFile("identityProof", "identityError", false);
+  const photoOk = validateFile("profileImage", "profileError", true);
+  return idOk && photoOk;
+}
+
+function collapseLangIdentity() {
+  langIdentityToggle.checked = true;
+  langIdentityToggleField.classList.remove("hidden");
+  langIdentityFields.classList.add("hidden");
+}
+
+function expandLangIdentity() {
+  clearTimeout(langIdentityTimer);
+  langIdentityToggle.checked = false;
+  langIdentityToggleField.classList.add("hidden");
+  langIdentityFields.classList.remove("hidden");
+}
+
+function checkLangIdentityDone() {
+  if (langIdentityFields.classList.contains("hidden")) return;
+  clearTimeout(langIdentityTimer);
+  if (langIdentityDone()) langIdentityTimer = setTimeout(collapseLangIdentity, COLLAPSE_DELAY);
+}
+
+document.querySelectorAll("#languages input").forEach(c =>
+  c.addEventListener("change", checkLangIdentityDone)
+);
+["identityProof", "profileImage"].forEach(id =>
+  $(id).addEventListener("change", checkLangIdentityDone)
+);
+
+langIdentityToggle.addEventListener("change", () => {
+  if (!langIdentityToggle.checked) expandLangIdentity();
 });
 
 /* ---- digits-only fields ---- */
