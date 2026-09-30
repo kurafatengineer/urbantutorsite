@@ -268,7 +268,6 @@ function renderAll() {
   renderSwitcher();
   renderProfile(selectedStudent());
   renderClasses();
-  renderPayments();
 }
 
 
@@ -345,6 +344,8 @@ function renderProfile(student) {
     ["profileClass", "profileBoard", "profileCity"].forEach(id => $(id).classList.add("hidden"));
     $("profileStats").innerHTML = "";
     $("applyTuitionButton").classList.add("hidden");
+    setProfileAvatarBadge_("");
+    if (window.setHeaderAvatarBadge) window.setHeaderAvatarBadge("");
     return;
   }
 
@@ -363,29 +364,25 @@ function renderProfile(student) {
   setChip("profileBoard", student.board);
   setChip("profileCity", student.city);
 
-  // Location on its own line, School directly below it.
-  $("profileStats").innerHTML = [
-    stat(student.city || student.pinCode || "—", "Location", "lime"),
-    stat(student.school || "—", "School", "lime")
-  ].join("");
+  // Verified badge on both the profile avatar and the header avatar,
+  // coloured by this student's subscription status.
+  const tone = subscriptionTone_(student);
+  setProfileAvatarBadge_(tone);
+  if (window.setHeaderAvatarBadge) window.setHeaderAvatarBadge(tone);
+
+  // Plain, centred "Address, City - PIN" line (no boxed stat tile).
+  const locationText = joinAddress(student.address, student.city);
+  const pinText = String(student.pinCode || "").trim();
+
+  $("profileStats").innerHTML = (locationText || pinText) ? `
+    <p class="profile-address">${escapeHTML(locationText)}${locationText && pinText ? " - " : ""}${escapeHTML(pinText)}</p>
+  ` : "";
 
 }
 
 function setChip(id, value) {
   $(id).textContent = value || "";
   $(id).classList.toggle("hidden", !value);
-}
-
-function stat(value, label, accent) {
-  return `
-    <div class="stat" data-accent="${accent}">
-      <div class="stat-rail"><span>${escapeHTML(label)}</span></div>
-      <div>
-        <div class="stat-value">${escapeHTML(value)}</div>
-        <div class="stat-label">${escapeHTML(label)}</div>
-      </div>
-    </div>
-  `;
 }
 
 
@@ -489,79 +486,49 @@ function renderClasses() {
 
 
 /************************************************************
- * PAYMENTS & SUBSCRIPTION  (this student only, read-only -
- * recorded by the agency, never edited from here)
+ * SUBSCRIPTION STATUS  (drives the verified badge on the avatar -
+ * the Subscription section itself is no longer shown here; payments
+ * tied to a tuition still live on that tuition's own card, see
+ * renderClassCard / renderPaymentCard below)
  ************************************************************/
 
-const SUB_STATUS_LABEL = { active: "Active", paused: "Paused", cancelled: "Cancelled", completed: "Completed" };
-// Reuses the tuition status colours - there is no separate subscription palette.
-const SUB_STATUS_CLASS = { active: "status-running", paused: "status-demo-scheduled", cancelled: "status-declined", completed: "status-completed" };
-
-// Only account-level subscriptions live here now - every payment is
-// tied to a demoId (the student RPC only ever returns demo-linked
-// payments), so it belongs on that tuition's own card instead; see
-// renderClassCard / renderPaymentCard below.
-function renderPayments() {
-
-  const student = selectedStudent();
-  const list = $("paymentsList");
-  const empty = $("paymentsEmpty");
-
-  if (!student) {
-    list.innerHTML = "";
-    empty.classList.add("hidden");
-    return;
-  }
-
-  const subscriptions = (STATE.subscriptions || []).filter(s => s.studentId === student.studentId);
-
-  if (!subscriptions.length) {
-    list.innerHTML = "";
-    empty.classList.remove("hidden");
-    return;
-  }
-
-  empty.classList.add("hidden");
-
-  list.innerHTML = subscriptions.map(renderSubscriptionCard).join("");
-
+// This student's most relevant subscription - active one, or the
+// most recent if none is active - or null if they have none at all.
+function subscriptionForStudent_(student) {
+  if (!student) return null;
+  const subs = (STATE.subscriptions || []).filter(s => s.studentId === student.studentId);
+  if (!subs.length) return null;
+  return subs.find(s => s.status === "active") || subs[0];
 }
 
-function renderSubscriptionCard(sub) {
+// Badge colour by subscription status: green while active, orange
+// while paused, red once cancelled/completed. No subscription at
+// all -> no badge.
+function subscriptionTone_(student) {
+  const sub = subscriptionForStudent_(student);
+  if (!sub) return "";
+  return sub.status === "active" ? "paid" : sub.status === "paused" ? "partial" : "unpaid";
+}
 
-  const details = [
-    [ICONS.file, "Billing Cycle", sub.billingCycle],
-    [ICONS.calendar, "Started", formatDemoDateTime(sub.startDate)],
-    [ICONS.clock, "Next Due", sub.nextDueDate ? formatDemoDateTime(sub.nextDueDate) : ""]
-  ].filter(row => row[2]);
-
-  const statusClass = SUB_STATUS_CLASS[sub.status] || "status-applied";
-
+// Same "verified seal" shape used on the Admin Panel's avatars,
+// coloured by subscriptionTone_.
+function verifiedBadge_(tone) {
+  if (!tone) return "";
+  const title = tone === "paid" ? "Subscription active" : tone === "partial" ? "Subscription paused" : "Subscription inactive";
   return `
-    <div class="class-card">
-      <div class="class-spine ${statusClass}">
-        <span class="class-spine-id">${escapeHTML(sub.planName || "Subscription")}</span>
-        <span class="class-spine-label">Subscription</span>
-      </div>
-      <div class="class-body">
-        <div class="class-row-top">
-          <span class="status-badge subject-badge">₹${escapeHTML(String(sub.amount))}</span>
-          <span class="status-badge ${statusClass}">${escapeHTML(SUB_STATUS_LABEL[sub.status] || sub.status)}</span>
-        </div>
-        ${details.length ? `
-          <div class="class-detail-grid">
-            ${details.map(([icon, label, value]) => `
-              <div class="class-detail" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
-                <span class="class-detail-icon">${icon}</span>
-                <span class="class-detail-value">${escapeHTML(value)}</span>
-              </div>
-            `).join("")}
-          </div>
-        ` : ""}
-      </div>
-    </div>
-  `;
+    <span class="profile-sub-badge" data-tone="${tone}" title="${escapeHTML(title)}">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.66-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91c-1.31.67-2.2 1.91-2.2 3.34s.89 2.67 2.2 3.34c-.46 1.39-.21 2.9.8 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.68-.88 3.34-2.19c1.39.45 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34zm-11.71 4.2L6.8 12.46l1.41-1.42 2.26 2.26 4.8-5.23 1.47 1.36-6.2 6.77z"/>
+      </svg>
+    </span>`;
+}
 
+// Adds/removes the verified badge on the profile page's big avatar.
+function setProfileAvatarBadge_(tone) {
+  const wrap = $("profileAvatarWrap");
+  const existing = wrap.querySelector(".profile-sub-badge");
+  if (existing) existing.remove();
+  if (tone) wrap.insertAdjacentHTML("beforeend", verifiedBadge_(tone));
 }
 
 // Stacked on the tuition it belongs to - just below the assigned

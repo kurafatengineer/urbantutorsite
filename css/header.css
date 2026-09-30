@@ -134,6 +134,8 @@
 
 .header-login {
 
+  position: relative;
+
   width: 46px;
 
   height: 46px;
@@ -360,3 +362,33 @@
 .header-login.header-login-static:hover .header-initials {
   color: var(--header-blue);
 }
+
+
+/* =========================================================
+   NEW: SUBSCRIPTION-STATUS VERIFIED BADGE
+   ========================================================= */
+
+.header-sub-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #101010;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  color: #6f6f6f;
+}
+
+.header-sub-badge svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 1.5px;
+}
+
+.header-sub-badge svg path { fill: currentColor; }
+
+.header-sub-badge[data-tone="paid"]    { color: #16a34a; }
+.header-sub-badge[data-tone="partial"] { color: #ffa15c; }
+.header-sub-badge[data-tone="unpaid"]  { color: #ff6868; }
