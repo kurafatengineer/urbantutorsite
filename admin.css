@@ -376,6 +376,8 @@ button { cursor: pointer; }
 }
 
 .admin-card[data-tone="pending"] { border-color: var(--blue-line); }
+/* Tutors: border only follows Accept/Reject; pending (neither) stays neutral, the profile circle stays blue */
+#tutorList .admin-card[data-tone="pending"] { border-color: var(--border); }
 .admin-card[data-tone="verified"] { border-color: var(--lime-line); }
 .admin-card[data-tone="rejected"] { border-color: rgba(255, 104, 104, 0.3); }
 
@@ -3029,3 +3031,6 @@ body[data-page="admin"] {
 @media (max-width: 720px) {
   #graphStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Tutor header: as wide as the two Accept/Reject buttons on a row. */
+.list-header .list-header-vbtns { width: 88px; }
