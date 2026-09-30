@@ -3078,3 +3078,20 @@ body[data-page="admin"] {
 @media (max-width: 720px) {
   .perm-grid { grid-template-columns: 1fr; }
 }
+
+/* Employees: status as a plain coloured pill (no border), and a normal
+   (neutral) profile circle whatever their status. */
+.emp-status {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.emp-status[data-active="yes"] { color: var(--lime); background: var(--lime-dim); }
+.emp-status[data-active="no"] { color: var(--danger); background: var(--danger-dim); }
+#employeeList .admin-card .admin-avatar {
+  color: var(--text);
+  background: var(--surface-3);
+  border-color: var(--border-light);
+}

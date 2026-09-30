@@ -3833,8 +3833,10 @@ function tutorHeaderCard() {
 
 function employeeHeaderCard() {
   return listHeaderCard(`
-    ${equalRow(["Profile", "Name", "Email", "Role", "Status"])}
+    <span class="list-header-spacer list-header-avatar-label">Profile</span>
+    ${equalRow(["Name", "Email", "Role", "Status"])}
     <span class="admin-caret" aria-hidden="true"></span>
+    <span class="admin-status-rail admin-rail-sub list-header-vbtns" data-tone="black">Action</span>
   `);
 }
 
@@ -3977,12 +3979,12 @@ function employeeCard(e) {
     <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="${e.active ? "verified" : "rejected"}" data-box data-id="${esc(e.id)}" data-key="${esc(key)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="eq-grid" style="grid-template-columns: repeat(5, minmax(0, 1fr))">
-          <span class="ledger-cell" title="${isMe ? "This is you" : ""}"><span class="admin-avatar" style="margin: 0 auto;">${esc(initials(e.full_name, "E"))}</span></span>
+        <div class="admin-avatar" title="${isMe ? "This is you" : ""}">${esc(initials(e.full_name, "E"))}</div>
+        <div class="eq-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr))">
           <span class="ledger-cell" title="${esc(e.full_name)}${isMe ? " (this is you)" : ""}">${esc(e.full_name)}</span>
           <span class="ledger-cell" title="${esc(e.email)}">${esc(e.email)}</span>
           <span class="ledger-cell" title="${esc(ROLE_LABELS[e.role] || e.role)}">${esc(ROLE_LABELS[e.role] || e.role)}</span>
-          <span class="ledger-cell">${e.active ? "Active" : "Inactive"}</span>
+          <span class="ledger-cell"><span class="emp-status" data-active="${e.active ? "yes" : "no"}">${e.active ? "Active" : "Suspended"}</span></span>
         </div>
         <span class="admin-caret" aria-hidden="true"></span>
         ${employeeStatusButtonsHtml(!!e.active, isMe)}
