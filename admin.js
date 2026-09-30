@@ -238,6 +238,8 @@ const STATE = {
   tutorFilter: "all",
   tuitionFilter: "all",
   ledgerFilter: "all",
+  graphFilter: "all",   // which purpose the graph is scoped to
+  graphPeriod: "12",    // months of history the chart covers ("0" = all time)
   open: new Set(),      // keys of expanded cards
   editing: new Set(),   // keys of records in edit mode
   studentOpen: new Set(), // keys of tuition cards whose nested Student section is expanded
@@ -353,12 +355,13 @@ function applyRoleUI() {
     payments: perms.payments,
     subscriptions: perms.payments,
     ledger: perms.payments,
-    employees: perms.employees
+    employees: perms.employees,
+    graph: perms.payments
   };
 
   let firstVisible = null;
 
-  ["tuitions", "tutors", "students", "payments", "subscriptions", "ledger", "employees"].forEach(name => {
+  ["tuitions", "tutors", "students", "payments", "subscriptions", "ledger", "employees", "graph"].forEach(name => {
     const tabButton = document.querySelector(`.admin-tab[data-tab="${name}"]`);
     if (tabButton) tabButton.classList.toggle("hidden", !visibility[name]);
     if (visibility[name] && !firstVisible) firstVisible = name;
@@ -376,7 +379,7 @@ function applyRoleUI() {
 
 function applyActiveTab() {
   document.querySelectorAll(".admin-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === STATE.tab));
-  ["tuitions", "tutors", "students", "payments", "subscriptions", "ledger", "employees"].forEach(n => {
+  ["tuitions", "tutors", "students", "payments", "subscriptions", "ledger", "employees", "graph"].forEach(n => {
     const sec = $("tab-" + n);
     if (sec) sec.classList.toggle("hidden", n !== STATE.tab);
   });
@@ -670,6 +673,8 @@ function wireEvents() {
   chipGroup("tutorFilter", v => { collapseAll(); STATE.tutorFilter = v; renderTutors(); });
   chipGroup("tuitionFilter", v => { collapseAll(); STATE.tuitionFilter = v; renderTuitions(); });
   chipGroup("ledgerFilter", v => { STATE.ledgerFilter = v; renderLedger(); });
+  chipGroup("graphFilter", v => { STATE.graphFilter = v; renderGraph(); });
+  chipGroup("graphPeriod", v => { STATE.graphPeriod = v; renderGraph(); });
 
   // The 8 count tiles work as shortcuts to their filter.
   $("adminStats").addEventListener("click", (event) => {
@@ -1873,6 +1878,7 @@ function rerenderCurrent() {
   if (STATE.tab === "subscriptions") renderSubscriptions();
   if (STATE.tab === "ledger") renderLedger();
   if (STATE.tab === "employees") renderEmployees();
+  if (STATE.tab === "graph") renderGraph();
 }
 
 async function onListClick(event) {
@@ -3531,6 +3537,129 @@ function renderLedger() {
   $("ledgerHeader").innerHTML = rows.length ? ledgerHeaderCard() : "";
 
   applyTextSearch("ledgerList", "ledgerSearch", "Nothing matches.");
+
+}
+
+
+/* ---------------- graph ---------------- */
+
+// Money in vs out, and outstanding dues, over time - built from the
+// same paid/due entries the Ledger lists (ledgerEntries), just
+// totalled by month and by purpose instead of shown one row per
+// payment. Money "out" is only ever a tutor Payments Out entry, same
+// convention as the Ledger's own in/out arrow.
+function graphMonthKey(dateStr) {
+  return (dateStr || "").slice(0, 7); // "YYYY-MM"
+}
+
+function graphMonthLabel(key) {
+  if (!key) return "";
+  const [y, m] = key.split("-");
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+}
+
+// "1.2L" / "35k" - keeps the y-axis labels short.
+function shortMoney(n) {
+  if (n >= 100000) return (n / 100000).toFixed(1).replace(/\.0$/, "") + "L";
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+  return String(Math.round(n));
+}
+
+function renderGraph() {
+
+  if (!$("graphChart")) return;
+
+  const purposeFilter = STATE.graphFilter;
+  const months = Number(STATE.graphPeriod) || 0; // 0 = all time
+  const cutoff = months ? new Date(Date.now() - months * 31 * 86400000).toISOString().slice(0, 10) : "";
+
+  const all = ledgerEntries().filter(e => purposeFilter === "all" || e.purpose === purposeFilter);
+  const isOut = e => e.purpose === "Payments Out";
+  const paid = all.filter(e => e.status === "paid" && (!cutoff || !e.date || e.date >= cutoff));
+  const due = all.filter(e => e.status !== "paid");
+
+  const totalIn = paid.filter(e => !isOut(e)).reduce((s, e) => s + e.amount, 0);
+  const totalOut = paid.filter(isOut).reduce((s, e) => s + e.amount, 0);
+  const totalDues = due.reduce((s, e) => s + e.amount, 0);
+  const totalOverdue = due.filter(e => e.status === "overdue").reduce((s, e) => s + e.amount, 0);
+  const rupees = n => "₹" + Math.round(n).toLocaleString("en-IN");
+
+  const stats = [
+    ["Total Collected", rupees(totalIn), "green"],
+    ["Total Paid Out", rupees(totalOut), "red"],
+    ["Net", rupees(totalIn - totalOut), totalIn - totalOut >= 0 ? "lime" : "red"],
+    ["Outstanding Dues", rupees(totalDues), "amber"],
+    ["Overdue", rupees(totalOverdue), "red"]
+  ];
+
+  $("graphStats").innerHTML = stats.map(([label, value, tone]) => `
+    <div class="admin-stat" data-tone="${tone}">
+      <span class="admin-stat-value">${esc(value)}</span>
+      <span class="admin-stat-label">${esc(label)}</span>
+    </div>
+  `).join("");
+
+  // Paid entries grouped by month for the bar chart below the tiles.
+  const byMonth = new Map();
+  paid.forEach(e => {
+    const key = graphMonthKey(e.date);
+    if (!key) return;
+    if (!byMonth.has(key)) byMonth.set(key, { in: 0, out: 0 });
+    const bucket = byMonth.get(key);
+    if (isOut(e)) bucket.out += e.amount; else bucket.in += e.amount;
+  });
+  const monthKeys = [...byMonth.keys()].sort();
+
+  $("graphChart").innerHTML = monthKeys.length ? graphBarChart(monthKeys, byMonth) : empty("Nothing paid in this period yet.");
+
+}
+
+// Plain inline-SVG grouped bar chart, In vs Out per month - no chart
+// library. Bars are scaled to the largest single in/out value across
+// the whole range, so months stay comparable to each other.
+function graphBarChart(monthKeys, byMonth) {
+
+  const w = 720, h = 220, padL = 42, padB = 26, padT = 10, padR = 10;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  const maxVal = Math.max(1, ...monthKeys.map(k => Math.max(byMonth.get(k).in, byMonth.get(k).out)));
+  const groupW = plotW / monthKeys.length;
+  const barW = Math.min(22, groupW / 3);
+  const rupees = n => "₹" + Math.round(n).toLocaleString("en-IN");
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
+    const y = padT + plotH * (1 - f);
+    return `<line class="graph-gridline" x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}"/>` +
+      `<text class="graph-axis-label" x="${padL - 8}" y="${y + 3}" text-anchor="end">${esc(shortMoney(maxVal * f))}</text>`;
+  }).join("");
+
+  const bars = monthKeys.map((key, i) => {
+    const { in: inVal, out: outVal } = byMonth.get(key);
+    const cx = padL + groupW * i + groupW / 2;
+    const inH = (inVal / maxVal) * plotH;
+    const outH = (outVal / maxVal) * plotH;
+    return `
+      <rect class="graph-bar-in" x="${cx - barW - 2}" y="${padT + plotH - inH}" width="${barW}" height="${Math.max(inH, 0.5)}" rx="3">
+        <title>${esc(graphMonthLabel(key))} - In: ${esc(rupees(inVal))}</title>
+      </rect>
+      <rect class="graph-bar-out" x="${cx + 2}" y="${padT + plotH - outH}" width="${barW}" height="${Math.max(outH, 0.5)}" rx="3">
+        <title>${esc(graphMonthLabel(key))} - Out: ${esc(rupees(outVal))}</title>
+      </rect>
+      <text class="graph-month-label" x="${cx}" y="${h - 8}" text-anchor="middle">${esc(graphMonthLabel(key))}</text>
+    `;
+  }).join("");
+
+  return `
+    <div class="admin-card graph-card">
+      <svg viewBox="0 0 ${w} ${h}" class="graph-svg" role="img" aria-label="Payments in vs out by month">
+        ${gridLines}
+        ${bars}
+      </svg>
+      <div class="graph-legend">
+        <span class="graph-legend-item"><span class="graph-swatch" data-tone="in"></span>In</span>
+        <span class="graph-legend-item"><span class="graph-swatch" data-tone="out"></span>Out</span>
+      </div>
+    </div>
+  `;
 
 }
 
