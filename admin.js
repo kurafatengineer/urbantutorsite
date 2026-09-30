@@ -3384,7 +3384,7 @@ function paymentCard(p, ctx) {
   const topRow =
     box("Transaction", isPayout ? "Payout (Tutor)" : "Collection (Parent)") +
     box("Payment Mode", p.payment_mode, { editable: editing, options: ["Online", "Offline"], attr: editing ? `data-pfield="paymentMode"` : "" }) +
-    box("Payment Date", editing ? p.payment_date : formatDate(p.payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" });
+    box("Payment Date", editing ? p.payment_date : formatPaymentDateTime(p), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" });
   const demoRow = box("Demo ID", p.demo_id || (t ? t.g.demoId : "")) + box("Student Mobile Number", student.mobile || "") + box("Name", student.name || "");
   const studentRow = box("Student ID", studentId) + box("WhatsApp Number", student.whatsapp || student.mobile || "") + box("Parent Name", student.parentsName || "");
   const tutorRow = box("Tutor ID", tutorId) + box("Mobile Number", tutor.mobile || "") + box("Name", tutor.name || "");
@@ -3442,6 +3442,16 @@ function recordedAt(iso) {
 // picker chrome can render blank/oddly sized instead), so view mode
 // uses this instead of the date input, matching a value like "29
 // September 2027".
+// The chosen Payment Date, followed by the time the payment was actually
+// recorded (created_at, shown in Indian time) - never a preset time.
+function formatPaymentDateTime(p) {
+  const day = formatDate(p.payment_date);
+  const at = p.created_at ? new Date(p.created_at) : null;
+  if (!day || !at || isNaN(at)) return day;
+  const time = at.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
+  return `${day}, ${time.toUpperCase()}`;
+}
+
 function formatDate(dateText) {
   if (!dateText) return "";
   const d = new Date(dateText + "T00:00:00");
@@ -3488,7 +3498,7 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
     <div class="admin-boxes admin-boxes-3">
       ${box("Transaction", isStudent ? "Subscription (Student)" : "Subscription (Tutor)")}
       ${box("Payment Mode", p.payment_mode, { editable: editing, options: ["Online", "Offline"], attr: editing ? `data-pfield="paymentMode"` : "" })}
-      ${box("Payment Date", editing ? p.payment_date : formatDate(p.payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" })}
+      ${box("Payment Date", editing ? p.payment_date : formatPaymentDateTime(p), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" })}
       ${box(isStudent ? "Student ID" : "Tutor ID", partyId)}
       ${box("Mobile Number", partyMobile)}
       ${box("Name", partyName)}
@@ -3551,7 +3561,7 @@ function agencyChargePaymentCard(p, key, open, editing, buttons) {
     <div class="admin-boxes admin-boxes-3">
       ${box("Transaction", transactionLabel)}
       ${box("Payment Mode", p.payment_mode, { editable: editing, options: ["Online", "Offline"], attr: editing ? `data-pfield="paymentMode"` : "" })}
-      ${box("Payment Date", editing ? p.payment_date : formatDate(p.payment_date), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" })}
+      ${box("Payment Date", editing ? p.payment_date : formatPaymentDateTime(p), { editable: editing, type: editing ? "date" : "text", attr: editing ? `data-pfield="paymentDate"` : "" })}
       ${box("Demo ID", p.demo_id || "")}
       ${box("Student Mobile Number", (studentDir && studentDir.mobile) || "")}
       ${box("Name", (studentDir && studentDir.name) || "")}
