@@ -572,10 +572,7 @@ function renderPaymentsCard(payments, demoId) {
         <span class="class-spine-label">Payment</span>
       </div>
       <div class="class-body">
-        <div class="class-row-top">
-          <span class="status-badge subject-badge">Payments</span>
-          <span class="status-badge">${escapeHTML(money(total))}</span>
-        </div>
+        <div class="pay-mini"><span>Payments</span><span>${escapeHTML(money(total))}</span></div>
         <div class="pay-lines">
           ${payments.map(p => `
             <div class="pay-line">
