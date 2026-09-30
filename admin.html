@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260929bw">
+  <link rel="stylesheet" href="admin.css?v=20260929bx">
 </head>
 
 <body data-page="admin">
@@ -116,6 +116,7 @@
       <button class="admin-tab hidden" data-tab="subscriptions" data-role-tab="payments" type="button" role="tab">Subscriptions</button>
       <button class="admin-tab hidden" data-tab="ledger" data-role-tab="payments" type="button" role="tab">Ledger</button>
       <button class="admin-tab hidden" data-tab="employees" data-role-tab="employees" type="button" role="tab">Employees</button>
+      <button class="admin-tab hidden" data-tab="graph" data-role-tab="payments" type="button" role="tab">Graph</button>
     </div>
 
     <!-- ================= TUITIONS ================= -->
@@ -516,6 +517,29 @@
       <div id="employeeList" class="admin-stack-list"></div>
     </section>
 
+    <!-- ================= GRAPH ================= -->
+    <!-- Money in vs out over time, plus outstanding dues - built from
+         the same paid/due entries the Ledger uses (see ledgerEntries),
+         just totalled instead of listed one by one. -->
+    <section id="tab-graph" class="admin-panel hidden">
+      <div class="admin-tools">
+        <div class="admin-chips" id="graphFilter">
+          <button class="admin-chip active" data-value="all" type="button">All</button>
+          <button class="admin-chip" data-value="Payments In" type="button">Payments In</button>
+          <button class="admin-chip" data-value="Payments Out" type="button">Payments Out</button>
+          <button class="admin-chip" data-value="Agency Charge" type="button">Agency Charge</button>
+          <button class="admin-chip" data-value="Subscription" type="button">Subscription</button>
+        </div>
+        <div class="admin-chips" id="graphPeriod">
+          <button class="admin-chip" data-value="6" type="button">6 Months</button>
+          <button class="admin-chip active" data-value="12" type="button">1 Year</button>
+          <button class="admin-chip" data-value="0" type="button">All Time</button>
+        </div>
+      </div>
+      <section class="admin-stats" id="graphStats"></section>
+      <div id="graphChart"></div>
+    </section>
+
   </div>
 </main>
 
@@ -524,7 +548,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260929zzzm" defer></script>
+<script src="admin.js?v=20260929zzzn" defer></script>
 
 </body>
 </html>

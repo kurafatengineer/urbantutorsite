@@ -2939,3 +2939,26 @@ body[data-page="admin"] {
 .admin-sub-badge[data-tone="paid"]    { color: var(--lime); }
 .admin-sub-badge[data-tone="partial"] { color: var(--orange); }
 .admin-sub-badge[data-tone="unpaid"]  { color: var(--danger); }
+
+/* ---------------- graph ---------------- */
+
+.graph-card { padding: 16px; }
+.graph-svg { width: 100%; height: auto; display: block; }
+.graph-bar-in { fill: var(--lime); }
+.graph-bar-out { fill: var(--danger); }
+.graph-gridline { stroke: var(--border-light); stroke-width: 1; }
+.graph-axis-label,
+.graph-month-label { fill: var(--muted); font-size: 10px; }
+.graph-legend {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.graph-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.graph-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.graph-swatch[data-tone="in"] { background: var(--lime); }
+.graph-swatch[data-tone="out"] { background: var(--danger); }
+#graphStats { margin-bottom: 14px; }
