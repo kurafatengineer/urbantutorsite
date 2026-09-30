@@ -506,7 +506,7 @@ function renderClasses() {
  * SUBSCRIPTION STATUS  (drives the verified badge on the avatar -
  * the Subscription section itself is no longer shown here; payments
  * tied to a tuition still live on that tuition's own card, see
- * renderClassCard / renderPaymentCard below)
+ * renderClassCard / renderPaymentsCard below)
  ************************************************************/
 
 // This student's most relevant subscription - active one, or the
@@ -554,43 +554,37 @@ function setProfileAvatarBadge_(tone) {
 // Stacked on the tuition it belongs to - just below the assigned
 // tutor's card and above any rejected tutor cards (see renderClassCard) -
 // so it collapses/expands and groups exactly like a tutor card.
-function renderPaymentCard(p, demoId) {
+// One card per tuition holding every payment made for it: date on the
+// left, amount on the right, and the total at the bottom right.
+function renderPaymentsCard(payments, demoId) {
 
-  const details = [
-    [ICONS.calendar, "Date", formatDemoDateTime(p.paymentDate)],
-    [ICONS.file, "Mode", p.paymentMode]
-  ].filter(row => row[2]);
+  if (!payments.length) return "";
 
-  const key = `p:${demoId}:${p.id}`;
+  const key = `p:${demoId}`;
   const open = STATE.expanded.has(key);
+  const total = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const money = n => "₹" + Number(n).toLocaleString("en-IN");
 
   return `
     <div class="class-card payment-card${open ? "" : " is-collapsed"}"
          data-card="${escapeHTML(key)}" data-group="${escapeHTML(demoId)}" tabindex="0" aria-expanded="${open ? "true" : "false"}">
       <div class="class-spine status-completed">
-        <span class="class-spine-id">${escapeHTML(p.demoId || "")}</span>
         <span class="class-spine-label">Payment</span>
       </div>
       <div class="class-body">
         <div class="class-row-top">
-          <span class="status-badge subject-badge">₹${escapeHTML(String(p.amount))}</span>
-          <span class="status-badge">${escapeHTML(p.paymentType === "advance" ? "Advance" : p.paymentType === "final" ? "Final" : "Payment")}</span>
+          <span class="status-badge subject-badge">Payments</span>
+          <span class="status-badge">${escapeHTML(money(total))}</span>
         </div>
-        ${details.length ? `
-          <div class="class-detail-grid">
-            ${details.map(([icon, label, value]) => `
-              <div class="class-detail" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
-                <span class="class-detail-icon">${icon}</span>
-                <span class="class-detail-value">${escapeHTML(value)}</span>
-              </div>
-            `).join("")}
-          </div>
-        ` : ""}
-        ${p.notes ? `
-          <div class="class-row-bottom class-row-message">
-            <div class="class-status-message"><span>${escapeHTML(p.notes)}</span></div>
-          </div>
-        ` : ""}
+        <div class="pay-lines">
+          ${payments.map(p => `
+            <div class="pay-line">
+              <span class="pay-date">${escapeHTML(formatDemoDateTime(p.paymentDate))}</span>
+              <span class="pay-amount">${escapeHTML(money(p.amount))}</span>
+            </div>
+          `).join("")}
+        </div>
+        <div class="pay-total"><span>Total</span><strong>${escapeHTML(money(total))}</strong></div>
       </div>
     </div>
   `;
@@ -913,7 +907,7 @@ function renderClassCard(item, student) {
     <div class="tuition-stack">
       ${studentCard}
       ${activeTutors.map(tutor => renderTutorCard(tutor, item)).join("")}
-      ${payments.map(p => renderPaymentCard(p, item.demoId)).join("")}
+      ${renderPaymentsCard(payments, item.demoId)}
       ${declinedTutors.map(tutor => renderTutorCard(tutor, item)).join("")}
     </div>
   `;

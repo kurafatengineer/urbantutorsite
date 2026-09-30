@@ -1320,3 +1320,54 @@ svg {
 .profile-sub-badge[data-tone="paid"]    { color: var(--lime); }
 .profile-sub-badge[data-tone="partial"] { color: var(--orange); }
 .profile-sub-badge[data-tone="unpaid"]  { color: var(--danger); }
+
+
+/* One payments card per tuition: date left, amount right, total at the
+   bottom right. */
+.pay-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pay-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13.5px;
+}
+
+.pay-date {
+  color: var(--muted);
+  text-align: left;
+}
+
+.pay-amount {
+  color: var(--text);
+  font-weight: 700;
+  text-align: right;
+}
+
+.pay-total {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-light);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pay-total strong {
+  color: var(--lime);
+  font-size: 15px;
+}
+
+/* tutor page: the card sits right under its tuition card */
+#classesList > .class-card + .payment-card {
+  margin-top: -10px;
+  border-top: 2px dashed var(--border-light);
+}
