@@ -236,50 +236,81 @@ basicInfoToggle.addEventListener("change", () => {
   if (!basicInfoToggle.checked) expandBasicInfo();
 });
 
-/* ---- Languages Known + Identity Proof: same collapse pattern,
-   once a language is picked and both files are uploaded. ---- */
+/* ---- Languages Known: same collapse pattern, once a language is
+   picked. ---- */
 
-const langIdentityToggleField = $("langIdentityToggleField");
-const langIdentityToggle = $("langIdentityToggle");
-const langIdentityFields = $("langIdentityFields");
-let langIdentityTimer = null;
+const langToggleField = $("langToggleField");
+const langToggle = $("langToggle");
+const languagesFields = $("languagesFields");
+let langTimer = null;
 
-function langIdentityDone() {
-  if (values("languages").length === 0) return false;
+function collapseLang() {
+  langToggle.checked = true;
+  langToggleField.classList.remove("hidden");
+  languagesFields.classList.add("hidden");
+}
+
+function expandLang() {
+  clearTimeout(langTimer);
+  langToggle.checked = false;
+  langToggleField.classList.add("hidden");
+  languagesFields.classList.remove("hidden");
+}
+
+function checkLangDone() {
+  if (languagesFields.classList.contains("hidden")) return;
+  clearTimeout(langTimer);
+  if (values("languages").length > 0) langTimer = setTimeout(collapseLang, COLLAPSE_DELAY);
+}
+
+document.querySelectorAll("#languages input").forEach(c =>
+  c.addEventListener("change", checkLangDone)
+);
+
+langToggle.addEventListener("change", () => {
+  if (!langToggle.checked) expandLang();
+});
+
+/* ---- Identity Proof: same collapse pattern, once both files are
+   uploaded. ---- */
+
+const identityToggleField = $("identityToggleField");
+const identityToggle = $("identityToggle");
+const identityFields = $("identityFields");
+let identityTimer = null;
+
+function identityDone() {
   if (!$("identityProof").files[0] || !$("profileImage").files[0]) return false;
   const idOk = validateFile("identityProof", "identityError", false);
   const photoOk = validateFile("profileImage", "profileError", true);
   return idOk && photoOk;
 }
 
-function collapseLangIdentity() {
-  langIdentityToggle.checked = true;
-  langIdentityToggleField.classList.remove("hidden");
-  langIdentityFields.classList.add("hidden");
+function collapseIdentity() {
+  identityToggle.checked = true;
+  identityToggleField.classList.remove("hidden");
+  identityFields.classList.add("hidden");
 }
 
-function expandLangIdentity() {
-  clearTimeout(langIdentityTimer);
-  langIdentityToggle.checked = false;
-  langIdentityToggleField.classList.add("hidden");
-  langIdentityFields.classList.remove("hidden");
+function expandIdentity() {
+  clearTimeout(identityTimer);
+  identityToggle.checked = false;
+  identityToggleField.classList.add("hidden");
+  identityFields.classList.remove("hidden");
 }
 
-function checkLangIdentityDone() {
-  if (langIdentityFields.classList.contains("hidden")) return;
-  clearTimeout(langIdentityTimer);
-  if (langIdentityDone()) langIdentityTimer = setTimeout(collapseLangIdentity, COLLAPSE_DELAY);
+function checkIdentityDone() {
+  if (identityFields.classList.contains("hidden")) return;
+  clearTimeout(identityTimer);
+  if (identityDone()) identityTimer = setTimeout(collapseIdentity, COLLAPSE_DELAY);
 }
 
-document.querySelectorAll("#languages input").forEach(c =>
-  c.addEventListener("change", checkLangIdentityDone)
-);
 ["identityProof", "profileImage"].forEach(id =>
-  $(id).addEventListener("change", checkLangIdentityDone)
+  $(id).addEventListener("change", checkIdentityDone)
 );
 
-langIdentityToggle.addEventListener("change", () => {
-  if (!langIdentityToggle.checked) expandLangIdentity();
+identityToggle.addEventListener("change", () => {
+  if (!identityToggle.checked) expandIdentity();
 });
 
 /* ---- digits-only fields ---- */
