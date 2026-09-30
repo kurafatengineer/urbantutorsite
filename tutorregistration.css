@@ -2526,6 +2526,12 @@ sup {
   margin-top: 12px;
 }
 
+/* "Other" board name box - gap so it doesn't sit flush against the
+   board buttons above it. */
+.board-other-field {
+  margin-top: 12px;
+}
+
 
 /* ---------- "WhatsApp same as mobile number" ---------- */
 
