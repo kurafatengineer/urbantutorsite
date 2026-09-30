@@ -190,6 +190,9 @@ $("mobile").addEventListener("input", () => {
    the pill re-opens the fields to edit. ---- */
 
 const COLLAPSE_DELAY = 600;
+// Languages Known allows several picks - give more breathing room
+// between clicks than the single-choice fields get.
+const LANG_COLLAPSE_DELAY = 1800;
 
 const basicInfoToggleField = $("basicInfoToggleField");
 const basicInfoToggle = $("basicInfoToggle");
@@ -260,7 +263,7 @@ function expandLang() {
 function checkLangDone() {
   if (languagesFields.classList.contains("hidden")) return;
   clearTimeout(langTimer);
-  if (values("languages").length > 0) langTimer = setTimeout(collapseLang, COLLAPSE_DELAY);
+  if (values("languages").length > 0) langTimer = setTimeout(collapseLang, LANG_COLLAPSE_DELAY);
 }
 
 document.querySelectorAll("#languages input").forEach(c =>
