@@ -308,7 +308,6 @@ button { cursor: pointer; }
 .admin-tab.active {
   color: var(--lime);
   background: var(--lime-dim);
-  box-shadow: inset 0 0 0 1px var(--lime-line);
 }
 
 .admin-tools {
@@ -451,9 +450,6 @@ button { cursor: pointer; }
 .admin-pill[data-tone="declined"] { color: var(--danger); background: var(--danger-dim); border-color: rgba(255, 104, 104, 0.3); }
 .admin-pill[data-tone="scheduled"] { color: var(--violet); background: var(--violet-dim); border-color: rgba(180, 144, 255, 0.3); }
 .admin-pill[data-tone="completed"] { color: var(--muted); background: var(--surface-2); border-color: var(--border-light); }
-
-/* A touch narrower here so it doesn't crowd the Tutor card's 8-column row. */
-#tutorList .admin-pill { padding: 4px 7px; font-size: 10px; }
 
 .admin-facts {
   margin: 0;
@@ -2017,8 +2013,19 @@ body[data-page="admin"] {
   text-align: center;
 }
 
+.admin-top-mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
 .admin-top-3 h1 {
   margin: 0;
+}
+
+.admin-top-mid .admin-me {
+  margin-bottom: 0;
 }
 
 .admin-top-3 #refreshButton {
@@ -2611,8 +2618,10 @@ body[data-page="admin"] {
 }
 
 .admin-status-rail[data-tone="new"],
-.admin-status-rail[data-tone="open"]        { background: var(--blue-dim); color: var(--blue); }
-.admin-status-rail[data-tone="running"]     { background: var(--lime-dim); color: var(--lime); }
+.admin-status-rail[data-tone="open"],
+.admin-status-rail[data-tone="pending"]     { background: var(--blue-dim); color: var(--blue); }
+.admin-status-rail[data-tone="running"],
+.admin-status-rail[data-tone="verified"]    { background: var(--lime-dim); color: var(--lime); }
 .admin-status-rail[data-tone="completed"]   { background: var(--surface-3); color: var(--muted); }
 .admin-status-rail[data-tone="terminated"],
 .admin-status-rail[data-tone="rejected"],

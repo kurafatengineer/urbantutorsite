@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260929bs">
+  <link rel="stylesheet" href="admin.css?v=20260929bt">
 </head>
 
 <body data-page="admin">
@@ -95,18 +95,18 @@
 <main id="panelPage" class="admin-page hidden">
   <div class="admin-container">
 
-    <!-- Refresh (left) | Admin Panel (centre) | Log out (right) -->
+    <!-- Refresh (left) | Admin Panel + signed-in-as (centre) | Log out (right) -->
     <header class="admin-top admin-top-3">
       <button id="refreshButton" class="admin-ghost" type="button">Refresh</button>
-      <h1>Admin Panel</h1>
+      <div class="admin-top-mid">
+        <h1>Admin Panel</h1>
+        <div class="admin-me" id="adminMe"></div>
+      </div>
       <button id="logoutButton" class="admin-ghost admin-danger" type="button">Log out</button>
     </header>
 
     <!-- counts -->
     <section class="admin-stats" id="adminStats"></section>
-
-    <!-- signed in as -->
-    <div class="admin-me" id="adminMe"></div>
 
     <!-- main tabs -->
     <div class="admin-tabs" id="mainTabs" role="tablist">
@@ -128,12 +128,12 @@
         </label>
         <div class="admin-chips admin-chips-7" id="tuitionFilter">
           <button class="admin-chip active" data-value="all" type="button">All</button>
-          <button class="admin-chip" data-value="new" type="button">Find Tutors</button>
+          <button class="admin-chip" data-value="new" type="button">Finding Tutors</button>
           <button class="admin-chip" data-value="schedule" type="button">Schedule Demo</button>
           <button class="admin-chip" data-value="scheduled" type="button">Demo Scheduled</button>
           <button class="admin-chip" data-value="running" type="button">Running</button>
           <button class="admin-chip" data-value="completed" type="button">Completed</button>
-          <button class="admin-chip" data-value="terminated" type="button">Terminated</button>
+          <button class="admin-chip" data-value="terminated" type="button">Closed</button>
         </div>
       </div>
       <div id="tuitionList" class="admin-stack-list"></div>
@@ -401,45 +401,51 @@
       <form id="subscriptionForm" class="admin-card hidden" style="margin-bottom:14px;">
         <h3 class="admin-section-title">New Subscription</h3>
         <div class="admin-form">
-          <label class="admin-float is-select">
-            <select id="subscriptionPartyType">
-              <option value="student">Student</option>
-              <option value="tutor">Tutor</option>
-            </select>
-            <span>For</span>
-          </label>
-          <div class="admin-id-row" id="subscriptionPartyIdField">
-            <label class="admin-float">
-              <input id="subscriptionPartyId" type="text" required placeholder=" " autocomplete="off">
-              <span id="subscriptionPartyIdLabel">Student ID</span>
+          <div class="admin-form-row admin-form-row-3">
+            <label class="admin-float is-select">
+              <select id="subscriptionPartyType">
+                <option value="student">Student Subscription</option>
+                <option value="tutor">Tutor Subscription</option>
+              </select>
+              <span>Transaction</span>
             </label>
-            <div class="admin-suggest hidden" data-suggest="party"></div>
-            <p class="admin-id-detail hidden" id="subscriptionPartyDetail"></p>
+            <label class="admin-float">
+              <input id="subscriptionPlanName" type="text" required placeholder=" ">
+              <span>Plan Name</span>
+            </label>
+            <label class="admin-float">
+              <input id="subscriptionBillingCycle" type="text" required placeholder=" " value="Monthly">
+              <span>Billing Cycle</span>
+            </label>
           </div>
-          <label class="admin-float wide">
-            <input id="subscriptionPlanName" type="text" required placeholder=" ">
-            <span>Plan Name</span>
-          </label>
-          <label class="admin-float">
-            <input id="subscriptionAmount" type="number" min="0" step="1" placeholder=" " required>
-            <span>Amount (₹)</span>
-          </label>
-          <label class="admin-float">
-            <input id="subscriptionBillingCycle" type="text" required placeholder=" " value="Monthly">
-            <span>Billing Cycle</span>
-          </label>
-          <label class="admin-float">
-            <input id="subscriptionStartDate" type="date" placeholder=" ">
-            <span>Start Date</span>
-          </label>
-          <label class="admin-float">
-            <input id="subscriptionNextDueDate" type="date" placeholder=" ">
-            <span>Next Due Date</span>
-          </label>
-          <label class="admin-float wide">
-            <textarea id="subscriptionNotes" rows="2" placeholder=" "></textarea>
-            <span>Notes</span>
-          </label>
+          <div class="admin-form-row admin-form-row-3">
+            <div class="admin-id-row" id="subscriptionPartyIdField">
+              <label class="admin-float">
+                <input id="subscriptionPartyId" type="text" required placeholder=" " autocomplete="off">
+                <span id="subscriptionPartyIdLabel">Student ID</span>
+              </label>
+              <div class="admin-suggest hidden" data-suggest="party"></div>
+              <p class="admin-id-detail hidden" id="subscriptionPartyDetail"></p>
+            </div>
+            <label class="admin-float">
+              <input id="subscriptionAmount" type="number" min="0" step="1" placeholder=" " required>
+              <span>Amount (₹)</span>
+            </label>
+            <label class="admin-float">
+              <input id="subscriptionStartDate" type="date" placeholder=" ">
+              <span>Start Date</span>
+            </label>
+          </div>
+          <div class="admin-form-row admin-form-row-3">
+            <label class="admin-float">
+              <input id="subscriptionNextDueDate" type="date" placeholder=" ">
+              <span>Next Due Date</span>
+            </label>
+            <label class="admin-float wide" style="grid-column: span 2;">
+              <textarea id="subscriptionNotes" rows="2" placeholder=" "></textarea>
+              <span>Notes</span>
+            </label>
+          </div>
         </div>
         <div class="admin-pair" style="margin-top:12px;">
           <button class="admin-primary" type="submit">Save Subscription</button>
@@ -514,7 +520,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260929zzzh" defer></script>
+<script src="admin.js?v=20260929zzzi" defer></script>
 
 </body>
 </html>
