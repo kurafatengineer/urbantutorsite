@@ -38,6 +38,15 @@
     try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
   }
 
+  function tutorSubscriptionTone(subscriptions) {
+    const list = subscriptions || [];
+    if (!list.length) return "";
+    const sub = list.find(s => s.status === "active") || list[0];
+    const due = Number(sub.amount || 0);
+    const paid = Number(sub.paidAmount || 0);
+    return due <= 0 || paid >= due ? "paid" : paid > 0 ? "partial" : "unpaid";
+  }
+
   // Badge colour for the header avatar - same rule as the Student
   // Profile page / Admin Panel: green once fully paid (or nothing
   // due), orange once partially paid, red while nothing has been
@@ -574,6 +583,9 @@
     $("dbTName").textContent = (firstName(profile.fullName) || "there") + ".";
 
     if (window.UrbanSession) window.UrbanSession.rememberName("tutor", profile.fullName);
+
+    // Same verified badge as the Tutor Profile page's avatars.
+    if (window.setHeaderAvatarBadge) window.setHeaderAvatarBadge(tutorSubscriptionTone(profileResult.subscriptions));
 
     // verification
     const vs = lower(profile.verificationStatus);
