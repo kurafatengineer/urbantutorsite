@@ -585,7 +585,8 @@
     if (window.UrbanSession) window.UrbanSession.rememberName("tutor", profile.fullName);
 
     // Same verified badge as the Tutor Profile page's avatars.
-    if (window.setHeaderAvatarBadge) window.setHeaderAvatarBadge(tutorSubscriptionTone(profileResult.subscriptions));
+    const subTone = tutorSubscriptionTone(profileResult.subscriptions);
+    if (window.setHeaderAvatarBadge) window.setHeaderAvatarBadge(subTone);
 
     // verification
     const vs = lower(profile.verificationStatus);
@@ -593,7 +594,7 @@
     const id = profile.tutorId ? ` · ${esc(profile.tutorId)}` : "";
 
     $("dbTStatus").innerHTML = verified
-      ? `<span class="db-pill ok"><svg><use href="#db-verified"/></svg>Verified tutor${id}</span>`
+      ? `<span class="db-pill ok"><svg class="db-seal" data-tone="${subTone}"><use href="#db-verified"/></svg>Verified Tutor${id}</span>`
       : vs === "rejected"
         ? `<span class="db-pill no">Verification rejected${id}</span>`
         : `<span class="db-pill wait">Verification pending${id}</span>`;
