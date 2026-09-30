@@ -2883,20 +2883,13 @@ function renderTutors() {
     const v = f => r.values[f] || "";
     return recordCard("tutors", r, {
       name: v("Full Name"),
-      // Name | WhatsApp | Graduation | Tutor ID, address small below
-      // Name | WhatsApp | Mobile | Tutor ID | Subject Taught, one line,
-      // truncated with an ellipsis if it runs long (see #tutorList
-      // .admin-info in admin.css). Graduation now lives on the small
-      // line below, right before the address.
-      titleHtml: highlight(
-        [v("Full Name") || r.id, v("WhatsApp Number"), v("Mobile Number"), r.id, v("Subject You Teach")],
-        [
-          [v("Graduation - Course"), v("Graduation - Subject")].filter(Boolean).join(" - "),
-          fullAddress(v("Present Address"), v("City"), v("Pin Code"))
-        ].filter(Boolean).join(" | "),
-        "|",
-        statusGroup(status)
-      ),
+      // One line, 8 equal columns: Name | Gender | Mobile | WhatsApp |
+      // Tutor ID | Subjects | Address (no PIN) | PIN Code - text too
+      // long for its column is cut with "..." (see equalRow).
+      titleHtml: equalRow([
+        v("Full Name") || r.id, v("Gender"), v("Mobile Number"), v("WhatsApp Number"),
+        r.id, v("Subject You Teach"), fullAddress(v("Present Address"), v("City"), ""), v("Pin Code")
+      ]),
       pill: status,
       tone: statusGroup(status),
       // Accept/Reject while Pending, Accept/Suspend once Verified,
@@ -2933,15 +2926,14 @@ function renderStudents() {
 
     return recordCard("students", r, {
       name: r.values["Student Name"],
-      // Name | WhatsApp Number | Class | Board - all bold, one line
-      titleHtml: highlight([
-        r.values["Student Name"] || r.id,
-        r.values["WhatsApp"] || r.values["Phone"],
-        r.values["Gender"],
-        r.values["Class"],
-        r.values["Board"],
-        fullAddress(r.values["Address"], r.values["City"], r.values["PIN Code"])
-      ], "", "|", "neutral"),
+      // One line, 9 equal columns: Name | Gender | Class | Board |
+      // Mobile | WhatsApp | Student ID | Address (no PIN) | PIN Code -
+      // text too long for its column is cut with "..." (see equalRow).
+      titleHtml: equalRow([
+        r.values["Student Name"] || r.id, r.values["Gender"], r.values["Class"], r.values["Board"],
+        r.values["Phone"], r.values["WhatsApp"], r.id,
+        fullAddress(r.values["Address"], r.values["City"], ""), r.values["PIN Code"]
+      ]),
       tone: "neutral",
       extra
     });
@@ -3022,7 +3014,7 @@ function paymentSummary(p) {
 
   const all = STATE.payments || [];
   const groupFor = demoId => demoGroups().find(x => x.demoId === demoId);
-  let kind, partyId, purpose, dues = null, target = null;
+  let kind, partyId, purpose, dues = null, target = null, studentId = "", tutorId = "", demoId = p.demo_id || "";
 
   if (p.subscription_id) {
     const sub = (STATE.subscriptions || []).find(x => x.id === p.subscription_id) || {};
@@ -3032,6 +3024,8 @@ function paymentSummary(p) {
     target = { action: "go-to-card", tab: "subscriptions", key: "subscription:" + p.subscription_id };
     const paid = paidUpTo(all.filter(o => o.subscription_id === p.subscription_id && o.transaction_type !== "payout"), p);
     dues = Math.max(num(sub.amount) - paid, 0);
+    studentId = sub.student_id || "";
+    tutorId = sub.tutor_id || "";
 
   } else if (p.transaction_type === "agency_charge") {
     const g = groupFor(p.demo_id);
@@ -3046,6 +3040,8 @@ function paymentSummary(p) {
       const paid = paidUpTo(all.filter(o => o.transaction_type === "agency_charge" && o.demo_id === p.demo_id && !!o.tutor_id === !!p.tutor_id), p);
       dues = Math.max(charge - paid, 0);
     }
+    studentId = g ? g.first.studentId : "";
+    tutorId = p.tutor_id || (activeRow ? activeRow.tutorId : "");
 
   } else if (p.transaction_type === "payout") {
     kind = "Tutor";
@@ -3056,6 +3052,9 @@ function paymentSummary(p) {
       ? { action: "go-to-tuition", demo: t.g.demoId, part: "tutor-payment" }
       : (p.tutor_id ? { action: "go-to-card", tab: "tutors", key: "tutors:" + p.tutor_id } : null);
     if (t) dues = Math.max(t.duesBefore - num(p.amount), 0);
+    studentId = t ? t.g.first.studentId : "";
+    tutorId = p.tutor_id || "";
+    demoId = demoId || (t ? t.g.demoId : "");
 
   } else {
     const demo = p.demo_id ? DIR_DEMO_BY_ID[p.demo_id] : null;
@@ -3065,13 +3064,20 @@ function paymentSummary(p) {
     if (p.demo_id) target = { action: "go-to-tuition", demo: p.demo_id, part: "student-payment" };
     const t = tuitionPaymentDues(p);
     if (t) dues = Math.max(t.duesBefore - num(p.amount), 0);
+    studentId = partyId;
+    tutorId = p.tutor_id || (t ? t.activeRow.tutorId : "");
   }
 
   const party = partyId ? (kind === "Student" ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID)[partyId] : null;
+  const partyRow = partyId ? (kind === "Student" ? STUDENT_BY_ID : TUTOR_BY_ID)[partyId] : null;
+  const partyWhatsapp = partyRow
+    ? (kind === "Student" ? partyRow.values["WhatsApp"] : partyRow.values["WhatsApp Number"]) || ""
+    : (kind === "Student" ? ((party && party.whatsapp) || "") : "");
   return {
-    kind, partyId, purpose, dues, target,
+    kind, partyId, purpose, dues, target, studentId, tutorId, demoId,
     partyName: (party && party.name) || partyId,
-    partyMobile: (party && party.mobile) || ""
+    partyMobile: (party && party.mobile) || "",
+    partyWhatsapp
   };
 
 }
@@ -3085,21 +3091,15 @@ function paymentSummary(p) {
 function paymentHead(key, p) {
   const s = paymentSummary(p);
   const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
-  const status = s.dues == null ? "" : (s.dues > 0 ? "Dues " + rupees(s.dues) : "Full Payment");
   return `
       <div class="admin-card-head" data-toggle="${esc(key)}">
         ${s.target
           ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="${s.target.action}" data-highlight="1"${s.target.demo ? ` data-demo="${esc(s.target.demo)}"` : ""}${s.target.part ? ` data-part="${esc(s.target.part)}"` : ""}${s.target.tab ? ` data-tab="${esc(s.target.tab)}" data-key="${esc(s.target.key)}"` : ""} title="Open what this payment is for">₹</button>`
           : `<div class="admin-avatar">₹</div>`}
-        <div class="admin-card-title">
-          ${highlight(
-            [s.partyName, s.partyMobile, s.partyId, s.purpose, "Amount Paid " + rupees(p.amount)],
-            timeSplitLine(status, p.created_at),
-            "|",
-            "neutral",
-            true
-          )}
-        </div>
+        ${equalRow([
+          formatDate(p.payment_date), s.partyName, s.partyMobile, s.partyWhatsapp,
+          s.studentId, s.demoId, s.tutorId, rupees(p.amount), s.dues == null ? "" : rupees(s.dues)
+        ])}
         <span class="admin-caret" aria-hidden="true"></span>
         <span class="admin-status-rail admin-rail-purpose" data-tone="black" tabindex="-1">${esc(s.purpose)}</span>
         <span class="admin-status-rail admin-rail-party" data-tone="black" tabindex="-1">${esc(s.kind)}</span>
@@ -3455,7 +3455,10 @@ function ledgerDate(iso) {
 }
 
 function ledgerRow(cells) {
-  return `<div class="ledger-grid">${cells.map(c => `<span class="ledger-cell">${esc(c || "-")}</span>`).join("")}</div>`;
+  return `<div class="ledger-grid">${cells.map(c => {
+    const text = (c === undefined || c === null || c === "") ? "-" : String(c);
+    return `<span class="ledger-cell" title="${esc(text)}">${esc(text)}</span>`;
+  }).join("")}</div>`;
 }
 
 // Money in (green) or out (red) - only a Tutor payout goes out.
@@ -3545,10 +3548,12 @@ function renderSubscriptions() {
 const SUBSCRIPTION_STATUS_LABELS = { active: "Active", paused: "Paused", cancelled: "Cancelled", completed: "Completed" };
 const SUBSCRIPTION_STATUS_TONES = { active: "running", paused: "schedule", cancelled: "rejected", completed: "completed" };
 
-// Collapsed subscription head: 7 equal centred columns split by dotted
-// lines; long text is cut with "..." and kept whole in the tooltip.
-function subscriptionRow(cells) {
-  return `<div class="sub-grid">${cells.map(c => {
+// A single-line card-head row of N equal, centred, dotted-divided
+// columns - text too long for its column is cut with "...", the full
+// value always sitting in the tooltip. Shared by the Subscription,
+// Payment, Student and Tutor cards.
+function equalRow(cells) {
+  return `<div class="eq-grid" style="grid-template-columns: repeat(${cells.length}, minmax(0, 1fr))">${cells.map(c => {
     const text = (c === undefined || c === null || c === "") ? "-" : String(c);
     return `<span class="ledger-cell" title="${esc(text)}">${esc(text)}</span>`;
   }).join("")}</div>`;
@@ -3606,7 +3611,7 @@ function subscriptionCard(sub) {
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">${esc(initials(partyName, "$"))}${subscriptionPayBadge(sub.student_id ? "student" : "tutor", partyId)}</div>
-        ${subscriptionRow([partyKind, partyName || partyId, partyPhone, partyWhatsapp, partyId, sub.plan_name, "₹" + amount.toLocaleString("en-IN")])}
+        ${equalRow([partyKind, partyName || partyId, partyPhone, partyWhatsapp, partyId, sub.plan_name, "₹" + amount.toLocaleString("en-IN")])}
         <span class="admin-caret" aria-hidden="true"></span>
         <span class="admin-status-rail admin-rail-sub" data-tone="${SUBSCRIPTION_STATUS_TONES[sub.status] || ""}" tabindex="-1">${esc(SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status)}</span>
       </div>
