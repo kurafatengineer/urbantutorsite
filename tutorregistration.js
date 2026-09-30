@@ -354,6 +354,16 @@ function syncTwelfthResult() {
   })
 );
 
+/* ---- 12th board: "Other" reveals a text box to name it ---- */
+
+document.querySelectorAll('input[name="twelfthBoard"]').forEach(r =>
+  r.addEventListener("change", () => {
+    const isOther = r.value === "Other" && r.checked;
+    $("twelfthBoardOtherWrap").classList.toggle("hidden", !isOther);
+    if (!isOther) { $("twelfthBoardOther").value = ""; setError("twelfthBoardOtherError", ""); }
+  })
+);
+
 /* ---- Date of birth ----
  * The input is a real date field; the "Choose Date of Birth" text is a
  * placeholder drawn on top. `has-value` hides it once a date is chosen. */
@@ -953,7 +963,7 @@ function buildRegistrationPayload() {
     class12PassingYear: val("twelfthYear"),
     class12Percentage: val("twelfthPercentage"),
     class12Cgpa: val("twelfthCgpa"),
-    class12Board: checked("twelfthBoard"),
+    class12Board: checked("twelfthBoard") === "Other" ? cleanText(val("twelfthBoardOther")) : checked("twelfthBoard"),
 
     graduationCourse: val("graduationCourse"),
     graduationSubject: val("graduationSubject"),
@@ -1164,6 +1174,9 @@ function educationValid(includeGraduation, showErrors) {
   }
 
   if (!checked("twelfthBoard")) fail("twelfthBoardError", "Select your Class 12th board.");
+  else if (checked("twelfthBoard") === "Other" && !val("twelfthBoardOther")) {
+    fail("twelfthBoardOtherError", "Enter your board's name.");
+  }
 
   if (includeGraduation) {
     ["graduationCourse", "graduationSubject", "graduationCollege", "graduationPercentage"].forEach(id => {
