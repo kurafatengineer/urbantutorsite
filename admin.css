@@ -2579,7 +2579,7 @@ body[data-page="admin"] {
 .ledger-card.ledger-header { padding-top: 6px; padding-bottom: 6px; }
 .ledger-header .admin-card-head { min-height: 0; }
 .ledger-header .ledger-cell { padding-top: 2px; padding-bottom: 2px; white-space: nowrap; }
-.ledger-header .admin-status-rail { padding: 0; }
+.ledger-header .admin-status-rail { padding: 6px 0; }
 .ledger-header .ledger-status-rail { margin: -6px 0 -6px -16px; }
 .ledger-header .ledger-purpose-rail { margin: -6px 4px -6px -12px; }
 .ledger-header .ledger-record-space { height: 0; }
@@ -2604,7 +2604,7 @@ body[data-page="admin"] {
   color: var(--muted);
   white-space: nowrap;
 }
-.list-header .admin-status-rail { padding: 0; }
+.list-header .admin-status-rail { padding: 6px 0; }
 .list-header .admin-rail-purpose,
 .list-header .admin-rail-party { margin-top: -6px; margin-bottom: -6px; }
 .list-header .admin-rail-sub { margin-top: -6px; margin-bottom: -6px; }
