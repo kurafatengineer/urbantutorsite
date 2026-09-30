@@ -358,6 +358,7 @@ function startIdleWatch() {
 }
 
 let pendingEmail = "";
+let pendingBootstrap = false;
 let resendTimer = null;
 
 function showEmailStep(message) {
@@ -677,9 +678,27 @@ function wireEvents() {
 
     try {
 
+      // Only an active office employee gets a code emailed (and a login
+      // account is never created for a stranger). The one exception is a
+      // brand-new panel with no employee yet, so the first Super Admin can
+      // set themselves up.
+      const { data: check, error: checkError } = await window.sb.rpc("admin_email_allowed", { p_email: email });
+
+      if (checkError) {
+        $("emailMessage").textContent = "Unable to check this email right now. Please try again.";
+        return;
+      }
+
+      if (!check || (!check.allowed && !check.bootstrap)) {
+        $("emailMessage").textContent = "This email is not set up for office access.";
+        return;
+      }
+
+      pendingBootstrap = !!check.bootstrap;
+
       const { error } = await window.sb.auth.signInWithOtp({
         email,
-        options: { shouldCreateUser: true }
+        options: { shouldCreateUser: pendingBootstrap }
       });
 
       if (error) {
@@ -717,7 +736,7 @@ function wireEvents() {
     try {
       const { error } = await window.sb.auth.signInWithOtp({
         email: pendingEmail,
-        options: { shouldCreateUser: true }
+        options: { shouldCreateUser: pendingBootstrap }
       });
       if (error) $("otpMessage").textContent = error.message || "Unable to resend the code.";
       else { startResendTimer(60); toast("Code resent."); }
