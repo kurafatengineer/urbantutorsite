@@ -527,6 +527,18 @@ window.UrbanSession = {
    NEW: HEADER AVATAR  (logged-in user's initials)
    ========================================================= */
 
+// The Admin Panel's badge shows the signed-in employee's initials (set by
+// admin.js once it knows who that is); "AD" until then. Still not clickable.
+let adminInitials_ = "AD";
+
+window.setAdminHeaderInitials = function (name) {
+  adminInitials_ = initialsFromName_(name) || "AD";
+  const button = document.getElementById("headerLogin");
+  if (!button) return;
+  setHeaderInitials_(button, adminInitials_);
+  button.setAttribute("aria-label", "Admin");
+};
+
 function isAdminPage_() {
   return !!(document.body && document.body.dataset.page === "admin");
 }
@@ -562,7 +574,7 @@ async function renderHeaderAvatar() {
 
   if (!button) return;
 
-  // Admin Panel: always "AD", not clickable.
+  // Admin Panel: the employee's initials ("AD" until known), not clickable.
   if (isAdminPage_()) {
 
     // the UrbanTutorSite logo does nothing on the Admin Panel
@@ -576,7 +588,7 @@ async function renderHeaderAvatar() {
       }, true);
     });
 
-    setHeaderInitials_(button, "AD");
+    setHeaderInitials_(button, adminInitials_);
 
     button.removeAttribute("href");
     button.setAttribute("aria-label", "Admin");
@@ -644,7 +656,7 @@ async function renderHeaderAvatar() {
 
 function setHeaderInitials_(button, initials) {
 
-  if (isAdminPage_() && initials !== "AD") return;
+  if (isAdminPage_() && initials !== adminInitials_) return;
 
 
   let badge = button.querySelector(".header-initials");

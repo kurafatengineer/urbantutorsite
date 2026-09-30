@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260929cg">
+  <link rel="stylesheet" href="admin.css?v=20260929ch">
 </head>
 
 <body data-page="admin">
@@ -31,7 +31,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
       </div>
       <h1>Admin Panel</h1>
-      <p class="muted" id="loginSubtitle">Office access only. Log in with your work email.</p>
+      <p class="muted" id="loginSubtitle">Office access only.</p>
 
       <!-- STEP 1: email -->
       <form id="emailStepForm" novalidate>
@@ -45,15 +45,19 @@
 
       <!-- STEP 2: OTP -->
       <form id="otpStepForm" class="hidden" novalidate>
-        <p class="muted" style="margin:0 0 14px;font-size:13.5px;">
+        <p class="muted" style="margin:0 0 14px;font-size:13.5px;text-align:center;">
           Code sent to <strong id="otpEmailDisplay"></strong>.
         </p>
-        <label class="admin-float">
-          <input id="adminOtp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder=" " required>
-          <span>6-Digit Code</span>
-        </label>
+        <!-- six equal blocks, one digit each; the sixth digit logs in by itself -->
+        <div id="otpBoxes" class="otp-boxes" role="group" aria-label="6-digit code">
+          <input class="otp-box" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="1" aria-label="Digit 1">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 2">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 3">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 4">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 5">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 6">
+        </div>
         <p id="otpMessage" class="admin-message" role="alert"></p>
-        <button id="verifyCodeButton" class="admin-primary" type="submit">Verify &amp; log in</button>
         <div class="admin-pair" style="margin-top:8px;">
           <button id="otpBackButton" class="admin-ghost" type="button">Change email</button>
           <button id="resendCodeButton" class="admin-ghost" type="button">Resend code</button>
@@ -556,10 +560,10 @@
 
 <div id="adminToast" class="admin-toast" role="status"></div>
 
-<script src="js/header.js"></script>
+<script src="js/header.js?v=2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260929zzzu" defer></script>
+<script src="admin.js?v=20260929zzzv" defer></script>
 
 </body>
 </html>
