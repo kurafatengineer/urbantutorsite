@@ -490,6 +490,16 @@ function isTicked(value) {
 }
 
 // "25 September 2026, 11:00 AM" (time left off if there isn't one).
+// The Payment Date chosen for the payment, followed by the time it was
+// actually recorded (paidAt), in Indian time.
+function paymentDateTime(p) {
+  const day = paymentDateTime(p);
+  const at = p.paidAt ? new Date(p.paidAt) : null;
+  if (!day || !at || isNaN(at)) return day;
+  const time = at.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
+  return `${day.split(",")[0]}, ${time.toUpperCase()}`;
+}
+
 function formatDemoDateTime(value) {
 
   if (!value) return "";
@@ -693,7 +703,7 @@ function renderPayoutsCard(demoId) {
         <div class="pay-lines">
           ${payouts.map(p => `
             <div class="pay-line">
-              <span class="pay-date">${escapeHTML(formatDemoDateTime(p.paymentDate))}</span>
+              <span class="pay-date">${escapeHTML(paymentDateTime(p))}</span>
               <span class="pay-amount">${escapeHTML(money(p.amount))}</span>
             </div>
           `).join("")}

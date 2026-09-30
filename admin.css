@@ -3179,3 +3179,50 @@ body[data-page="admin"] {
 .admin-hl-top[data-tone="schedule"] .ledger-cell    { color: var(--orange); }
 .admin-hl-top[data-tone="scheduled"] .ledger-cell,
 .admin-hl-top[data-tone="processing"] .ledger-cell  { color: var(--violet); }
+
+
+/* Change email | Resend code: the site's green while active */
+.admin-otp-actions > .admin-ghost:not(:disabled) {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: #050505;
+}
+.admin-otp-actions > .admin-ghost:not(:disabled):hover {
+  background: var(--lime-hover);
+  border-color: var(--lime-hover);
+  color: #050505;
+}
+
+.otp-box {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  opacity: 1;
+  font-size: 24px;
+  line-height: 1;
+}
+.otp-box::selection { background: transparent; color: #ffffff; }
+.otp-box:-webkit-autofill,
+.otp-box:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff;
+  -webkit-box-shadow: 0 0 0 100px var(--surface-2) inset;
+  caret-color: #ffffff;
+}
+
+/* Employee permissions, read-only: clear ticks instead of the browser's pale disabled boxes */
+.perm-item input:disabled {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border-light);
+  background: transparent;
+  opacity: 1;
+}
+.perm-item input:disabled:checked {
+  background: var(--lime) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23050505' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center / 12px no-repeat;
+  border-color: var(--lime);
+}
+.perm-item input:disabled:checked + span { color: var(--text); font-weight: 600; }
+.perm-item input:disabled:not(:checked) + span { color: var(--muted-2, var(--muted)); }
