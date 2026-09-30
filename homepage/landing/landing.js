@@ -55,7 +55,7 @@
   }
 
   function mediumText(v) {
-    return /^any$/i.test(String(v || "").trim()) ? "Online | Offline" : (v || "");
+    return /^any$/i.test(String(v || "").trim()) ? "Online | Home" : String(v || "").replace(/^offline$/i, "Home");
   }
 
   function classText(v) {

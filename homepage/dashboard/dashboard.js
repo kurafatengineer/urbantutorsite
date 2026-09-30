@@ -120,7 +120,7 @@
   }
 
   function mediumText(v) {
-    return lower(v) === "any" ? "Online | Offline" : (v || "");
+    return lower(v) === "any" ? "Online | Home" : String(v || "").replace(/^offline$/i, "Home");
   }
 
   // Hide broken sheet time values (e.g. "Sat Dec 30 1899 ...").
