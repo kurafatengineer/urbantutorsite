@@ -689,7 +689,7 @@ function isTicked(value) {
 // The Payment Date chosen for the payment, followed by the time it was
 // actually recorded (paidAt), in Indian time.
 function paymentDateTime(p) {
-  const day = paymentDateTime(p);
+  const day = formatDemoDateTime(p.paymentDate);
   const at = p.paidAt ? new Date(p.paidAt) : null;
   if (!day || !at || isNaN(at)) return day;
   const time = at.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
