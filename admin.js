@@ -2711,9 +2711,9 @@ function recordCard(kind, record, opts) {
         <div class="admin-card-title">
           ${opts.titleHtml || `<strong>${esc(opts.name || record.id)}</strong><small>${esc(opts.sub)}</small>`}
         </div>
-        ${opts.pill ? `<span class="admin-pill" data-tone="${opts.tone}">${esc(opts.pill)}</span>` : ""}
         <span class="admin-caret" aria-hidden="true"></span>
         ${opts.verifyStatus ? verifyButtonsHtml(opts.verifyStatus) : ""}
+        ${opts.pill ? `<span class="admin-status-rail admin-rail-sub" data-tone="${opts.tone}" tabindex="-1">${esc(opts.pill)}</span>` : ""}
       </div>
 
       <div class="admin-card-body">
@@ -3614,8 +3614,8 @@ function tutorHeaderCard() {
   return listHeaderCard(`
     <span class="list-header-spacer"></span>
     <div class="admin-card-title">${highlight(["Name", "WhatsApp", "Mobile", "Tutor ID", "Subject"], "Graduation | Address", "|", "")}</div>
-    <span class="list-header-status">Status</span>
     <span class="admin-caret" aria-hidden="true"></span>
+    <span class="admin-status-rail admin-rail-sub" data-tone="black">Status</span>
   `);
 }
 

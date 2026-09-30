@@ -2619,15 +2619,6 @@ body[data-page="admin"] {
 }
 .list-header .admin-hl-top .admin-info b { color: var(--muted); }
 .list-header .admin-hl-small { display: none; }
-.list-header-status {
-  flex: 0 0 auto;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
 
 /* Class card figures that open a New Payment when tapped. */
 .admin-box input[data-action] { cursor: pointer; }
