@@ -3521,7 +3521,7 @@ function ledgerHeaderCard() {
         <span class="admin-status-rail ledger-purpose-rail" data-tone="black">Type</span>
         <span class="ledger-flow ledger-flow-head">In/Out</span>
         ${ledgerRow(LEDGER_COLUMNS)}
-        <span class="ledger-record-space"></span>
+        <span class="ledger-record-head" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
       </div>
     </div>`;
 }
@@ -3727,7 +3727,7 @@ function paymentHeaderCard() {
 
 function subscriptionHeaderCard() {
   return listHeaderCard(`
-    <span class="list-header-spacer"></span>
+    <span class="list-header-spacer list-header-avatar-label">Profile</span>
     ${equalRow(["Student/Tutor", "Name", "Mobile", "WhatsApp", "ID", "Plan", "Amount"])}
     <span class="admin-caret" aria-hidden="true"></span>
     <span class="admin-status-rail admin-rail-sub" data-tone="black">Status</span>
