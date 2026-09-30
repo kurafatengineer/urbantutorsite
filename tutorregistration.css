@@ -3161,3 +3161,10 @@ body {
 #registrationPage .field.step-toggle > .pill-check {
   margin-top: 0;
 }
+
+
+/* Pills open their fields right below them - keep a gap so the pill
+   never sits flush against the first field. */
+.section > .step-toggle + div:not(.hidden) {
+  margin-top: 18px;
+}
