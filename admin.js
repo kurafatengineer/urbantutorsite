@@ -51,16 +51,20 @@ const ROLE_LABELS = {
   tutor_relations: "Tutor Relations",
 };
 
-const ROLE_PERMS = {
-  super_admin:          { tuitions: true,  tutorsEdit: true,  tutorsVerify: true,  students: true,  payments: true,  employees: true  },
-  tuition_coordinator:  { tuitions: true,  tutorsEdit: true,  tutorsVerify: false, students: true,  payments: false, employees: false },
-  verification_staff:   { tuitions: false, tutorsEdit: false, tutorsVerify: true,  students: false, payments: false, employees: false },
-  accounts_finance:     { tuitions: false, tutorsEdit: false, tutorsVerify: false, students: false, payments: true,  employees: false },
-  tutor_relations:      { tuitions: false, tutorsEdit: true,  tutorsVerify: false, students: false, payments: false, employees: false },
-};
-
+// Each employee has their own list of permissions (see the Employees
+// tab); the server sends the effective list with the overview.
 function myPerms() {
-  return ROLE_PERMS[STATE.me && STATE.me.role] || ROLE_PERMS.tuition_coordinator;
+  const list = (STATE.me && STATE.me.permissions) || [];
+  const has = k => list.includes(k);
+  return {
+    tuitions: has("tuitions_view"),
+    tutorsView: has("tutors_view"), tutorsEdit: has("tutors_edit"), tutorsVerify: has("tutors_verify"),
+    students: has("students_view"), studentsEdit: has("students_edit"),
+    payments: has("payments_view"), paymentsAdd: has("payments_add"),
+    paymentsEdit: has("payments_edit"), paymentsDelete: has("payments_delete"),
+    subscriptionsAdd: has("subscriptions_add"), subscriptionsEdit: has("subscriptions_edit"),
+    employees: has("employees_manage")
+  };
 }
 
 
@@ -233,6 +237,7 @@ const STATE = {
   payments: [],
   subscriptions: [],
   employees: [],
+  permInfo: null,       // { groups, presets, parents } - the permission checklist, sent to employee managers
   directory: { demos: [], students: [], tutors: [] },
   tab: "tuitions",
   tutorFilter: "all",
@@ -350,7 +355,7 @@ function applyRoleUI() {
 
   const visibility = {
     tuitions: perms.tuitions,
-    tutors: perms.tutorsEdit || perms.tutorsVerify,
+    tutors: perms.tutorsView,
     students: perms.students,
     payments: perms.payments,
     subscriptions: perms.payments,
@@ -366,6 +371,9 @@ function applyRoleUI() {
     if (tabButton) tabButton.classList.toggle("hidden", !visibility[name]);
     if (visibility[name] && !firstVisible) firstVisible = name;
   });
+
+  $("addPaymentButton").classList.toggle("hidden", !perms.paymentsAdd);
+  $("addSubscriptionButton").classList.toggle("hidden", !perms.subscriptionsAdd);
 
   if (!visibility[STATE.tab]) STATE.tab = firstVisible || "tuitions";
 
@@ -414,6 +422,7 @@ async function loadOverview(quiet) {
     STATE.payments = result.payments || [];
     STATE.subscriptions = result.subscriptions || [];
     STATE.employees = result.employees || [];
+    STATE.permInfo = result.permissionInfo || null;
     STATE.directory = result.directory || { demos: [], students: [], tutors: [] };
 
     indexData();
@@ -1580,7 +1589,62 @@ function wireSubscriptionIdSuggestion() {
 
 }
 
+// ---- permission checklist (New Employee form + each employee's card) ----
+
+function permChecklistHtml(selected, disabled) {
+  const info = STATE.permInfo;
+  if (!info) return "";
+  return info.groups.map(g => `
+    <fieldset class="perm-group">
+      <legend>${esc(g.label)}</legend>
+      ${g.items.map(i => `
+        <label class="perm-item">
+          <input type="checkbox" data-perm="${esc(i.key)}"${selected.has(i.key) ? " checked" : ""}${disabled ? " disabled" : ""}>
+          <span>${esc(i.label)}</span>
+        </label>`).join("")}
+    </fieldset>`).join("");
+}
+
+function permValues(container) {
+  return [...container.querySelectorAll("input[data-perm]:checked")].map(i => i.dataset.perm);
+}
+
+// A Role just fills in its usual set of ticks; a Super Admin gets all of
+// them, locked.
+function applyPermPreset(container, role) {
+  const preset = new Set((STATE.permInfo && STATE.permInfo.presets[role]) || []);
+  container.querySelectorAll("input[data-perm]").forEach(i => {
+    i.checked = preset.has(i.dataset.perm);
+    i.disabled = role === "super_admin";
+  });
+}
+
+// Ticking "Record payments" also ticks "View Payments"; un-ticking a
+// view permission un-ticks everything that depends on it.
+function onPermToggle(event) {
+  const input = event.target.closest("input[data-perm]");
+  const container = event.target.closest("[data-perms]");
+  if (!input || !container || !STATE.permInfo) return;
+  const parents = STATE.permInfo.parents;
+  const find = key => container.querySelector(`input[data-perm="${key}"]`);
+  if (input.checked && parents[input.dataset.perm]) find(parents[input.dataset.perm]).checked = true;
+  if (!input.checked) {
+    Object.keys(parents).forEach(child => { if (parents[child] === input.dataset.perm) find(child).checked = false; });
+  }
+}
+
 function wireEmployeeForm() {
+
+  const perms = $("employeePerms");
+  perms.setAttribute("data-perms", "");
+  perms.addEventListener("change", onPermToggle);
+
+  const refreshPerms = () => {
+    perms.innerHTML = permChecklistHtml(new Set());
+    applyPermPreset(perms, $("employeeRole").value);
+  };
+
+  $("employeeRole").addEventListener("change", () => applyPermPreset(perms, $("employeeRole").value));
 
   $("addEmployeeButton").addEventListener("click", () => {
     const form = $("employeeForm");
@@ -1589,6 +1653,7 @@ function wireEmployeeForm() {
       $("employeeEmail").value = "";
       $("employeeName").value = "";
       $("employeeRole").value = "tuition_coordinator";
+      refreshPerms();
       $("employeeEmail").focus();
     }
   });
@@ -1607,13 +1672,28 @@ function wireEmployeeForm() {
       return;
     }
 
-    const payload = { action: "adminAddEmployee", email, fullName, role: $("employeeRole").value };
+    const role = $("employeeRole").value;
+    const payload = { action: "adminAddEmployee", email, fullName, role };
+    if (role !== "super_admin") payload.permissions = permValues(perms);
 
     const button = $("employeeForm").querySelector("button[type=submit]");
     const ok = await save(payload, button);
 
     if (ok) $("employeeForm").classList.add("hidden");
 
+  });
+
+  // On an existing employee's card (edit mode): same ticks, and changing
+  // their Role there refills them too.
+  $("employeeList").addEventListener("change", (event) => {
+    const box = event.target.closest("[data-box]");
+    if (!box) return;
+    if (event.target.dataset && event.target.dataset.efield === "role") {
+      const area = box.querySelector("[data-perms]");
+      if (area) applyPermPreset(area, roleKeyFromLabel(event.target.value));
+      return;
+    }
+    onPermToggle(event);
   });
 
 }
@@ -2209,6 +2289,11 @@ async function saveEmployeeEdit(box, button) {
     else changes[field] = input.value;
   });
 
+  const permArea = box.querySelector("[data-perms]");
+  if (permArea && changes.role !== "super_admin" && !permArea.hasAttribute("data-locked")) {
+    changes.permissions = permValues(permArea);
+  }
+
   const ok = await save({ action: "adminUpdateEmployee", id, changes }, button);
 
   if (ok) {
@@ -2727,7 +2812,7 @@ function recordCard(kind, record, opts) {
       <div class="admin-card-body">
         ${fieldsBoxes(kind, record, editing)}
         ${opts.extra || ""}
-        ${kind !== "tutors" || myPerms().tutorsEdit ? editButtons(key, editing, "save-record", "Edit Details") : ""}
+        ${(kind === "tutors" ? myPerms().tutorsEdit : myPerms().studentsEdit) ? editButtons(key, editing, "save-record", "Edit Details") : ""}
         ${editing && kind === "students" ? note("Changing the Email moves this student to that login. Brothers / sisters share one Email and Phone.") : ""}
         ${editing && kind === "tutors" ? note("Changing the Mobile Number also moves this tutor's tuitions to the new number.") : ""}
       </div>
@@ -3129,15 +3214,16 @@ function paymentCard(p, ctx) {
   const editing = STATE.editing.has(key);
   const isPayout = p.transaction_type === "payout";
 
+  const perms = myPerms();
   const buttons = editing
     ? `<div class="admin-pair">
          <button class="admin-primary" data-action="save-payment" type="button">Save changes</button>
          <button class="admin-ghost" data-action="cancel" data-key="${esc(key)}" type="button">Cancel</button>
        </div>`
-    : `<div class="admin-split">
-         <button class="admin-ghost" data-action="edit" data-key="${esc(key)}" type="button">Edit</button>
-         <button class="admin-ghost admin-danger" data-action="delete-payment" type="button">Delete</button>
-       </div>`;
+    : (perms.paymentsEdit || perms.paymentsDelete) ? `<div class="admin-split">
+         ${perms.paymentsEdit ? `<button class="admin-ghost" data-action="edit" data-key="${esc(key)}" type="button">Edit</button>` : ""}
+         ${perms.paymentsDelete ? `<button class="admin-ghost admin-danger" data-action="delete-payment" type="button">Delete</button>` : ""}
+       </div>` : "";
 
   if (p.subscription_id) {
     return subscriptionPaymentCard(p, key, open, editing, buttons);
@@ -3493,7 +3579,7 @@ function ledgerCard(e) {
     (t.demo ? ` data-demo="${esc(t.demo)}"` : "") + (t.part ? ` data-part="${esc(t.part)}"` : "") +
     (t.tab ? ` data-tab="${esc(t.tab)}" data-key="${esc(t.key)}"` : "");
   const status = LEDGER_STATUS[e.status];
-  const record = e.status === "paid" ? `<span class="ledger-record-space" aria-hidden="true"></span>` : `
+  const record = (e.status === "paid" || !myPerms().paymentsAdd) ? `<span class="ledger-record-space" aria-hidden="true"></span>` : `
         <button type="button" class="admin-avatar admin-avatar-link ledger-record" data-action="ledger-record"
           ${e.subscriptionId ? `data-sub="${e.subscriptionId}"` : `data-demo="${esc(t.demo)}" data-part="${esc(t.part)}"`}
           title="Record this payment" aria-label="Record this payment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>`;
@@ -3794,10 +3880,10 @@ function subscriptionCard(sub) {
          <button class="admin-primary" data-action="save-subscription" type="button">Save changes</button>
          <button class="admin-ghost" data-action="cancel" data-key="${esc(key)}" type="button">Cancel</button>
        </div>`
-    : `<div class="admin-split">
+    : myPerms().subscriptionsEdit ? `<div class="admin-split">
          <button class="admin-ghost" data-action="edit" data-key="${esc(key)}" type="button">Edit</button>
          <button class="admin-ghost admin-danger" data-action="delete-subscription" type="button" disabled title="Subscriptions cannot be deleted">Delete</button>
-       </div>`;
+       </div>` : "";
 
   return `
     <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${sub.id}" data-key="${esc(key)}">
@@ -3870,6 +3956,16 @@ function employeeCard(e) {
       ${box("Active", e.active ? "Yes" : "No", { editable: editing && !isMe, options: ["Yes", "No"], attr: editing && !isMe ? `data-efield="active"` : "" })}
     </div>`;
 
+  // Their ticks: editable only in edit mode, never for yourself (you
+  // can't change your own); a Super Admin's are all ticked until their
+  // Role is changed.
+  const locked = isMe;
+  const permsBox = STATE.permInfo ? `
+    <div class="perm-box">
+      <p class="perm-title">Permissions${locked ? " <small>- you can't change your own</small>" : e.role === "super_admin" ? " <small>- a Super Admin always has all (change the Role to pick individually)</small>" : ""}</p>
+      <div class="perm-grid" data-perms${locked ? " data-locked" : ""}>${permChecklistHtml(new Set(e.permissions || []), !editing || locked || e.role === "super_admin")}</div>
+    </div>` : "";
+
   const buttons = editing
     ? `<div class="admin-pair">
          <button class="admin-primary" data-action="save-employee" type="button">Save changes</button>
@@ -3894,6 +3990,7 @@ function employeeCard(e) {
 
       <div class="admin-card-body">
         ${boxes}
+        ${permsBox}
         ${buttons}
       </div>
 
