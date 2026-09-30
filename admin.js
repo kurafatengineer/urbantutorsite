@@ -4468,7 +4468,7 @@ function classCard(g, activeRow) {
         ${box("Agency Charge (₹)", editing ? (activeRow.studentAgencyCharge || 0) : activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: editing ? cfield("Student Agency Charge") : jump("student-agency") })}
         ${box("Agency Next Due Date", studentNextDueShown, { type: "text" })}
         ${box("Advance Payment (₹)", studentAdvancePaid, { attr: editing ? "" : jump("student-advance") })}
-        ${box("Total Amount (₹)", studentTotalAmount)}
+        ${box("Total Amount (₹)", studentTotalAmount, { attr: editing ? "" : jump("student-payment") })}
         ${box("Total Payment (₹)", collected, { attr: editing ? "" : jump("student-payment") })}
         ${box("Dues (₹)", studentDues)}
       </div>
@@ -4489,7 +4489,7 @@ function classCard(g, activeRow) {
         ${editing
           ? box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: true, type: "number", attr: cfield("Tutor Advance Payment") })
           : box("Advance Payment (₹)", tutorAdvance, { attr: jump("tutor-advance") })}
-        ${box("Total Amount (₹)", tutorTotalAmount)}
+        ${box("Total Amount (₹)", tutorTotalAmount, { attr: editing ? "" : jump("tutor-payment") })}
         ${box("Total Payment (₹)", tutorTotalPayment, { attr: editing ? "" : jump("tutor-payment") })}
         ${box("Dues (₹)", tutorDues)}
       </div>
