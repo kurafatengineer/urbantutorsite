@@ -182,36 +182,90 @@ $("mobile").addEventListener("input", () => {
 });
 
 /* ---- COLLAPSIBLE SECTIONS ----
-   Every section of the form sits behind its own pill, unchecked and
-   collapsed to start with. Ticking a pill opens its fields; unticking
-   closes them again. Optional ones (Post Graduation, Special Courses,
-   Special Child Disability) also clear what was entered when closed,
-   so nothing half-filled gets submitted by accident; required ones
-   keep their values. ---- */
+   Every section of the form sits behind its own pill; only one is open
+   at a time. The tick on a pill means "filled in": it stays unticked
+   while its section is open, and once you move on to another pill it
+   turns ticked if that section was completed (left unticked if not).
+   Nothing entered is ever cleared by opening or closing. ---- */
+
+const decimalPattern = /^\d+(\.\d{1,2})?$/;
+
+function percentageOrCgpaDone(percentageId, cgpaId) {
+  const percentage = val(percentageId);
+  const cgpa = val(cgpaId);
+  if (!percentage && !cgpa) return false;
+  if (percentage && (!decimalPattern.test(percentage) || Number(percentage) > 100)) return false;
+  if (cgpa && (!decimalPattern.test(cgpa) || Number(cgpa) > 10)) return false;
+  return true;
+}
+
+const sectionDone = {
+
+  basicInfo: () =>
+    /^\d{10}$/.test(val("mobile")) &&
+    /^\d{10}$/.test($("sameWhatsapp").checked ? val("mobile") : val("whatsapp")) &&
+    cleanText($("fullName").value).length >= 2 &&
+    !!val("birthDate") && new Date(val("birthDate")) <= new Date() &&
+    !!checked("gender") && !!checked("registerAs"),
+
+  languages: () => values("languages").length > 0,
+
+  identity: () => !!$("identityProof").files[0] && !!$("profileImage").files[0],
+
+  twelfth: () =>
+    !!checked("twelfthStream") &&
+    /^\d{4}$/.test(val("twelfthYear")) &&
+    percentageOrCgpaDone("twelfthPercentage", "twelfthCgpa") &&
+    !!checked("twelfthBoard") &&
+    (checked("twelfthBoard") !== "Other" || !!val("twelfthBoardOther")),
+
+  graduation: () =>
+    !!val("graduationCourse") && !!val("graduationSubject") && !!val("graduationCollege") &&
+    /^\d{4}$/.test(val("graduationYear")) &&
+    percentageOrCgpaDone("graduationPercentage", "graduationCgpa"),
+
+  postGraduation: () =>
+    !!val("pgSubject") && !!val("pgCollege") && /^\d{4}$/.test(val("pgYear")),
+
+  specialCourses: () => values("specialCourses").length > 0,
+  disability: () => values("disability").length > 0,
+
+  experience: () => !!val("experience"),
+  classes: () => values("classesTeach").length > 0,
+  subjects: () => values("subjectsTeach").length > 0,
+  boards: () => values("boardsTeach").length > 0,
+
+  areas: () => !!val("city") && !!val("address") && /^\d{6}$/.test(val("pinCode"))
+
+};
 
 const collapsibleSections = [];
 
+// Leaving a section: tick its pill only if it is filled in.
 function closeSection(section) {
-  section.toggle.checked = false;
+  section.open = false;
   section.content.classList.add("hidden");
+  section.toggle.checked = section.isDone();
 }
 
 function openSection(section) {
-  collapsibleSections.forEach(other => { if (other !== section) closeSection(other); });
-  section.toggle.checked = true;
+  collapsibleSections.forEach(other => { if (other.open) closeSection(other); });
+  section.open = true;
+  section.toggle.checked = false;
   section.content.classList.remove("hidden");
 }
 
-function wireCollapsibleSection(toggleId, contentId, onCollapse) {
-  const section = { toggle: $(toggleId), content: $(contentId) };
+function wireCollapsibleSection(toggleId, contentId, isDone) {
+  const section = { toggle: $(toggleId), content: $(contentId), isDone, open: false };
 
   collapsibleSections.push(section);
 
   section.toggle.addEventListener("change", () => {
-    if (section.toggle.checked) { openSection(section); return; }
-    closeSection(section);
-    if (onCollapse) onCollapse();
+    if (section.open) closeSection(section);
+    else openSection(section);
   });
+
+  return section;
 }
 
 // A failed Register press opens the first section that holds an error,
@@ -219,32 +273,25 @@ function wireCollapsibleSection(toggleId, contentId, onCollapse) {
 window.showAllRegistrationSteps = function () {
   const bad = collapsibleSections.find(({ content }) =>
     content.querySelector(".has-error, .field-error:not(:empty)"));
-  if (bad) openSection(bad);
+  if (bad && !bad.open) openSection(bad);
 };
 
-wireCollapsibleSection("basicInfoToggle", "basicInfoFields");
-wireCollapsibleSection("langToggle", "languagesFields");
-wireCollapsibleSection("identityToggle", "identityFields");
-wireCollapsibleSection("twelfthToggle", "twelfthFields");
-wireCollapsibleSection("graduationToggle", "eduGraduation");
+const basicInfoSection = wireCollapsibleSection("basicInfoToggle", "basicInfoFields", sectionDone.basicInfo);
+wireCollapsibleSection("langToggle", "languagesFields", sectionDone.languages);
+wireCollapsibleSection("identityToggle", "identityFields", sectionDone.identity);
+wireCollapsibleSection("twelfthToggle", "twelfthFields", sectionDone.twelfth);
+wireCollapsibleSection("graduationToggle", "eduGraduation", sectionDone.graduation);
+wireCollapsibleSection("pgToggle", "eduPg", sectionDone.postGraduation);
+wireCollapsibleSection("specialToggle", "eduSpecial", sectionDone.specialCourses);
+wireCollapsibleSection("disabilityToggle", "eduDisability", sectionDone.disability);
+wireCollapsibleSection("experienceToggle", "experienceFields", sectionDone.experience);
+wireCollapsibleSection("classesToggle", "teachClasses", sectionDone.classes);
+wireCollapsibleSection("subjectsToggle", "teachSubjects", sectionDone.subjects);
+wireCollapsibleSection("boardsToggle", "teachBoards", sectionDone.boards);
+wireCollapsibleSection("areasToggle", "areasContent", sectionDone.areas);
 
-wireCollapsibleSection("pgToggle", "eduPg", () => {
-  ["pgSubject", "pgCollege", "pgYear", "pgPercentage"].forEach(id => { $(id).value = ""; setError(id + "Error", ""); });
-});
-
-wireCollapsibleSection("specialToggle", "eduSpecial", () => {
-  document.querySelectorAll("#specialCourses input:checked").forEach(c => c.checked = false);
-});
-
-wireCollapsibleSection("disabilityToggle", "eduDisability", () => {
-  document.querySelectorAll("#disability input:checked").forEach(c => c.checked = false);
-});
-
-wireCollapsibleSection("experienceToggle", "experienceFields");
-wireCollapsibleSection("classesToggle", "teachClasses");
-wireCollapsibleSection("subjectsToggle", "teachSubjects");
-wireCollapsibleSection("boardsToggle", "teachBoards");
-wireCollapsibleSection("areasToggle", "areasContent");
+// The page opens with Basic Information expanded (and unticked).
+basicInfoSection.open = true;
 
 /* ---- digits-only fields ---- */
 
@@ -483,7 +530,7 @@ $("tutorForm").addEventListener("submit", async e => {
 
 /* Client-side validation. Returns true when everything is fine. */
 function pgFilledIn() {
-  return $("pgToggle").checked || ["pgSubject", "pgCollege", "pgYear", "pgPercentage"].some(id => val(id));
+  return ["pgSubject", "pgCollege", "pgYear", "pgPercentage"].some(id => val(id));
 }
 
 function validateRegistration() {
