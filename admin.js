@@ -2883,20 +2883,13 @@ function renderTutors() {
     const v = f => r.values[f] || "";
     return recordCard("tutors", r, {
       name: v("Full Name"),
-      // Name | WhatsApp | Graduation | Tutor ID, address small below
-      // Name | WhatsApp | Mobile | Tutor ID | Subject Taught, one line,
-      // truncated with an ellipsis if it runs long (see #tutorList
-      // .admin-info in admin.css). Graduation now lives on the small
-      // line below, right before the address.
-      titleHtml: highlight(
-        [v("Full Name") || r.id, v("WhatsApp Number"), v("Mobile Number"), r.id, v("Subject You Teach")],
-        [
-          [v("Graduation - Course"), v("Graduation - Subject")].filter(Boolean).join(" - "),
-          fullAddress(v("Present Address"), v("City"), v("Pin Code"))
-        ].filter(Boolean).join(" | "),
-        "|",
-        statusGroup(status)
-      ),
+      // One line, 8 equal columns: Name | Gender | Mobile | WhatsApp |
+      // Tutor ID | Subjects | Address (no PIN) | Pin Code - text too
+      // long for its column is cut with "..." (see equalRow).
+      titleHtml: equalRow([
+        v("Full Name") || r.id, v("Gender"), v("Mobile Number"), v("WhatsApp Number"),
+        r.id, v("Subject You Teach"), fullAddress(v("Present Address"), v("City"), ""), v("Pin Code")
+      ]),
       pill: status,
       tone: statusGroup(status),
       // Accept/Reject while Pending, Accept/Suspend once Verified,
@@ -3566,7 +3559,7 @@ const SUBSCRIPTION_STATUS_TONES = { active: "running", paused: "schedule", cance
 // A single-line card-head row of N equal, centred, dotted-divided
 // columns - text too long for its column is cut with "...", the full
 // value always sitting in the tooltip. Shared by the Subscription,
-// Payment and Student cards.
+// Payment, Student and Tutor cards.
 function equalRow(cells) {
   return `<div class="eq-grid" style="grid-template-columns: repeat(${cells.length}, minmax(0, 1fr))">${cells.map(c => {
     const text = (c === undefined || c === null || c === "") ? "-" : String(c);
@@ -3613,7 +3606,7 @@ function subscriptionHeaderCard() {
 function tutorHeaderCard() {
   return listHeaderCard(`
     <span class="list-header-spacer"></span>
-    <div class="admin-card-title">${highlight(["Name", "WhatsApp", "Mobile", "Tutor ID", "Subject"], "Graduation | Address", "|", "")}</div>
+    ${equalRow(["Name", "Gender", "Mobile", "WhatsApp", "Tutor ID", "Subjects", "Address", "Pin Code"])}
     <span class="admin-caret" aria-hidden="true"></span>
     <span class="admin-status-rail admin-rail-sub" data-tone="black">Status</span>
   `);
