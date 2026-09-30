@@ -191,26 +191,35 @@ $("mobile").addEventListener("input", () => {
 
 const collapsibleSections = [];
 
+function closeSection(section) {
+  section.toggle.checked = false;
+  section.content.classList.add("hidden");
+}
+
+function openSection(section) {
+  collapsibleSections.forEach(other => { if (other !== section) closeSection(other); });
+  section.toggle.checked = true;
+  section.content.classList.remove("hidden");
+}
+
 function wireCollapsibleSection(toggleId, contentId, onCollapse) {
-  const toggle = $(toggleId);
-  const content = $(contentId);
+  const section = { toggle: $(toggleId), content: $(contentId) };
 
-  collapsibleSections.push({ toggle, content });
+  collapsibleSections.push(section);
 
-  toggle.addEventListener("change", () => {
-    content.classList.toggle("hidden", !toggle.checked);
-    if (!toggle.checked && onCollapse) onCollapse();
+  section.toggle.addEventListener("change", () => {
+    if (section.toggle.checked) { openSection(section); return; }
+    closeSection(section);
+    if (onCollapse) onCollapse();
   });
 }
 
-// A failed Register press opens the sections that hold an error, so
-// none stays hidden behind a closed pill.
+// A failed Register press opens the first section that holds an error,
+// so it isn't left hidden behind a closed pill.
 window.showAllRegistrationSteps = function () {
-  collapsibleSections.forEach(({ toggle, content }) => {
-    if (!content.querySelector(".has-error, .field-error:not(:empty)")) return;
-    toggle.checked = true;
-    content.classList.remove("hidden");
-  });
+  const bad = collapsibleSections.find(({ content }) =>
+    content.querySelector(".has-error, .field-error:not(:empty)"));
+  if (bad) openSection(bad);
 };
 
 wireCollapsibleSection("basicInfoToggle", "basicInfoFields");
@@ -473,6 +482,10 @@ $("tutorForm").addEventListener("submit", async e => {
 });
 
 /* Client-side validation. Returns true when everything is fine. */
+function pgFilledIn() {
+  return $("pgToggle").checked || ["pgSubject", "pgCollege", "pgYear", "pgPercentage"].some(id => val(id));
+}
+
 function validateRegistration() {
 
   let ok = true;
@@ -511,8 +524,8 @@ function validateRegistration() {
   }
 
   /* Class 12th (and Graduation + Post Graduation when that is ticked) */
-  if (!educationValid(!!$("pgToggle") && $("pgToggle").checked, true)) ok = false;
-  if ($("pgToggle") && $("pgToggle").checked) {
+  if (!educationValid(pgFilledIn(), true)) ok = false;
+  if (pgFilledIn()) {
     if (!val("pgSubject")) fail("pgSubjectError", "This field is required.");
     if (!val("pgCollege")) fail("pgCollegeError", "This field is required.");
     if (!/^\d{4}$/.test(val("pgYear"))) fail("pgYearError", "Enter the passing year.");
