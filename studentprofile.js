@@ -572,7 +572,7 @@ function renderPaymentsCard(payments, demoId) {
         <span class="class-spine-label">Payment</span>
       </div>
       <div class="class-body">
-        <div class="pay-mini"><span>Payments</span><span>${escapeHTML(money(total))}</span></div>
+        <div class="pay-mini"><span class="pill pill-l pill-dark">Payments</span><span class="pill pill-r pill-green">${escapeHTML(money(total))}</span></div>
         <div class="pay-lines">
           ${payments.map(p => `
             <div class="pay-line">
@@ -867,8 +867,8 @@ function renderClassCard(item, student) {
       <div class="class-body">
 
         <div class="class-row-top">
-          <span class="status-badge subject-badge">${escapeHTML(item.subject || "Subject")}</span>
-          <span class="status-badge ${statusClass}">${escapeHTML(item.status || "")}</span>
+          <span class="status-badge pill pill-l subject-badge">${escapeHTML(item.subject || "Subject")}</span>
+          <span class="status-badge pill pill-r ${statusClass}">${escapeHTML(item.status || "")}</span>
         </div>
 
         ${(details.length || locationRow) ? `
@@ -1063,8 +1063,8 @@ function renderTutorCard(tutor, item) {
       <div class="class-body">
 
         <div class="tutor-mini">
-          <span class="tutor-mini-name">${escapeHTML(tutor.fullName || "Tutor")}</span>
-          <span class="tutor-mini-gender">${escapeHTML(tutor.gender || "")}</span>
+          <span class="pill pill-l pill-dark tutor-mini-name">${escapeHTML(tutor.fullName || "Tutor")}</span>
+          <span class="pill pill-r pill-soft tutor-mini-gender">${escapeHTML(tutor.gender || "")}</span>
         </div>
 
         ${info.length ? `
