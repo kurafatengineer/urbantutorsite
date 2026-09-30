@@ -1503,3 +1503,54 @@ body .class-card.payment-card.is-collapsed .class-body > *:not(.pay-mini) {
     font-size: 15px;
   }
 }
+
+
+/* =========================================================
+   TOP-OF-CARD PILLS (collapsed rows + Subject | Status row)
+   One height, centred text; every left pill is as wide as the
+   widest left pill on the page, every right pill as the widest
+   right pill (--pill-l-w / --pill-r-w, set by js/pills.js).
+========================================================= */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border-width: 1.5px;
+  border-style: solid;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pill::before { display: none; }
+
+.pill.pill-l,
+.pill.pill-r {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: calc(50% - 6px);
+}
+
+.pill.pill-l { width: var(--pill-l-w, auto); }
+.pill.pill-r { width: var(--pill-r-w, auto); margin-left: auto; }
+
+.pill-dark  { background: #000; color: var(--text); border-color: var(--border-light); }
+.pill-soft  { background: var(--surface-2); color: var(--text); border-color: var(--border-light); }
+.pill-green { background: rgba(22, 163, 74, 0.14); color: var(--lime); border-color: rgba(22, 163, 74, 0.3); }
+
+/* collapsed rows: the pills sit edge to edge, left and right */
+.class-card.is-collapsed .tutor-mini,
+.class-card.is-collapsed .class-mini,
+.class-card.payment-card.is-collapsed .pay-mini {
+  justify-content: space-between;
+  gap: 12px;
+}
