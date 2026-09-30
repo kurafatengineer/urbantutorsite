@@ -34,37 +34,41 @@ export function emailTemplate(opts: {
 }): string {
   const { heading, greeting, intro, detailRowsHtml = "", footerNote = "" } = opts;
 
-  const detailsBlock = detailRowsHtml
-    ? '<tr><td bgcolor="#000000" style="background-color:#000000;padding:20px 24px 8px;text-align:center;">' +
-        '<table role="presentation" align="center" width="100%" style="margin:0 auto;max-width:320px;background-color:#ffffff;border-radius:10px;padding:6px 16px;" bgcolor="#ffffff">' +
-          detailRowsHtml +
-        "</table>" +
-      "</td></tr>"
-    : "";
-
-  const footerBlock = footerNote
-    ? '<tr><td bgcolor="#000000" style="background-color:#000000;padding:16px 24px 24px;text-align:center;">' +
-        '<span style="font-size:12px;color:#999999;">' + escapeHtml(footerNote) + "</span>" +
-      "</td></tr>"
-    : "";
+  // Three blocks on a dark-grey card: a black header whose bottom corners
+  // are rounded, the message + details in the middle, and a white footer
+  // whose top corners are rounded.
+  const MID = "#161616";
 
   return (
     '<div bgcolor="#000000" style="background-color:#000000;padding:36px 16px;font-family:Arial,Helvetica,sans-serif;text-align:center;">' +
-      '<table role="presentation" width="100%" bgcolor="#000000" style="max-width:380px;margin:0 auto;background-color:#000000;border-radius:14px;overflow:hidden;text-align:center;">' +
+      '<table role="presentation" width="100%" bgcolor="' + MID + '" style="max-width:380px;margin:0 auto;background-color:' + MID + ';border-radius:16px;overflow:hidden;text-align:center;">' +
 
-        '<tr><td bgcolor="#000000" style="background-color:#000000;padding:24px 24px 18px;text-align:center;border-top-left-radius:14px;border-top-right-radius:14px;">' +
-          '<div style="display:inline-block;font-size:14px;font-weight:700;letter-spacing:1.5px;color:#ffffff;padding-bottom:16px;border-bottom:1px dashed #555555;">Urban Tutor Site</div>' +
+        '<tr><td bgcolor="#000000" style="background-color:#000000;padding:22px 24px 20px;text-align:center;border-bottom-left-radius:18px;border-bottom-right-radius:18px;border-top-left-radius:16px;border-top-right-radius:16px;">' +
+          '<div style="font-size:15px;font-weight:700;letter-spacing:1.5px;color:#ffffff;">Urban Tutor Site</div>' +
         "</td></tr>" +
 
-        '<tr><td bgcolor="#000000" style="background-color:#000000;padding:18px 24px 4px;text-align:center;">' +
+        '<tr><td bgcolor="' + MID + '" style="background-color:' + MID + ';padding:26px 24px 4px;text-align:center;">' +
           '<h1 style="margin:0 0 10px;font-size:19px;color:#ffffff;text-align:center;">' + escapeHtml(heading) + "</h1>" +
           '<p style="margin:0;font-size:14px;line-height:1.6;color:#aaaaaa;text-align:center;">' + escapeHtml(greeting) + "<br>" + escapeHtml(intro) + "</p>" +
         "</td></tr>" +
 
-        detailsBlock +
-        footerBlock +
+        (detailRowsHtml
+          ? '<tr><td bgcolor="' + MID + '" style="background-color:' + MID + ';padding:20px 24px 8px;text-align:center;">' +
+              '<table role="presentation" align="center" width="100%" style="margin:0 auto;max-width:320px;background-color:#ffffff;border-radius:10px;padding:6px 16px;" bgcolor="#ffffff">' +
+                detailRowsHtml +
+              "</table>" +
+            "</td></tr>"
+          : "") +
 
-        '<tr><td bgcolor="#ffffff" style="background-color:#ffffff;padding:12px 24px;text-align:center;border-bottom-left-radius:14px;border-bottom-right-radius:14px;">' +
+        (footerNote
+          ? '<tr><td bgcolor="' + MID + '" style="background-color:' + MID + ';padding:14px 24px 4px;text-align:center;">' +
+              '<span style="font-size:12px;color:#999999;">' + escapeHtml(footerNote) + "</span>" +
+            "</td></tr>"
+          : "") +
+
+        '<tr><td bgcolor="' + MID + '" style="background-color:' + MID + ';height:24px;line-height:24px;font-size:0;">&nbsp;</td></tr>' +
+
+        '<tr><td bgcolor="#ffffff" style="background-color:#ffffff;padding:14px 24px;text-align:center;border-top-left-radius:18px;border-top-right-radius:18px;border-bottom-left-radius:16px;border-bottom-right-radius:16px;">' +
           '<span style="font-size:11px;color:#555555;">&copy; ' + new Date().getFullYear() + " Urban Tutor Site. All rights reserved.</span>" +
         "</td></tr>" +
 
