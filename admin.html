@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260930a">
+  <link rel="stylesheet" href="admin.css?v=20260930b">
 </head>
 
 <body data-page="admin">
@@ -27,12 +27,6 @@
   <div class="admin-container admin-login-wrap">
 
     <section class="admin-login">
-      <div class="admin-login-badge" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-      </div>
-      <h1>Admin Panel</h1>
-      <p class="muted" id="loginSubtitle">Office access only.</p>
-
       <!-- STEP 1: email -->
       <form id="emailStepForm" novalidate>
         <label class="admin-float">
@@ -58,7 +52,7 @@
           <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 6">
         </div>
         <p id="otpMessage" class="admin-message" role="alert"></p>
-        <div class="admin-pair" style="margin-top:8px;">
+        <div class="admin-pair admin-otp-actions" style="margin-top:8px;">
           <button id="otpBackButton" class="admin-ghost" type="button">Change email</button>
           <button id="resendCodeButton" class="admin-ghost" type="button">Resend code</button>
         </div>

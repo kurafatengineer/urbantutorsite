@@ -1422,7 +1422,7 @@ function startResendTimer(seconds) {
   resendButton.textContent =
     remaining > 0
       ? `Resend in ${remaining}s`
-      : "Resend OTP";
+      : "Resend code";
 
 
   if (remaining <= 0) {
@@ -1443,7 +1443,7 @@ function startResendTimer(seconds) {
 
         resendButton.disabled = false;
 
-        resendButton.textContent = "Resend OTP";
+        resendButton.textContent = "Resend code";
 
         return;
 
