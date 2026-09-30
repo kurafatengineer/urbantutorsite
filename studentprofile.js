@@ -205,6 +205,11 @@ async function loadProfile(selectAfter) {
 
     const result = await window.sbCall("get_student_profile", {});
 
+    if (result && result.networkError) {
+      showError(result.message, true);
+      return;
+    }
+
     if (!result.success) {
       clearStudentSession();
       showError(result.message || "Your session has expired. Please log in again.");
@@ -242,7 +247,7 @@ async function loadProfile(selectAfter) {
 
   } catch (error) {
     console.error(error);
-    showError("Unable to connect to the server. Please try again.");
+    showError("Unable to connect to the server. Please try again.", true);
   }
 
 }
@@ -255,10 +260,22 @@ function urlStudentId() {
   }
 }
 
-function showError(message) {
+// canRetry: a connection problem (not an expired login) - offer
+// "Try again" and retry on its own once the connection is back.
+function showError(message, canRetry) {
   $("errorMessage").textContent = message;
+  const retry = $("retryButton");
+  if (retry) retry.classList.toggle("hidden", !canRetry);
   showPage("error");
 }
+
+window.addEventListener("online", () => {
+  const page = $("errorPage");
+  const retry = $("retryButton");
+  if (page && !page.classList.contains("hidden") && retry && !retry.classList.contains("hidden")) loadProfile();
+});
+
+if ($("retryButton")) $("retryButton").addEventListener("click", () => loadProfile());
 
 function selectedStudent() {
   return STATE.students.find(s => s.studentId === STATE.selectedId) || null;
