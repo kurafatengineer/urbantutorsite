@@ -178,10 +178,10 @@
   }
 
   const STAGE_LABEL = {
-    finding: ["Finding tutor", "rgba(143,160,255,.14)", "#8fa0ff"],
+    finding: ["Finding tutor", "rgba(37,99,235,.16)", "#2563eb"],
     applied: ["Tutors applied", "rgba(255,161,92,.14)", "#ffa15c"],
     demo: ["Demo scheduled", "rgba(148,134,255,.14)", "#c3b9ff"],
-    running: ["Running", "rgba(94,227,154,.12)", "#5ee39a"],
+    running: ["Running", "rgba(22,163,74,.14)", "#16a34a"],
     completed: ["Completed", "rgba(255,255,255,.06)", "#8e8e99"],
     closed: ["Closed", "rgba(255,107,107,.12)", "#ff6b6b"]
   };

@@ -115,7 +115,7 @@
 /* ---------------- student-only statuses ---------------- */
 
 .status-finding-tutor,
-.class-spine.status-finding-tutor { background: var(--info-dim); color: var(--info); border-color: rgba(143, 160, 255, 0.3); }
+.class-spine.status-finding-tutor { background: rgba(37, 99, 235, 0.16); color: #2563eb; border-color: rgba(37, 99, 235, 0.35); }
 
 .status-tutors-applied,
 .class-spine.status-tutors-applied { background: var(--orange-dim); color: var(--orange); border-color: rgba(255, 161, 92, 0.3); }
@@ -863,11 +863,11 @@ body.add-modal-open {
 }
 
 .tuition-stack > .tutor-card.is-collapsed.tone-running {
-  background: var(--success-dim);
-  color: var(--success);
-  border-left-color: rgba(114, 227, 154, 0.3);
-  border-right-color: rgba(114, 227, 154, 0.3);
-  border-bottom-color: rgba(114, 227, 154, 0.3);
+  background: rgba(22, 163, 74, 0.14);
+  color: var(--lime);
+  border-left-color: rgba(22, 163, 74, 0.3);
+  border-right-color: rgba(22, 163, 74, 0.3);
+  border-bottom-color: rgba(22, 163, 74, 0.3);
 }
 
 .tuition-stack > .tutor-card.is-collapsed.tone-completed {
