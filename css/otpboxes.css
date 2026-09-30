@@ -104,3 +104,27 @@
 }
 
 .otp-pair-btn:not(:disabled):hover { background: #166534; }
+
+/* digits always clearly visible (no selection highlight / autofill tint) */
+.otp-box {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  opacity: 1;
+  font-size: 24px;
+  line-height: 1;
+}
+.otp-box::selection { background: transparent; color: #ffffff; }
+.otp-box:-webkit-autofill,
+.otp-box:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff;
+  -webkit-box-shadow: 0 0 0 100px var(--surface-2) inset;
+  caret-color: #ffffff;
+}
+
+/* Change email | Resend code: the site's green while active */
+.otp-pair-btn:not(:disabled) {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: #050505;
+}
+.otp-pair-btn:not(:disabled):hover { background: var(--lime-hover, #15803d); border-color: var(--lime-hover, #15803d); }

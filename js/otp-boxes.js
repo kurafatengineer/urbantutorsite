@@ -64,8 +64,6 @@
       }
     });
 
-    box.addEventListener("focus", () => box.select());
-
   });
 
 })();

@@ -4511,7 +4511,7 @@ function classCard(g, activeRow) {
 
   const titleHtml = `
     <div class="admin-class-fracs">
-      <span class="admin-class-frac admin-class-frac-left" data-part="student-payment">${frac(collected, studentTotalAmount)}</span>
+      <span class="admin-class-frac admin-class-frac-left" data-part="student-payment">${frac(collected + studentAdvancePaid, studentTotalAmount)}</span>
       <span class="admin-class-frac-center">
         <span class="admin-class-frac" data-part="student-agency">${frac(studentAgencyReceived, studentAgencyCharge)}</span>
         <span class="admin-class-frac" data-part="tutor-agency">${frac(tutorAgencyReceived, tutorAgencyCharge)}</span>
