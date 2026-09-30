@@ -3149,3 +3149,33 @@ body[data-page="admin"] {
   border-color: #166534;
   color: #ffffff;
 }
+
+
+/* Tuition / Tutor-applied card heads: two layers of equal columns */
+.tuition-card .admin-hl-top .ledger-cell,
+.tutor-row-card .admin-hl-top .ledger-cell {
+  padding: 2px 6px;
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.tuition-card .admin-hl-small .ledger-cell,
+.tutor-row-card .admin-hl-small .ledger-cell {
+  padding: 2px 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.admin-hl-top[data-tone="verified"] .ledger-cell,
+.admin-hl-top[data-tone="green"] .ledger-cell,
+.admin-hl-top[data-tone="running"] .ledger-cell     { color: var(--lime); }
+.admin-hl-top[data-tone="rejected"] .ledger-cell,
+.admin-hl-top[data-tone="terminated"] .ledger-cell,
+.admin-hl-top[data-tone="declined"] .ledger-cell    { color: var(--danger); }
+.admin-hl-top[data-tone="pending"] .ledger-cell,
+.admin-hl-top[data-tone="new"] .ledger-cell,
+.admin-hl-top[data-tone="open"] .ledger-cell        { color: var(--blue); }
+.admin-hl-top[data-tone="completed"] .ledger-cell   { color: var(--muted); }
+.admin-hl-top[data-tone="schedule"] .ledger-cell    { color: var(--orange); }
+.admin-hl-top[data-tone="scheduled"] .ledger-cell,
+.admin-hl-top[data-tone="processing"] .ledger-cell  { color: var(--violet); }
