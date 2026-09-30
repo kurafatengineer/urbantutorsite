@@ -74,16 +74,11 @@
       <form id="tutorForm" novalidate>
 
         <section class="section" id="sectionContact">
-
-          <!-- Shown only once every field below is filled in - collapses
-               them behind this one line, same pill as "WhatsApp same as
-               mobile number". Unticking it re-opens the fields to edit. -->
-          <div class="field basic-info-toggle-field hidden" id="basicInfoToggleField">
+          <div class="field step-toggle basic-info-toggle-field" id="basicInfoToggleField">
             <label class="pill-check"><input id="basicInfoToggle" type="checkbox"><span class="pill-check-text">Basic Information</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
           </div>
 
-          <div class="vertical-fields" id="basicInfoFields">
-            <div class="section-title centered-section-title"><div><h2>Basic Information</h2></div></div>
+          <div class="vertical-fields hidden" id="basicInfoFields">
             <div class="field email-registration-field"><label class="float-field"><input id="registrationEmail" type="email" aria-label="Email Address" placeholder=" " readonly><span>Email Address</span></label></div>
             <div class="field">
               <div class="phone-input"><span class="country-code flag-code" aria-label="India (+91)"><svg class="in-flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" rx="3" fill="#fff"/><path d="M3 0h24a3 3 0 0 1 3 3v3.67H0V3a3 3 0 0 1 3-3Z" fill="#FF9933"/><path d="M0 13.33h30V17a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3Z" fill="#138808"/><circle cx="15" cy="10" r="2.6" fill="none" stroke="#000080" stroke-width=".7"/><circle cx="15" cy="10" r=".55" fill="#000080"/></svg></span><label class="float-field in-phone"><input id="mobile" type="tel" aria-label="Mobile Number" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder=" " required><span>Enter Your Mobile Number</span></label></div>
@@ -115,30 +110,22 @@
 
 
         <section class="section" id="sectionLanguages">
-
-          <!-- Shown only once a language is picked - same collapse
-               pattern as Basic Information. -->
-          <div class="field lang-toggle-field hidden" id="langToggleField">
+          <div class="field step-toggle lang-toggle-field" id="langToggleField">
             <label class="pill-check"><input id="langToggle" type="checkbox"><span class="pill-check-text">Languages Known</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
           </div>
 
-          <div id="languagesFields">
-            <div class="section-title centered-section-title"><div><h2>Languages Known</h2></div></div>
+          <div id="languagesFields" class="hidden">
             <div class="field"><div class="selection-box cols-3 small" id="languages"><label class="selection-option"><input type="checkbox" value="Hindi"><span>Hindi</span></label><label class="selection-option"><input type="checkbox" value="English"><span>English</span></label><label class="selection-option"><input type="checkbox" value="Marathi"><span>Marathi</span></label><label class="selection-option"><input type="checkbox" value="Bengali"><span>Bengali</span></label><label class="selection-option"><input type="checkbox" value="Tamil"><span>Tamil</span></label><label class="selection-option"><input type="checkbox" value="Telugu"><span>Telugu</span></label></div><small id="languagesError" class="field-error"></small></div>
           </div>
         </section>
 
 
         <section class="section" id="sectionIdentity">
-
-          <!-- Shown only once both files are uploaded - same collapse
-               pattern as Basic Information. -->
-          <div class="field identity-toggle-field hidden" id="identityToggleField">
+          <div class="field step-toggle identity-toggle-field" id="identityToggleField">
             <label class="pill-check"><input id="identityToggle" type="checkbox"><span class="pill-check-text">Identity Proof</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
           </div>
 
-          <div id="identityFields">
-            <div class="section-title centered-section-title"><div><h2>Identity Proof</h2></div></div>
+          <div id="identityFields" class="hidden">
             <!-- Upload cards: state (file name, size, preview) is handled in tutorregistration.js -->
             <div id="identityCard" class="upload-card">
               <div class="upload-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="11" r="2"/><path d="M6 16c.7-1.5 1.8-2.2 3-2.2s2.3.7 3 2.2M14.5 10h3.5M14.5 13.5h3.5"/></svg></div>
@@ -168,14 +155,11 @@
         <section class="section" id="sectionEducation">
           <div class="section-title centered-section-title"><div><h2>Education & Qualification</h2></div></div>
           <div class="vertical-fields">
-
-            <!-- Shown only once every field below is filled in - same
-                 collapse pattern as Basic Information. -->
-            <div class="field twelfth-toggle-field hidden" id="twelfthToggleField">
+            <div class="field step-toggle twelfth-toggle-field" id="twelfthToggleField">
               <label class="pill-check"><input id="twelfthToggle" type="checkbox"><span class="pill-check-text">Class 12<sup>th</sup></span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
             </div>
 
-            <div id="twelfthFields" class="vertical-fields">
+            <div id="twelfthFields" class="vertical-fields hidden">
             <div class="field" id="eduStream"><label class="field-label">Class 12<sup>th</sup> - Stream</label><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthStream" value="Science"><span>Science</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Commerce"><span>Commerce</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Arts"><span>Arts</span></label></div><small id="twelfthStreamError" class="field-error"></small></div>
             <div class="field" id="eduYear"><label class="float-field"><input id="twelfthYear" type="text" aria-label="Class 12th - Passing Year" placeholder=" " inputmode="numeric" maxlength="4"><span>Class 12<sup>th</sup> - Passing Year</span></label><small id="twelfthYearError" class="field-error"></small></div>
 
@@ -191,15 +175,11 @@
               <div class="field board-other-field hidden" id="twelfthBoardOtherWrap"><label class="float-field"><input id="twelfthBoardOther" type="text" aria-label="Board Name" placeholder=" " maxlength="80"><span>Board Name</span></label><small id="twelfthBoardOtherError" class="field-error"></small></div>
             </div>
             </div>
-
-            <!-- Shown only once every field below is filled in - same
-                 collapse pattern as Basic Information. -->
-            <div class="field graduation-toggle-field hidden" id="graduationToggleField">
+            <div class="field step-toggle graduation-toggle-field" id="graduationToggleField">
               <label class="pill-check"><input id="graduationToggle" type="checkbox"><span class="pill-check-text">Graduation</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
             </div>
 
-            <div id="eduGraduation" class="vertical-fields">
-            <label class="field-label">Graduation</label>
+            <div id="eduGraduation" class="vertical-fields hidden">
             <div class="two-col">
               <div class="field"><label class="float-field"><input id="graduationCourse" type="text" aria-label="Graduation - Course" placeholder=" " ><span>Graduation - Course</span></label><small id="graduationCourseError" class="field-error"></small></div>
               <div class="field"><label class="float-field"><input id="graduationSubject" type="text" aria-label="Graduation - Subject" placeholder=" " ><span>Graduation - Subject</span></label><small id="graduationSubjectError" class="field-error"></small></div>
@@ -232,9 +212,9 @@
         </section>
 
 
-        <section class="section step-nohead" id="sectionExperience">
-          <div class="section-title centered-section-title"><div><h2>Experience</h2></div></div>
-          <div class="vertical-fields">
+        <section class="section" id="sectionExperience">
+          <div class="field step-toggle" id="experienceToggleField"><label class="pill-check"><input id="experienceToggle" type="checkbox"><span class="pill-check-text">Experience</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label></div>
+          <div id="experienceFields" class="hidden">
             <div class="field" id="expContent"><label class="float-field"><input id="experience" type="number" aria-label="Experience (In Years)" min="0" max="60" step="0.1" placeholder=" " required><span>Experience (In Years)</span></label><small id="experienceError" class="field-error"></small></div>
           </div>
         </section>
@@ -243,18 +223,20 @@
         <section class="section" id="sectionTeaching">
           <div class="section-title centered-section-title"><div><h2>Teaching Preferences</h2></div></div>
           <div class="vertical-fields">
-            <div class="field" id="teachClasses"><label class="field-label">Classes You Teach</label><div class="selection-box cols-2 small" id="classesTeach"><label class="selection-option"><input type="checkbox" value="1st-5th"><span>1st-5th</span></label><label class="selection-option"><input type="checkbox" value="6th-8th"><span>6th-8th</span></label><label class="selection-option"><input type="checkbox" value="9th-10th"><span>9th-10th</span></label><label class="selection-option"><input type="checkbox" value="11th-12th"><span>11th-12th</span></label></div><small id="classesError" class="field-error"></small></div>
+            <div class="field step-toggle" id="classesToggleField"><label class="pill-check"><input id="classesToggle" type="checkbox"><span class="pill-check-text">Classes You Teach</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label></div>
+            <div class="field hidden" id="teachClasses"><div class="selection-box cols-2 small" id="classesTeach"><label class="selection-option"><input type="checkbox" value="1st-5th"><span>1st-5th</span></label><label class="selection-option"><input type="checkbox" value="6th-8th"><span>6th-8th</span></label><label class="selection-option"><input type="checkbox" value="9th-10th"><span>9th-10th</span></label><label class="selection-option"><input type="checkbox" value="11th-12th"><span>11th-12th</span></label></div><small id="classesError" class="field-error"></small></div>
             <div class="field step-toggle" id="subjectsToggleField"><label class="pill-check"><input id="subjectsToggle" type="checkbox"><span class="pill-check-text">Subjects You Teach</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label></div>
-            <div class="field" id="teachSubjects"><label class="field-label step-dup-label">Subject You Teach</label><div class="selection-box cols-3m2 small" id="subjectsTeach"><label class="selection-option"><input type="checkbox" value="Accountancy"><span>Accountancy</span></label><label class="selection-option"><input type="checkbox" value="Arts & Craft"><span>Arts & Craft</span></label><label class="selection-option"><input type="checkbox" value="Biology"><span>Biology</span></label><label class="selection-option"><input type="checkbox" value="Biology/Biotechnology"><span>Biology/Biotechnology</span></label><label class="selection-option"><input type="checkbox" value="Business Administration (BBA/MBA)"><span>Business Administration (BBA/MBA)</span></label><label class="selection-option"><input type="checkbox" value="Business Studies"><span>Business Studies</span></label><label class="selection-option"><input type="checkbox" value="Chemistry"><span>Chemistry</span></label><label class="selection-option"><input type="checkbox" value="Civis"><span>Civis</span></label><label class="selection-option"><input type="checkbox" value="Computer Applications"><span>Computer Applications</span></label><label class="selection-option"><input type="checkbox" value="Computer Science"><span>Computer Science</span></label><label class="selection-option"><input type="checkbox" value="Dance"><span>Dance</span></label><label class="selection-option"><input type="checkbox" value="Economics"><span>Economics</span></label><label class="selection-option"><input type="checkbox" value="English"><span>English</span></label><label class="selection-option"><input type="checkbox" value="Environmental Studies (EVS)"><span>Environmental Studies (EVS)</span></label><label class="selection-option"><input type="checkbox" value="Geography"><span>Geography</span></label><label class="selection-option"><input type="checkbox" value="Hindi"><span>Hindi</span></label><label class="selection-option"><input type="checkbox" value="History"><span>History</span></label><label class="selection-option"><input type="checkbox" value="Home Science"><span>Home Science</span></label><label class="selection-option"><input type="checkbox" value="Informatics Practices"><span>Informatics Practices</span></label><label class="selection-option"><input type="checkbox" value="Information Technology"><span>Information Technology</span></label><label class="selection-option"><input type="checkbox" value="Marathi"><span>Marathi</span></label><label class="selection-option"><input type="checkbox" value="Mathematics"><span>Mathematics</span></label><label class="selection-option"><input type="checkbox" value="Music"><span>Music</span></label><label class="selection-option"><input type="checkbox" value="Philosophy"><span>Philosophy</span></label><label class="selection-option"><input type="checkbox" value="Physical Education"><span>Physical Education</span></label><label class="selection-option"><input type="checkbox" value="Physics"><span>Physics</span></label><label class="selection-option"><input type="checkbox" value="Political Science"><span>Political Science</span></label><label class="selection-option"><input type="checkbox" value="Psychology"><span>Psychology</span></label><label class="selection-option"><input type="checkbox" value="Sanskrit"><span>Sanskrit</span></label><label class="selection-option"><input type="checkbox" value="Sciences"><span>Sciences</span></label><label class="selection-option"><input type="checkbox" value="Sociology"><span>Sociology</span></label><label class="selection-option"><input type="checkbox" value="French"><span>French</span></label><label class="selection-option"><input type="checkbox" value="German"><span>German</span></label><label class="selection-option"><input type="checkbox" value="Spanish"><span>Spanish</span></label><label class="selection-option"><input type="checkbox" value="Korean"><span>Korean</span></label><label class="selection-option"><input type="checkbox" value="Punjabi"><span>Punjabi</span></label><label class="selection-option"><input type="checkbox" value="Yoga & Gymnastics"><span>Yoga & Gymnastics</span></label></div><small id="subjectsError" class="field-error"></small></div>
-            <div class="field" id="teachBoards"><label class="field-label">Boards You Teach</label><div class="selection-box cols-3 small" id="boardsTeach"><label class="selection-option"><input type="checkbox" value="IB"><span>IB</span></label><label class="selection-option"><input type="checkbox" value="ICSE"><span>ICSE</span></label><label class="selection-option"><input type="checkbox" value="CBSE"><span>CBSE</span></label><label class="selection-option"><input type="checkbox" value="IGCSE"><span>IGCSE</span></label><label class="selection-option"><input type="checkbox" value="State Board"><span>State Board</span></label></div><small id="boardsError" class="field-error"></small></div>
+            <div class="field hidden" id="teachSubjects"><div class="selection-box cols-3m2 small" id="subjectsTeach"><label class="selection-option"><input type="checkbox" value="Accountancy"><span>Accountancy</span></label><label class="selection-option"><input type="checkbox" value="Arts & Craft"><span>Arts & Craft</span></label><label class="selection-option"><input type="checkbox" value="Biology"><span>Biology</span></label><label class="selection-option"><input type="checkbox" value="Biology/Biotechnology"><span>Biology/Biotechnology</span></label><label class="selection-option"><input type="checkbox" value="Business Administration (BBA/MBA)"><span>Business Administration (BBA/MBA)</span></label><label class="selection-option"><input type="checkbox" value="Business Studies"><span>Business Studies</span></label><label class="selection-option"><input type="checkbox" value="Chemistry"><span>Chemistry</span></label><label class="selection-option"><input type="checkbox" value="Civis"><span>Civis</span></label><label class="selection-option"><input type="checkbox" value="Computer Applications"><span>Computer Applications</span></label><label class="selection-option"><input type="checkbox" value="Computer Science"><span>Computer Science</span></label><label class="selection-option"><input type="checkbox" value="Dance"><span>Dance</span></label><label class="selection-option"><input type="checkbox" value="Economics"><span>Economics</span></label><label class="selection-option"><input type="checkbox" value="English"><span>English</span></label><label class="selection-option"><input type="checkbox" value="Environmental Studies (EVS)"><span>Environmental Studies (EVS)</span></label><label class="selection-option"><input type="checkbox" value="Geography"><span>Geography</span></label><label class="selection-option"><input type="checkbox" value="Hindi"><span>Hindi</span></label><label class="selection-option"><input type="checkbox" value="History"><span>History</span></label><label class="selection-option"><input type="checkbox" value="Home Science"><span>Home Science</span></label><label class="selection-option"><input type="checkbox" value="Informatics Practices"><span>Informatics Practices</span></label><label class="selection-option"><input type="checkbox" value="Information Technology"><span>Information Technology</span></label><label class="selection-option"><input type="checkbox" value="Marathi"><span>Marathi</span></label><label class="selection-option"><input type="checkbox" value="Mathematics"><span>Mathematics</span></label><label class="selection-option"><input type="checkbox" value="Music"><span>Music</span></label><label class="selection-option"><input type="checkbox" value="Philosophy"><span>Philosophy</span></label><label class="selection-option"><input type="checkbox" value="Physical Education"><span>Physical Education</span></label><label class="selection-option"><input type="checkbox" value="Physics"><span>Physics</span></label><label class="selection-option"><input type="checkbox" value="Political Science"><span>Political Science</span></label><label class="selection-option"><input type="checkbox" value="Psychology"><span>Psychology</span></label><label class="selection-option"><input type="checkbox" value="Sanskrit"><span>Sanskrit</span></label><label class="selection-option"><input type="checkbox" value="Sciences"><span>Sciences</span></label><label class="selection-option"><input type="checkbox" value="Sociology"><span>Sociology</span></label><label class="selection-option"><input type="checkbox" value="French"><span>French</span></label><label class="selection-option"><input type="checkbox" value="German"><span>German</span></label><label class="selection-option"><input type="checkbox" value="Spanish"><span>Spanish</span></label><label class="selection-option"><input type="checkbox" value="Korean"><span>Korean</span></label><label class="selection-option"><input type="checkbox" value="Punjabi"><span>Punjabi</span></label><label class="selection-option"><input type="checkbox" value="Yoga & Gymnastics"><span>Yoga & Gymnastics</span></label></div><small id="subjectsError" class="field-error"></small></div>
+            <div class="field step-toggle" id="boardsToggleField"><label class="pill-check"><input id="boardsToggle" type="checkbox"><span class="pill-check-text">Boards You Teach</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label></div>
+            <div class="field hidden" id="teachBoards"><div class="selection-box cols-3 small" id="boardsTeach"><label class="selection-option"><input type="checkbox" value="IB"><span>IB</span></label><label class="selection-option"><input type="checkbox" value="ICSE"><span>ICSE</span></label><label class="selection-option"><input type="checkbox" value="CBSE"><span>CBSE</span></label><label class="selection-option"><input type="checkbox" value="IGCSE"><span>IGCSE</span></label><label class="selection-option"><input type="checkbox" value="State Board"><span>State Board</span></label></div><small id="boardsError" class="field-error"></small></div>
           </div>
         </section>
 
 
         <section class="section" id="sectionAreas">
-          <div class="section-title centered-section-title"><div><h2>Areas You Teach</h2></div></div>
+          <div class="field step-toggle" id="areasToggleField"><label class="pill-check"><input id="areasToggle" type="checkbox"><span class="pill-check-text">Areas You Teach</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label></div>
           <div class="vertical-fields">
-            <div id="areasContent" class="vertical-fields">
+            <div id="areasContent" class="vertical-fields hidden">
             <div class="field"><select id="location" aria-label="Location"><option value="">Select Location</option><option>New Delhi</option><option>Navi Mumbai</option><option>Mumbai</option><option>Pune</option><option>Faridabad</option><option>Ghaziabad</option><option>Noida</option><option>Gurugram</option></select></div>
             <div class="field"><label class="float-field"><input id="city" type="text" aria-label="City" placeholder=" " maxlength="80" required><span>City</span></label><small id="cityError" class="field-error"></small></div>
             <div class="field"><label class="float-field is-area"><textarea id="address" aria-label="Present Address" rows="4" maxlength="400" placeholder=" " required></textarea><span>Present Address</span></label><small id="addressError" class="field-error"></small></div>
@@ -405,7 +387,7 @@
 <script src="js/supabase-client.js?v=20260928b"></script>
 <script src="js/header.js?v=20260930a"></script>
 <script src="js/footer.js?v=20260928b"></script>
-<script src="tutorregistration.js?v=20260930j" defer></script>
+<script src="tutorregistration.js?v=20260930k" defer></script>
 
 </body>
 </html>

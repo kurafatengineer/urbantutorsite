@@ -179,159 +179,45 @@ syncWhatsApp();
 $("mobile").addEventListener("input", () => {
   digitsOnly($("mobile"));
   if ($("sameWhatsapp").checked) $("whatsapp").value = val("mobile");
-  checkBasicInfoDone();
 });
 
-/* ---- Basic Information: collapse behind one line once everything
-   below (Mobile, WhatsApp, Name, DOB, Gender, Tutor type) is filled
-   in - same pill as "WhatsApp same as mobile number", but for the
-   whole section. A short pause after the last field before it
-   collapses, so it doesn't vanish the instant it's picked. Unticking
-   the pill re-opens the fields to edit. ---- */
+/* ---- COLLAPSIBLE SECTIONS ----
+   Every section of the form sits behind its own pill, unchecked and
+   collapsed to start with. Ticking a pill opens its fields; unticking
+   closes them again. Optional ones (Post Graduation, Special Courses,
+   Special Child Disability) also clear what was entered when closed,
+   so nothing half-filled gets submitted by accident; required ones
+   keep their values. ---- */
 
-const COLLAPSE_DELAY = 600;
-// Languages Known allows several picks - give more breathing room
-// between clicks than the single-choice fields get.
-const LANG_COLLAPSE_DELAY = 1800;
-
-const basicInfoToggleField = $("basicInfoToggleField");
-const basicInfoToggle = $("basicInfoToggle");
-const basicInfoFields = $("basicInfoFields");
-let basicInfoTimer = null;
-
-function basicInfoDone() {
-  return /^\d{10}$/.test(val("mobile"))
-    && /^\d{10}$/.test(val("whatsapp"))
-    && cleanText($("fullName").value).length >= 2
-    && !!val("birthDate") && new Date(val("birthDate")) <= new Date()
-    && !!checked("gender")
-    && !!checked("registerAs");
-}
-
-function collapseBasicInfo() {
-  basicInfoToggle.checked = true;
-  basicInfoToggleField.classList.remove("hidden");
-  basicInfoFields.classList.add("hidden");
-}
-
-function expandBasicInfo() {
-  clearTimeout(basicInfoTimer);
-  basicInfoToggle.checked = false;
-  basicInfoToggleField.classList.add("hidden");
-  basicInfoFields.classList.remove("hidden");
-}
-
-function checkBasicInfoDone() {
-  if (basicInfoFields.classList.contains("hidden")) return;
-  clearTimeout(basicInfoTimer);
-  if (basicInfoDone()) basicInfoTimer = setTimeout(collapseBasicInfo, COLLAPSE_DELAY);
-}
-
-["whatsapp", "fullName", "birthDate"].forEach(id =>
-  $(id).addEventListener("change", checkBasicInfoDone)
-);
-document.querySelectorAll('input[name="gender"], input[name="registerAs"]').forEach(r =>
-  r.addEventListener("change", checkBasicInfoDone)
-);
-$("sameWhatsapp").addEventListener("change", checkBasicInfoDone);
-
-basicInfoToggle.addEventListener("change", () => {
-  if (!basicInfoToggle.checked) expandBasicInfo();
-});
-
-/* ---- Languages Known: same collapse pattern, once a language is
-   picked. ---- */
-
-const langToggleField = $("langToggleField");
-const langToggle = $("langToggle");
-const languagesFields = $("languagesFields");
-let langTimer = null;
-
-function collapseLang() {
-  langToggle.checked = true;
-  langToggleField.classList.remove("hidden");
-  languagesFields.classList.add("hidden");
-}
-
-function expandLang() {
-  clearTimeout(langTimer);
-  langToggle.checked = false;
-  langToggleField.classList.add("hidden");
-  languagesFields.classList.remove("hidden");
-}
-
-function checkLangDone() {
-  if (languagesFields.classList.contains("hidden")) return;
-  clearTimeout(langTimer);
-  if (values("languages").length > 0) langTimer = setTimeout(collapseLang, LANG_COLLAPSE_DELAY);
-}
-
-document.querySelectorAll("#languages input").forEach(c =>
-  c.addEventListener("change", checkLangDone)
-);
-
-langToggle.addEventListener("change", () => {
-  if (!langToggle.checked) expandLang();
-});
-
-/* ---- Identity Proof: same collapse pattern, once both files are
-   uploaded. ---- */
-
-const identityToggleField = $("identityToggleField");
-const identityToggle = $("identityToggle");
-const identityFields = $("identityFields");
-let identityTimer = null;
-
-function identityDone() {
-  if (!$("identityProof").files[0] || !$("profileImage").files[0]) return false;
-  const idOk = validateFile("identityProof", "identityError", false);
-  const photoOk = validateFile("profileImage", "profileError", true);
-  return idOk && photoOk;
-}
-
-function collapseIdentity() {
-  identityToggle.checked = true;
-  identityToggleField.classList.remove("hidden");
-  identityFields.classList.add("hidden");
-}
-
-function expandIdentity() {
-  clearTimeout(identityTimer);
-  identityToggle.checked = false;
-  identityToggleField.classList.add("hidden");
-  identityFields.classList.remove("hidden");
-}
-
-function checkIdentityDone() {
-  if (identityFields.classList.contains("hidden")) return;
-  clearTimeout(identityTimer);
-  if (identityDone()) identityTimer = setTimeout(collapseIdentity, COLLAPSE_DELAY);
-}
-
-["identityProof", "profileImage"].forEach(id =>
-  $(id).addEventListener("change", checkIdentityDone)
-);
-
-identityToggle.addEventListener("change", () => {
-  if (!identityToggle.checked) expandIdentity();
-});
-
-/* ---- OPTIONAL COLLAPSIBLE SECTIONS ----
-   Post Graduation, Special Courses and Special Child Disability
-   don't apply to every tutor, so they start collapsed behind their
-   tick and only open once it's checked - unticking collapses them
-   again and clears whatever was entered, so nothing half-filled
-   gets submitted by accident. ---- */
+const collapsibleSections = [];
 
 function wireCollapsibleSection(toggleId, contentId, onCollapse) {
   const toggle = $(toggleId);
   const content = $(contentId);
+
+  collapsibleSections.push({ toggle, content });
 
   toggle.addEventListener("change", () => {
     content.classList.toggle("hidden", !toggle.checked);
     if (!toggle.checked && onCollapse) onCollapse();
   });
 }
+
+// A failed Register press opens the sections that hold an error, so
+// none stays hidden behind a closed pill.
+window.showAllRegistrationSteps = function () {
+  collapsibleSections.forEach(({ toggle, content }) => {
+    if (!content.querySelector(".has-error, .field-error:not(:empty)")) return;
+    toggle.checked = true;
+    content.classList.remove("hidden");
+  });
+};
+
+wireCollapsibleSection("basicInfoToggle", "basicInfoFields");
+wireCollapsibleSection("langToggle", "languagesFields");
+wireCollapsibleSection("identityToggle", "identityFields");
+wireCollapsibleSection("twelfthToggle", "twelfthFields");
+wireCollapsibleSection("graduationToggle", "eduGraduation");
 
 wireCollapsibleSection("pgToggle", "eduPg", () => {
   ["pgSubject", "pgCollege", "pgYear", "pgPercentage"].forEach(id => { $(id).value = ""; setError(id + "Error", ""); });
@@ -344,6 +230,12 @@ wireCollapsibleSection("specialToggle", "eduSpecial", () => {
 wireCollapsibleSection("disabilityToggle", "eduDisability", () => {
   document.querySelectorAll("#disability input:checked").forEach(c => c.checked = false);
 });
+
+wireCollapsibleSection("experienceToggle", "experienceFields");
+wireCollapsibleSection("classesToggle", "teachClasses");
+wireCollapsibleSection("subjectsToggle", "teachSubjects");
+wireCollapsibleSection("boardsToggle", "teachBoards");
+wireCollapsibleSection("areasToggle", "areasContent");
 
 /* ---- digits-only fields ---- */
 
@@ -396,83 +288,6 @@ document.querySelectorAll('input[name="twelfthBoard"]').forEach(r =>
     $("twelfthBoardOtherWrap").classList.toggle("hidden", !isOther);
     if (!isOther) { $("twelfthBoardOther").value = ""; setError("twelfthBoardOtherError", ""); }
   })
-);
-
-/* ---- Class 12th and Graduation: collapse behind one line once
-   everything in them is filled in - same pattern as Basic
-   Information. ---- */
-
-function wireAutoCollapse(toggleId, fieldId, isDone, delay) {
-
-  const toggleField = $(toggleId + "Field");
-  const toggle = $(toggleId);
-  const field = $(fieldId);
-  let timer = null;
-
-  function collapse() {
-    toggle.checked = true;
-    toggleField.classList.remove("hidden");
-    field.classList.add("hidden");
-  }
-
-  function expand() {
-    clearTimeout(timer);
-    toggle.checked = false;
-    toggleField.classList.add("hidden");
-    field.classList.remove("hidden");
-  }
-
-  function check() {
-    if (field.classList.contains("hidden")) return;
-    clearTimeout(timer);
-    if (isDone()) timer = setTimeout(collapse, delay);
-  }
-
-  toggle.addEventListener("change", () => { if (!toggle.checked) expand(); });
-
-  return check;
-
-}
-
-const decimalPattern = /^\d+(\.\d{1,2})?$/;
-
-function percentageOrCgpaDone(percentageId, cgpaId) {
-  const percentage = val(percentageId);
-  const cgpa = val(cgpaId);
-  if (!percentage && !cgpa) return false;
-  if (percentage && (!decimalPattern.test(percentage) || Number(percentage) > 100)) return false;
-  if (cgpa && (!decimalPattern.test(cgpa) || Number(cgpa) > 10)) return false;
-  return true;
-}
-
-function twelfthDone() {
-  if (!checked("twelfthStream")) return false;
-  if (!/^\d{4}$/.test(val("twelfthYear"))) return false;
-  if (!percentageOrCgpaDone("twelfthPercentage", "twelfthCgpa")) return false;
-  const board = checked("twelfthBoard");
-  if (!board) return false;
-  if (board === "Other" && !val("twelfthBoardOther")) return false;
-  return true;
-}
-
-function graduationDone() {
-  if (!val("graduationCourse") || !val("graduationSubject") || !val("graduationCollege")) return false;
-  if (!/^\d{4}$/.test(val("graduationYear"))) return false;
-  return percentageOrCgpaDone("graduationPercentage", "graduationCgpa");
-}
-
-const checkTwelfthDone = wireAutoCollapse("twelfthToggle", "twelfthFields", twelfthDone, COLLAPSE_DELAY);
-const checkGraduationDone = wireAutoCollapse("graduationToggle", "eduGraduation", graduationDone, COLLAPSE_DELAY);
-
-document.querySelectorAll('input[name="twelfthStream"], input[name="twelfthBoard"]').forEach(r =>
-  r.addEventListener("change", checkTwelfthDone)
-);
-["twelfthYear", "twelfthPercentage", "twelfthCgpa", "twelfthBoardOther"].forEach(id =>
-  $(id).addEventListener("input", checkTwelfthDone)
-);
-
-["graduationCourse", "graduationSubject", "graduationCollege", "graduationYear", "graduationPercentage", "graduationCgpa"].forEach(id =>
-  $(id).addEventListener("input", checkGraduationDone)
 );
 
 /* ---- Date of birth ----
