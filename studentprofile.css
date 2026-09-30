@@ -1551,3 +1551,39 @@ body.add-modal-open {
   outline-offset: 3px;
   transition: outline-color 0.4s ease;
 }
+
+
+/* =========================================================
+   COLLAPSED TUITION CARD: the whole card takes its status colour
+   (blue finding, orange applied/processing, purple demo, green
+   running, red terminated, none once completed)
+========================================================= */
+
+.class-card.tuition-card.is-collapsed.tone-finding-tutor {
+  background: rgba(37, 99, 235, 0.16);
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+.class-card.tuition-card.is-collapsed.tone-tutors-applied,
+.class-card.tuition-card.is-collapsed.tone-applied,
+.class-card.tuition-card.is-collapsed.tone-processing {
+  background: var(--orange-dim);
+  border-color: rgba(255, 161, 92, 0.3);
+}
+
+.class-card.tuition-card.is-collapsed.tone-demo-scheduled {
+  background: var(--violet-dim);
+  border-color: rgba(180, 144, 255, 0.3);
+}
+
+.class-card.tuition-card.is-collapsed.tone-running {
+  background: rgba(22, 163, 74, 0.14);
+  border-color: rgba(22, 163, 74, 0.3);
+}
+
+.class-card.tuition-card.is-collapsed.tone-terminated,
+.class-card.tuition-card.is-collapsed.tone-rejected,
+.class-card.tuition-card.is-collapsed.tone-declined {
+  background: var(--danger-dim);
+  border-color: rgba(255, 104, 104, 0.3);
+}
