@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260929bx">
+  <link rel="stylesheet" href="admin.css?v=20260929by">
 </head>
 
 <body data-page="admin">
@@ -523,17 +523,32 @@
          just totalled instead of listed one by one. -->
     <section id="tab-graph" class="admin-panel hidden">
       <div class="admin-tools">
-        <div class="admin-chips" id="graphFilter">
-          <button class="admin-chip active" data-value="all" type="button">All</button>
-          <button class="admin-chip" data-value="Payments In" type="button">Payments In</button>
-          <button class="admin-chip" data-value="Payments Out" type="button">Payments Out</button>
-          <button class="admin-chip" data-value="Agency Charge" type="button">Agency Charge</button>
-          <button class="admin-chip" data-value="Subscription" type="button">Subscription</button>
+        <div class="graph-chips-row">
+          <div class="admin-chips" id="graphFilter">
+            <button class="admin-chip active" data-value="all" type="button">All</button>
+            <button class="admin-chip" data-value="Payments In" type="button">Payment Received</button>
+            <button class="admin-chip" data-value="Payments Out" type="button">Payment Given</button>
+            <button class="admin-chip" data-value="Agency Charge" type="button">Agency Charges</button>
+            <button class="admin-chip" data-value="Subscription" type="button">Subscription</button>
+          </div>
+          <span class="graph-chips-sep" aria-hidden="true"></span>
+          <div class="admin-chips" id="graphPeriod">
+            <button class="admin-chip" data-value="0" type="button">All Time</button>
+            <button class="admin-chip active" data-value="365" type="button">1 Year</button>
+            <button class="admin-chip" data-value="180" type="button">6 Month</button>
+            <button class="admin-chip" data-value="7" type="button">1 Week</button>
+            <button class="admin-chip" data-value="custom" type="button">Select Range</button>
+          </div>
         </div>
-        <div class="admin-chips" id="graphPeriod">
-          <button class="admin-chip" data-value="6" type="button">6 Months</button>
-          <button class="admin-chip active" data-value="12" type="button">1 Year</button>
-          <button class="admin-chip" data-value="0" type="button">All Time</button>
+        <div class="graph-range-row hidden" id="graphRangeRow">
+          <label class="admin-float">
+            <input id="graphRangeFrom" type="date" placeholder=" ">
+            <span>From</span>
+          </label>
+          <label class="admin-float">
+            <input id="graphRangeTo" type="date" placeholder=" ">
+            <span>To</span>
+          </label>
         </div>
       </div>
       <section class="admin-stats" id="graphStats"></section>
@@ -548,7 +563,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260929zzzn" defer></script>
+<script src="admin.js?v=20260929zzzo" defer></script>
 
 </body>
 </html>
