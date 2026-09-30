@@ -2413,8 +2413,8 @@ function groupState(group) {
 }
 
 const GROUP_LABELS = {
-  new: "Find Tutors", schedule: "Schedule Demo", scheduled: "Demo Scheduled",
-  running: "Running", completed: "Completed", terminated: "Terminated"
+  new: "Finding Tutors", schedule: "Schedule Demo", scheduled: "Demo Scheduled",
+  running: "Running", completed: "Completed", terminated: "Closed"
 };
 
 // The Tuitions card's own status only ever shows one of these four -
@@ -2481,12 +2481,12 @@ function renderStats() {
   }).length;
 
   const stats = [
-    ["Find Tutors", count("new"), "lime", "tuitions", "new"],
+    ["Finding Tutors", count("new"), "lime", "tuitions", "new"],
     ["Demo to Schedule", count("schedule"), "violet", "tuitions", "schedule"],
     ["Running Classes", count("running"), "green", "tuitions", "running"],
     ["Tutor Verification Pending", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "pending").length, "amber", "tutors", "pending"],
     ["Classes Completed", count("completed"), "grey", "tuitions", "completed"],
-    ["Terminated", count("terminated"), "red", "tuitions", "terminated"],
+    ["Closed", count("terminated"), "red", "tuitions", "terminated"],
     ["Today's Demo", todaysDemos, "violet", "tuitions", "today"],
     ["Verified Tutors", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "verified").length, "green", "tutors", "verified"]
   ];
@@ -2711,9 +2711,9 @@ function recordCard(kind, record, opts) {
         <div class="admin-card-title">
           ${opts.titleHtml || `<strong>${esc(opts.name || record.id)}</strong><small>${esc(opts.sub)}</small>`}
         </div>
-        ${opts.pill ? `<span class="admin-pill" data-tone="${opts.tone}">${esc(opts.pill)}</span>` : ""}
         <span class="admin-caret" aria-hidden="true"></span>
         ${opts.verifyStatus ? verifyButtonsHtml(opts.verifyStatus) : ""}
+        ${opts.pill ? `<span class="admin-status-rail admin-rail-sub" data-tone="${opts.tone}" tabindex="-1">${esc(opts.pill)}</span>` : ""}
       </div>
 
       <div class="admin-card-body">
@@ -3097,7 +3097,7 @@ function paymentHead(key, p) {
           ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="${s.target.action}" data-highlight="1"${s.target.demo ? ` data-demo="${esc(s.target.demo)}"` : ""}${s.target.part ? ` data-part="${esc(s.target.part)}"` : ""}${s.target.tab ? ` data-tab="${esc(s.target.tab)}" data-key="${esc(s.target.key)}"` : ""} title="Open what this payment is for">₹</button>`
           : `<div class="admin-avatar">₹</div>`}
         ${equalRow([
-          formatDate(p.payment_date), s.partyName, s.partyMobile, s.partyWhatsapp,
+          ledgerDate(p.payment_date), s.partyName, s.partyMobile, s.partyWhatsapp,
           s.studentId, s.demoId, s.tutorId, rupees(p.amount), s.dues == null ? "" : rupees(s.dues)
         ])}
         <span class="admin-caret" aria-hidden="true"></span>
