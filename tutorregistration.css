@@ -3142,34 +3142,19 @@ body {
 
 
 /* =========================================================
-   STEP-BY-STEP FORM  (see "STEP-BY-STEP FORM" in the JS)
+   OPTIONAL COLLAPSIBLE SECTIONS
+   (Post Graduation, Special Courses, Special Child Disability -
+   see "OPTIONAL COLLAPSIBLE SECTIONS" in the JS)
 ========================================================= */
 
-/* parts not reached yet are fully hidden */
 #tutorForm .step-hidden {
   display: none !important;
 }
 
-/* land a little below the top edge when a new part opens */
+/* land a little below the top edge when a section expands */
 #tutorForm .section,
 #tutorForm .step-toggle {
   scroll-margin-top: 24px;
-}
-
-/* the ticks only exist while filling in step by step;
-   in the final review everything is simply shown */
-#tutorForm:not(.step-mode) .step-toggle {
-  display: none;
-}
-
-/* while stepping, the tick itself is the heading -> no repeat */
-#tutorForm.step-mode .step-dup-label {
-  display: none;
-}
-
-/* Experience: while stepping it is just the text box, no heading */
-#tutorForm.step-mode .step-nohead > .section-title {
-  display: none;
 }
 
 /* a tick that opens a part: same pill as "WhatsApp same as mobile" */
