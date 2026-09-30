@@ -339,8 +339,44 @@ body.add-modal-open {
 }
 
 #profileStats.profile-stats {
-  grid-template-columns: minmax(0, 1fr);
+  display: block;
 }
+
+.profile-address {
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+
+/* Verified badge overlaid on the big profile avatar - same seal
+   shape/colours as the Admin Panel's, coloured by subscription status. */
+.profile-sub-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  color: var(--muted-2);
+}
+
+.profile-sub-badge svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 2px;
+}
+
+.profile-sub-badge svg path { fill: currentColor; }
+
+.profile-sub-badge[data-tone="paid"]    { color: var(--lime); }
+.profile-sub-badge[data-tone="partial"] { color: var(--orange); }
+.profile-sub-badge[data-tone="unpaid"]  { color: var(--danger); }
 
 
 /* =========================================================
@@ -1002,26 +1038,6 @@ body.add-modal-open {
   border-color: var(--lime);
   background: rgba(22, 163, 74, 0.2);
 }
-
-
-/* =========================================================
-   LOCATION / SCHOOL TILES - lime rail, value in normal colour
-========================================================= */
-
-/* same colours as the "+ Add Student" button */
-.stat[data-accent="lime"] .stat-rail {
-  background: var(--lime-dim);
-  border-right: 1px solid var(--lime-line);
-}
-
-.stat[data-accent="lime"] .stat-rail span {
-  color: var(--lime);
-}
-
-.stat[data-accent="lime"] .stat-value {
-  color: var(--text);
-}
-
 
 
 /* =========================================================
