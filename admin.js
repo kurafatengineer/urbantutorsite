@@ -239,7 +239,9 @@ const STATE = {
   tuitionFilter: "all",
   ledgerFilter: "all",
   graphFilter: "all",   // which purpose the graph is scoped to
-  graphPeriod: "12",    // months of history the chart covers ("0" = all time)
+  graphPeriod: "365",   // days of history the chart covers ("0" = all time, "custom" = the range fields)
+  graphRangeFrom: "",
+  graphRangeTo: "",
   open: new Set(),      // keys of expanded cards
   editing: new Set(),   // keys of records in edit mode
   studentOpen: new Set(), // keys of tuition cards whose nested Student section is expanded
@@ -674,7 +676,13 @@ function wireEvents() {
   chipGroup("tuitionFilter", v => { collapseAll(); STATE.tuitionFilter = v; renderTuitions(); });
   chipGroup("ledgerFilter", v => { STATE.ledgerFilter = v; renderLedger(); });
   chipGroup("graphFilter", v => { STATE.graphFilter = v; renderGraph(); });
-  chipGroup("graphPeriod", v => { STATE.graphPeriod = v; renderGraph(); });
+  chipGroup("graphPeriod", v => {
+    STATE.graphPeriod = v;
+    $("graphRangeRow").classList.toggle("hidden", v !== "custom");
+    renderGraph();
+  });
+  $("graphRangeFrom").addEventListener("change", () => { STATE.graphRangeFrom = $("graphRangeFrom").value; renderGraph(); });
+  $("graphRangeTo").addEventListener("change", () => { STATE.graphRangeTo = $("graphRangeTo").value; renderGraph(); });
 
   // The 8 count tiles work as shortcuts to their filter.
   $("adminStats").addEventListener("click", (event) => {
@@ -3570,12 +3578,20 @@ function renderGraph() {
   if (!$("graphChart")) return;
 
   const purposeFilter = STATE.graphFilter;
-  const months = Number(STATE.graphPeriod) || 0; // 0 = all time
-  const cutoff = months ? new Date(Date.now() - months * 31 * 86400000).toISOString().slice(0, 10) : "";
+  const period = STATE.graphPeriod;
+  let cutoff = "", rangeEnd = "";
+  if (period === "custom") {
+    cutoff = STATE.graphRangeFrom || "";
+    rangeEnd = STATE.graphRangeTo || "";
+  } else {
+    const days = Number(period) || 0; // 0 = all time
+    cutoff = days ? new Date(Date.now() - days * 86400000).toISOString().slice(0, 10) : "";
+  }
 
   const all = ledgerEntries().filter(e => purposeFilter === "all" || e.purpose === purposeFilter);
   const isOut = e => e.purpose === "Payments Out";
-  const paid = all.filter(e => e.status === "paid" && (!cutoff || !e.date || e.date >= cutoff));
+  const paid = all.filter(e => e.status === "paid" &&
+    (!cutoff || !e.date || e.date >= cutoff) && (!rangeEnd || !e.date || e.date <= rangeEnd));
   const due = all.filter(e => e.status !== "paid");
 
   const totalIn = paid.filter(e => !isOut(e)).reduce((s, e) => s + e.amount, 0);
@@ -3589,7 +3605,7 @@ function renderGraph() {
     ["Total Paid Out", rupees(totalOut), "red"],
     ["Net", rupees(totalIn - totalOut), totalIn - totalOut >= 0 ? "lime" : "red"],
     ["Outstanding Dues", rupees(totalDues), "amber"],
-    ["Overdue", rupees(totalOverdue), "red"]
+    ["Over Dues", rupees(totalOverdue), "red"]
   ];
 
   $("graphStats").innerHTML = stats.map(([label, value, tone]) => `

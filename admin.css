@@ -2962,3 +2962,36 @@ body[data-page="admin"] {
 .graph-swatch[data-tone="in"] { background: var(--lime); }
 .graph-swatch[data-tone="out"] { background: var(--danger); }
 #graphStats { margin-bottom: 14px; }
+
+/* Graph tab: purpose + period chips together on one scrollable line,
+   the custom date-range row right below it (hidden unless "Select
+   Range" is picked), and the 5 stat tiles forced onto one row instead
+   of wrapping like the 8-tile dashboard grid does. */
+.graph-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.graph-chips-row::-webkit-scrollbar { display: none; }
+.graph-chips-row .admin-chips { flex: 0 0 auto; overflow: visible; }
+.graph-chips-sep {
+  flex: 0 0 auto;
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+}
+.graph-range-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+.graph-range-row .admin-float { max-width: 220px; }
+#graphStats {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+@media (max-width: 720px) {
+  #graphStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .graph-range-row { flex-wrap: wrap; }
+}
