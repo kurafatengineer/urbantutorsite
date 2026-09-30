@@ -977,7 +977,7 @@ function tutorHead(tutor) {
         note: isTicked(tutor.parentAccepted) && !isTicked(tutor.tutorAccepted)
           ? "You have approved, waiting for the tutor's approval"
           : "The tutor has approved, waiting for your approval",
-        cls: "status-demo-scheduled"
+        cls: "status-processing"
       };
 
     case "running":

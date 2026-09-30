@@ -115,10 +115,10 @@
 /* ---------------- student-only statuses ---------------- */
 
 .status-finding-tutor,
-.class-spine.status-finding-tutor { background: var(--lime-dim); color: var(--lime); border-color: var(--lime-line); }
+.class-spine.status-finding-tutor { background: var(--info-dim); color: var(--info); border-color: rgba(143, 160, 255, 0.3); }
 
 .status-tutors-applied,
-.class-spine.status-tutors-applied { background: var(--info-dim); color: var(--info); border-color: var(--info-line); }
+.class-spine.status-tutors-applied { background: var(--orange-dim); color: var(--orange); border-color: rgba(255, 161, 92, 0.3); }
 
 .class-spine.status-finding-tutor,
 .class-spine.status-tutors-applied { border-color: transparent; }
@@ -845,12 +845,13 @@ body.add-modal-open {
 }
 
 /* collapsed tutor card: the whole card takes its status colour */
-.tuition-stack > .tutor-card.is-collapsed.tone-applied {
-  background: var(--lime-dim);
-  color: var(--lime);
-  border-left-color: var(--lime-line);
-  border-right-color: var(--lime-line);
-  border-bottom-color: var(--lime-line);
+.tuition-stack > .tutor-card.is-collapsed.tone-applied,
+.tuition-stack > .tutor-card.is-collapsed.tone-processing {
+  background: var(--orange-dim);
+  color: var(--orange);
+  border-left-color: rgba(255, 161, 92, 0.3);
+  border-right-color: rgba(255, 161, 92, 0.3);
+  border-bottom-color: rgba(255, 161, 92, 0.3);
 }
 
 .tuition-stack > .tutor-card.is-collapsed.tone-demo-scheduled {
