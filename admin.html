@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260929cc">
+  <link rel="stylesheet" href="admin.css?v=20260929ce">
 </head>
 
 <body data-page="admin">
@@ -488,24 +488,30 @@
       <form id="employeeForm" class="admin-card hidden" style="margin-bottom:14px;">
         <h3 class="admin-section-title">New Employee</h3>
         <div class="admin-form">
-          <label class="admin-field wide">
-            <span>Email</span>
-            <input id="employeeEmail" type="email" required>
-          </label>
-          <label class="admin-field wide">
-            <span>Full Name</span>
-            <input id="employeeName" type="text" required>
-          </label>
-          <label class="admin-field wide">
-            <span>Role</span>
-            <select id="employeeRole">
-              <option value="tuition_coordinator">Tuition Coordinator</option>
-              <option value="verification_staff">Verification Staff</option>
-              <option value="accounts_finance">Accounts / Finance</option>
-              <option value="tutor_relations">Tutor Relations / Recruiter</option>
-              <option value="super_admin">Super Admin</option>
-            </select>
-          </label>
+          <div class="admin-form-row admin-form-row-3">
+            <label class="admin-float">
+              <input id="employeeEmail" type="email" required placeholder=" ">
+              <span>Email</span>
+            </label>
+            <label class="admin-float">
+              <input id="employeeName" type="text" required placeholder=" ">
+              <span>Full Name</span>
+            </label>
+            <label class="admin-float is-select">
+              <select id="employeeRole">
+                <option value="tuition_coordinator">Tuition Coordinator</option>
+                <option value="verification_staff">Verification Staff</option>
+                <option value="accounts_finance">Accounts / Finance</option>
+                <option value="tutor_relations">Tutor Relations / Recruiter</option>
+                <option value="super_admin">Super Admin</option>
+              </select>
+              <span>Role</span>
+            </label>
+          </div>
+          <div class="perm-box">
+            <p class="perm-title">Permissions <small>- tick only what this employee should be able to do (picking a Role fills in its usual set)</small></p>
+            <div id="employeePerms" class="perm-grid"></div>
+          </div>
         </div>
         <div class="admin-pair" style="margin-top:12px;">
           <button class="admin-primary" type="submit">Add Employee</button>
@@ -553,7 +559,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260929zzzs" defer></script>
+<script src="admin.js?v=20260929zzzt" defer></script>
 
 </body>
 </html>

@@ -71,6 +71,7 @@ interface Caller {
   email: string;
   fullName: string;
   role: Role;
+  permissions: Set<string>;
 }
 
 interface AuthedUser { id: string; email: string; }
@@ -103,12 +104,15 @@ async function loadCaller(authHeader: string | null): Promise<Caller | "no-sessi
 
   const { data: row } = await db
     .from("admin_users")
-    .select("id, email, full_name, role, active")
+    .select("id, email, full_name, role, active, permissions")
     .ilike("email", user.email)
     .maybeSingle();
 
   if (row && row.active) {
-    return { id: row.id, email: row.email, fullName: row.full_name, role: row.role as Role };
+    return {
+      id: row.id, email: row.email, fullName: row.full_name, role: row.role as Role,
+      permissions: new Set(effectivePermissions(row.role as Role, row.permissions)),
+    };
   }
 
   const { count } = await db.from("admin_users").select("id", { count: "exact", head: true });
@@ -119,49 +123,126 @@ async function loadCaller(authHeader: string | null): Promise<Caller | "no-sessi
 
 
 /* ------------------------------------------------------------------
-   ROLE PERMISSIONS
+   PERMISSIONS
+   Every employee has a set of individual permissions. A role is just a
+   preset of them (ROLE_PRESETS); an employee whose `permissions` column
+   is NULL gets their role's preset, anyone with an explicit list gets
+   exactly that list. A Super Admin always has everything.
 ------------------------------------------------------------------ */
 
 const READ_ONLY_ACTION = "adminGetOverview";
 
-const ACTIONS_BY_ROLE: Record<Role, Set<string>> = {
-  super_admin: new Set([
-    "adminGetOverview", "adminUpdateRecord", "adminUpdateTuition", "adminUpdateDemoRow",
-    "adminAssignTutor", "adminSetTerminated",
-    "adminAddPayment", "adminUpdatePayment", "adminDeletePayment",
-    "adminAddSubscription", "adminUpdateSubscription", "adminDeleteSubscription",
-    "adminListEmployees", "adminAddEmployee", "adminUpdateEmployee",
-  ]),
-  tuition_coordinator: new Set([
-    "adminGetOverview", "adminUpdateRecord", "adminUpdateTuition", "adminUpdateDemoRow",
-    "adminAssignTutor", "adminSetTerminated",
-  ]),
-  verification_staff: new Set(["adminGetOverview", "adminUpdateRecord"]),
-  accounts_finance: new Set([
-    "adminGetOverview", "adminAddPayment", "adminUpdatePayment", "adminDeletePayment",
-    "adminAddSubscription", "adminUpdateSubscription", "adminDeleteSubscription",
-  ]),
-  tutor_relations: new Set(["adminGetOverview", "adminUpdateRecord"]),
+// What the "New Employee" checklist shows, in three columns of groups.
+const PERMISSION_GROUPS = [
+  { id: "tuitions", label: "Tuitions", items: [
+    { key: "tuitions_view", label: "View tuitions" },
+    { key: "tuitions_edit", label: "Edit tuition & demo details" },
+    { key: "tuitions_assign_tutor", label: "Assign tutors" },
+    { key: "tuitions_close", label: "Close / reopen tuitions" },
+  ] },
+  { id: "tutors", label: "Tutors", items: [
+    { key: "tutors_view", label: "View tutors" },
+    { key: "tutors_edit", label: "Edit tutor details" },
+    { key: "tutors_verify", label: "Accept / Reject (verify) tutors" },
+  ] },
+  { id: "students", label: "Students", items: [
+    { key: "students_view", label: "View students" },
+    { key: "students_edit", label: "Edit student details" },
+  ] },
+  { id: "payments", label: "Payments", items: [
+    { key: "payments_view", label: "View Payments, Ledger & Graph" },
+    { key: "payments_add", label: "Record payments" },
+    { key: "payments_edit", label: "Edit payments" },
+    { key: "payments_delete", label: "Delete payments" },
+  ] },
+  { id: "subscriptions", label: "Subscriptions", items: [
+    { key: "subscriptions_add", label: "Create subscriptions" },
+    { key: "subscriptions_edit", label: "Edit subscriptions" },
+  ] },
+  { id: "employees", label: "Employees", items: [
+    { key: "employees_manage", label: "Manage employees & permissions" },
+  ] },
+];
+
+const ALL_PERMISSIONS: string[] = PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => i.key));
+
+// A permission that only makes sense with another one: ticking the child
+// ticks the parent, and (server side, too) saving a child without its
+// parent adds the parent.
+const PERMISSION_PARENT: Record<string, string> = {
+  tuitions_edit: "tuitions_view", tuitions_assign_tutor: "tuitions_view", tuitions_close: "tuitions_view",
+  tutors_edit: "tutors_view", tutors_verify: "tutors_view",
+  students_edit: "students_view",
+  payments_add: "payments_view", payments_edit: "payments_view", payments_delete: "payments_view",
+  subscriptions_add: "payments_view", subscriptions_edit: "payments_view",
 };
 
-// Payments and Subscriptions are always granted to the same roles, so
-// the panel's "Payments" tab (which also shows Subscriptions) can be
-// gated with a single check.
-function canSeePayments(role: Role): boolean {
-  return ACTIONS_BY_ROLE[role].has("adminAddPayment");
+const ROLE_PRESETS: Record<Role, string[]> = {
+  super_admin: ALL_PERMISSIONS,
+  tuition_coordinator: [
+    "tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_close",
+    "tutors_view", "tutors_edit", "students_view", "students_edit",
+  ],
+  verification_staff: ["tutors_view", "tutors_verify"],
+  accounts_finance: [
+    "payments_view", "payments_add", "payments_edit", "payments_delete",
+    "subscriptions_add", "subscriptions_edit",
+  ],
+  tutor_relations: ["tutors_view", "tutors_edit"],
+};
+
+function normalizePermissions(list: unknown): string[] {
+  const wanted = new Set((Array.isArray(list) ? list : []).map(String).filter((p) => ALL_PERMISSIONS.includes(p)));
+  for (const p of [...wanted]) if (PERMISSION_PARENT[p]) wanted.add(PERMISSION_PARENT[p]);
+  return ALL_PERMISSIONS.filter((p) => wanted.has(p));
 }
 
-// What admin_get_overview's data a role actually gets to see. A role
+function effectivePermissions(role: Role, stored: unknown): string[] {
+  if (role === "super_admin") return ALL_PERMISSIONS;
+  return Array.isArray(stored) ? normalizePermissions(stored) : ROLE_PRESETS[role] ?? [];
+}
+
+// Which permission each action needs. adminUpdateRecord is checked field
+// by field below, and reading the overview is open to every employee.
+const ACTION_PERMISSION: Record<string, string> = {
+  adminUpdateTuition: "tuitions_edit",
+  adminUpdateDemoRow: "tuitions_edit",
+  adminAssignTutor: "tuitions_assign_tutor",
+  adminSetTerminated: "tuitions_close",
+  adminAddPayment: "payments_add",
+  adminUpdatePayment: "payments_edit",
+  adminDeletePayment: "payments_delete",
+  adminAddSubscription: "subscriptions_add",
+  adminUpdateSubscription: "subscriptions_edit",
+  adminDeleteSubscription: "subscriptions_edit",
+  adminListEmployees: "employees_manage",
+  adminAddEmployee: "employees_manage",
+  adminUpdateEmployee: "employees_manage",
+};
+
+function canRunAction(caller: Caller, action: string): boolean {
+  if (action === "adminUpdateRecord") {
+    return ["tutors_edit", "tutors_verify", "students_edit"].some((p) => caller.permissions.has(p));
+  }
+  const needed = ACTION_PERMISSION[action];
+  return !!needed && caller.permissions.has(needed);
+}
+
+function canSeePayments(caller: Caller): boolean {
+  return caller.permissions.has("payments_view");
+}
+
+// What admin_get_overview's data an employee actually gets to see. One
 // whose panel doesn't show a tab never receives that tab's data either -
 // the browser it's sent to shouldn't hold tutor/student PII (contact
 // details, addresses, ID documents) it has no UI for.
-const DATA_ACCESS: Record<Role, { tuitions: boolean; tutorsFull: boolean; studentsFull: boolean }> = {
-  super_admin:         { tuitions: true,  tutorsFull: true,  studentsFull: true },
-  tuition_coordinator: { tuitions: true,  tutorsFull: true,  studentsFull: true },
-  verification_staff:  { tuitions: false, tutorsFull: true,  studentsFull: false },
-  accounts_finance:    { tuitions: false, tutorsFull: false, studentsFull: false },
-  tutor_relations:     { tuitions: false, tutorsFull: true,  studentsFull: false },
-};
+function dataAccess(caller: Caller): { tuitions: boolean; tutorsFull: boolean; studentsFull: boolean } {
+  return {
+    tuitions: caller.permissions.has("tuitions_view"),
+    tutorsFull: caller.permissions.has("tutors_view"),
+    studentsFull: caller.permissions.has("students_view"),
+  };
+}
 
 // A name-only stand-in for a full tutors/students table, in the same
 // {headers, readOnly, rows} shape the panel already renders - just with
@@ -177,30 +258,31 @@ function nameOnlyTable(table: Json, nameField: string): Json {
 }
 
 function forbidden(): Json {
-  return { success: false, message: "Your role does not allow this action." };
+  return { success: false, message: "You do not have permission for this action." };
 }
 
-// Some roles may call adminUpdateRecord, but only touch specific
-// fields on specific record kinds.
-function checkUpdateRecordScope(role: Role, kind: string, changes: Json): string | null {
-
-  if (role === "super_admin" || role === "tuition_coordinator") return null;
+// adminUpdateRecord touches tutor or student records: Verification Status
+// needs "verify tutors", any other tutor field "edit tutors", and a
+// student record "edit students".
+function checkUpdateRecordScope(caller: Caller, kind: string, changes: Json): string | null {
 
   const keys = Object.keys(changes ?? {});
 
-  if (role === "verification_staff") {
-    if (kind !== "tutors") return "Verification staff can only update tutor records.";
-    if (keys.some(k => k !== "Verification Status")) return "Verification staff can only change Verification Status.";
+  if (kind === "tutors") {
+    if (keys.includes("Verification Status") && !caller.permissions.has("tutors_verify")) {
+      return "You do not have permission to verify tutors.";
+    }
+    if (keys.some((k) => k !== "Verification Status") && !caller.permissions.has("tutors_edit")) {
+      return "You do not have permission to edit tutor details.";
+    }
     return null;
   }
 
-  if (role === "tutor_relations") {
-    if (kind !== "tutors") return "Tutor Relations can only update tutor records.";
-    if (keys.includes("Verification Status")) return "Tutor Relations cannot change Verification Status.";
-    return null;
+  if (kind === "students") {
+    return caller.permissions.has("students_edit") ? null : "You do not have permission to edit student details.";
   }
 
-  return "Your role does not allow this action.";
+  return "You do not have permission for this action.";
 }
 
 
@@ -475,12 +557,22 @@ async function buildPaymentDirectory(): Promise<Json> {
 
 }
 
+// Every employee with the permissions they effectively have (their
+// explicit list, or their role's preset when none was ever set).
+async function listEmployees(): Promise<Json[]> {
+  const { data } = await db
+    .from("admin_users")
+    .select("id, email, full_name, role, active, created_at, permissions")
+    .order("created_at", { ascending: true });
+  return (data ?? []).map((e: Json) => ({ ...e, permissions: effectivePermissions(e.role as Role, e.permissions) }));
+}
+
 async function handleGetOverview(caller: Caller): Promise<Json> {
 
   const overview = await rpc("admin_get_overview");
   if (!overview?.success) return overview;
 
-  const access = DATA_ACCESS[caller.role];
+  const access = dataAccess(caller);
 
   // Only sign document links for tutor data the caller actually receives.
   const withLinks = access.tutorsFull ? await linkDocuments(overview) : overview;
@@ -489,9 +581,12 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
   if (!access.tutorsFull) withLinks.tutors = nameOnlyTable(withLinks.tutors, "Full Name");
   if (!access.studentsFull) withLinks.students = nameOnlyTable(withLinks.students, "Student Name");
 
-  withLinks.me = { email: caller.email, fullName: caller.fullName, role: caller.role };
+  withLinks.me = {
+    email: caller.email, fullName: caller.fullName, role: caller.role,
+    permissions: [...caller.permissions],
+  };
 
-  if (canSeePayments(caller.role)) {
+  if (canSeePayments(caller)) {
     const { data: payments, error } = await db
       .from("payments")
       .select("*")
@@ -508,12 +603,9 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
     withLinks.directory = await buildPaymentDirectory();
   }
 
-  if (caller.role === "super_admin") {
-    const { data: employees } = await db
-      .from("admin_users")
-      .select("id, email, full_name, role, active, created_at")
-      .order("created_at", { ascending: true });
-    withLinks.employees = employees ?? [];
+  if (caller.permissions.has("employees_manage")) {
+    withLinks.employees = await listEmployees();
+    withLinks.permissionInfo = { groups: PERMISSION_GROUPS, presets: ROLE_PRESETS, parents: PERMISSION_PARENT };
   }
 
   return withLinks;
@@ -679,12 +771,12 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
 
   if (action === READ_ONLY_ACTION) return handleGetOverview(caller);
 
-  if (!ACTIONS_BY_ROLE[caller.role]?.has(action)) return forbidden();
+  if (!canRunAction(caller, action)) return forbidden();
 
   switch (action) {
 
     case "adminUpdateRecord": {
-      const scopeError = checkUpdateRecordScope(caller.role, String(body.kind), body.changes ?? {});
+      const scopeError = checkUpdateRecordScope(caller, String(body.kind), body.changes ?? {});
       if (scopeError) return { success: false, message: scopeError };
       const result = await rpc("admin_update_record", {
         p_kind: body.kind,
@@ -891,12 +983,7 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
     }
 
     case "adminListEmployees": {
-      const { data, error } = await db
-        .from("admin_users")
-        .select("id, email, full_name, role, active, created_at")
-        .order("created_at", { ascending: true });
-      if (error) return { success: false, message: error.message };
-      return { success: true, employees: data };
+      return { success: true, employees: await listEmployees() };
     }
 
     case "adminAddEmployee": {
@@ -927,6 +1014,8 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
 
       const { error } = await db.from("admin_users").insert({
         id: userId, email: employeeEmail, full_name: fullName, role, active: true,
+        // A Super Admin always has everything; anyone else gets exactly the ticked list.
+        permissions: role === "super_admin" ? null : normalizePermissions(body.permissions),
       });
       if (error) return { success: false, message: error.message };
 
@@ -948,6 +1037,12 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
         changes.role = body.changes.role;
       }
       if (body.changes?.active !== undefined) changes.active = body.changes.active === true;
+      if (body.changes?.permissions !== undefined) {
+        if (body.id === caller.id) return { success: false, message: "You cannot change your own permissions." };
+        changes.permissions = normalizePermissions(body.changes.permissions);
+      }
+      // Whatever role they end up with, a Super Admin's list is never stored.
+      if (changes.role === "super_admin") changes.permissions = null;
 
       const { error } = await db.from("admin_users").update(changes).eq("id", body.id);
       if (error) return { success: false, message: error.message };
