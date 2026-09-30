@@ -464,7 +464,10 @@ function renderClasses(classes, filter) {
 
   filterEmpty.classList.add("hidden");
 
-  list.innerHTML = sortClasses(filtered).map(item => renderClassCard(item) + renderPayoutsCard(item.demoId)).join("");
+  list.innerHTML = sortClasses(filtered).map(item => {
+    const payments = renderPayoutsCard(item.demoId);
+    return payments ? `<div class="tuition-stack">${renderClassCard(item)}${payments}</div>` : renderClassCard(item);
+  }).join("");
 
 }
 
@@ -676,13 +679,17 @@ function renderPayoutsCard(demoId) {
 
   const total = payouts.reduce((sum, p) => sum + Number(p.amount || 0), 0);
   const money = n => "₹" + Number(n).toLocaleString("en-IN");
+  const key = "p:" + demoId;
+  const open = OPEN_CARD === key;
 
   return `
-    <div class="class-card payment-card">
+    <div class="class-card payment-card${open ? "" : " is-collapsed"}"
+         data-card="${escapeHTML(key)}" tabindex="0" aria-expanded="${open ? "true" : "false"}">
       <div class="class-spine status-completed">
         <span class="class-spine-label">Payment</span>
       </div>
       <div class="class-body">
+        <div class="pay-mini"><span>Payments</span><span>${escapeHTML(money(total))}</span></div>
         <div class="pay-lines">
           ${payouts.map(p => `
             <div class="pay-line">

@@ -1366,8 +1366,62 @@ svg {
   font-size: 15px;
 }
 
-/* tutor page: the card sits right under its tuition card */
-#classesList > .class-card + .payment-card {
-  margin-top: -10px;
+/* collapsed: "Payments" left, total amount right - plain text, no dot;
+   expanded: only the lines and the total. */
+.payment-card .pay-mini {
+  display: none;
+}
+
+body .class-card.payment-card.is-collapsed .class-body > .pay-mini {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+body .class-card.payment-card.is-collapsed .class-body > *:not(.pay-mini) {
+  display: none !important;
+}
+
+/* Tuition card + its payments card stacked as one unit (same as the
+   Student Profile). */
+.tuition-stack {
+  display: grid;
+  gap: 0;
+}
+
+.tuition-stack > .class-card {
+  --cut: 12px;
+  --cut-tl: radial-gradient(circle at 0 0, transparent var(--cut), #000 calc(var(--cut) + 0.5px));
+  --cut-tr: radial-gradient(circle at 100% 0, transparent var(--cut), #000 calc(var(--cut) + 0.5px));
+  --cut-bl: radial-gradient(circle at 0 100%, transparent var(--cut), #000 calc(var(--cut) + 0.5px));
+  --cut-br: radial-gradient(circle at 100% 100%, transparent var(--cut), #000 calc(var(--cut) + 0.5px));
+  border-radius: 0;
+}
+
+.tuition-stack > .class-card:first-child {
+  border-radius: 16px 16px 0 0;
+  border-bottom: 0;
+  -webkit-mask-image: var(--cut-bl), var(--cut-br);
+  -webkit-mask-composite: source-in;
+          mask-image: var(--cut-bl), var(--cut-br);
+          mask-composite: intersect;
+}
+
+.tuition-stack > .class-card:last-child {
+  border-radius: 0 0 16px 16px;
+  -webkit-mask-image: var(--cut-tl), var(--cut-tr);
+  -webkit-mask-composite: source-in;
+          mask-image: var(--cut-tl), var(--cut-tr);
+          mask-composite: intersect;
+}
+
+.tuition-stack > .payment-card {
   border-top: 2px dashed var(--border-light);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 60%),
+    var(--surface);
 }
