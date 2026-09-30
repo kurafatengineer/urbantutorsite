@@ -38,6 +38,19 @@
     try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
   }
 
+  // Badge colour for the header avatar - same rule as the Student
+  // Profile page / Admin Panel: green once fully paid (or nothing
+  // due), orange once partially paid, red while nothing has been
+  // paid. No subscription at all -> no badge.
+  function subscriptionTone(student, subscriptions) {
+    const subs = (subscriptions || []).filter(s => s.studentId === student.studentId);
+    if (!subs.length) return "";
+    const sub = subs.find(s => s.status === "active") || subs[0];
+    const due = Number(sub.amount || 0);
+    const paid = Number(sub.paidAmount || 0);
+    return due <= 0 || paid >= due ? "paid" : paid > 0 ? "partial" : "unpaid";
+  }
+
   // Every request goes to the matching Supabase function (the same ones
   // Student Profile / Tutor Profile use). The rest of this file still
   // speaks in the old "action" names, so only this helper changed.
@@ -190,6 +203,7 @@
     if (!student) {
       $("dbSName").textContent = "there.";
       $("dbSList").innerHTML = `<div class="db-empty">Add a student to post your first tuition.</div>`;
+      if (window.setHeaderAvatarBadge) window.setHeaderAvatarBadge("");
       return;
     }
 
@@ -198,6 +212,10 @@
     $("dbSName").textContent = (firstName(student.studentName) || "there") + ".";
 
     if (window.UrbanSession) window.UrbanSession.rememberName("student", student.studentName);
+
+    // Same verified badge as the Student Profile page's avatars,
+    // coloured by how much of this student's subscription is paid.
+    if (window.setHeaderAvatarBadge) window.setHeaderAvatarBadge(subscriptionTone(student, SDATA.subscriptions));
 
     $("dbSChips").innerHTML = "";
 
