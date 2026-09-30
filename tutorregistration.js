@@ -365,23 +365,28 @@ $("otp").addEventListener("input", () => {
 
 });
 
-/* ---- 12th: Percentage OR CGPA (never both) ----
+/* ---- 12th and Graduation: Percentage OR CGPA (never both) ----
  * Typing in one box disables the other; clearing it enables it again. */
 
-function syncTwelfthResult() {
-  const percentage = $("twelfthPercentage");
-  const cgpa = $("twelfthCgpa");
+function syncPercentageCgpa(percentageId, cgpaId) {
+  const percentage = $(percentageId);
+  const cgpa = $(cgpaId);
   cgpa.disabled = percentage.value.trim() !== "";
   percentage.disabled = cgpa.value.trim() !== "";
 }
 
-["twelfthPercentage", "twelfthCgpa"].forEach(id =>
-  $(id).addEventListener("input", () => {
-    digitsOnly($(id), true);
-    setError(id + "Error", "");
-    syncTwelfthResult();
-  })
-);
+function wirePercentageCgpa(percentageId, cgpaId) {
+  [percentageId, cgpaId].forEach(id =>
+    $(id).addEventListener("input", () => {
+      digitsOnly($(id), true);
+      setError(id + "Error", "");
+      syncPercentageCgpa(percentageId, cgpaId);
+    })
+  );
+}
+
+wirePercentageCgpa("twelfthPercentage", "twelfthCgpa");
+wirePercentageCgpa("graduationPercentage", "graduationCgpa");
 
 /* ---- 12th board: "Other" reveals a text box to name it ---- */
 
@@ -999,6 +1004,7 @@ function buildRegistrationPayload() {
     graduationCollege: val("graduationCollege"),
     graduationPassingYear: val("graduationYear"),
     graduationPercentage: val("graduationPercentage"),
+    graduationCgpa: val("graduationCgpa"),
 
     pgSubject: val("pgSubject"),
     pgCollege: val("pgCollege"),
@@ -1208,10 +1214,21 @@ function educationValid(includeGraduation, showErrors) {
   }
 
   if (includeGraduation) {
-    ["graduationCourse", "graduationSubject", "graduationCollege", "graduationPercentage"].forEach(id => {
+    ["graduationCourse", "graduationSubject", "graduationCollege"].forEach(id => {
       if (!val(id)) fail(id + "Error", "This field is required.");
     });
     if (!/^\d{4}$/.test(val("graduationYear"))) fail("graduationYearError", "Enter the passing year.");
+
+    const gradPercentage = val("graduationPercentage");
+    const gradCgpa = val("graduationCgpa");
+    if (!gradPercentage && !gradCgpa) {
+      fail("graduationPercentageError", "Enter Percentage or CGPA.");
+      fail("graduationCgpaError", "Enter Percentage or CGPA.");
+    } else if (gradPercentage && (!decimal.test(gradPercentage) || Number(gradPercentage) > 100)) {
+      fail("graduationPercentageError", "Enter 0 - 100.");
+    } else if (gradCgpa && (!decimal.test(gradCgpa) || Number(gradCgpa) > 10)) {
+      fail("graduationCgpaError", "Enter 0 - 10.");
+    }
   }
 
   return ok;

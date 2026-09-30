@@ -192,7 +192,10 @@
               <div class="field"><label class="float-field"><input id="graduationCollege" type="text" aria-label="Graduation - College/University" placeholder=" " ><span>Graduation - College/University</span></label><small id="graduationCollegeError" class="field-error"></small></div>
               <div class="field"><label class="float-field"><input id="graduationYear" type="text" aria-label="Graduation - Passing Year" placeholder=" " inputmode="numeric" maxlength="4"><span>Graduation - Passing Year</span></label><small id="graduationYearError" class="field-error"></small></div>
             </div>
-            <div class="field"><label class="float-field"><input id="graduationPercentage" type="text" aria-label="Graduation - Percentage" placeholder=" " ><span>Graduation - Percentage</span></label><small id="graduationPercentageError" class="field-error"></small></div>
+            <div class="two-col">
+              <div class="field"><label class="float-field"><input id="graduationPercentage" type="text" aria-label="Graduation Percentage" placeholder=" " inputmode="decimal" maxlength="5"><span>Graduation Percentage</span></label><small id="graduationPercentageError" class="field-error"></small></div>
+              <div class="field"><label class="float-field"><input id="graduationCgpa" type="text" aria-label="Graduation CGPA" placeholder=" " inputmode="decimal" maxlength="5"><span>Graduation CGPA</span></label><small id="graduationCgpaError" class="field-error"></small></div>
+            </div>
             </div>
             <div class="field step-toggle" id="pgToggleField"><label class="pill-check"><input id="pgToggle" type="checkbox"><span class="pill-check-text">Post Graduation</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label></div>
             <div id="eduPg" class="vertical-fields hidden">
@@ -387,7 +390,7 @@
 <script src="js/supabase-client.js?v=20260928b"></script>
 <script src="js/header.js?v=20260930a"></script>
 <script src="js/footer.js?v=20260928b"></script>
-<script src="tutorregistration.js?v=20260930h" defer></script>
+<script src="tutorregistration.js?v=20260930i" defer></script>
 
 </body>
 </html>
