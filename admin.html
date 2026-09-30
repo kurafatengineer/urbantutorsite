@@ -11,7 +11,7 @@
   <title>Urbantutorsite — Admin Panel</title>
 
   <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="admin.css?v=20260929bt">
+  <link rel="stylesheet" href="admin.css?v=20260929bu">
 </head>
 
 <body data-page="admin">
@@ -95,11 +95,10 @@
 <main id="panelPage" class="admin-page hidden">
   <div class="admin-container">
 
-    <!-- Refresh (left) | Admin Panel + signed-in-as (centre) | Log out (right) -->
+    <!-- Refresh (left) | signed-in-as name + role (centre) | Log out (right) -->
     <header class="admin-top admin-top-3">
       <button id="refreshButton" class="admin-ghost" type="button">Refresh</button>
       <div class="admin-top-mid">
-        <h1>Admin Panel</h1>
         <div class="admin-me" id="adminMe"></div>
       </div>
       <button id="logoutButton" class="admin-ghost admin-danger" type="button">Log out</button>
@@ -153,6 +152,7 @@
           <button class="admin-chip" data-value="rejected" type="button">Rejected</button>
         </div>
       </div>
+      <div id="tutorHeader"></div>
       <div id="tutorList" class="admin-stack-list"></div>
     </section>
 
@@ -164,6 +164,7 @@
           <span>Search</span>
         </label>
       </div>
+      <div id="studentHeader"></div>
       <div id="studentList" class="admin-stack-list"></div>
     </section>
 
@@ -382,6 +383,7 @@
         </div>
       </form>
 
+      <div id="paymentHeader"></div>
       <div id="paymentList" class="admin-stack-list"></div>
 
     </section>
@@ -453,6 +455,7 @@
         </div>
       </form>
 
+      <div id="subscriptionHeader"></div>
       <div id="subscriptionList" class="admin-stack-list"></div>
 
     </section>
@@ -509,6 +512,7 @@
         </div>
       </form>
 
+      <div id="employeeHeader"></div>
       <div id="employeeList" class="admin-stack-list"></div>
     </section>
 
@@ -520,7 +524,7 @@
 <script src="js/header.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
-<script src="admin.js?v=20260929zzzi" defer></script>
+<script src="admin.js?v=20260929zzzj" defer></script>
 
 </body>
 </html>
