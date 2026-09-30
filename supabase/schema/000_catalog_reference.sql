@@ -39,7 +39,7 @@
 -- public.tuitions           One row per posted requirement ("Demo ID").
 --   demo_id (PK, text)      student_id (FK -> students)
 --   subject                 preferred_tutor ('Any'|'Male'|'Female')
---   medium ('Any'|'Online'|'Offline')               preferred_timing
+--   medium ('Any'|'Online'|'Home')               preferred_timing
 --   terminated              posted_at
 
 -- public.applications       One row per tutor applying to a tuition.

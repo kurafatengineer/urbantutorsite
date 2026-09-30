@@ -642,7 +642,7 @@ function ensureMediumOptions() {
         <input
           type="radio"
           name="medium"
-          value="Offline"
+          value="Home"
         >
         <span>Home</span>
       </label>

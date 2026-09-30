@@ -2741,7 +2741,7 @@ function box(label, value, opts = {}) {
   let control;
 
   if (opts.options && editable) {
-    const current = opts.options.find(o => lower(o) === lower(value)) || opts.options[0];
+    const current = opts.options.find(o => lower(o) === lower(value) || (lower(o) === "home" && lower(value) === "offline")) || opts.options[0];
     const labels = opts.optionLabels || {};
     control = `<select ${attr}>${opts.options.map(o => `<option value="${esc(o)}"${o === current ? " selected" : ""}>${esc(labels[o] || o)}</option>`).join("")}</select>`;
   } else if (opts.link && /^https?:\/\//i.test(value)) {
@@ -4226,7 +4226,7 @@ function tuitionStack(g) {
     <div class="admin-boxes">
       ${box("Demo ID", g.demoId)}
       ${box("Subject", f.subject, { editable: editing, attr: editing ? `data-tfield="Subject"` : "" })}
-      ${box("Mode", editing ? (f.medium || "Any") : mediumText(f.medium), { editable: editing, options: ["Any", "Online", "Offline"], optionLabels: { Offline: "Home" }, attr: editing ? `data-tfield="Medium"` : "" })}
+      ${box("Mode", editing ? (f.medium || "Any") : mediumText(f.medium), { editable: editing, options: ["Any", "Online", "Home"], attr: editing ? `data-tfield="Medium"` : "" })}
       ${box("Preferred Tutor", editing ? (f.preferredTutor || "Any") : genderText(f.preferredTutor), { editable: editing, options: ["Any", "Male", "Female"], attr: editing ? `data-tfield="Preferred Tutor"` : "" })}
       ${box("Preferred Timing", f.preferredTiming, { editable: editing, wide: true, attr: editing ? `data-tfield="Preferred Timing"` : "" })}
       ${box("Posted On", f.postedOn)}
