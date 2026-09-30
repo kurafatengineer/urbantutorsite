@@ -178,8 +178,8 @@
   }
 
   const STAGE_LABEL = {
-    finding: ["Finding tutor", "rgba(200,255,46,.12)", "#c8ff2e"],
-    applied: ["Tutors applied", "rgba(200,255,46,.12)", "#c8ff2e"],
+    finding: ["Finding tutor", "rgba(143,160,255,.14)", "#8fa0ff"],
+    applied: ["Tutors applied", "rgba(255,161,92,.14)", "#ffa15c"],
     demo: ["Demo scheduled", "rgba(148,134,255,.14)", "#c3b9ff"],
     running: ["Running", "rgba(94,227,154,.12)", "#5ee39a"],
     completed: ["Completed", "rgba(255,255,255,.06)", "#8e8e99"],
@@ -279,7 +279,9 @@
     $("dbSList").innerHTML = visible.length ? visible.map(t => {
 
       const stage = studentStage(t);
-      const [label, bg, fg] = STAGE_LABEL[stage];
+      let [label, bg, fg] = STAGE_LABEL[stage];
+      // waiting on the other side's approval: orange, like "applied"
+      if (lower(t.status) === "processing") [label, bg, fg] = ["Processing", "rgba(255,161,92,.14)", "#ffa15c"];
       const step = { finding: 0, applied: 1, demo: 2, running: 3, completed: 4 }[stage];
       const bars = [0, 1, 2, 3].map(i => `<i class="db-st${i < step || stage === "completed" || (stage === "running" && i === 3) ? " done" : (i === step ? " now" : "")}"></i>`).join("");
       const names = ["Posted", "Tutors applied", "Demo", "Running"];
