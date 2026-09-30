@@ -54,6 +54,11 @@
 
 .db-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; }
 .db-pill svg { width: 16px; height: 16px; }
+/* the verified seal takes the subscription payment colour (blue if none) */
+.db-pill svg.db-seal { color: #1d9bf0; }
+.db-pill svg.db-seal[data-tone="paid"] { color: #16a34a; }
+.db-pill svg.db-seal[data-tone="partial"] { color: #ffa15c; }
+.db-pill svg.db-seal[data-tone="unpaid"] { color: #ff6868; }
 .db-pill.ok { background: rgba(94, 227, 154, 0.12); color: var(--db-green); border: 1px solid rgba(94, 227, 154, 0.3); }
 .db-pill.wait { background: rgba(255, 201, 71, 0.12); color: var(--db-amber); border: 1px solid rgba(255, 201, 71, 0.3); }
 .db-pill.no { background: rgba(255, 107, 107, 0.12); color: var(--db-red); border: 1px solid rgba(255, 107, 107, 0.3); }
