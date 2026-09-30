@@ -1587,3 +1587,41 @@ body.add-modal-open {
   background: var(--danger-dim);
   border-color: rgba(255, 104, 104, 0.3);
 }
+
+
+/* EXPANDED TUITION CARD: the top line (subject + status) is a
+   full-width band in the status colour */
+.class-card.tuition-card:not(.is-collapsed) .class-body > .class-row-top {
+  margin: -18px -20px 0 -6px;
+  padding: 12px 20px 12px 6px;
+  border-bottom: 1px solid transparent;
+}
+
+.class-card.tuition-card.tone-finding-tutor:not(.is-collapsed) .class-body > .class-row-top {
+  background: rgba(37, 99, 235, 0.16);
+  border-bottom-color: rgba(37, 99, 235, 0.35);
+}
+
+.class-card.tuition-card.tone-tutors-applied:not(.is-collapsed) .class-body > .class-row-top,
+.class-card.tuition-card.tone-applied:not(.is-collapsed) .class-body > .class-row-top,
+.class-card.tuition-card.tone-processing:not(.is-collapsed) .class-body > .class-row-top {
+  background: var(--orange-dim);
+  border-bottom-color: rgba(255, 161, 92, 0.3);
+}
+
+.class-card.tuition-card.tone-demo-scheduled:not(.is-collapsed) .class-body > .class-row-top {
+  background: var(--violet-dim);
+  border-bottom-color: rgba(180, 144, 255, 0.3);
+}
+
+.class-card.tuition-card.tone-running:not(.is-collapsed) .class-body > .class-row-top {
+  background: rgba(22, 163, 74, 0.14);
+  border-bottom-color: rgba(22, 163, 74, 0.3);
+}
+
+.class-card.tuition-card.tone-terminated:not(.is-collapsed) .class-body > .class-row-top,
+.class-card.tuition-card.tone-rejected:not(.is-collapsed) .class-body > .class-row-top,
+.class-card.tuition-card.tone-declined:not(.is-collapsed) .class-body > .class-row-top {
+  background: var(--danger-dim);
+  border-bottom-color: rgba(255, 104, 104, 0.3);
+}
