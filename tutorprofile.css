@@ -1561,3 +1561,32 @@ body .class-card.payment-card.is-collapsed .class-body > *:not(.pay-mini) {
 .pill.pill-r {
   border: 0 !important;
 }
+
+/* expanded card: no divider line right under the top row */
+.class-card .class-row-top + .class-detail-grid {
+  border-top: 0;
+}
+
+/* Tutor Profile, expanded: the top row (Subject | Status) is a full-width
+   band in the status colour, same as the Student Profile */
+[data-page="tutorprofile"] .class-card:not(.is-collapsed) .class-body > .class-row-top:not(.class-mini) {
+  margin: -18px -20px 0 -6px;
+  padding: 12px 20px 12px 6px;
+}
+
+[data-page="tutorprofile"] .class-card.tone-applied:not(.is-collapsed) .class-body > .class-row-top:not(.class-mini),
+[data-page="tutorprofile"] .class-card.tone-processing:not(.is-collapsed) .class-body > .class-row-top:not(.class-mini) {
+  background: var(--orange-dim);
+}
+
+[data-page="tutorprofile"] .class-card.tone-demo-scheduled:not(.is-collapsed) .class-body > .class-row-top:not(.class-mini) {
+  background: var(--violet-dim);
+}
+
+[data-page="tutorprofile"] .class-card.tone-running:not(.is-collapsed) .class-body > .class-row-top:not(.class-mini) {
+  background: rgba(22, 163, 74, 0.14);
+}
+
+[data-page="tutorprofile"] .class-card.tone-declined:not(.is-collapsed) .class-body > .class-row-top:not(.class-mini) {
+  background: var(--danger-dim);
+}
