@@ -74,7 +74,7 @@
       <form id="tutorForm" novalidate>
 
         <section class="section" id="sectionContact">
-          <div class="section-title centered-section-title"><div><h2>Contact Information</h2></div></div>
+          <div class="section-title centered-section-title"><div><h2>Contact & Basic Information</h2></div></div>
           <div class="vertical-fields">
             <div class="field email-registration-field"><label class="float-field"><input id="registrationEmail" type="email" aria-label="Email Address" placeholder=" " readonly><span>Email Address</span></label></div>
             <div class="field">
@@ -87,14 +87,7 @@
               <div class="phone-input whatsapp-box hidden" id="whatsappWrap"><span class="country-code flag-code" aria-label="India (+91)"><svg class="in-flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" rx="3" fill="#fff"/><path d="M3 0h24a3 3 0 0 1 3 3v3.67H0V3a3 3 0 0 1 3-3Z" fill="#FF9933"/><path d="M0 13.33h30V17a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3Z" fill="#138808"/><circle cx="15" cy="10" r="2.6" fill="none" stroke="#000080" stroke-width=".7"/><circle cx="15" cy="10" r=".55" fill="#000080"/></svg></span><label class="float-field in-phone"><input id="whatsapp" type="tel" aria-label="WhatsApp Number" inputmode="numeric" maxlength="10" placeholder=" " required><span>Enter Your WhatsApp Number</span></label></div>
               <small id="whatsappError" class="field-error"></small>
             </div>
-            <div class="field"><div class="selection-box cols-2 small"><label class="selection-option"><input type="radio" name="registerAs" value="Full Time Tutor"><span>Full Time Tutor</span></label><label class="selection-option"><input type="radio" name="registerAs" value="Part Time Tutor"><span>Part Time Tutor</span></label></div><small id="registerAsError" class="field-error"></small></div>
-          </div>
-        </section>
 
-
-        <section class="section" id="sectionBasic">
-          <div class="section-title centered-section-title"><div><h2>Basic Information</h2></div></div>
-          <div class="vertical-fields">
             <div class="field"><label class="float-field"><input id="fullName" type="text" aria-label="Full Name" placeholder=" " maxlength="120" autocomplete="name" required><span>Full Name</span></label><small id="fullNameError" class="field-error"></small></div>
 
             <!-- Date of birth: a real date input with a custom placeholder on top of it -->
@@ -107,6 +100,8 @@
             </div>
 
             <div class="field"><div class="selection-box "><label class="selection-option"><input type="radio" name="gender" value="Male"><span>Male</span></label><label class="selection-option"><input type="radio" name="gender" value="Female"><span>Female</span></label></div><small id="genderError" class="field-error"></small></div>
+
+            <div class="field"><div class="selection-box cols-2 small"><label class="selection-option"><input type="radio" name="registerAs" value="Full Time Tutor"><span>Full Time Tutor</span></label><label class="selection-option"><input type="radio" name="registerAs" value="Part Time Tutor"><span>Part Time Tutor</span></label></div><small id="registerAsError" class="field-error"></small></div>
           </div>
         </section>
 
