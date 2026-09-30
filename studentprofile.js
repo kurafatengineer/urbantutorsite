@@ -1026,7 +1026,7 @@ function renderTutorCard(tutor, item) {
     [ICONS.student, "Name", tutor.fullName],
     [ICONS.user2, "Gender", tutor.gender],
     [ICONS.cap, "Degree", tutor.degree],
-    [ICONS.clock, "Experience", exp ? (isNaN(expNumber) ? exp : `${exp} ${expNumber === 1 ? "yr" : "yrs"}`) : ""]
+    [ICONS.clock, "Experience", exp ? (isNaN(expNumber) ? exp : `${exp} ${expNumber === 1 ? "Year" : "Years"}`) : ""]
   ].filter(row => row[2] !== undefined && row[2] !== null && String(row[2]).trim() !== "");
 
   const message = tutorStatusMessage(tutor);

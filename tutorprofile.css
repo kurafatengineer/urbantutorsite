@@ -1143,7 +1143,7 @@ svg {
   display: none !important;
 }
 
-/* collapsed: Subject pill on the left, Medium pill on the right -
+/* collapsed: Subject pill on the left, Class pill on the right -
    the same pills (with the dot) as the Student Profile. The Medium
    pill takes the card's status colour. */
 [data-page="tutorprofile"] .class-card.is-collapsed .class-mini {
