@@ -1010,7 +1010,7 @@ function clearPaymentSubFields() {
 function updatePaymentRemaining() {
   const dues = Number(String($("paymentSubDues").value).replace(/[^\d.-]/g, "")) || 0;
   let payingNow = Number($("paymentPayingNow").value) || 0;
-  if (payingNow > dues) {
+  if (payingNow > dues && $("paymentType").value !== "advance") {
     payingNow = dues;
     $("paymentPayingNow").value = dues;
   }
@@ -1248,13 +1248,17 @@ function openPaymentFormForClass(kind, g, activeRow) {
     "student-agency": m.studentAgencyDue, "tutor-agency": m.tutorAgencyDue,
     "student-payment": m.studentDues, "tutor-payment": m.tutorDues
   }[kind];
-  if (!(dues > 0)) {
+  // Advance can be recorded even with nothing due; everything else
+  // only while dues remain.
+  const isAdvance = kind === "student-advance" || kind === "tutor-advance";
+  if (!isAdvance && !(dues > 0)) {
     toast("No dues left for this.");
     return;
   }
   const types = {
     "student-agency": "student-agency-charge", "tutor-agency": "tutor-agency-charge",
-    "student-payment": "collection", "tutor-payment": "payout"
+    "student-payment": "collection", "tutor-payment": "payout",
+    "student-advance": "collection", "tutor-advance": "payout"
   };
 
   showTab("payments");
@@ -1262,9 +1266,14 @@ function openPaymentFormForClass(kind, g, activeRow) {
   $("paymentTransactionType").value = types[kind];
   applyPaymentTransactionType();
 
-  if (kind === "tutor-payment") $("paymentTutorId").value = activeRow.tutorId;
+  if (kind === "tutor-payment" || kind === "tutor-advance") $("paymentTutorId").value = activeRow.tutorId;
   $("paymentDemoId").value = g.demoId;
   $("paymentDemoId").dispatchEvent(new Event("input", { bubbles: true }));
+  if (isAdvance) {
+    $("paymentType").value = "advance";
+    $("paymentPayingNow").value = "";
+    updatePaymentRemaining();
+  }
   updateIdDetail($("paymentTutorDetail"), DIR_TUTOR_BY_ID[activeRow.tutorId] || null);
   document.querySelectorAll("#paymentForm .admin-suggest").forEach(el => el.classList.add("hidden"));
 
@@ -1348,7 +1357,7 @@ function wirePaymentForm() {
 
     if (usesPayingNow) {
       const dues = Number(String($("paymentSubDues").value).replace(/[^\d.-]/g, "")) || 0;
-      if (enteredAmount > dues) {
+      if (enteredAmount > dues && $("paymentType").value !== "advance") {
         toast(`Amount Paid can't be more than the Dues (₹${dues.toLocaleString("en-IN")}).`, true);
         return;
       }
@@ -4331,11 +4340,14 @@ function classMoney(g, activeRow) {
   // typed in separately either.
   const tutorTotalAmount = studentTotalAmount;
   const tutorAgencyCharge = num(activeRow.tutorAgencyCharge);
-  const tutorAdvance = num(activeRow.tutorAdvancePayment);
+  const tutorPaid = (STATE.payments || [])
+    .filter(p => p.tutor_id === activeRow.tutorId && p.transaction_type === "payout" && (!p.demo_id || p.demo_id === g.demoId));
+  const tutorAdvance = num(activeRow.tutorAdvancePayment)
+    + tutorPaid.filter(p => p.payment_type === "advance").reduce((sum, p) => sum + num(p.amount), 0);
   // A payout records which Tuition it's for; older ones without a Demo
   // ID still count against every Tuition that tutor is taking.
-  const tutorPayouts = (STATE.payments || [])
-    .filter(p => p.tutor_id === activeRow.tutorId && p.transaction_type === "payout" && (!p.demo_id || p.demo_id === g.demoId))
+  const tutorPayouts = tutorPaid
+    .filter(p => p.payment_type !== "advance")
     .reduce((sum, p) => sum + num(p.amount), 0);
   const tutorTotalPayment = tutorAdvance + tutorPayouts;
   // The tutor's Agency Charge isn't taken off here - the tutor pays it
@@ -4388,7 +4400,14 @@ function classCard(g, activeRow) {
   const cfield = f => editing ? `data-cfield="${esc(f)}"` : "";
   // Outside edit mode, tapping one of these figures opens a New Payment
   // for it straight away - only while it still has dues.
-  const jump = kind => `data-action="class-figure" data-kind="${kind}"`;
+  // (Advance is always allowed; the rest go inert at zero dues.)
+  const jump = kind => {
+    const left = {
+      "student-agency": studentAgencyCharge - studentAgencyReceived, "tutor-agency": tutorAgencyCharge - tutorAgencyReceived,
+      "student-payment": studentDues, "tutor-payment": tutorDues
+    }[kind];
+    return `data-action="class-figure" data-kind="${kind}"${left !== undefined && !(left > 0) ? ' data-empty="1"' : ""}`;
+  };
 
   // Start Date defaults to today, End Date to a week out, and the two
   // Next Due/Payment Dates a week (and a week + 1 day) out - all until
@@ -4428,7 +4447,7 @@ function classCard(g, activeRow) {
   // never double-count each other), and Dues is Total Amount less both.
   const {
     studentTotalAmount, studentAdvancePaid, collected, studentDues,
-    tutorTotalAmount, tutorTotalPayment, tutorDues,
+    tutorTotalAmount, tutorAdvance, tutorTotalPayment, tutorDues,
     studentAgencyCharge, studentAgencyReceived,
     tutorAgencyCharge, tutorAgencyReceived
   } = classMoney(g, activeRow);
@@ -4440,15 +4459,16 @@ function classCard(g, activeRow) {
     <div class="admin-class-party">
       <h3 class="admin-section-title">Student</h3>
       <div class="admin-boxes">
-        ${box("Name", sv("Student Name"), { wide: true })}
+        ${box("Name", sv("Student Name"))}
+        ${box("Payment To", editing ? (activeRow.studentPaymentTo || "Agency") : activeRow.studentPaymentTo, { editable: editing, options: ["Agency", "Tutor"], attr: cfield("Student Payment To") })}
         ${box("Mobile Number", sv("Phone"))}
         ${box("WhatsApp Number", sv("WhatsApp"))}
-        ${box("Payment To", editing ? (activeRow.studentPaymentTo || "Agency") : activeRow.studentPaymentTo, { editable: editing, options: ["Agency", "Tutor"], attr: cfield("Student Payment To") })}
+        ${box("Payment Frequency", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
         ${box("Next Due Date", studentNextDueShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Student Next Due Date") })}
         ${box("Agency Charge (₹)", editing ? (activeRow.studentAgencyCharge || 0) : activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: editing ? cfield("Student Agency Charge") : jump("student-agency") })}
-        ${box("Payment Frequency", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
-        ${box("Advance Payment (₹)", studentAdvancePaid)}
-        ${box("Total Amount (₹)", studentTotalAmount, { attr: editing ? "" : jump("student-payment") })}
+        ${box("Agency Next Due Date", studentNextDueShown, { type: "text" })}
+        ${box("Advance Payment (₹)", studentAdvancePaid, { attr: editing ? "" : jump("student-advance") })}
+        ${box("Total Amount (₹)", studentTotalAmount)}
         ${box("Total Payment (₹)", collected, { attr: editing ? "" : jump("student-payment") })}
         ${box("Dues (₹)", studentDues)}
       </div>
@@ -4458,15 +4478,18 @@ function classCard(g, activeRow) {
     <div class="admin-class-party">
       <h3 class="admin-section-title">Tutor</h3>
       <div class="admin-boxes">
-        ${box("Tutor Name", tv("Full Name"), { wide: true })}
+        ${box("Name", tv("Full Name"))}
+        ${box("Payment From", editing ? (activeRow.tutorPaymentFrom || "Agency") : activeRow.tutorPaymentFrom, { editable: editing, options: ["Agency", "Parents"], attr: cfield("Tutor Payment From") })}
         ${box("Mobile Number", tv("Mobile Number"))}
         ${box("WhatsApp Number", tv("WhatsApp Number"))}
-        ${box("Payment From", editing ? (activeRow.tutorPaymentFrom || "Agency") : activeRow.tutorPaymentFrom, { editable: editing, options: ["Agency", "Parents"], attr: cfield("Tutor Payment From") })}
+        ${box("Payment Frequency", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
         ${box("Next Payment Date", tutorNextPaymentShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Tutor Next Payment Date") })}
         ${box("Agency Charges (₹)", editing ? (activeRow.tutorAgencyCharge || 0) : activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: editing ? cfield("Tutor Agency Charge") : jump("tutor-agency") })}
-        ${box("Payment Frequency", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
-        ${box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: editing, type: "number", attr: cfield("Tutor Advance Payment") })}
-        ${box("Total Amount (₹)", tutorTotalAmount, { attr: editing ? "" : jump("tutor-payment") })}
+        ${box("Agency Next Due Date", tutorNextPaymentShown, { type: "text" })}
+        ${editing
+          ? box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: true, type: "number", attr: cfield("Tutor Advance Payment") })
+          : box("Advance Payment (₹)", tutorAdvance, { attr: jump("tutor-advance") })}
+        ${box("Total Amount (₹)", tutorTotalAmount)}
         ${box("Total Payment (₹)", tutorTotalPayment, { attr: editing ? "" : jump("tutor-payment") })}
         ${box("Dues (₹)", tutorDues)}
       </div>
