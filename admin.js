@@ -2711,9 +2711,9 @@ function recordCard(kind, record, opts) {
         <div class="admin-card-title">
           ${opts.titleHtml || `<strong>${esc(opts.name || record.id)}</strong><small>${esc(opts.sub)}</small>`}
         </div>
+        ${opts.pill ? `<span class="admin-pill" data-tone="${opts.tone}">${esc(opts.pill)}</span>` : ""}
         <span class="admin-caret" aria-hidden="true"></span>
         ${opts.verifyStatus ? verifyButtonsHtml(opts.verifyStatus) : ""}
-        ${opts.pill ? `<span class="admin-status-rail admin-rail-sub" data-tone="${opts.tone}" tabindex="-1">${esc(opts.pill)}</span>` : ""}
       </div>
 
       <div class="admin-card-body">
@@ -2883,13 +2883,20 @@ function renderTutors() {
     const v = f => r.values[f] || "";
     return recordCard("tutors", r, {
       name: v("Full Name"),
-      // One line, 8 equal columns: Name | Gender | Mobile | WhatsApp |
-      // Tutor ID | Subjects | Address (no PIN) | PIN Code - text too
-      // long for its column is cut with "..." (see equalRow).
-      titleHtml: equalRow([
-        v("Full Name") || r.id, v("Gender"), v("Mobile Number"), v("WhatsApp Number"),
-        r.id, v("Subject You Teach"), fullAddress(v("Present Address"), v("City"), ""), v("Pin Code")
-      ]),
+      // Name | WhatsApp | Graduation | Tutor ID, address small below
+      // Name | WhatsApp | Mobile | Tutor ID | Subject Taught, one line,
+      // truncated with an ellipsis if it runs long (see #tutorList
+      // .admin-info in admin.css). Graduation now lives on the small
+      // line below, right before the address.
+      titleHtml: highlight(
+        [v("Full Name") || r.id, v("WhatsApp Number"), v("Mobile Number"), r.id, v("Subject You Teach")],
+        [
+          [v("Graduation - Course"), v("Graduation - Subject")].filter(Boolean).join(" - "),
+          fullAddress(v("Present Address"), v("City"), v("Pin Code"))
+        ].filter(Boolean).join(" | "),
+        "|",
+        statusGroup(status)
+      ),
       pill: status,
       tone: statusGroup(status),
       // Accept/Reject while Pending, Accept/Suspend once Verified,
@@ -2897,6 +2904,8 @@ function renderTutors() {
       verifyStatus: myPerms().tutorsVerify ? status : ""
     });
   }).join("") : empty("No tutors match.");
+
+  $("tutorHeader").innerHTML = rows.length ? tutorHeaderCard() : "";
 
   applyTextSearch("tutorList", "tutorSearch", "No tutors match.");
 
@@ -2940,6 +2949,8 @@ function renderStudents() {
 
   }).join("") : empty("No students match.");
 
+  $("studentHeader").innerHTML = rows.length ? studentHeaderCard() : "";
+
   applyTextSearch("studentList", "studentSearch", "No students match.");
 
 }
@@ -2967,6 +2978,8 @@ function renderPayments() {
   $("paymentList").innerHTML = rows.length
     ? rows.map(p => paymentCard(p, context[p.demo_id] || {})).join("")
     : empty("No payments recorded yet.");
+
+  $("paymentHeader").innerHTML = rows.length ? paymentHeaderCard() : "";
 
   applyTextSearch("paymentList", "paymentSearch", "No payments match.");
 
@@ -3541,6 +3554,8 @@ function renderSubscriptions() {
     ? rows.map(subscriptionCard).join("")
     : empty("No subscriptions yet.");
 
+  $("subscriptionHeader").innerHTML = rows.length ? subscriptionHeaderCard() : "";
+
   applyTextSearch("subscriptionList", "subscriptionSearch", "No subscriptions match.");
 
 }
@@ -3551,12 +3566,65 @@ const SUBSCRIPTION_STATUS_TONES = { active: "running", paused: "schedule", cance
 // A single-line card-head row of N equal, centred, dotted-divided
 // columns - text too long for its column is cut with "...", the full
 // value always sitting in the tooltip. Shared by the Subscription,
-// Payment, Student and Tutor cards.
+// Payment and Student cards.
 function equalRow(cells) {
   return `<div class="eq-grid" style="grid-template-columns: repeat(${cells.length}, minmax(0, 1fr))">${cells.map(c => {
     const text = (c === undefined || c === null || c === "") ? "-" : String(c);
     return `<span class="ledger-cell" title="${esc(text)}">${esc(text)}</span>`;
   }).join("")}</div>`;
+}
+
+// A slim, rounded header-row card above a list, naming its columns -
+// the same idea as the Ledger's own header (see ledgerHeaderCard), just
+// reused for the other sections. The leading/trailing spacers keep it
+// the same width as a real card's avatar/caret so the labels line up
+// with the rows underneath.
+function listHeaderCard(innerHtml) {
+  return `<div class="admin-card list-header" aria-hidden="true"><div class="admin-card-head">${innerHtml}</div></div>`;
+}
+
+function studentHeaderCard() {
+  return listHeaderCard(`
+    <span class="list-header-spacer"></span>
+    ${equalRow(["Name", "Gender", "Class", "Board", "Mobile", "WhatsApp", "Student ID", "Address", "Pin Code"])}
+    <span class="admin-caret" aria-hidden="true"></span>
+  `);
+}
+
+function paymentHeaderCard() {
+  return listHeaderCard(`
+    <span class="list-header-spacer"></span>
+    ${equalRow(["Date", "Name", "Mobile", "WhatsApp", "Student ID", "Demo ID", "Tutor ID", "Amount", "Dues"])}
+    <span class="admin-caret" aria-hidden="true"></span>
+    <span class="admin-status-rail admin-rail-purpose" data-tone="black">Type</span>
+    <span class="admin-status-rail admin-rail-party" data-tone="black">Who</span>
+  `);
+}
+
+function subscriptionHeaderCard() {
+  return listHeaderCard(`
+    <span class="list-header-spacer"></span>
+    ${equalRow(["Student/Tutor", "Name", "Mobile", "WhatsApp", "ID", "Plan", "Amount"])}
+    <span class="admin-caret" aria-hidden="true"></span>
+    <span class="admin-status-rail admin-rail-sub" data-tone="black">Status</span>
+  `);
+}
+
+function tutorHeaderCard() {
+  return listHeaderCard(`
+    <span class="list-header-spacer"></span>
+    <div class="admin-card-title">${highlight(["Name", "WhatsApp", "Mobile", "Tutor ID", "Subject"], "Graduation | Address", "|", "")}</div>
+    <span class="list-header-status">Status</span>
+    <span class="admin-caret" aria-hidden="true"></span>
+  `);
+}
+
+function employeeHeaderCard() {
+  return listHeaderCard(`
+    <span class="list-header-spacer"></span>
+    <div class="admin-card-title">${highlight(["Name", "Email", "Role", "Status"], "", "|", "")}</div>
+    <span class="admin-caret" aria-hidden="true"></span>
+  `);
 }
 
 function subscriptionCard(sub) {
@@ -3639,6 +3707,8 @@ function renderEmployees() {
   $("employeeList").innerHTML = rows.length
     ? rows.map(employeeCard).join("")
     : empty("No employees yet.");
+
+  $("employeeHeader").innerHTML = rows.length ? employeeHeaderCard() : "";
 
 }
 

@@ -350,9 +350,9 @@ button { cursor: pointer; }
 }
 
 .admin-chip.active {
-  color: #050505;
-  background: var(--lime);
-  border-color: var(--lime);
+  color: var(--lime);
+  background: var(--lime-dim);
+  border-color: transparent;
 }
 
 
@@ -2020,12 +2020,11 @@ body[data-page="admin"] {
   gap: 4px;
 }
 
-.admin-top-3 h1 {
-  margin: 0;
-}
-
 .admin-top-mid .admin-me {
   margin-bottom: 0;
+  font-size: clamp(20px, 4.4vw, 28px);
+  font-weight: 800;
+  color: var(--text);
 }
 
 .admin-top-3 #refreshButton {
@@ -2468,6 +2467,7 @@ body[data-page="admin"] {
 .admin-avatar-link:hover { filter: brightness(1.3); }
 
 /* While a payment is being recorded, the payments list below is hidden. */
+#paymentForm:not(.hidden) ~ #paymentHeader,
 #paymentForm:not(.hidden) ~ #paymentList { display: none; }
 
 /* Ledger: one line per entry - status and payment type rails on the
@@ -2583,6 +2583,51 @@ body[data-page="admin"] {
 .ledger-header .ledger-status-rail { margin: -6px 0 -6px -16px; }
 .ledger-header .ledger-purpose-rail { margin: -6px 4px -6px -12px; }
 .ledger-header .ledger-record-space { height: 0; }
+
+/* Slim header-row card above the Students/Payments/Subscriptions/
+   Tutors/Employees lists - same idea as the Ledger's own header
+   above: rounded corners, tight padding, bold small-caps labels. A
+   leading spacer the width of a real avatar (and the trailing caret,
+   kept but invisible) keeps its columns lined up with the rows below. */
+#tutorHeader, #studentHeader, #paymentHeader, #subscriptionHeader, #employeeHeader { margin-bottom: 10px; }
+.list-header { padding-top: 6px; padding-bottom: 6px; }
+.list-header .admin-card-head { cursor: default; min-height: 0; }
+.list-header-spacer { flex: 0 0 auto; width: 42px; }
+.list-header .admin-caret { visibility: hidden; }
+.list-header .ledger-cell {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.list-header .admin-status-rail { padding: 0; }
+.list-header .admin-rail-purpose,
+.list-header .admin-rail-party { margin-top: -6px; margin-bottom: -6px; }
+.list-header .admin-rail-sub { margin-top: -6px; margin-bottom: -6px; }
+.list-header .admin-hl-top {
+  background: none;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.list-header .admin-hl-top .admin-info b { color: var(--muted); }
+.list-header .admin-hl-small { display: none; }
+.list-header-status {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 
 /* Class card figures that open a New Payment when tapped. */
 .admin-box input[data-action] { cursor: pointer; }
