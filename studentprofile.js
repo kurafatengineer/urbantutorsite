@@ -859,7 +859,7 @@ function renderClassCard(item, student) {
   const hasStack = tutors.length > 0 || payments.length > 0;
 
   const studentCard = `
-    <div class="class-card${hasStack ? " has-tutors" : ""}${cardOpen ? "" : " is-collapsed"}"
+    <div class="class-card tuition-card tone-${statusClass.slice(7)}${hasStack ? " has-tutors" : ""}${cardOpen ? "" : " is-collapsed"}"
          data-card="${escapeHTML(cardKey)}" data-group="${escapeHTML(item.demoId)}" tabindex="0" aria-expanded="${cardOpen ? "true" : "false"}">
       <div class="class-spine ${statusClass}">
         ${item.demoId ? `<span class="class-spine-id">${escapeHTML(item.demoId)}</span><span class="class-spine-label">Demo ID</span>` : ""}
