@@ -376,8 +376,10 @@ button { cursor: pointer; }
 }
 
 .admin-card[data-tone="pending"] { border-color: var(--blue-line); }
-/* Tutors: border only follows Accept/Reject; pending (neither) stays neutral, the profile circle stays blue */
-#tutorList .admin-card[data-tone="pending"] { border-color: var(--border); }
+/* Tutors: the card border never carries the verification colour - only the profile circle does */
+#tutorList .admin-card[data-tone="pending"],
+#tutorList .admin-card[data-tone="verified"],
+#tutorList .admin-card[data-tone="rejected"] { border-color: var(--border); }
 .admin-card[data-tone="verified"] { border-color: var(--lime-line); }
 .admin-card[data-tone="rejected"] { border-color: rgba(255, 104, 104, 0.3); }
 
