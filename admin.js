@@ -2898,7 +2898,9 @@ function renderTutors() {
         v("Full Name") || r.id, v("Gender"), v("Mobile Number"), v("WhatsApp Number"),
         r.id, v("Subject You Teach"), fullAddress(v("Present Address"), v("City"), ""), v("Pin Code")
       ]),
-      pill: status,
+      // Only the Accept/Reject buttons say the status; the read-only
+      // rail is just a fallback for roles that can't verify.
+      pill: myPerms().tutorsVerify ? "" : status,
       tone: statusGroup(status),
       // Accept/Reject while Pending, Accept/Suspend once Verified,
       // Accept/Reject again if Rejected - always on the right of the tab.
@@ -3739,7 +3741,7 @@ function tutorHeaderCard() {
     <span class="list-header-spacer list-header-avatar-label">Profile</span>
     ${equalRow(["Name", "Gender", "Mobile", "WhatsApp", "Tutor ID", "Subjects", "Address", "Pin Code"])}
     <span class="admin-caret" aria-hidden="true"></span>
-    <span class="admin-status-rail admin-rail-sub" data-tone="black">Status</span>
+    <span class="admin-status-rail admin-rail-sub list-header-vbtns" data-tone="black">Status</span>
   `);
 }
 
