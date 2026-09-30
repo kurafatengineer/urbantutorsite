@@ -452,6 +452,9 @@ button { cursor: pointer; }
 .admin-pill[data-tone="scheduled"] { color: var(--violet); background: var(--violet-dim); border-color: rgba(180, 144, 255, 0.3); }
 .admin-pill[data-tone="completed"] { color: var(--muted); background: var(--surface-2); border-color: var(--border-light); }
 
+/* A touch narrower here so it doesn't crowd the Tutor card's 8-column row. */
+#tutorList .admin-pill { padding: 4px 7px; font-size: 10px; }
+
 .admin-facts {
   margin: 0;
   display: grid;
@@ -2469,6 +2472,7 @@ body[data-page="admin"] {
 .admin-card-head .ledger-status-rail {
   order: -2;
   margin: -16px 0 -16px -16px;
+  padding: 14px 0;
   border-radius: 0 18px 18px 0;
 }
 .admin-card-head .ledger-purpose-rail {
@@ -2490,22 +2494,19 @@ body[data-page="admin"] {
   text-align: center;
   font-size: 13px;
   font-weight: 600;
-  overflow-wrap: anywhere;
-}
-.ledger-cell + .ledger-cell { border-left: 1px dotted var(--border-light); }
-/* Subscription card head: 7 equal columns, one line each, cut with "...". */
-.sub-grid {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  align-items: center;
-}
-.sub-grid .ledger-cell {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  overflow-wrap: normal;
+}
+.ledger-cell + .ledger-cell { border-left: 1px dotted var(--border-light); }
+/* Single-line card head row of N equal columns, cut with "..." - the
+   Subscription, Payment, Student and Tutor cards (see equalRow()). The
+   column count/widths come from the inline style equalRow() writes. */
+.eq-grid {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  align-items: center;
 }
 /* Standalone card, so the status rail rounds both right corners. */
 .admin-card-head .admin-rail-sub { border-radius: 18px 0 0 18px; }
