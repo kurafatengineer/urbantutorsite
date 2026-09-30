@@ -35,9 +35,37 @@ window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY,
 ----------------------------------------------------------- */
 window.sbCall = async function (fnName, args) {
 
-  const { data, error } = await window.sb.rpc(fnName, args || {});
+  // A phone/tablet that has been idle or in the background often drops
+  // the first request ("TypeError: Load failed" on Safari, "Failed to
+  // fetch" elsewhere) - the connection is simply gone, not the login.
+  // Retry a couple of times, waking the session up in between, before
+  // calling it a network problem.
+  let result;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+
+    if (attempt > 0) {
+      await new Promise(resolve => setTimeout(resolve, attempt * 700));
+      try { await window.sb.auth.getSession(); } catch (e) { /* ignore */ }
+    }
+
+    result = await window.sb.rpc(fnName, args || {});
+
+    if (!result.error || !isNetworkError_(result.error)) break;
+
+  }
+
+  const { data, error } = result;
 
   if (error) {
+
+    if (isNetworkError_(error)) {
+      return {
+        success: false,
+        networkError: true,
+        message: "Could not reach the server. Please check your connection and try again."
+      };
+    }
 
     // A function we wrote with "raise exception '...'" arrives
     // here as error.message - show that text to the person.
@@ -49,6 +77,11 @@ window.sbCall = async function (fnName, args) {
   return data;
 
 };
+
+function isNetworkError_(error) {
+  const text = String((error && (error.message || error.details)) || error || "");
+  return /load failed|failed to fetch|networkerror|network request failed|fetch failed/i.test(text);
+}
 
 /* -----------------------------------------------------------
    Small helper: like sbCall, but goes through the "actions"
