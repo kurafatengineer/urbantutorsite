@@ -1186,12 +1186,18 @@ button.submit:disabled {
     0 30px 80px rgba(0, 0, 0, 0.5);
 }
 
+.modal-box .kicker {
+  text-align: center;
+}
+
 .modal-box h2 {
   margin: 0 0 20px;
 
   font-size: 28px;
 
   letter-spacing: -1px;
+
+  text-align: center;
 }
 
 .modal-box p {
@@ -1200,6 +1206,9 @@ button.submit:disabled {
   font-size: 14px;
 
   line-height: 1.7;
+
+  text-align: justify;
+  text-align-last: center;
 }
 
 .modal-close {
