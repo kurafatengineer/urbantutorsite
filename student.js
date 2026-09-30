@@ -644,7 +644,7 @@ function ensureMediumOptions() {
           name="medium"
           value="Offline"
         >
-        <span>Offline</span>
+        <span>Home</span>
       </label>
 
       <label class="selection-option">

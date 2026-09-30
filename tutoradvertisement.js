@@ -240,7 +240,7 @@ function fillSelect(id, values, currentValue) {
   const placeholder = select.options[0]; // "All subjects" / "All boards" / ...
 
   select.innerHTML = placeholder.outerHTML +
-    values.map(v => `<option value="${escapeHTML(v)}">${escapeHTML(v)}</option>`).join("");
+    values.map(v => `<option value="${escapeHTML(v)}">${escapeHTML(id === "mediumFilter" ? v.replace(/^offline$/i, "Home") : v)}</option>`).join("");
 
   // Keep the current selection only if it's still a valid option
   // given the other filters - otherwise fall back to "All".
@@ -373,10 +373,10 @@ function formatMedium(value) {
   const v = String(value || "").trim();
 
   if (/^(both|any)$/i.test(v)) {
-    return "Online | Offline";
+    return "Online | Home";
   }
 
-  return v;
+  return v.replace(/^offline$/i, "Home");
 
 }
 
@@ -417,7 +417,7 @@ function renderTuitionCard(item) {
     [ICONS.cap, "Class", item.className],
     [ICONS.file, "Board", item.board],
     [ICONS.student, "Gender", formatPreferredTutor(item.preferredTutor)],
-    [ICONS.globe, "Medium", formatMedium(item.medium)],
+    [ICONS.globe, "Mode", formatMedium(item.medium)],
   ].map(([icon, label, value]) => [icon, label, String(value == null ? "" : value).trim() || "—"]);
 
   const locationText = joinAddress(item.address, item.city);

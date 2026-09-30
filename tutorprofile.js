@@ -575,7 +575,7 @@ function renderClassCard(item) {
     [ICONS.student, "Student", item.studentName],
     [ICONS.cap, "Class", item.className],
     [ICONS.user2, "Gender", genderText(item.preferredTutor)],
-    [ICONS.globe, "Medium", mediumText(item.medium)]
+    [ICONS.globe, "Mode", mediumText(item.medium)]
   ].filter(triple => triple[2] !== undefined && triple[2] !== null && String(triple[2]).trim() !== "");
 
   const key = String(item.demoId || item.rowNumber || "");
@@ -716,7 +716,7 @@ function isAny(value) {
 
 function mediumText(value) {
   const v = String(value == null ? "" : value).trim();
-  return isAny(v) ? "Online | Offline" : v;
+  return isAny(v) ? "Online | Home" : v.replace(/^offline$/i, "Home");
 }
 
 function genderText(value) {

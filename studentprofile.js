@@ -792,7 +792,7 @@ function isAny(value) {
 
 function mediumText(value) {
   const v = String(value == null ? "" : value).trim();
-  return isAny(v) ? "Online | Offline" : v;
+  return isAny(v) ? "Online | Home" : v.replace(/^offline$/i, "Home");
 }
 
 function preferredTutorText(value) {
@@ -815,7 +815,7 @@ function renderClassCard(item, student) {
   // Second layer, 2 per row. (The tutor's own details now live on
   // the tutor cards stacked underneath this card.)
   const details = [
-    [ICONS.globe, "Medium", mediumText(item.medium)],
+    [ICONS.globe, "Mode", mediumText(item.medium)],
     [ICONS.student, "Preferred tutor", preferredTutorText(item.preferredTutor)],
     [ICONS.file, "Fee", item.price ? `₹${item.price}` : ""],
     [ICONS.clock, "Duration", item.duration]
