@@ -398,6 +398,83 @@ document.querySelectorAll('input[name="twelfthBoard"]').forEach(r =>
   })
 );
 
+/* ---- Class 12th and Graduation: collapse behind one line once
+   everything in them is filled in - same pattern as Basic
+   Information. ---- */
+
+function wireAutoCollapse(toggleId, fieldId, isDone, delay) {
+
+  const toggleField = $(toggleId + "Field");
+  const toggle = $(toggleId);
+  const field = $(fieldId);
+  let timer = null;
+
+  function collapse() {
+    toggle.checked = true;
+    toggleField.classList.remove("hidden");
+    field.classList.add("hidden");
+  }
+
+  function expand() {
+    clearTimeout(timer);
+    toggle.checked = false;
+    toggleField.classList.add("hidden");
+    field.classList.remove("hidden");
+  }
+
+  function check() {
+    if (field.classList.contains("hidden")) return;
+    clearTimeout(timer);
+    if (isDone()) timer = setTimeout(collapse, delay);
+  }
+
+  toggle.addEventListener("change", () => { if (!toggle.checked) expand(); });
+
+  return check;
+
+}
+
+const decimalPattern = /^\d+(\.\d{1,2})?$/;
+
+function percentageOrCgpaDone(percentageId, cgpaId) {
+  const percentage = val(percentageId);
+  const cgpa = val(cgpaId);
+  if (!percentage && !cgpa) return false;
+  if (percentage && (!decimalPattern.test(percentage) || Number(percentage) > 100)) return false;
+  if (cgpa && (!decimalPattern.test(cgpa) || Number(cgpa) > 10)) return false;
+  return true;
+}
+
+function twelfthDone() {
+  if (!checked("twelfthStream")) return false;
+  if (!/^\d{4}$/.test(val("twelfthYear"))) return false;
+  if (!percentageOrCgpaDone("twelfthPercentage", "twelfthCgpa")) return false;
+  const board = checked("twelfthBoard");
+  if (!board) return false;
+  if (board === "Other" && !val("twelfthBoardOther")) return false;
+  return true;
+}
+
+function graduationDone() {
+  if (!val("graduationCourse") || !val("graduationSubject") || !val("graduationCollege")) return false;
+  if (!/^\d{4}$/.test(val("graduationYear"))) return false;
+  return percentageOrCgpaDone("graduationPercentage", "graduationCgpa");
+}
+
+const checkTwelfthDone = wireAutoCollapse("twelfthToggle", "twelfthFields", twelfthDone, COLLAPSE_DELAY);
+const checkGraduationDone = wireAutoCollapse("graduationToggle", "eduGraduation", graduationDone, COLLAPSE_DELAY);
+
+document.querySelectorAll('input[name="twelfthStream"], input[name="twelfthBoard"]').forEach(r =>
+  r.addEventListener("change", checkTwelfthDone)
+);
+["twelfthYear", "twelfthPercentage", "twelfthCgpa", "twelfthBoardOther"].forEach(id =>
+  $(id).addEventListener("input", checkTwelfthDone)
+);
+
+["graduationCourse", "graduationSubject", "graduationCollege", "graduationYear", "graduationPercentage", "graduationCgpa"].forEach(id =>
+  $(id).addEventListener("input", checkGraduationDone)
+);
+
 /* ---- Date of birth ----
  * The input is a real date field; the "Choose Date of Birth" text is a
  * placeholder drawn on top. `has-value` hides it once a date is chosen. */

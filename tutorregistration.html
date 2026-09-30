@@ -168,6 +168,15 @@
         <section class="section" id="sectionEducation">
           <div class="section-title centered-section-title"><div><h2>Education & Qualification</h2></div></div>
           <div class="vertical-fields">
+
+            <!-- Shown only once every field below is filled in - same
+                 collapse pattern as Basic Information. -->
+            <div class="field twelfth-toggle-field hidden" id="twelfthToggleField">
+              <label class="pill-check"><input id="twelfthToggle" type="checkbox"><span class="pill-check-text">Class 12<sup>th</sup></span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
+            </div>
+
+            <div id="twelfthFields">
+            <label class="field-label">Class 12<sup>th</sup></label>
             <div class="field" id="eduStream"><label class="field-label">Class 12<sup>th</sup> - Stream</label><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthStream" value="Science"><span>Science</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Commerce"><span>Commerce</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Arts"><span>Arts</span></label></div><small id="twelfthStreamError" class="field-error"></small></div>
             <div class="field" id="eduYear"><label class="float-field"><input id="twelfthYear" type="text" aria-label="Class 12th - Passing Year" placeholder=" " inputmode="numeric" maxlength="4"><span>Class 12<sup>th</sup> - Passing Year</span></label><small id="twelfthYearError" class="field-error"></small></div>
 
@@ -182,6 +191,14 @@
             <div class="field" id="eduBoard"><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthBoard" value="IB"><span>IB</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="ICSE"><span>ICSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="CBSE"><span>CBSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="IGCSE"><span>IGCSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="State Board"><span>State Board</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="Other"><span>Other</span></label></div><small id="twelfthBoardError" class="field-error"></small>
               <div class="field board-other-field hidden" id="twelfthBoardOtherWrap"><label class="float-field"><input id="twelfthBoardOther" type="text" aria-label="Board Name" placeholder=" " maxlength="80"><span>Board Name</span></label><small id="twelfthBoardOtherError" class="field-error"></small></div>
             </div>
+            </div>
+
+            <!-- Shown only once every field below is filled in - same
+                 collapse pattern as Basic Information. -->
+            <div class="field graduation-toggle-field hidden" id="graduationToggleField">
+              <label class="pill-check"><input id="graduationToggle" type="checkbox"><span class="pill-check-text">Graduation</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
+            </div>
+
             <div id="eduGraduation" class="vertical-fields">
             <label class="field-label">Graduation</label>
             <div class="two-col">
@@ -199,7 +216,6 @@
             </div>
             <div class="field step-toggle" id="pgToggleField"><label class="pill-check"><input id="pgToggle" type="checkbox"><span class="pill-check-text">Post Graduation</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label></div>
             <div id="eduPg" class="vertical-fields hidden">
-            <label class="field-label">Post Graduation</label>
             <div class="two-col">
               <div class="field"><label class="float-field"><input id="pgSubject" type="text" aria-label="Post Graduation Subject" placeholder=" " ><span>Post Graduation Subject</span></label><small id="pgSubjectError" class="field-error"></small></div>
               <div class="field"><label class="float-field"><input id="pgCollege" type="text" aria-label="Post Graduation College/University" placeholder=" " ><span>Post Graduation College/University</span></label><small id="pgCollegeError" class="field-error"></small></div>
@@ -210,9 +226,9 @@
             </div>
             </div>
             <div class="field step-toggle" id="specialToggleField"><label class="pill-check"><input id="specialToggle" type="checkbox"><span class="pill-check-text">Special Courses</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label></div>
-            <div class="field hidden" id="eduSpecial"><label class="field-label">Special Courses</label><div class="selection-box cols-3 small" id="specialCourses"><label class="selection-option"><input type="checkbox" value="B. Ed"><span>B. Ed</span></label><label class="selection-option"><input type="checkbox" value="M. Ed"><span>M. Ed</span></label><label class="selection-option"><input type="checkbox" value="D. Ed"><span>D. Ed</span></label><label class="selection-option"><input type="checkbox" value="D. El. Ed."><span>D. El. Ed.</span></label><label class="selection-option"><input type="checkbox" value="D. P. Ed"><span>D. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="M. P. Ed"><span>M. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="B. P. Ed"><span>B. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="NET/IRF"><span>NET/IRF</span></label><label class="selection-option"><input type="checkbox" value="Phd"><span>Phd</span></label><label class="selection-option"><input type="checkbox" value="PHE"><span>PHE</span></label></div></div>
+            <div class="field hidden" id="eduSpecial"><div class="selection-box cols-3 small" id="specialCourses"><label class="selection-option"><input type="checkbox" value="B. Ed"><span>B. Ed</span></label><label class="selection-option"><input type="checkbox" value="M. Ed"><span>M. Ed</span></label><label class="selection-option"><input type="checkbox" value="D. Ed"><span>D. Ed</span></label><label class="selection-option"><input type="checkbox" value="D. El. Ed."><span>D. El. Ed.</span></label><label class="selection-option"><input type="checkbox" value="D. P. Ed"><span>D. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="M. P. Ed"><span>M. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="B. P. Ed"><span>B. P. Ed</span></label><label class="selection-option"><input type="checkbox" value="NET/IRF"><span>NET/IRF</span></label><label class="selection-option"><input type="checkbox" value="Phd"><span>Phd</span></label><label class="selection-option"><input type="checkbox" value="PHE"><span>PHE</span></label></div></div>
             <div class="field step-toggle" id="disabilityToggleField"><label class="pill-check"><input id="disabilityToggle" type="checkbox"><span class="pill-check-text">Special Child Disability</span><span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label></div>
-            <div class="field hidden" id="eduDisability"><label class="field-label">Special Child Disability</label><div class="selection-box cols-2 small" id="disability"><label class="selection-option"><input type="checkbox" value="Specific Learning Disability (SLD)"><span>Specific Learning Disability (SLD)</span></label><label class="selection-option"><input type="checkbox" value="Health Impairment"><span>Health Impairment</span></label><label class="selection-option"><input type="checkbox" value="Autism Spectrum Disorder"><span>Autism Spectrum Disorder</span></label><label class="selection-option"><input type="checkbox" value="Emotional disturbance"><span>Emotional disturbance</span></label><label class="selection-option"><input type="checkbox" value="Speech or language impairment"><span>Speech or language impairment</span></label><label class="selection-option"><input type="checkbox" value="Shadow Teacher"><span>Shadow Teacher</span></label></div></div>
+            <div class="field hidden" id="eduDisability"><div class="selection-box cols-2 small" id="disability"><label class="selection-option"><input type="checkbox" value="Specific Learning Disability (SLD)"><span>Specific Learning Disability (SLD)</span></label><label class="selection-option"><input type="checkbox" value="Health Impairment"><span>Health Impairment</span></label><label class="selection-option"><input type="checkbox" value="Autism Spectrum Disorder"><span>Autism Spectrum Disorder</span></label><label class="selection-option"><input type="checkbox" value="Emotional disturbance"><span>Emotional disturbance</span></label><label class="selection-option"><input type="checkbox" value="Speech or language impairment"><span>Speech or language impairment</span></label><label class="selection-option"><input type="checkbox" value="Shadow Teacher"><span>Shadow Teacher</span></label></div></div>
           </div>
         </section>
 
@@ -390,7 +406,7 @@
 <script src="js/supabase-client.js?v=20260928b"></script>
 <script src="js/header.js?v=20260930a"></script>
 <script src="js/footer.js?v=20260928b"></script>
-<script src="tutorregistration.js?v=20260930i" defer></script>
+<script src="tutorregistration.js?v=20260930j" defer></script>
 
 </body>
 </html>
