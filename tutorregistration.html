@@ -168,19 +168,20 @@
         <section class="section" id="sectionEducation">
           <div class="section-title centered-section-title"><div><h2>Education & Qualification</h2></div></div>
           <div class="vertical-fields">
-            <div class="field" id="eduStream"><label class="field-label">Class 12th - Stream</label><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthStream" value="Science"><span>Science</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Commerce"><span>Commerce</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Arts"><span>Arts</span></label></div><small id="twelfthStreamError" class="field-error"></small></div>
-            <div class="field" id="eduYear"><label class="float-field"><input id="twelfthYear" type="text" aria-label="Class 12th - Passing Year" placeholder=" " inputmode="numeric" maxlength="4"><span>Class 12th - Passing Year</span></label><small id="twelfthYearError" class="field-error"></small></div>
+            <div class="field" id="eduStream"><label class="field-label">Class 12<sup>th</sup> - Stream</label><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthStream" value="Science"><span>Science</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Commerce"><span>Commerce</span></label><label class="selection-option"><input type="radio" name="twelfthStream" value="Arts"><span>Arts</span></label></div><small id="twelfthStreamError" class="field-error"></small></div>
+            <div class="field" id="eduYear"><label class="float-field"><input id="twelfthYear" type="text" aria-label="Class 12th - Passing Year" placeholder=" " inputmode="numeric" maxlength="4"><span>Class 12<sup>th</sup> - Passing Year</span></label><small id="twelfthYearError" class="field-error"></small></div>
 
             <!-- 12th result: fill EITHER Percentage OR CGPA (the other box is disabled by JS) -->
             <div class="field" id="eduResult">
               <div class="two-col">
-                <div class="field"><label class="float-field"><input id="twelfthPercentage" type="text" aria-label="12th Percentage" placeholder=" " inputmode="decimal" maxlength="5"><span>12th Percentage</span></label><small id="twelfthPercentageError" class="field-error"></small></div>
-                <div class="field"><label class="float-field"><input id="twelfthCgpa" type="text" aria-label="12th CGPA" placeholder=" " inputmode="decimal" maxlength="5"><span>12th CGPA</span></label><small id="twelfthCgpaError" class="field-error"></small></div>
+                <div class="field"><label class="float-field"><input id="twelfthPercentage" type="text" aria-label="12th Percentage" placeholder=" " inputmode="decimal" maxlength="5"><span>12<sup>th</sup> Percentage</span></label><small id="twelfthPercentageError" class="field-error"></small></div>
+                <div class="field"><label class="float-field"><input id="twelfthCgpa" type="text" aria-label="12th CGPA" placeholder=" " inputmode="decimal" maxlength="5"><span>12<sup>th</sup> CGPA</span></label><small id="twelfthCgpaError" class="field-error"></small></div>
               </div>
-              <small class="helper-text center">Fill either Percentage or CGPA. The other box is disabled automatically.</small>
             </div>
 
-            <div class="field" id="eduBoard"><label class="field-label">Class 12th - Board</label><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthBoard" value="IB"><span>IB</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="ICSE"><span>ICSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="CBSE"><span>CBSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="IGCSE"><span>IGCSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="State Board"><span>State Board</span></label></div><small id="twelfthBoardError" class="field-error"></small></div>
+            <div class="field" id="eduBoard"><div class="selection-box cols-3 small"><label class="selection-option"><input type="radio" name="twelfthBoard" value="IB"><span>IB</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="ICSE"><span>ICSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="CBSE"><span>CBSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="IGCSE"><span>IGCSE</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="State Board"><span>State Board</span></label><label class="selection-option"><input type="radio" name="twelfthBoard" value="Other"><span>Other</span></label></div><small id="twelfthBoardError" class="field-error"></small>
+              <div class="field hidden" id="twelfthBoardOtherWrap"><label class="float-field"><input id="twelfthBoardOther" type="text" aria-label="Board Name" placeholder=" " maxlength="80"><span>Board Name</span></label><small id="twelfthBoardOtherError" class="field-error"></small></div>
+            </div>
             <div id="eduGraduation" class="vertical-fields">
             <div class="two-col">
               <div class="field"><label class="float-field"><input id="graduationCourse" type="text" aria-label="Graduation - Course" placeholder=" " ><span>Graduation - Course</span></label><small id="graduationCourseError" class="field-error"></small></div>
@@ -385,7 +386,7 @@
 <script src="js/supabase-client.js?v=20260928b"></script>
 <script src="js/header.js?v=20260930a"></script>
 <script src="js/footer.js?v=20260928b"></script>
-<script src="tutorregistration.js?v=20260930f" defer></script>
+<script src="tutorregistration.js?v=20260930g" defer></script>
 
 </body>
 </html>

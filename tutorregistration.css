@@ -1887,6 +1887,14 @@ textarea:focus {
   text-align: center;
 }
 
+/* "12th" ordinal - keep the "th" as a proper small superscript
+   instead of sitting full-size on the baseline. */
+sup {
+  font-size: 0.65em;
+  line-height: 0;
+  vertical-align: super;
+}
+
 /* ---------------------------------------------------------
    Option buttons: checkbox + radio groups reuse .selection-option
 --------------------------------------------------------- */
