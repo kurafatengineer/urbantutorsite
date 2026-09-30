@@ -3128,3 +3128,10 @@ body[data-page="admin"] {
 .otp-box:focus { outline: none; border-color: var(--lime-line); }
 .otp-box.is-wrong,
 .otp-box.is-wrong:focus { border-color: var(--danger); }
+
+
+/* Class card figures that record a payment when tapped */
+.admin-box input[data-action="class-figure"] { cursor: pointer; }
+.admin-box input[data-action="class-figure"]:hover { border-color: var(--lime); background: var(--lime-dim); }
+.admin-box input[data-action="class-figure"][data-empty] { cursor: default; }
+.admin-box input[data-action="class-figure"][data-empty]:hover { border-color: inherit; background: inherit; }
