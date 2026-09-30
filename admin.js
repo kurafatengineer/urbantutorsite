@@ -296,10 +296,66 @@ function indexData() {
 
   const { data } = await window.sb.auth.getSession();
 
-  if (data && data.session) await loadOverview();
-  else showEmailStep();
+  if (data && data.session) {
+    // A session left behind for more than 30 minutes without any
+    // activity is ended instead of resumed.
+    if (lastActiveAt() && Date.now() - lastActiveAt() > IDLE_LIMIT_MS) {
+      await forceLogout("You were logged out after 30 minutes of inactivity.");
+    } else {
+      markActive(true);
+      await loadOverview();
+    }
+  } else showEmailStep();
+
+  startIdleWatch();
 
 })();
+
+/************************************************************
+ * AUTO LOG-OUT - 30 minutes without any activity
+ ************************************************************/
+
+const IDLE_LIMIT_MS = 30 * 60 * 1000;
+const ACTIVE_KEY = "admin_last_active";
+let lastMarked = 0;
+
+function lastActiveAt() {
+  try { return Number(localStorage.getItem(ACTIVE_KEY)) || 0; } catch (e) { return 0; }
+}
+
+// Written to localStorage so several tabs (and a reopened tab) share it.
+function markActive(force) {
+  const now = Date.now();
+  if (!force && now - lastMarked < 5000) return;
+  lastMarked = now;
+  try { localStorage.setItem(ACTIVE_KEY, String(now)); } catch (e) {}
+}
+
+async function forceLogout(message) {
+  try { await window.sb.auth.signOut(); } catch (e) {}
+  STATE.me = null;
+  if (window.setAdminHeaderInitials) window.setAdminHeaderInitials("");
+  showEmailStep(message);
+}
+
+function panelIsOpen() {
+  return !$("panelPage").classList.contains("hidden");
+}
+
+async function logoutIfIdle() {
+  if (!panelIsOpen()) return;
+  if (Date.now() - lastActiveAt() > IDLE_LIMIT_MS) {
+    await forceLogout("You were logged out after 30 minutes of inactivity.");
+  }
+}
+
+function startIdleWatch() {
+  ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click"].forEach(name =>
+    document.addEventListener(name, () => { if (panelIsOpen()) markActive(false); }, { passive: true, capture: true })
+  );
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) logoutIfIdle(); });
+  setInterval(logoutIfIdle, 30000);
+}
 
 let pendingEmail = "";
 let resendTimer = null;
@@ -318,10 +374,100 @@ function showOtpStep(email) {
   $("emailStepForm").classList.add("hidden");
   $("otpStepForm").classList.remove("hidden");
   $("bootstrapStepForm").classList.add("hidden");
-  $("adminOtp").value = "";
+  resetOtpBoxes();
   $("otpMessage").textContent = "";
   showPage("login");
-  setTimeout(() => $("adminOtp").focus(), 50);
+  setTimeout(() => otpBoxes()[0].focus(), 50);
+}
+
+// ---- six-block code entry: one digit per block, auto-verifies on the 6th ----
+
+function otpBoxes() { return [...document.querySelectorAll("#otpBoxes .otp-box")]; }
+let verifyingOtp = false;
+
+function resetOtpBoxes(wrong) {
+  otpBoxes().forEach(box => { box.value = ""; box.classList.toggle("is-wrong", !!wrong); });
+}
+
+function otpCode() {
+  return otpBoxes().map(box => box.value).join("");
+}
+
+// A wrong code isn't explained: the blocks just empty and turn red until
+// the next digit is typed.
+async function verifyOtpCode() {
+
+  const code = otpCode();
+  if (verifyingOtp || !/^\d{6}$/.test(code)) return;
+
+  verifyingOtp = true;
+  otpBoxes().forEach(box => { box.disabled = true; });
+  $("otpMessage").textContent = "";
+
+  try {
+
+    const { error } = await window.sb.auth.verifyOtp({ email: pendingEmail, token: code, type: "email" });
+
+    if (error) {
+      resetOtpBoxes(true);
+      return;
+    }
+
+    markActive(true);
+    await loadOverview();
+
+  } catch (error) {
+    console.error(error);
+    $("otpMessage").textContent = "Unable to connect to the server. Please try again.";
+    resetOtpBoxes();
+  } finally {
+    verifyingOtp = false;
+    otpBoxes().forEach(box => { box.disabled = false; });
+    if (!$("otpStepForm").classList.contains("hidden")) otpBoxes()[0].focus();
+  }
+
+}
+
+function wireOtpBoxes() {
+
+  const boxes = otpBoxes();
+
+  boxes.forEach((box, i) => {
+
+    box.addEventListener("input", () => {
+      const digits = box.value.replace(/\D/g, "");
+      box.value = digits.slice(-1);
+      boxes.forEach(b => b.classList.remove("is-wrong"));
+      if (box.value && i < boxes.length - 1) boxes[i + 1].focus();
+      if (otpCode().length === 6) verifyOtpCode();
+    });
+
+    box.addEventListener("keydown", (event) => {
+      if (event.key === "Backspace" && !box.value && i > 0) {
+        boxes[i - 1].value = "";
+        boxes[i - 1].focus();
+        event.preventDefault();
+      } else if (event.key === "ArrowLeft" && i > 0) {
+        boxes[i - 1].focus();
+      } else if (event.key === "ArrowRight" && i < boxes.length - 1) {
+        boxes[i + 1].focus();
+      }
+    });
+
+    box.addEventListener("focus", () => box.select());
+
+    // Pasting (or an SMS auto-fill) a whole code fills every block.
+    box.addEventListener("paste", (event) => {
+      const digits = ((event.clipboardData || window.clipboardData).getData("text") || "").replace(/\D/g, "").slice(0, 6);
+      if (!digits) return;
+      event.preventDefault();
+      boxes.forEach((b, k) => { b.value = digits[k] || ""; b.classList.remove("is-wrong"); });
+      boxes[Math.min(digits.length, 5)].focus();
+      if (digits.length === 6) verifyOtpCode();
+    });
+
+  });
+
 }
 
 function showBootstrapStep() {
@@ -376,6 +522,8 @@ function applyRoleUI() {
   $("addSubscriptionButton").classList.toggle("hidden", !perms.subscriptionsAdd);
 
   if (!visibility[STATE.tab]) STATE.tab = firstVisible || "tuitions";
+
+  if (window.setAdminHeaderInitials) window.setAdminHeaderInitials(STATE.me && STATE.me.fullName);
 
   $("adminMe").innerHTML = (STATE.me && STATE.me.fullName)
     ? `${esc(STATE.me.fullName)} <span class="admin-role-pill" data-role="${esc(STATE.me.role)}">${esc(ROLE_LABELS[STATE.me.role] || STATE.me.role)}</span>`
@@ -553,48 +701,10 @@ function wireEvents() {
 
   });
 
-  $("otpStepForm").addEventListener("submit", async (event) => {
+  wireOtpBoxes();
 
-    event.preventDefault();
-
-    const code = $("adminOtp").value.trim();
-
-    if (!/^\d{6}$/.test(code)) {
-      $("otpMessage").textContent = "Enter the 6-digit code.";
-      return;
-    }
-
-    const button = $("verifyCodeButton");
-    button.disabled = true;
-    button.textContent = "Verifying...";
-    $("otpMessage").textContent = "";
-
-    try {
-
-      const { error } = await window.sb.auth.verifyOtp({
-        email: pendingEmail,
-        token: code,
-        type: "email"
-      });
-
-      if (error) {
-        $("otpMessage").textContent = error.message || "Incorrect code.";
-        $("adminOtp").value = "";
-        $("adminOtp").focus();
-        return;
-      }
-
-      await loadOverview();
-
-    } catch (error) {
-      console.error(error);
-      $("otpMessage").textContent = "Unable to connect to the server. Please try again.";
-    } finally {
-      button.disabled = false;
-      button.textContent = "Verify & log in";
-    }
-
-  });
+  // no Verify button - the sixth digit does it; Enter just does nothing
+  $("otpStepForm").addEventListener("submit", (event) => event.preventDefault());
 
   $("otpBackButton").addEventListener("click", () => {
     clearInterval(resendTimer);
@@ -654,9 +764,7 @@ function wireEvents() {
   });
 
   $("logoutButton").addEventListener("click", async () => {
-    try { await window.sb.auth.signOut(); } catch (e) {}
-    STATE.me = null;
-    showEmailStep();
+    await forceLogout();
   });
 
   $("refreshButton").addEventListener("click", async () => {

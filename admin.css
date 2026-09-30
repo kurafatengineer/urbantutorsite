@@ -3098,3 +3098,33 @@ body[data-page="admin"] {
 /* Employees: the card border never carries the Active/Suspended colour either. */
 #employeeList .admin-card[data-tone="verified"],
 #employeeList .admin-card[data-tone="rejected"] { border-color: var(--border); }
+
+/* ---------------- login: centred email, six-block code ---------------- */
+
+.admin-login .admin-float input { text-align: center; }
+.admin-login .admin-message { text-align: center; }
+
+.otp-boxes {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 340px;
+  margin: 0 auto;
+}
+.otp-box {
+  width: 100%;
+  aspect-ratio: 1 / 1.15;
+  padding: 0;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+  caret-color: var(--lime);
+}
+.otp-box:focus { outline: none; border-color: var(--lime-line); }
+.otp-box.is-wrong,
+.otp-box.is-wrong:focus { border-color: var(--danger); }
