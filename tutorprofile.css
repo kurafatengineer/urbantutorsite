@@ -1554,3 +1554,10 @@ body .class-card.payment-card.is-collapsed .class-body > *:not(.pay-mini) {
   justify-content: space-between;
   gap: 12px;
 }
+
+/* pills carry no border */
+.pill,
+.pill.pill-l,
+.pill.pill-r {
+  border: 0 !important;
+}
