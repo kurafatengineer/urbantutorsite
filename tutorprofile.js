@@ -122,6 +122,8 @@ const ICONS = {
 
 })();
 
+let PAYMENTS = [];
+
 async function loadProfile() {
 
   if (!(await hasSession())) {
@@ -145,8 +147,8 @@ async function loadProfile() {
     }
 
     renderProfile(result.profile || {}, result.classes || [], result.subscriptions || []);
+    PAYMENTS = result.payments || [];
     initClasses(result.classes || []);
-    renderPayments(result.payments || []);
 
     showPage("profile");
 
@@ -462,7 +464,7 @@ function renderClasses(classes, filter) {
 
   filterEmpty.classList.add("hidden");
 
-  list.innerHTML = sortClasses(filtered).map(renderClassCard).join("");
+  list.innerHTML = sortClasses(filtered).map(item => renderClassCard(item) + renderPayoutsCard(item.demoId)).join("");
 
 }
 
@@ -662,73 +664,34 @@ function renderClassCard(item) {
  * recorded by the agency, never edited from here)
  ************************************************************/
 
-function renderPayments(payments) {
+// Payouts the agency has made to this tutor for one tuition: date on
+// the left, amount on the right, total at the bottom right.
+function renderPayoutsCard(demoId) {
 
-  const list = $("paymentsList");
-  const empty = $("paymentsEmpty");
+  const payouts = PAYMENTS
+    .filter(p => p.transactionType === "payout" && p.demoId === demoId)
+    .sort((a, b) => String(a.paymentDate) > String(b.paymentDate) ? 1 : -1);
 
-  if (!list) return;
+  if (!payouts.length) return "";
 
-  if (!payments.length) {
-    list.innerHTML = "";
-    empty.classList.remove("hidden");
-    return;
-  }
-
-  empty.classList.add("hidden");
-
-  list.innerHTML =
-    payments.slice().sort((a, b) => String(b.paymentDate) > String(a.paymentDate) ? 1 : -1).map(renderPaymentCard).join("");
-
-}
-
-function renderPaymentCard(p) {
-
-  const isPayout = p.transactionType === "payout";
-  const collectedByTutor = p.collectedBy === "tutor";
-  const cut = p.ourCutAmount != null && p.ourCutAmount !== "" ? Number(p.ourCutAmount) : null;
-
-  const details = [
-    [ICONS.calendar, "Date", formatDemoDateTime(p.paymentDate)],
-    [ICONS.file, "Mode", p.paymentMode]
-  ].filter(row => row[2]);
-
-  const cutNote = (!isPayout && collectedByTutor && cut != null) ? `
-    <div class="class-row-bottom class-row-message">
-      <div class="class-status-message strong"><span>You collected this - agency's cut: ₹${escapeHTML(String(cut))}</span></div>
-    </div>
-  ` : "";
-
-  const badge = isPayout ? "Paid to you by agency" : (collectedByTutor ? "Collected by you" : "Collected by agency");
-  const spineLabel = isPayout ? "Payout" : "Payment";
+  const total = payouts.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const money = n => "₹" + Number(n).toLocaleString("en-IN");
 
   return `
-    <div class="class-card">
-      <div class="class-spine ${isPayout ? "status-demo-scheduled" : "status-completed"}">
-        <span class="class-spine-id">${escapeHTML(p.demoId || "")}</span>
-        <span class="class-spine-label">${spineLabel}</span>
+    <div class="class-card payment-card">
+      <div class="class-spine status-completed">
+        <span class="class-spine-label">Payment</span>
       </div>
       <div class="class-body">
-        <div class="class-row-top">
-          <span class="status-badge subject-badge">₹${escapeHTML(String(p.amount))}</span>
-          <span class="status-badge">${escapeHTML(badge)}</span>
+        <div class="pay-lines">
+          ${payouts.map(p => `
+            <div class="pay-line">
+              <span class="pay-date">${escapeHTML(formatDemoDateTime(p.paymentDate))}</span>
+              <span class="pay-amount">${escapeHTML(money(p.amount))}</span>
+            </div>
+          `).join("")}
         </div>
-        ${details.length ? `
-          <div class="class-detail-grid">
-            ${details.map(([icon, label, value]) => `
-              <div class="class-detail" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
-                <span class="class-detail-icon">${icon}</span>
-                <span class="class-detail-value">${escapeHTML(value)}</span>
-              </div>
-            `).join("")}
-          </div>
-        ` : ""}
-        ${cutNote}
-        ${p.notes ? `
-          <div class="class-row-bottom class-row-message">
-            <div class="class-status-message"><span>${escapeHTML(p.notes)}</span></div>
-          </div>
-        ` : ""}
+        <div class="pay-total"><span>Total</span><strong>${escapeHTML(money(total))}</strong></div>
       </div>
     </div>
   `;
