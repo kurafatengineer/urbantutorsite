@@ -1280,9 +1280,14 @@ svg {
 
 
 /* Location tile: value text aligned to the right. */
+.stat[data-accent="purple"] {
+  flex-direction: row-reverse;
+}
+
 .stat[data-accent="purple"] > div:last-child {
   flex: 1;
   text-align: right;
+  padding: 14px 0 14px 18px;
 }
 
 /* Verified badge on the avatar (which clips to a circle, so the badge
