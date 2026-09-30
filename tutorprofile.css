@@ -1590,3 +1590,20 @@ body .class-card.payment-card.is-collapsed .class-body > *:not(.pay-mini) {
 [data-page="tutorprofile"] .class-card.tone-declined:not(.is-collapsed) .class-body > .class-row-top:not(.class-mini) {
   background: var(--danger-dim);
 }
+
+/* Never overlap: each pill is capped at half the row, and its text is cut
+   with "..." once the pill can't grow further. (inline-block, not flex, so
+   text-overflow actually applies.) */
+.pill {
+  display: inline-block;
+  line-height: 34px;
+  vertical-align: middle;
+}
+
+.pill.pill-l,
+.pill.pill-r {
+  max-width: calc(50% - 6px);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
