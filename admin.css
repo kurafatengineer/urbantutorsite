@@ -2552,6 +2552,27 @@ body[data-page="admin"] {
   width: 42px;
   height: 42px;
 }
+/* Same "record this payment" + as the cards, after Amount - just
+   smaller and non-interactive, so the header names the column without
+   growing past the row's own height. */
+.ledger-record-head {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  margin: 0 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+.ledger-record-head svg {
+  width: 11px;
+  height: 11px;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  fill: none;
+}
 .ledger-record svg {
   width: 20px;
   height: 20px;
@@ -2604,6 +2625,14 @@ body[data-page="admin"] {
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--muted);
+}
+/* Same neutral grey the ₹ avatar has on an actual payment card
+   (.admin-card[data-tone="neutral"] .admin-avatar) - the header isn't
+   inside that card, so it needs its own copy of the colour. */
+.list-header .admin-avatar {
+  color: var(--text);
+  background: var(--surface-3);
+  border-color: var(--border-light);
 }
 .list-header .admin-caret { visibility: hidden; }
 .list-header .ledger-cell {
