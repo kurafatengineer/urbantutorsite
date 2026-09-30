@@ -316,6 +316,35 @@ identityToggle.addEventListener("change", () => {
   if (!identityToggle.checked) expandIdentity();
 });
 
+/* ---- OPTIONAL COLLAPSIBLE SECTIONS ----
+   Post Graduation, Special Courses and Special Child Disability
+   don't apply to every tutor, so they start collapsed behind their
+   tick and only open once it's checked - unticking collapses them
+   again and clears whatever was entered, so nothing half-filled
+   gets submitted by accident. ---- */
+
+function wireCollapsibleSection(toggleId, contentId, onCollapse) {
+  const toggle = $(toggleId);
+  const content = $(contentId);
+
+  toggle.addEventListener("change", () => {
+    content.classList.toggle("hidden", !toggle.checked);
+    if (!toggle.checked && onCollapse) onCollapse();
+  });
+}
+
+wireCollapsibleSection("pgToggle", "eduPg", () => {
+  ["pgSubject", "pgCollege", "pgYear", "pgPercentage"].forEach(id => { $(id).value = ""; setError(id + "Error", ""); });
+});
+
+wireCollapsibleSection("specialToggle", "eduSpecial", () => {
+  document.querySelectorAll("#specialCourses input:checked").forEach(c => c.checked = false);
+});
+
+wireCollapsibleSection("disabilityToggle", "eduDisability", () => {
+  document.querySelectorAll("#disability input:checked").forEach(c => c.checked = false);
+});
+
 /* ---- digits-only fields ---- */
 
 ["whatsapp", "pinCode", "twelfthYear", "graduationYear", "pgYear"].forEach(id =>
