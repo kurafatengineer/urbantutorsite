@@ -3926,8 +3926,9 @@ const SUBSCRIPTION_STATUS_TONES = { active: "running", paused: "schedule", cance
 // columns - text too long for its column is cut with "...", the full
 // value always sitting in the tooltip. Shared by the Subscription,
 // Payment, Student and Tutor cards.
-function equalRow(cells) {
-  return `<div class="eq-grid" style="grid-template-columns: repeat(${cells.length}, minmax(0, 1fr))">${cells.map(c => {
+function equalRow(cells, widths) {
+  const template = widths || `repeat(${cells.length}, minmax(0, 1fr))`;
+  return `<div class="eq-grid" style="grid-template-columns: ${template}">${cells.map(c => {
     const text = (c === undefined || c === null || c === "") ? "-" : String(c);
     return `<span class="ledger-cell" title="${esc(text)}">${esc(text)}</span>`;
   }).join("")}</div>`;
@@ -4251,25 +4252,18 @@ function tuitionStack(g) {
            : `<button class="admin-ghost admin-danger" data-action="terminate" type="button">Terminate Tuition</button>`}
        </div>`;
 
-  // Top layer: Demo ID, Subject, Class, tutor Gender/Medium preferences
-  // (left) with the applied count pushed to the right. Bottom layer:
-  // the student's own contact details, plain text, left-aligned.
-  const topLine = infoLine(
-    [g.demoId, f.subject, sv("Class"), genderText(f.preferredTutor), mediumText(f.medium)],
-    "·"
-  );
-  const bottomText = [studentName, sv("WhatsApp") || sv("Phone"), sv("Gender"), fullAddress(sv("Address"), sv("City"), sv("PIN Code"))]
-    .filter(Boolean).map(esc).join(" · ");
-
+  // Top layer (coloured by status): Demo ID | Subject | Class | Gender of
+  // Tutor | Mode | Tutor Applied. Bottom layer (grey): the student's Name |
+  // Gender | Mobile | WhatsApp | Address | Pin Code. One column each, equal
+  // width; anything too long for its column is cut with "...".
   const titleHtml = `
     <div class="admin-hl">
-      <div class="admin-hl-top admin-hl-top-split" data-tone="${esc(railTone)}">
-        ${topLine}
-        <span class="admin-hl-top-right">
-          <span class="admin-hl-small-applied">${esc(appliedLabel)}</span>
-        </span>
+      <div class="admin-hl-top" data-tone="${esc(railTone)}">
+        ${equalRow([g.demoId, f.subject, sv("Class"), genderText(f.preferredTutor), mediumText(f.medium), appliedLabel])}
       </div>
-      ${bottomText ? `<p class="admin-hl-small">${bottomText}</p>` : ""}
+      <div class="admin-hl-small">
+        ${equalRow([studentName, sv("Gender"), sv("Phone"), sv("WhatsApp"), fullAddress(sv("Address"), sv("City"), ""), sv("PIN Code")])}
+      </div>
     </div>`;
 
   const head = `
@@ -4600,15 +4594,14 @@ function tutorRowCard(row, terminated) {
       <div class="admin-card-head" data-toggle="${esc(key)}">
         ${profileAvatar("tutors", tutor ? tutor.id : "", initials(name, "T"), subscriptionPayBadge("tutor", tutor ? tutor.id : ""))}
         <div class="admin-card-title">
-          ${highlight(
-            [name, tv("WhatsApp Number"), tv("Mobile Number"), tutor ? tutor.id : row.mobile, tv("Subject You Teach")],
-            [
-              [tv("Graduation - Course"), tv("Graduation - Subject")].filter(Boolean).join(" - "),
-              fullAddress(tv("Present Address"), tv("City"), tv("Pin Code"))
-            ].filter(Boolean).join(" | "),
-            "|",
-            state
-          )}
+          <div class="admin-hl">
+            <div class="admin-hl-top" data-tone="${esc(state)}">
+              ${equalRow([name, tv("Gender"), tutor ? tutor.id : "", tv("Mobile Number") || row.mobile, tv("WhatsApp Number"), tv("Subject You Teach")])}
+            </div>
+            <div class="admin-hl-small">
+              ${equalRow([tv("Graduation - Course"), tv("Graduation - Subject"), fullAddress(tv("Present Address"), tv("City"), ""), tv("Pin Code")], "1fr 1fr 3fr 1fr")}
+            </div>
+          </div>
         </div>
         <span class="admin-caret" aria-hidden="true"></span>
         <button type="button" class="admin-status-rail" data-tone="${state}"${canQuickOpen ? ` data-action="quick-open"` : ` tabindex="-1"`}>${esc(ROW_LABELS[state])}</button>
