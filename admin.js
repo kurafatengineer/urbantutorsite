@@ -239,9 +239,7 @@ const STATE = {
   tuitionFilter: "all",
   ledgerFilter: "all",
   graphFilter: "all",   // which purpose the graph is scoped to
-  graphPeriod: "365",   // days of history the chart covers ("0" = all time, "custom" = the range fields)
-  graphRangeFrom: "",
-  graphRangeTo: "",
+  graphPeriod: "365",   // days of history the chart covers ("0" = all time)
   open: new Set(),      // keys of expanded cards
   editing: new Set(),   // keys of records in edit mode
   studentOpen: new Set(), // keys of tuition cards whose nested Student section is expanded
@@ -676,13 +674,7 @@ function wireEvents() {
   chipGroup("tuitionFilter", v => { collapseAll(); STATE.tuitionFilter = v; renderTuitions(); });
   chipGroup("ledgerFilter", v => { STATE.ledgerFilter = v; renderLedger(); });
   chipGroup("graphFilter", v => { STATE.graphFilter = v; renderGraph(); });
-  chipGroup("graphPeriod", v => {
-    STATE.graphPeriod = v;
-    $("graphRangeRow").classList.toggle("hidden", v !== "custom");
-    renderGraph();
-  });
-  $("graphRangeFrom").addEventListener("change", () => { STATE.graphRangeFrom = $("graphRangeFrom").value; renderGraph(); });
-  $("graphRangeTo").addEventListener("change", () => { STATE.graphRangeTo = $("graphRangeTo").value; renderGraph(); });
+  chipGroup("graphPeriod", v => { STATE.graphPeriod = v; renderGraph(); });
 
   // The 8 count tiles work as shortcuts to their filter.
   $("adminStats").addEventListener("click", (event) => {
@@ -2692,16 +2684,18 @@ function subscriptionPayBadge(partyType, partyId) {
 
 }
 
-// Pending: Accept | Reject. Verified: Accept (already chosen, disabled) |
-// Suspend (same effect as Reject - sets Verification Status back to
-// Rejected). Rejected: Accept | Reject (already chosen, disabled) - so
-// there's always exactly one live action to move a tutor the other way.
+// Only ever two buttons, Accept and Reject - their label just says
+// which side is already chosen. Pending: Accept | Reject, both live.
+// Accepted: Verified (disabled) | Suspend (live - same effect as
+// Reject, sets Verification Status back to Rejected). Rejected:
+// Accept (live) | Rejected (disabled) - so there's always exactly one
+// live action to move a tutor the other way.
 function verifyButtonsHtml(status) {
   const group = statusGroup(status);
   const approveChosen = group === "verified";
   const rejectChosen = group === "rejected";
-  const rejectLabel = group === "verified" ? "Suspend" : "Reject";
-  const approveLabel = approveChosen ? "Accepted" : "Accept";
+  const rejectLabel = approveChosen ? "Suspend" : rejectChosen ? "Rejected" : "Reject";
+  const approveLabel = approveChosen ? "Verified" : "Accept";
   return `
     <div class="admin-vbtns">
       <button class="admin-vbtn v-reject" type="button" data-action="verify" data-value="Rejected"${rejectChosen ? " disabled" : ""}>${rejectLabel}</button>
@@ -3578,20 +3572,12 @@ function renderGraph() {
   if (!$("graphChart")) return;
 
   const purposeFilter = STATE.graphFilter;
-  const period = STATE.graphPeriod;
-  let cutoff = "", rangeEnd = "";
-  if (period === "custom") {
-    cutoff = STATE.graphRangeFrom || "";
-    rangeEnd = STATE.graphRangeTo || "";
-  } else {
-    const days = Number(period) || 0; // 0 = all time
-    cutoff = days ? new Date(Date.now() - days * 86400000).toISOString().slice(0, 10) : "";
-  }
+  const days = Number(STATE.graphPeriod) || 0; // 0 = all time
+  const cutoff = days ? new Date(Date.now() - days * 86400000).toISOString().slice(0, 10) : "";
 
   const all = ledgerEntries().filter(e => purposeFilter === "all" || e.purpose === purposeFilter);
   const isOut = e => e.purpose === "Payments Out";
-  const paid = all.filter(e => e.status === "paid" &&
-    (!cutoff || !e.date || e.date >= cutoff) && (!rangeEnd || !e.date || e.date <= rangeEnd));
+  const paid = all.filter(e => e.status === "paid" && (!cutoff || !e.date || e.date >= cutoff));
   const due = all.filter(e => e.status !== "paid");
 
   const totalIn = paid.filter(e => !isOut(e)).reduce((s, e) => s + e.amount, 0);
@@ -3723,7 +3709,7 @@ function listHeaderCard(innerHtml) {
 
 function studentHeaderCard() {
   return listHeaderCard(`
-    <span class="list-header-spacer"></span>
+    <span class="list-header-spacer list-header-avatar-label">Profile</span>
     ${equalRow(["Name", "Gender", "Class", "Board", "Mobile", "WhatsApp", "Student ID", "Address", "Pin Code"])}
     <span class="admin-caret" aria-hidden="true"></span>
   `);
@@ -3731,8 +3717,8 @@ function studentHeaderCard() {
 
 function paymentHeaderCard() {
   return listHeaderCard(`
-    <span class="list-header-spacer"></span>
-    ${equalRow(["Date", "Name", "Mobile", "WhatsApp", "Student ID", "Demo ID", "Tutor ID", "Amount", "Dues"])}
+    <div class="admin-avatar">₹</div>
+    ${equalRow(["Date", "Name", "Mobile", "WhatsApp", "Student ID", "Demo ID", "Tutor ID", "Amount Paid", "Dues"])}
     <span class="admin-caret" aria-hidden="true"></span>
     <span class="admin-status-rail admin-rail-purpose" data-tone="black">Type</span>
     <span class="admin-status-rail admin-rail-party" data-tone="black">Who</span>
@@ -3750,7 +3736,7 @@ function subscriptionHeaderCard() {
 
 function tutorHeaderCard() {
   return listHeaderCard(`
-    <span class="list-header-spacer"></span>
+    <span class="list-header-spacer list-header-avatar-label">Profile</span>
     ${equalRow(["Name", "Gender", "Mobile", "WhatsApp", "Tutor ID", "Subjects", "Address", "Pin Code"])}
     <span class="admin-caret" aria-hidden="true"></span>
     <span class="admin-status-rail admin-rail-sub" data-tone="black">Status</span>
@@ -3851,11 +3837,14 @@ function renderEmployees() {
 
 // Active | Suspend - same vertical button strip and light-tint /
 // disabled-when-current-state look as the tutor Accept/Suspend pair.
-function employeeStatusButtonsHtml(active) {
+// Always both buttons, on every employee's card - including your own,
+// where both are simply disabled rather than hidden, so the row shape
+// never changes from one card to the next.
+function employeeStatusButtonsHtml(active, isMe) {
   return `
     <div class="admin-vbtns">
-      <button class="admin-vbtn v-reject" type="button" data-action="employee-status" data-value="false"${!active ? " disabled" : ""}>Suspend</button>
-      <button class="admin-vbtn v-approve" type="button" data-action="employee-status" data-value="true"${active ? " disabled" : ""}>Active</button>
+      <button class="admin-vbtn v-reject" type="button" data-action="employee-status" data-value="false"${(!active || isMe) ? " disabled" : ""}>Suspend</button>
+      <button class="admin-vbtn v-approve" type="button" data-action="employee-status" data-value="true"${(active || isMe) ? " disabled" : ""}>Active</button>
     </div>
   `;
 }
@@ -3898,7 +3887,7 @@ function employeeCard(e) {
           <span class="ledger-cell">${e.active ? "Active" : "Inactive"}</span>
         </div>
         <span class="admin-caret" aria-hidden="true"></span>
-        ${!isMe ? employeeStatusButtonsHtml(!!e.active) : ""}
+        ${employeeStatusButtonsHtml(!!e.active, isMe)}
       </div>
 
       <div class="admin-card-body">
