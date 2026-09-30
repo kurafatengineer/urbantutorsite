@@ -162,9 +162,18 @@ const PERMISSION_GROUPS = [
   { id: "employees", label: "Employees", items: [
     { key: "employees_manage", label: "Manage employees & permissions" },
   ] },
+  // A restriction, not a grant: when ticked, every mobile / WhatsApp number
+  // is masked in what this employee's panel receives (see maskContacts).
+  { id: "privacy", label: "Privacy", items: [
+    { key: "hide_contacts", label: "Hide mobile & WhatsApp numbers everywhere" },
+  ] },
 ];
 
 const ALL_PERMISSIONS: string[] = PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => i.key));
+
+// Restrictions never come with a role or with Super Admin.
+const RESTRICTION_PERMISSIONS = ["hide_contacts"];
+const ALL_GRANTS: string[] = ALL_PERMISSIONS.filter((p) => !RESTRICTION_PERMISSIONS.includes(p));
 
 // A permission that only makes sense with another one: ticking the child
 // ticks the parent, and (server side, too) saving a child without its
@@ -178,7 +187,7 @@ const PERMISSION_PARENT: Record<string, string> = {
 };
 
 const ROLE_PRESETS: Record<Role, string[]> = {
-  super_admin: ALL_PERMISSIONS,
+  super_admin: ALL_GRANTS,
   tuition_coordinator: [
     "tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_close",
     "tutors_view", "tutors_edit", "students_view", "students_edit",
@@ -198,7 +207,7 @@ function normalizePermissions(list: unknown): string[] {
 }
 
 function effectivePermissions(role: Role, stored: unknown): string[] {
-  if (role === "super_admin") return ALL_PERMISSIONS;
+  if (role === "super_admin") return ALL_GRANTS;
   return Array.isArray(stored) ? normalizePermissions(stored) : ROLE_PRESETS[role] ?? [];
 }
 
@@ -267,6 +276,10 @@ function forbidden(): Json {
 function checkUpdateRecordScope(caller: Caller, kind: string, changes: Json): string | null {
 
   const keys = Object.keys(changes ?? {});
+
+  if (hidesContacts(caller) && keys.some((k) => CONTACT_FIELDS.includes(k))) {
+    return "Contact numbers are hidden for your account, so they can't be edited.";
+  }
 
   if (kind === "tutors") {
     if (keys.includes("Verification Status") && !caller.permissions.has("tutors_verify")) {
@@ -567,6 +580,65 @@ async function listEmployees(): Promise<Json[]> {
   return (data ?? []).map((e: Json) => ({ ...e, permissions: effectivePermissions(e.role as Role, e.permissions) }));
 }
 
+/* ------------------------------------------------------------------
+   HIDE CONTACT NUMBERS
+   An employee with the "hide_contacts" permission never receives a real
+   mobile / WhatsApp number: every such field is masked here, on the
+   server, so nothing is left in the browser to be read. The internal
+   join key (mobileKey) becomes an opaque, keyed hash so cards that link a
+   demo to its tutor still line up, without exposing the number.
+------------------------------------------------------------------ */
+
+const CONTACT_KEY = /mobile|phone|whatsapp/i;
+const CONTACT_FIELDS = ["Phone", "WhatsApp", "Mobile Number", "WhatsApp Number"];
+
+function hidesContacts(caller: Caller): boolean {
+  return caller.role !== "super_admin" && caller.permissions.has("hide_contacts");
+}
+
+function maskNumber(value: unknown): string {
+  const d = String(value ?? "").replace(/\D/g, "");
+  if (!d) return "";
+  return d.length <= 2 ? "*".repeat(d.length) : "*".repeat(d.length - 2) + d.slice(-2);
+}
+
+let hmacKey: CryptoKey | null = null;
+async function opaqueKey(value: unknown): Promise<string> {
+  const d = String(value ?? "").replace(/\D/g, "").slice(-10);
+  if (!d) return "";
+  if (!hmacKey) {
+    hmacKey = await crypto.subtle.importKey(
+      "raw", new TextEncoder().encode(SERVICE_KEY || "contacts"),
+      { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+    );
+  }
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", hmacKey, new TextEncoder().encode(d)));
+  return "k" + [...sig].slice(0, 6).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function maskContacts(node: unknown): Promise<unknown> {
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) node[i] = await maskContacts(node[i]);
+    return node;
+  }
+  if (node && typeof node === "object") {
+    const obj = node as Json;
+    // a tutor row: its real number gives the same opaque key its demos carry
+    const tutorRowKey = obj.values && typeof obj.values === "object" && (obj.values as Json)["Mobile Number"] !== undefined
+      ? await opaqueKey((obj.values as Json)["Mobile Number"])
+      : null;
+    for (const k of Object.keys(obj)) {
+      const v = obj[k];
+      if (k === "mobileKey") obj[k] = await opaqueKey(v);
+      else if (CONTACT_KEY.test(k) && (typeof v === "string" || typeof v === "number")) obj[k] = maskNumber(v);
+      else if (v && typeof v === "object") obj[k] = await maskContacts(v);
+    }
+    if (tutorRowKey !== null) obj.mobileKey = tutorRowKey;
+    return obj;
+  }
+  return node;
+}
+
 async function handleGetOverview(caller: Caller): Promise<Json> {
 
   const overview = await rpc("admin_get_overview");
@@ -606,6 +678,15 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
   if (caller.permissions.has("employees_manage")) {
     withLinks.employees = await listEmployees();
     withLinks.permissionInfo = { groups: PERMISSION_GROUPS, presets: ROLE_PRESETS, parents: PERMISSION_PARENT };
+  }
+
+  if (hidesContacts(caller)) {
+    await maskContacts(withLinks);
+    // masked numbers can't be edited: lock those fields in the record forms
+    for (const table of [withLinks.tutors, withLinks.students]) {
+      if (table) table.readOnly = [...new Set([...(table.readOnly ?? []), ...CONTACT_FIELDS])];
+    }
+    withLinks.me.hideContacts = true;
   }
 
   return withLinks;

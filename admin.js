@@ -179,6 +179,12 @@ const isAny = v => lower(v) === "any";
 const mediumText = v => isAny(v) ? "Online | Home" : String(v || "").replace(/^offline$/i, "Home");
 const genderText = v => isAny(v) ? "Male | Female" : (v || "");
 
+// A tutor row's join key: the server sends an opaque one when contact
+// numbers are hidden for this employee, otherwise it's the number itself.
+function tutorKey(row) {
+  return (row && row.mobileKey) || mobileKey(row && row.values && row.values["Mobile Number"]);
+}
+
 function mobileKey(value) {
   const d = String(value == null ? "" : value).replace(/\D/g, "");
   return d.length > 10 ? d.slice(-10) : d;
@@ -265,7 +271,7 @@ function indexData() {
   STUDENT_BY_ID = {};
 
   STATE.data.tutors.rows.forEach(r => {
-    const key = mobileKey(r.values["Mobile Number"]);
+    const key = tutorKey(r);
     if (key) TUTOR_BY_MOBILE[key] = r;
     TUTOR_BY_ID[r.id] = r;
   });
@@ -4227,7 +4233,7 @@ function tuitionStack(g) {
     <div class="admin-assign">
       <label class="admin-float">
         <input data-assign type="text" placeholder=" " autocomplete="off">
-        <span>Enter Tutor ID or Mobile Number to assign a tutor</span>
+        <span>${STATE.me && STATE.me.hideContacts ? "Enter Tutor ID to assign a tutor" : "Enter Tutor ID or Mobile Number to assign a tutor"}</span>
       </label>
       <div class="admin-suggest hidden" data-suggest></div>
       <button class="admin-primary admin-wide" data-action="assign" type="button" disabled>Assign Tutor</button>
@@ -4659,7 +4665,7 @@ function exactTutor(text) {
   if (!t) return null;
 
   return STATE.data.tutors.rows.find(r =>
-    lower(r.id) === t || (key.length === 10 && mobileKey(r.values["Mobile Number"]) === key)
+    lower(r.id) === t || (key.length === 10 && tutorKey(r) === key)
   ) || null;
 
 }
@@ -4684,7 +4690,7 @@ function onAssignInput(event) {
   const digits = text.replace(/\D/g, "");
 
   const found = exactTutor(text);
-  const ok = !!found && !onThis.has(mobileKey(found.values["Mobile Number"])) &&
+  const ok = !!found && !onThis.has(tutorKey(found)) &&
     lower(found.values["Verification Status"]) === "verified";
 
   button.disabled = !ok;
@@ -4703,7 +4709,7 @@ function onAssignInput(event) {
   ).slice(0, 6);
 
   list.innerHTML = hits.length ? hits.map(r => {
-    const already = onThis.has(mobileKey(r.values["Mobile Number"]));
+    const already = onThis.has(tutorKey(r));
     const verified = lower(r.values["Verification Status"]) === "verified";
     const why = already ? "Already on this tuition" : (verified ? "" : (r.values["Verification Status"] || "Not verified"));
     return `
