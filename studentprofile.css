@@ -351,6 +351,14 @@ body.add-modal-open {
   letter-spacing: 0.01em;
 }
 
+/* .profile-avatar itself clips to a circle (overflow: hidden, for a
+   future profile photo) which would also clip the badge poking out of
+   its corner - so the badge sits on this page's own copy that doesn't
+   clip. */
+#profileAvatarWrap {
+  overflow: visible;
+}
+
 /* Verified badge overlaid on the big profile avatar - same seal
    shape/colours as the Admin Panel's, coloured by subscription status. */
 .profile-sub-badge {

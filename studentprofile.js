@@ -501,20 +501,23 @@ function subscriptionForStudent_(student) {
   return subs.find(s => s.status === "active") || subs[0];
 }
 
-// Badge colour by subscription status: green while active, orange
-// while paused, red once cancelled/completed. No subscription at
-// all -> no badge.
+// Badge colour by how much of the subscription has been paid - same
+// rule as the Admin Panel's avatar badge: green once fully paid (or
+// exempted, i.e. nothing due), orange once partially paid, red while
+// nothing has been paid. No subscription at all -> no badge.
 function subscriptionTone_(student) {
   const sub = subscriptionForStudent_(student);
   if (!sub) return "";
-  return sub.status === "active" ? "paid" : sub.status === "paused" ? "partial" : "unpaid";
+  const due = Number(sub.amount || 0);
+  const paid = Number(sub.paidAmount || 0);
+  return due <= 0 || paid >= due ? "paid" : paid > 0 ? "partial" : "unpaid";
 }
 
 // Same "verified seal" shape used on the Admin Panel's avatars,
 // coloured by subscriptionTone_.
 function verifiedBadge_(tone) {
   if (!tone) return "";
-  const title = tone === "paid" ? "Subscription active" : tone === "partial" ? "Subscription paused" : "Subscription inactive";
+  const title = tone === "paid" ? "Subscription fully paid" : tone === "partial" ? "Subscription partially paid" : "Subscription not paid";
   return `
     <span class="profile-sub-badge" data-tone="${tone}" title="${escapeHTML(title)}">
       <svg viewBox="0 0 24 24" aria-hidden="true">

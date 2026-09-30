@@ -544,8 +544,9 @@ function isAdminPage_() {
 }
 
 // Student/Tutor profile pages call this with "paid" | "partial" | "unpaid" |
-// "" once they know the signed-in student/tutor's subscription status, so
-// the header avatar shows the same verified badge as the profile page's.
+// "" once they know how much of the signed-in student/tutor's subscription
+// has been paid, so the header avatar shows the same verified badge as
+// the profile page's.
 let headerBadgeTone_ = "";
 
 window.setHeaderAvatarBadge = function (tone) {
@@ -561,7 +562,7 @@ function setHeaderBadge_(button, tone) {
 
   if (!tone) return;
 
-  const title = tone === "paid" ? "Subscription active" : tone === "partial" ? "Subscription paused" : "Subscription inactive";
+  const title = tone === "paid" ? "Subscription fully paid" : tone === "partial" ? "Subscription partially paid" : "Subscription not paid";
 
   button.insertAdjacentHTML("beforeend", `
     <span class="header-sub-badge" data-tone="${tone}" title="${title}">
