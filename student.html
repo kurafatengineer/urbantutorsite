@@ -24,6 +24,7 @@
   <link rel="stylesheet" href="css/header.css?v=20260930a">
   <link rel="stylesheet" href="css/footer.css?v=20260928b">
   <link rel="stylesheet" href="student.css?v=20260928b">
+  <link rel="stylesheet" href="css/otpboxes.css?v=20260930a">
 </head>
 
 <body data-page="student">
@@ -929,88 +930,41 @@
 
     <div class="form-card otp-card">
 
-      <button
-        id="otpBackButton"
-        class="back-link"
-        type="button">
-        ← Change Email
-      </button>
-
       <!-- kept for the script, never shown -->
-      <div class="otp-hidden" aria-hidden="true">
-        <div id="otpEyebrow"></div>
-        <h2 id="otpTitle"></h2>
-      </div>
+      <div class="otp-hidden" aria-hidden="true"><div id="otpEyebrow"></div><h2 id="otpTitle"></h2></div>
 
-      <p class="otp-sent">We have sent a 6-digit verification code to</p>
+      <p class="otp-sent">Code sent to <strong id="emailDisplay" class="otp-email"></strong>.</p>
 
-      <strong id="emailDisplay" class="otp-email"></strong>
-
-      <form
-        id="otpForm"
-        novalidate>
+      <form id="otpForm" novalidate>
 
         <div class="field">
-
-          <input
-            id="otp"
-            class="otp-input"
-            type="text"
-            inputmode="numeric"
-            autocomplete="one-time-code"
-            maxlength="6"
-            placeholder="Enter OTP"
-            required
-          >
-
-          <small
-            id="otpError"
-            class="field-error center">
-          </small>
-
+          <!-- the real field the script reads; the six boxes below drive it -->
+          <input id="otp" class="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Enter OTP" aria-label="OTP" tabindex="-1" required>
+          <div id="otpBoxes" class="otp-boxes" role="group" aria-label="6-digit code">
+            <input class="otp-box" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="1" aria-label="Digit 1">
+            <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 2">
+            <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 3">
+            <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 4">
+            <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 5">
+            <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 6">
+          </div>
+          <small id="otpError" class="field-error center"></small>
         </div>
 
         <div class="submit-area" id="otpSubmitArea" style="display:none;">
-
-          <button
-            id="verifyOtpButton"
-            class="submit"
-            type="submit">
-
-            <span id="verifyOtpText">
-              Verify OTP
-            </span>
-
-            <span
-              id="verifyOtpLoader"
-              class="loader hidden">
-            </span>
-
+          <button id="verifyOtpButton" class="submit" type="submit">
+            <span id="verifyOtpText">Verify OTP</span>
+            <span id="verifyOtpLoader" class="loader hidden"></span>
           </button>
-
         </div>
 
       </form>
 
-      <div class="resend-area">
+      <div id="otpMessage" class="message"></div>
 
-        <button
-          id="resendButton"
-          class="resend-button"
-          type="button"
-          disabled>
-          Resend OTP
-        </button>
-
-        <span>
-          Didn't receive the code?
-        </span>
-
-      </div>
-
-      <div
-        id="otpMessage"
-        class="message">
+      <div class="otp-pair">
+        <button id="otpBackButton" class="otp-pair-btn" type="button">Change email</button>
+        <button id="resendButton" class="otp-pair-btn" type="button" disabled>Resend code</button>
       </div>
 
     </div>
@@ -1166,7 +1120,8 @@
 
 <script src="js/header.js?v=20260930a"></script>
 <script src="js/footer.js?v=20260928b"></script>
-<script src="student.js?v=20260930b" defer></script>
+<script src="js/otp-boxes.js?v=20260930a" defer></script>
+<script src="student.js?v=20260930c" defer></script>
 
 </body>
 </html>

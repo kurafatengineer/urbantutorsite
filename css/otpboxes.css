@@ -1,0 +1,106 @@
+/* Student / Tutor OTP page - same look as the Admin login code step:
+   Code sent to ... / six boxes / Change email | Resend code. */
+
+#otpPage .otp-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  max-width: 400px;
+}
+
+#otpPage .otp-sent {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+#otpPage .otp-email {
+  display: inline;
+  margin: 0;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* the real field stays in the page for the script, but is not seen */
+#otpPage .otp-input {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#otpPage .field.is-busy::after { display: none; }
+#otpPage .field.is-busy .otp-boxes { opacity: 0.6; }
+
+.otp-boxes {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+.otp-box {
+  width: 100%;
+  aspect-ratio: 1 / 1.15;
+  padding: 0;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+  caret-color: var(--lime);
+}
+
+.otp-box:focus { outline: none; border-color: rgba(22, 163, 74, 0.35); }
+
+#otpPage .field.has-error .otp-box,
+.otp-box.is-wrong,
+.otp-box.is-wrong:focus { border-color: rgba(255, 104, 104, 0.65); }
+
+#otpPage .resend-area { display: none; }
+
+/* Change email | Resend code - joined in the middle, rounded outside */
+.otp-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin-top: 4px;
+}
+
+.otp-pair-btn {
+  width: 100%;
+  padding: 13px 10px;
+  border: 1px solid var(--border-light, #2a2a2a);
+  background: var(--surface-2);
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: default;
+  opacity: 0.6;
+}
+
+.otp-pair-btn:first-child { border-radius: 999px 0 0 999px; }
+.otp-pair-btn:last-child  { border-radius: 0 999px 999px 0; border-left: 0; }
+
+/* both active: dark green */
+.otp-pair-btn:not(:disabled) {
+  background: #14532d;
+  border-color: #166534;
+  color: #dcfce7;
+  cursor: pointer;
+  opacity: 1;
+}
+
+.otp-pair-btn:not(:disabled):hover { background: #166534; }
