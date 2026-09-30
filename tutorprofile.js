@@ -139,9 +139,9 @@ async function loadProfile() {
       return;
     }
 
-    renderProfile(result.profile || {}, result.classes || []);
+    renderProfile(result.profile || {}, result.classes || [], result.subscriptions || []);
     initClasses(result.classes || []);
-    renderPayments(result.payments || [], result.subscriptions || []);
+    renderPayments(result.payments || []);
 
     showPage("profile");
 
@@ -162,7 +162,7 @@ function showError(message) {
  * RENDER PROFILE HEADER
  ************************************************************/
 
-function renderProfile(profile, classes) {
+function renderProfile(profile, classes, subscriptions) {
 
   const fullName = profile.fullName || "Tutor";
 
@@ -210,12 +210,45 @@ function renderProfile(profile, classes) {
   }).length;
 
   $("profileStats").innerHTML = [
-    stat(profile.experience ? `${profile.experience} ${Number(profile.experience) === 1 ? "Year" : "Years"}` : "—", "Experience", "green"),
-    stat(profile.subjectsTeach || "—", "Teaches", "blue"),
     stat(String(activeClassCount || "—"), "Classes", "gold"),
     stat(profile.location || profile.city || "—", "Location", "purple")
   ].join("");
 
+  // Verified badge on both the profile avatar and the header avatar,
+  // coloured by how much of the subscription is paid.
+  const tone = subscriptionTone_(subscriptions);
+  setProfileAvatarBadge_(tone);
+  if (window.setHeaderAvatarBadge) window.setHeaderAvatarBadge(tone);
+
+}
+
+// Green once fully paid (or nothing due), orange once partly paid,
+// red while nothing is paid; no subscription at all -> no badge.
+function subscriptionTone_(subscriptions) {
+  const list = subscriptions || [];
+  if (!list.length) return "";
+  const sub = list.find(s => s.status === "active") || list[0];
+  const due = Number(sub.amount || 0);
+  const paid = Number(sub.paidAmount || 0);
+  return due <= 0 || paid >= due ? "paid" : paid > 0 ? "partial" : "unpaid";
+}
+
+function verifiedBadge_(tone) {
+  if (!tone) return "";
+  const title = tone === "paid" ? "Subscription fully paid" : tone === "partial" ? "Subscription partially paid" : "Subscription not paid";
+  return `
+    <span class="profile-sub-badge" data-tone="${tone}" title="${escapeHTML(title)}">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.66-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91c-1.31.67-2.2 1.91-2.2 3.34s.89 2.67 2.2 3.34c-.46 1.39-.21 2.9.8 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.68-.88 3.34-2.19c1.39.45 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34zm-11.71 4.2L6.8 12.46l1.41-1.42 2.26 2.26 4.8-5.23 1.47 1.36-6.2 6.77z"/>
+      </svg>
+    </span>`;
+}
+
+function setProfileAvatarBadge_(tone) {
+  const wrap = $("profileAvatarWrap");
+  const existing = wrap.querySelector(".profile-sub-badge");
+  if (existing) existing.remove();
+  if (tone) wrap.insertAdjacentHTML("beforeend", verifiedBadge_(tone));
 }
 
 function statusChipClass(status) {
@@ -612,18 +645,14 @@ function renderClassCard(item) {
  * recorded by the agency, never edited from here)
  ************************************************************/
 
-const SUB_STATUS_LABEL = { active: "Active", paused: "Paused", cancelled: "Cancelled", completed: "Completed" };
-// Reuses the tuition status colours - there is no separate subscription palette.
-const SUB_STATUS_CLASS = { active: "status-running", paused: "status-demo-scheduled", cancelled: "status-declined", completed: "status-completed" };
-
-function renderPayments(payments, subscriptions) {
+function renderPayments(payments) {
 
   const list = $("paymentsList");
   const empty = $("paymentsEmpty");
 
   if (!list) return;
 
-  if (!payments.length && !subscriptions.length) {
+  if (!payments.length) {
     list.innerHTML = "";
     empty.classList.remove("hidden");
     return;
@@ -632,45 +661,7 @@ function renderPayments(payments, subscriptions) {
   empty.classList.add("hidden");
 
   list.innerHTML =
-    subscriptions.map(renderSubscriptionCard).join("") +
     payments.slice().sort((a, b) => String(b.paymentDate) > String(a.paymentDate) ? 1 : -1).map(renderPaymentCard).join("");
-
-}
-
-function renderSubscriptionCard(sub) {
-
-  const statusClass = SUB_STATUS_CLASS[sub.status] || "status-applied";
-
-  const details = [
-    [ICONS.file, "Billing Cycle", sub.billingCycle],
-    [ICONS.calendar, "Started", formatDemoDateTime(sub.startDate)],
-    [ICONS.clock, "Next Due", sub.nextDueDate ? formatDemoDateTime(sub.nextDueDate) : ""]
-  ].filter(row => row[2]);
-
-  return `
-    <div class="class-card">
-      <div class="class-spine ${statusClass}">
-        <span class="class-spine-id">${escapeHTML(sub.planName || "Subscription")}</span>
-        <span class="class-spine-label">Subscription</span>
-      </div>
-      <div class="class-body">
-        <div class="class-row-top">
-          <span class="status-badge subject-badge">₹${escapeHTML(String(sub.amount))}</span>
-          <span class="status-badge ${statusClass}">${escapeHTML(SUB_STATUS_LABEL[sub.status] || sub.status)}</span>
-        </div>
-        ${details.length ? `
-          <div class="class-detail-grid">
-            ${details.map(([icon, label, value]) => `
-              <div class="class-detail" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}: ${escapeHTML(value)}">
-                <span class="class-detail-icon">${icon}</span>
-                <span class="class-detail-value">${escapeHTML(value)}</span>
-              </div>
-            `).join("")}
-          </div>
-        ` : ""}
-      </div>
-    </div>
-  `;
 
 }
 
