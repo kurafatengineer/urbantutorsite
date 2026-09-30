@@ -3095,3 +3095,6 @@ body[data-page="admin"] {
   background: var(--surface-3);
   border-color: var(--border-light);
 }
+/* Employees: the card border never carries the Active/Suspended colour either. */
+#employeeList .admin-card[data-tone="verified"],
+#employeeList .admin-card[data-tone="rejected"] { border-color: var(--border); }
