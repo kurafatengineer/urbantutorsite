@@ -179,6 +179,54 @@ syncWhatsApp();
 $("mobile").addEventListener("input", () => {
   digitsOnly($("mobile"));
   if ($("sameWhatsapp").checked) $("whatsapp").value = val("mobile");
+  checkBasicInfoDone();
+});
+
+/* ---- Basic Information: collapse behind one line once everything
+   below (Mobile, WhatsApp, Name, DOB, Gender, Tutor type) is filled
+   in - same pill as "WhatsApp same as mobile number", but for the
+   whole section. Unticking it re-opens the fields to edit. ---- */
+
+const basicInfoToggleField = $("basicInfoToggleField");
+const basicInfoToggle = $("basicInfoToggle");
+const basicInfoFields = $("basicInfoFields");
+
+function basicInfoDone() {
+  return /^\d{10}$/.test(val("mobile"))
+    && /^\d{10}$/.test(val("whatsapp"))
+    && cleanText($("fullName").value).length >= 2
+    && !!val("birthDate") && new Date(val("birthDate")) <= new Date()
+    && !!checked("gender")
+    && !!checked("registerAs");
+}
+
+function collapseBasicInfo() {
+  basicInfoToggle.checked = true;
+  basicInfoToggleField.classList.remove("hidden");
+  basicInfoFields.classList.add("hidden");
+}
+
+function expandBasicInfo() {
+  basicInfoToggle.checked = false;
+  basicInfoToggleField.classList.add("hidden");
+  basicInfoFields.classList.remove("hidden");
+}
+
+function checkBasicInfoDone() {
+  if (basicInfoFields.classList.contains("hidden")) return;
+  if (basicInfoDone()) collapseBasicInfo();
+}
+
+["whatsapp", "fullName", "birthDate"].forEach(id =>
+  $(id).addEventListener("change", checkBasicInfoDone)
+);
+document.querySelectorAll('input[name="gender"], input[name="registerAs"]').forEach(r =>
+  r.addEventListener("change", checkBasicInfoDone)
+);
+$("sameWhatsapp").addEventListener("change", checkBasicInfoDone);
+
+basicInfoToggle.addEventListener("change", () => {
+  if (!basicInfoToggle.checked) expandBasicInfo();
 });
 
 /* ---- digits-only fields ---- */
