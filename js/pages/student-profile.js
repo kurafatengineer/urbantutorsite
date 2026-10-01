@@ -15,7 +15,7 @@
  *   registers another child on the same account.
  *
  * Guards itself: no valid session -> error page with a link
- * back to student-registration.html. The session is the one student-registration.js
+ * back to studentregistration.html. The session is the one studentregistration.js
  * saves after a successful OTP ("urbantutorsite_student_session").
  *
  * SUPABASE FUNCTIONS USED (see supabase-setup-3/4-*.sql)
@@ -101,7 +101,7 @@ function initialsOf(name, fallback) {
 }
 
 // Is there a real, signed-in Supabase session right now? (The
-// localStorage flag saved by student-registration.js can go stale - e.g. the tab was
+// localStorage flag saved by studentregistration.js can go stale - e.g. the tab was
 // left open across a sign-out on another tab - so this is the check
 // that actually decides whether a Supabase RPC will succeed.)
 

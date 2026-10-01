@@ -1,12 +1,12 @@
 /* =====================================================================
    REGISTRATION PAGES - SHARED STYLES
-   Used by BOTH the student sign-up page (student-registration.html) and the tutor
+   Used by BOTH the student sign-up page (studentregistration.html) and the tutor
    sign-up page (tutorregistration.html): floating-label fields, option
    pills, OTP page inputs, modals and buttons.
 
    These rules used to be copied word-for-word into each page's own CSS
    file. They live here once now. A look that should be DIFFERENT on one
-   page belongs in that page's own file (css/pages/student-registration.css
+   page belongs in that page's own file (css/pages/studentregistration.css
    or css/pages/tutor-registration.css), which loads after this one.
    ===================================================================== */
 
