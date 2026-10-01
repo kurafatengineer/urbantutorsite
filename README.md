@@ -67,6 +67,7 @@ Project id: `zbvtdcqoouwyrcxkzjfv`
     tuition, tutor applied, accept/reject).
   - `_shared/email.ts` — the email design + sending. `_shared/mails.ts` — the
     wording of the 10 emails.
+- `supabase/archive/` — old, switched-off code kept only for reference (the WhatsApp webhook). Nothing there is live.
 - **Login emails** (the 6-digit code mail) — `supabase/email-templates/`; they
   are pasted by hand into Supabase → Authentication → Email Templates.
 - **Secrets** (set in Supabase → Edge Functions → Secrets, never in the code):
