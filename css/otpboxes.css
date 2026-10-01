@@ -2,6 +2,7 @@
    Code sent to ... / six boxes / Change email | Resend code. */
 
 #otpPage .otp-card {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -73,9 +74,10 @@
 /* Change email | Resend code - joined in the middle, rounded outside */
 .otp-pair {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); /* equal halves, never wider than the card */
   gap: 0;
   margin-top: 4px;
+  max-width: 100%;
 }
 
 .otp-pair-btn {
@@ -89,6 +91,11 @@
   font-weight: 700;
   cursor: default;
   opacity: 0.6;
+  box-sizing: border-box;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .otp-pair-btn:first-child { border-radius: 999px 0 0 999px; }
