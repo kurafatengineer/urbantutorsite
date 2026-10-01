@@ -556,7 +556,7 @@ function startResendTimer(seconds) {
 function updateResendLabel(remaining) {
   const btn = $("resendCodeButton");
   btn.disabled = remaining > 0;
-  btn.textContent = remaining > 0 ? `Resend in ${remaining}s` : "Resend code";
+  btn.textContent = remaining > 0 ? `Resend in ${remaining}s` : "Resend Code";
 }
 
 /* =====================================================================

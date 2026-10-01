@@ -1,5 +1,5 @@
 /* Student / Tutor OTP page - same look as the Admin login code step:
-   Code sent to ... / six boxes / Change email | Resend code. */
+   Code sent to ... / six boxes / Change Email | Resend Code. */
 
 #otpPage .otp-card {
   box-sizing: border-box;
@@ -71,7 +71,7 @@
 
 #otpPage .resend-area { display: none; }
 
-/* Change email | Resend code - joined in the middle, rounded outside */
+/* Change Email | Resend Code - joined in the middle, rounded outside */
 .otp-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); /* equal halves, never wider than the card */
@@ -129,7 +129,7 @@
   caret-color: #ffffff;
 }
 
-/* Change email | Resend code: the site's green while active */
+/* Change Email | Resend Code: the site's green while active */
 .otp-pair-btn:not(:disabled) {
   background: var(--lime);
   border-color: var(--lime);
