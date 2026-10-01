@@ -51,6 +51,12 @@ const ROLE_LABELS = {
   tutor_relations: "Tutor Relations",
 };
 
+/* =====================================================================
+   WHO AM I + SMALL HELPERS
+   What the logged-in employee is allowed to do, plus tiny shared helpers
+   (safe text, money text, numbers). Used by every section below.
+   ===================================================================== */
+
 // Each employee has their own list of permissions (see the Employees
 // tab); the server sends the effective list with the overview.
 function myPerms() {
@@ -89,12 +95,29 @@ function esc(value) {
     .replace(/'/g, "&#039;");
 }
 
+// Money text, Indian style: 1500 -> "₹1,500".
+// rupeesRounded() does the same but first rounds to a whole rupee (graphs).
+function rupees(n) {
+  return "₹" + Number(n || 0).toLocaleString("en-IN");
+}
+
+function rupeesRounded(n) {
+  return "₹" + Math.round(n).toLocaleString("en-IN");
+}
+
 // Strips currency symbols/commas etc. off a display value like "₹1,200"
 // and returns a plain number, or 0 if there's nothing usable in it.
 function num(value) {
   const n = Number(String(value == null ? "" : value).replace(/[^\d.-]/g, ""));
   return Number.isFinite(n) ? n : 0;
 }
+
+/* =====================================================================
+   TALKING TO THE SERVER
+   Every button that saves or loads data goes through these functions.
+   adminCall() sends the request with the employee's login token; if the
+   server says "not an admin" the person is logged out automatically.
+   ===================================================================== */
 
 async function getAccessToken() {
   try {
@@ -178,6 +201,12 @@ const lower = v => String(v == null ? "" : v).trim().toLowerCase();
 const isAny = v => lower(v) === "any";
 const mediumText = v => isAny(v) ? "Online | Home" : String(v || "").replace(/^offline$/i, "Home");
 const genderText = v => isAny(v) ? "Male | Female" : (v || "");
+
+/* =====================================================================
+   DATA PREPARATION
+   Builds quick lookup tables (by Demo ID, Student ID, Tutor ID) from the
+   data the server sent, so cards can show linked details without searching.
+   ===================================================================== */
 
 // A tutor row's join key: the server sends an opaque one when contact
 // numbers are hidden for this employee, otherwise it's the number itself.
@@ -324,6 +353,12 @@ function indexData() {
 const IDLE_LIMIT_MS = 30 * 60 * 1000;
 const ACTIVE_KEY = "admin_last_active";
 let lastMarked = 0;
+
+/* =====================================================================
+   AUTO LOGOUT + LOGIN SCREEN
+   Idle timeout, the email -> 6-digit code login steps, and the one-time
+   "first Super Admin" setup screen.
+   ===================================================================== */
 
 function lastActiveAt() {
   try { return Number(localStorage.getItem(ACTIVE_KEY)) || 0; } catch (e) { return 0; }
@@ -501,6 +536,12 @@ function updateResendLabel(remaining) {
   btn.disabled = remaining > 0;
   btn.textContent = remaining > 0 ? `Resend in ${remaining}s` : "Resend code";
 }
+
+/* =====================================================================
+   PANEL START-UP
+   Shows/hides tabs by role, loads all data (loadOverview) and wires every
+   button and form (wireEvents).
+   ===================================================================== */
 
 function applyRoleUI() {
 
@@ -920,6 +961,12 @@ const PAYMENT_LAYOUT = {
 };
 const PAYMENT_ROW_IDS = [ROW_TOP, ROW_DEMO, ROW_STUDENT, ROW_TUTOR, ROW_PARTY, ROW_AMOUNT, ROW_NOTES, ROW_SUB_PLAN, ROW_SUB_DATES, ROW_SUB_NOTES]
   .map(([id]) => id);
+
+/* =====================================================================
+   NEW PAYMENT / NEW SUBSCRIPTION FORMS
+   Everything that fills in, validates and submits the two forms:
+   amounts, dues, next payment date, and the live ID suggestion lists.
+   ===================================================================== */
 
 // The types that end in Notes | Remaining | Next Payment Date.
 function usesNextPaymentDate(mode) {
@@ -1733,6 +1780,12 @@ function wireSubscriptionIdSuggestion() {
 
 // ---- permission checklist (New Employee form + each employee's card) ----
 
+/* =====================================================================
+   EMPLOYEE PERMISSIONS FORM
+   The permission tick-boxes (roles presets + Privacy options) shown in the
+   New Employee form and on each employee card.
+   ===================================================================== */
+
 function permChecklistHtml(selected, disabled) {
   const info = STATE.permInfo;
   if (!info) return "";
@@ -1839,6 +1892,11 @@ function wireEmployeeForm() {
   });
 
 }
+
+/* =====================================================================
+   TABS, SCROLLING AND CARD OPEN/CLOSE
+   Switching tabs, jumping from one card to a linked one, expanding cards.
+   ===================================================================== */
 
 // Choosing a tab always starts from the "All" filter.
 function resetFilter(tab) {
@@ -2102,6 +2160,12 @@ function rerenderCurrent() {
   if (STATE.tab === "employees") renderEmployees();
   if (STATE.tab === "graph") renderGraph();
 }
+
+/* =====================================================================
+   BUTTON CLICKS ON CARDS
+   One central click handler: Edit, Save, Cancel, Delete, Terminate,
+   Accept/Reject, etc. all start here and call the save functions below.
+   ===================================================================== */
 
 async function onListClick(event) {
 
@@ -2370,6 +2434,12 @@ async function onListClick(event) {
 
 }
 
+/* =====================================================================
+   SAVING EDITS
+   Each function sends one kind of change (payment, subscription, employee,
+   record, tuition, class, demo row) to the server and then refreshes.
+   ===================================================================== */
+
 async function savePaymentEdit(box, button) {
 
   const id = Number(box.dataset.id);
@@ -2605,6 +2675,12 @@ async function saveDemoRow(box, button) {
  * STATES
  ************************************************************/
 
+/* =====================================================================
+   STATUS + COLOURS
+   Works out each tuition/tutor's status (Finding Tutor, Running, ...) and
+   the colour strip shown on the card.
+   ===================================================================== */
+
 function rowState(row) {
   if (row.terminated) return "terminated";
   if (!row.hasTutor) return "open";
@@ -2701,6 +2777,12 @@ function isToday(text) {
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   return iso === today;
 }
+
+/* =====================================================================
+   SUMMARY NUMBERS, BOXES AND CARD PIECES
+   The counters at the top and the small building blocks every card is
+   made from (info lines, field boxes, edit buttons, avatar badges).
+   ===================================================================== */
 
 function renderStats() {
 
@@ -2973,6 +3055,12 @@ function recordCard(kind, record, opts) {
    narrows down one word at a time, same AND logic as before, just
    now visible and removable one word at a time instead of hidden
    inside a single line of text. */
+
+/* =====================================================================
+   SEARCH
+   Typing in the search bar or tapping a chip filters the cards by every
+   word in every field.
+   ===================================================================== */
 
 // Everything a card shows - its own text, every box's value (boxes are
 // inputs, so their values aren't part of the text), and the picked
@@ -3251,6 +3339,12 @@ function paidUpTo(list, p) {
     .reduce((sum, o) => sum + num(o.amount), 0);
 }
 
+/* =====================================================================
+   PAYMENT CARDS
+   How much a student/tutor owes, how much was paid, and the card layout
+   for normal, subscription and agency-charge payments.
+   ===================================================================== */
+
 // Who a payment is from (or, for a payout, to), what it was for, and
 // the dues still left right after it - null when there's nothing to
 // measure it against (e.g. a payout to a tutor with no live Tuition).
@@ -3334,7 +3428,6 @@ function paymentSummary(p) {
 // no live Tuition) its Tutor.
 function paymentHead(key, p) {
   const s = paymentSummary(p);
-  const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
   return `
       <div class="admin-card-head" data-toggle="${esc(key)}">
         ${s.target
@@ -3383,7 +3476,6 @@ function paymentCard(p, ctx) {
   const student = DIR_STUDENT_BY_ID[studentId] || {};
   const tutorId = p.tutor_id || (t ? t.activeRow.tutorId : "");
   const tutor = DIR_TUTOR_BY_ID[tutorId] || {};
-  const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
   const paying = num(p.amount);
   const remaining = t ? Math.max(t.duesBefore - paying, 0) : null;
 
@@ -3495,7 +3587,6 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
     .reduce((sum, o) => sum + Number(o.amount || 0), 0);
   const duesThen = Math.max(planAmount - paidBefore, 0);
   const remaining = Math.max(duesThen - paying, 0);
-  const rupees = n => "₹" + Number(n).toLocaleString("en-IN");
   const startDate = sub.start_date || "";
   const nextDue = subscriptionNextDue(sub);
 
@@ -3560,7 +3651,6 @@ function agencyChargePaymentCard(p, key, open, editing, buttons) {
       (o.payment_date < p.payment_date || (o.payment_date === p.payment_date && o.id < p.id)))
     .reduce((sum, o) => sum + Number(o.amount || 0), 0);
   const duesThen = Math.max(charge - paidBefore, 0);
-  const rupees = n => "₹" + Number(n).toLocaleString("en-IN");
   const transactionLabel = isTutorSide ? "Tutor Agency Charge" : "Student Agency Charge";
 
   const boxes = `
@@ -3804,6 +3894,11 @@ function renderLedger() {
 
 /* ---------------- graph ---------------- */
 
+/* =====================================================================
+   GRAPH TAB
+   Monthly money-in / money-out bar chart and the totals above it.
+   ===================================================================== */
+
 // Money in vs out, and outstanding dues, over time - built from the
 // same paid/due entries the Ledger lists (ledgerEntries), just
 // totalled by month and by purpose instead of shown one row per
@@ -3843,14 +3938,13 @@ function renderGraph() {
   const totalOut = paid.filter(isOut).reduce((s, e) => s + e.amount, 0);
   const totalDues = due.reduce((s, e) => s + e.amount, 0);
   const totalOverdue = due.filter(e => e.status === "overdue").reduce((s, e) => s + e.amount, 0);
-  const rupees = n => "₹" + Math.round(n).toLocaleString("en-IN");
 
   const stats = [
-    ["Total Collected", rupees(totalIn), "green"],
-    ["Total Paid Out", rupees(totalOut), "red"],
-    ["Net", rupees(totalIn - totalOut), totalIn - totalOut >= 0 ? "lime" : "red"],
-    ["Outstanding Dues", rupees(totalDues), "amber"],
-    ["Over Dues", rupees(totalOverdue), "red"]
+    ["Total Collected", rupeesRounded(totalIn), "green"],
+    ["Total Paid Out", rupeesRounded(totalOut), "red"],
+    ["Net", rupeesRounded(totalIn - totalOut), totalIn - totalOut >= 0 ? "lime" : "red"],
+    ["Outstanding Dues", rupeesRounded(totalDues), "amber"],
+    ["Over Dues", rupeesRounded(totalOverdue), "red"]
   ];
 
   $("graphStats").innerHTML = stats.map(([label, value, tone]) => `
@@ -3885,7 +3979,6 @@ function graphBarChart(monthKeys, byMonth) {
   const maxVal = Math.max(1, ...monthKeys.map(k => Math.max(byMonth.get(k).in, byMonth.get(k).out)));
   const groupW = plotW / monthKeys.length;
   const barW = Math.min(22, groupW / 3);
-  const rupees = n => "₹" + Math.round(n).toLocaleString("en-IN");
 
   const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
     const y = padT + plotH * (1 - f);
@@ -3900,10 +3993,10 @@ function graphBarChart(monthKeys, byMonth) {
     const outH = (outVal / maxVal) * plotH;
     return `
       <rect class="graph-bar-in" x="${cx - barW - 2}" y="${padT + plotH - inH}" width="${barW}" height="${Math.max(inH, 0.5)}" rx="3">
-        <title>${esc(graphMonthLabel(key))} - In: ${esc(rupees(inVal))}</title>
+        <title>${esc(graphMonthLabel(key))} - In: ${esc(rupeesRounded(inVal))}</title>
       </rect>
       <rect class="graph-bar-out" x="${cx + 2}" y="${padT + plotH - outH}" width="${barW}" height="${Math.max(outH, 0.5)}" rx="3">
-        <title>${esc(graphMonthLabel(key))} - Out: ${esc(rupees(outVal))}</title>
+        <title>${esc(graphMonthLabel(key))} - Out: ${esc(rupeesRounded(outVal))}</title>
       </rect>
       <text class="graph-month-label" x="${cx}" y="${h - 8}" text-anchor="middle">${esc(graphMonthLabel(key))}</text>
     `;
@@ -3945,6 +4038,12 @@ function renderSubscriptions() {
 
 const SUBSCRIPTION_STATUS_LABELS = { active: "Active", paused: "Paused", cancelled: "Cancelled", completed: "Completed" };
 const SUBSCRIPTION_STATUS_TONES = { active: "running", paused: "schedule", cancelled: "rejected", completed: "completed" };
+
+/* =====================================================================
+   LIST HEADER ROWS
+   The column titles shown above each list (Students, Payments, ...), built
+   with equal-width columns so text lines up with the cards below.
+   ===================================================================== */
 
 // A single-line card-head row of N equal, centred, dotted-divided
 // columns - text too long for its column is cut with "...", the full
@@ -4340,6 +4439,12 @@ function tuitionStack(g) {
 
 }
 
+/* =====================================================================
+   CLASS CARD
+   The running-class part of a tuition: schedule, charges, advance payment
+   and the Student/Tutor payment fractions.
+   ===================================================================== */
+
 // A separate card for the currently Running/Completed class's own
 // schedule and money - which days it meets, its own charges/term dates,
 // the Student's and Tutor's own payment terms (computed Total
@@ -4525,7 +4630,6 @@ function classCard(g, activeRow) {
   // Payment/Total Amount on the far left, Tutor's on the far right, and
   // each side's own Agency Payment/Agency Amount centred between them
   // (Student's agency fraction first, then Tutor's).
-  const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
   const frac = (paid, total) => `
     <span class="admin-class-frac-num">${esc(rupees(paid))}</span>
     <span class="admin-class-frac-den">${esc(rupees(total))}</span>`;
@@ -4684,6 +4788,11 @@ function exactTutor(text) {
   ) || null;
 
 }
+
+/* =====================================================================
+   ASSIGNING A TUTOR
+   Typing a Tutor ID or mobile number shows suggestions; picking one fills it in.
+   ===================================================================== */
 
 function onAssignInput(event) {
 
