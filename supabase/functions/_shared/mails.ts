@@ -142,7 +142,7 @@ export function parentResponseMail(d: {
     : make("A parent declined", "Parent Declined", { text: "REJECTED BY PARENT", tone: "red" }, d.name,
         `${d.studentName}'s parent has chosen not to go ahead with you for the ${d.subject} tuition. You can apply for other tuitions anytime.`,
         [["Demo ID", d.demoId], ["Subject", d.subject]],
-        { label: "Search New Tuitions", page: "tutoradvertisement.html" });
+        { label: "Search New Tuitions", page: "advertisement.html" });
 }
 
 /* ---------- 6 · tuition payment received (student) ---------- */

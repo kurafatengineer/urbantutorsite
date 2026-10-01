@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050505">
+  <meta name="description" content="Urbantutorsite — Tuitions Available">
+  <title>Urbantutorsite — Tuitions Available</title>
+
+  <link rel="stylesheet" href="css/header.css?v=20260930a">
+  <link rel="stylesheet" href="css/footer.css?v=20260928b">
+  <link rel="stylesheet" href="css/profile-common.css?v=20261001a">
+  <link rel="stylesheet" href="css/pages/tutor-profile.css?v=20260930ac">
+  <link rel="stylesheet" href="css/pages/advertisement.css?v=20260928b">
+
+  <!-- Embedded on the homepage for logged-in tutors
+       (index.html -> advertisement.html?embed=1):
+       no header / footer / floating buttons inside the frame. -->
+  <script>
+    (function () {
+      try {
+        if (/[?&]embed=1(&|$)/.test(location.search) || window.self !== window.top) {
+          document.documentElement.classList.add("embed");
+        }
+      } catch (e) {
+        document.documentElement.classList.add("embed");
+      }
+    })();
+  </script>
+</head>
+
+<body data-page="tutoradvertisement">
+
+<!-- Reusable Header -->
+<div id="site-header"></div>
+
+<!-- =====================================================
+     LOADING STATE
+===================================================== -->
+
+<main id="loadingPage" class="page loading-page">
+  <div class="container">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>Loading open tuitions...</p>
+  </div>
+</main>
+
+<!-- =====================================================
+     TUITIONS PAGE
+===================================================== -->
+
+<main id="tuitionsPage" class="page tuitions-page hidden">
+  <div class="container">
+
+    <header class="tuitions-hero">
+      <h1>Find Your <span>Next Tuition.</span></h1>
+    </header>
+
+    <!-- ================= HORIZONTAL FILTER BAR ================= -->
+
+    <div id="filterPanel" class="tuitions-filterbar">
+
+      <div class="filter-field">
+        <select id="subjectFilter" aria-label="Subject">
+          <option value="">Subject</option>
+        </select>
+      </div>
+
+      <div class="filter-field">
+        <select id="classFilter" aria-label="Class">
+          <option value="">Classes</option>
+        </select>
+      </div>
+
+      <div class="filter-field">
+        <select id="boardFilter" aria-label="Board">
+          <option value="">Boards</option>
+        </select>
+      </div>
+
+      <div class="filter-field">
+        <select id="mediumFilter" aria-label="Mode">
+          <option value="">Modes</option>
+        </select>
+      </div>
+
+      <div class="filter-field">
+        <select id="pinFilter" aria-label="PIN Code">
+          <option value="">Pin Code</option>
+        </select>
+      </div>
+
+      <div class="filter-field">
+        <select id="cityFilter" aria-label="City">
+          <option value="">Cities</option>
+        </select>
+      </div>
+
+      <button id="clearFilters" class="clear-filters-button" type="button">
+        Clear
+      </button>
+
+    </div>
+
+    <!-- Shown only to a logged-in tutor whose profile is not
+         verified yet (Apply stays locked until it is). -->
+    <div id="verifyNotice" class="verify-notice hidden" role="status">
+      Your profile is pending verification. You can apply for tuitions once it is verified.
+    </div>
+
+    <!-- ================= LIST ================= -->
+
+    <div class="tuitions-count" id="tuitionsCount"></div>
+
+    <section class="classes-section">
+
+      <div id="tuitionsList" class="tuitions-grid"></div>
+
+      <div id="tuitionsEmpty" class="filter-empty hidden">
+        No open tuitions match these filters right now.
+      </div>
+
+    </section>
+
+  </div>
+</main>
+
+<!-- =====================================================
+     ERROR STATE
+===================================================== -->
+
+<main id="errorPage" class="page error-page hidden">
+  <div class="container">
+    <p id="errorMessage">Something went wrong.</p>
+    <button id="retryButton" class="logout-button" type="button">Try again</button>
+  </div>
+</main>
+
+<!-- =====================================================
+     APPLY CONFIRM TOAST
+===================================================== -->
+
+<div id="applyToast" class="apply-toast hidden"></div>
+
+<!-- Reusable Footer -->
+<div id="site-footer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js?v=20260930r"></script>
+<script src="js/common.js?v=20261001a"></script>
+<script src="js/header.js?v=20260930a"></script>
+<script src="js/footer.js?v=20260928b"></script>
+<script src="js/pages/advertisement.js?v=20261001b"></script>
+
+</body>
+</html>

@@ -8,7 +8,7 @@
    section simply stays hidden.
 
    Buttons:
-     I'm a student  -> student.html            (student login)
+     I'm a student  -> student-registration.html            (student login)
      I'm a tutor    -> tutorregistration.html  (tutor login)
      Apply (card)   -> tutorregistration.html  (visitors must log in first)
 ========================================================= */
