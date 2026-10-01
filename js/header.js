@@ -139,7 +139,7 @@ function createFallbackHeader() {
 
 
         <a
-          href="student-registration.html"
+          href="studentregistration.html"
           id="headerLogin"
           class="header-login"
           aria-label="Login"
@@ -260,7 +260,7 @@ function handleHeaderClick(event) {
     loginButton.href =
       isLoggedInStudent_()
         ? "studentprofile.html"
-        : "student-registration.html";
+        : "studentregistration.html";
 
     loginButton.title =
       isLoggedInStudent_() ? "My Profile" : "Login";
@@ -376,7 +376,7 @@ function updateLoginDestination() {
     loginButton.href =
       isLoggedInStudent_()
         ? "studentprofile.html"
-        : "student-registration.html";
+        : "studentregistration.html";
 
     loginButton.title =
       isLoggedInStudent_() ? "My Profile" : "Login";
@@ -406,7 +406,7 @@ function updateLoginDestination() {
 
   } else {
 
-    loginButton.href = "student-registration.html";
+    loginButton.href = "studentregistration.html";
 
   }
 
@@ -435,7 +435,7 @@ function isLoggedInTutor_() {
 /* =========================================================
    NEW: STUDENT SESSION CHECK
    =========================================================
-   Read-only, same as the tutor check above. student-registration.js and
+   Read-only, same as the tutor check above. studentregistration.js and
    student-profile.js remain the only places that create,
    verify, or clear a student session.
    ========================================================= */

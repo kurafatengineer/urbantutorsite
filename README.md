@@ -18,7 +18,7 @@ Upload everything in this repo **except** `supabase/`, `share-preview/`,
 | Page (open this in the browser) | What it is | Its own JS | Its own CSS |
 |---|---|---|---|
 | `index.html` | Home page (shows the landing / dashboard inside it) | `homepage/landing/landing.js`, `homepage/dashboard/dashboard.js` | `homepage/…/*.css` |
-| `student-registration.html` | Student / parent sign-up + login (email + 6-digit code) | `js/pages/student-registration.js` | `css/pages/student-registration.css` |
+| `studentregistration.html` | Student / parent sign-up + login (email + 6-digit code) | `js/pages/studentregistration.js` | `css/pages/studentregistration.css` |
 | `studentprofile.html` | Student dashboard: tuitions, payments, subscription | `js/pages/student-profile.js` | `css/pages/student-profile.css` |
 | `tutorregistration.html` | Tutor sign-up + login | `js/pages/tutor-registration.js` | `css/pages/tutor-registration.css` |
 | `tutorprofile.html` | Tutor dashboard: classes, demos, payments | `js/pages/tutor-profile.js` | `css/pages/tutor-profile.css` |
