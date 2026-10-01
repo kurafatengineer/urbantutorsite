@@ -76,14 +76,14 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); /* equal halves, never wider than the card */
   gap: 0;
-  margin: 4px auto 0;
-  max-width: 340px; /* same width as the six boxes above (as on the Admin login) */
-  width: 100%;
+  margin-top: 4px;
+  max-width: 100%;
 }
 
 .otp-pair-btn {
   width: 100%;
-  padding: 13px 10px;
+  padding: 0 10px;
+  height: 44px; /* same height as the Admin login buttons */
   border: 1px solid var(--border-light, #2a2a2a);
   background: var(--surface-2);
   color: var(--muted);
@@ -136,3 +136,40 @@
   color: #050505;
 }
 .otp-pair-btn:not(:disabled):hover { background: var(--lime-hover, #15803d); border-color: var(--lime-hover, #15803d); }
+
+/* ---------------------------------------------------------------------
+   The page's general text-input rule (".field input[type=text]": 2px border,
+   17px padding, 16px text, black fill) is MORE specific than ".otp-box" and
+   was overriding the box look above. These repeat the box look with a
+   stronger selector, so the student / tutor code boxes are identical to
+   the Admin login's.
+   --------------------------------------------------------------------- */
+#otpPage .otp-boxes .otp-box {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  box-shadow: none;
+}
+
+#otpPage .otp-boxes .otp-box:focus,
+#otpPage .otp-boxes .otp-box:focus-visible {
+  border-color: rgba(22, 163, 74, 0.3);
+  background: var(--surface-2);
+  box-shadow: none;
+  outline: none;
+}
+
+#otpPage .field.has-error .otp-boxes .otp-box,
+#otpPage .otp-boxes .otp-box.is-wrong,
+#otpPage .otp-boxes .otp-box.is-wrong:focus {
+  border-color: rgba(255, 104, 104, 0.65);
+}
