@@ -3137,7 +3137,7 @@ body[data-page="admin"] {
 .admin-box input[data-action="class-figure"][data-empty]:hover { border-color: inherit; background: inherit; }
 
 
-/* Change email | Resend code: dark green while active */
+/* Change Email | Resend Code: dark green while active */
 .admin-otp-actions > .admin-ghost:not(:disabled) {
   background: #14532d;
   border-color: #166534;
@@ -3181,7 +3181,7 @@ body[data-page="admin"] {
 .admin-hl-top[data-tone="processing"] .ledger-cell  { color: var(--violet); }
 
 
-/* Change email | Resend code: the site's green while active */
+/* Change Email | Resend Code: the site's green while active */
 .admin-otp-actions > .admin-ghost:not(:disabled) {
   background: var(--lime);
   border-color: var(--lime);

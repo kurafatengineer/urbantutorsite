@@ -1412,7 +1412,7 @@ function startResendTimer(seconds) {
   resendButton.textContent =
     remaining > 0
       ? `Resend in ${remaining}s`
-      : "Resend code";
+      : "Resend Code";
 
 
   if (remaining <= 0) {
@@ -1433,7 +1433,7 @@ function startResendTimer(seconds) {
 
         resendButton.disabled = false;
 
-        resendButton.textContent = "Resend code";
+        resendButton.textContent = "Resend Code";
 
         return;
 

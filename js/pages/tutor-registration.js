@@ -40,7 +40,7 @@ let currentEmail = "";     // email the tutor entered on page 1
 let currentMode = "";      // "register" or "login"
 let currentName = "";      // used only in the OTP e-mail greeting
 let pendingRegistration = null; // form data + files, saved only after the OTP
-let resendTimer = null;    // countdown interval for "Resend code"
+let resendTimer = null;    // countdown interval for "Resend Code"
 
 
 /************************************************************
@@ -697,7 +697,7 @@ function openOtpPage(mode, apiResult) {
     $("otpEyebrow").textContent = "SECURE LOGIN";
     $("otpTitle").textContent = "Verify to login";
     $("verifyOtpText").textContent = "Login";
-    $("otpBackButton").textContent = "Change email";
+    $("otpBackButton").textContent = "Change Email";
   } else {
     $("otpEyebrow").textContent = "REGISTRATION VERIFICATION";
     $("otpTitle").textContent = "Verify your email";
@@ -892,7 +892,7 @@ function startResendTimer(seconds) {
   let remaining = Math.max(0, Number(seconds) || 60);
 
   button.disabled = remaining > 0;
-  button.textContent = remaining > 0 ? `Resend in ${remaining}s` : "Resend code";
+  button.textContent = remaining > 0 ? `Resend in ${remaining}s` : "Resend Code";
 
   if (remaining <= 0) return;
 
@@ -904,7 +904,7 @@ function startResendTimer(seconds) {
       clearInterval(resendTimer);
       resendTimer = null;
       button.disabled = false;
-      button.textContent = "Resend code";
+      button.textContent = "Resend Code";
       return;
     }
 
