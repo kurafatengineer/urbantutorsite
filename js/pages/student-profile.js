@@ -153,7 +153,7 @@ const STATE = {
 
   wireStaticEvents();
 
-  if (!(await hasSession())) {
+  if (!(await hasPortalSession("student"))) {
     showError("You are not logged in.");
     return;
   }
@@ -178,7 +178,7 @@ const STATE = {
 
 async function loadProfile(selectAfter) {
 
-  if (!(await hasSession())) {
+  if (!(await hasPortalSession("student"))) {
     showError("You are not logged in.");
     return;
   }
@@ -1055,7 +1055,7 @@ async function respondToTutor(button) {
 
   if (!window.confirm(question)) return;
 
-  if (!(await hasSession())) {
+  if (!(await hasPortalSession("student"))) {
     showError("You are not logged in.");
     return;
   }
@@ -1401,7 +1401,7 @@ async function submitAddStudent(event) {
     return;
   }
 
-  if (!(await hasSession())) {
+  if (!(await hasPortalSession("student"))) {
     closeAddStudent();
     showError("You are not logged in.");
     return;
@@ -1578,7 +1578,7 @@ async function submitNewTuition(event) {
     return;
   }
 
-  if (!(await hasSession())) {
+  if (!(await hasPortalSession("student"))) {
     closeNewTuition();
     showError("You are not logged in.");
     return;

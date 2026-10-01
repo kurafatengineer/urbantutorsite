@@ -596,7 +596,7 @@
     const id = profile.tutorId ? ` · ${esc(profile.tutorId)}` : "";
 
     $("dbTStatus").innerHTML = verified
-      ? `<span class="db-pill ok"><svg class="db-seal" data-tone="${subTone}"><use href="#db-verified"/></svg>Verified Tutor${id}</span>`
+      ? `<span class="db-pill ok" data-tone="${subTone}"><svg class="db-seal" data-tone="${subTone}"><use href="#db-verified"/></svg>Verified Tutor${id}</span>`
       : vs === "rejected"
         ? `<span class="db-pill no">Verification rejected${id}</span>`
         : `<span class="db-pill wait">Verification pending${id}</span>`;

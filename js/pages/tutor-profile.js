@@ -107,7 +107,7 @@ let PAYMENTS = [];
 
 async function loadProfile() {
 
-  if (!(await hasSession())) {
+  if (!(await hasPortalSession("tutor"))) {
     showError("You are not logged in.");
     return;
   }
@@ -672,7 +672,7 @@ async function respondToTuition(button) {
 
   if (!window.confirm(question)) return;
 
-  if (!(await hasSession())) {
+  if (!(await hasPortalSession("tutor"))) {
     showError("You are not logged in.");
     return;
   }
