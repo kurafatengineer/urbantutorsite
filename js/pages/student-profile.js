@@ -15,7 +15,7 @@
  *   registers another child on the same account.
  *
  * Guards itself: no valid session -> error page with a link
- * back to student.html. The session is the one student-registration.js
+ * back to student-registration.html. The session is the one student-registration.js
  * saves after a successful OTP ("urbantutorsite_student_session").
  *
  * SUPABASE FUNCTIONS USED (see supabase-setup-3/4-*.sql)

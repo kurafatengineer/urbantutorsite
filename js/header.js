@@ -139,7 +139,7 @@ function createFallbackHeader() {
 
 
         <a
-          href="student.html"
+          href="student-registration.html"
           id="headerLogin"
           class="header-login"
           aria-label="Login"
@@ -260,7 +260,7 @@ function handleHeaderClick(event) {
     loginButton.href =
       isLoggedInStudent_()
         ? "studentprofile.html"
-        : "student.html";
+        : "student-registration.html";
 
     loginButton.title =
       isLoggedInStudent_() ? "My Profile" : "Login";
@@ -376,7 +376,7 @@ function updateLoginDestination() {
     loginButton.href =
       isLoggedInStudent_()
         ? "studentprofile.html"
-        : "student.html";
+        : "student-registration.html";
 
     loginButton.title =
       isLoggedInStudent_() ? "My Profile" : "Login";
@@ -406,7 +406,7 @@ function updateLoginDestination() {
 
   } else {
 
-    loginButton.href = "student.html";
+    loginButton.href = "student-registration.html";
 
   }
 

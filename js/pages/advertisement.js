@@ -568,7 +568,7 @@ if (EMBEDDED && window.parent !== window) {
 
 
 /************************************************************
- * LINK FROM THE TUTOR HOMEPAGE: tutoradvertisement.html#<DemoID>
+ * LINK FROM THE TUTOR HOMEPAGE: advertisement.html#<DemoID>
  * scrolls to that tuition card and highlights it (once).
  ************************************************************/
 

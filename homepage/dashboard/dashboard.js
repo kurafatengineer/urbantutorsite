@@ -10,8 +10,8 @@
 
    Buttons:
      Apply for New Tuition -> studentprofile.html#apply
-     Find Tuitions / See all open tuitions -> tutoradvertisement.html
-     Apply (matching card) -> tutoradvertisement.html#<Demo ID>
+     Find Tuitions / See all open tuitions -> advertisement.html
+     Apply (matching card) -> advertisement.html#<Demo ID>
                               (opens that card; nothing is applied here)
 ========================================================= */
 
@@ -672,7 +672,7 @@
             <span>${esc(info)}</span>
             <span class="db-fit">Matches: ${esc(t.subject)}${cityHit ? " · near you" : ""}</span>
           </div>
-          <a class="db-sbtn p" href="tutoradvertisement.html#${encodeURIComponent(t.demoId)}">Apply</a>
+          <a class="db-sbtn p" href="advertisement.html#${encodeURIComponent(t.demoId)}">Apply</a>
         </div>`;
     }).join("") : `<div class="db-empty">No open tuitions match your subjects right now.</div>`;
 
