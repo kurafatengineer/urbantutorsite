@@ -399,7 +399,29 @@ function startIdleWatch() {
 }
 
 let pendingEmail = "";
-let pendingBootstrap = false;
+// Asks the server to email a login code. Returns { ok, message }.
+// Normal path: the server's "adminSendCode" action. If the server can't be
+// reached with it (e.g. an older server version), the previous direct
+// method is used so office staff are never locked out.
+async function requestLoginCode(email) {
+
+  try {
+    const result = await apiRequest({ action: "adminSendCode", email }, 20000);
+    if (result && result.success) return { ok: true };
+    if (result && result.message) return { ok: false, message: result.message };
+  } catch (error) {
+    console.error("adminSendCode unavailable, using fallback", error);
+  }
+
+  const { data: check, error: checkError } = await window.sb.rpc("admin_email_allowed", { p_email: email });
+  if (checkError) return { ok: false, message: "Unable to check this email right now. Please try again." };
+  if (!check || (!check.allowed && !check.bootstrap)) return { ok: false, message: "This email is not set up for office access." };
+
+  const { error } = await window.sb.auth.signInWithOtp({ email, options: { shouldCreateUser: !!check.bootstrap } });
+  if (error) return { ok: false, message: error.message || "Unable to send the code." };
+  return { ok: true };
+}
+
 let resendTimer = null;
 
 function showEmailStep(message) {
@@ -725,31 +747,13 @@ function wireEvents() {
 
     try {
 
-      // Only an active office employee gets a code emailed (and a login
-      // account is never created for a stranger). The one exception is a
-      // brand-new panel with no employee yet, so the first Super Admin can
-      // set themselves up.
-      const { data: check, error: checkError } = await window.sb.rpc("admin_email_allowed", { p_email: email });
+      // The server decides whether this email may get a code, and always
+      // answers the same way, so this page can't be used to find out which
+      // emails belong to office staff.
+      const sent = await requestLoginCode(email);
 
-      if (checkError) {
-        $("emailMessage").textContent = "Unable to check this email right now. Please try again.";
-        return;
-      }
-
-      if (!check || (!check.allowed && !check.bootstrap)) {
-        $("emailMessage").textContent = "This email is not set up for office access.";
-        return;
-      }
-
-      pendingBootstrap = !!check.bootstrap;
-
-      const { error } = await window.sb.auth.signInWithOtp({
-        email,
-        options: { shouldCreateUser: pendingBootstrap }
-      });
-
-      if (error) {
-        $("emailMessage").textContent = error.message || "Unable to send the code.";
+      if (!sent.ok) {
+        $("emailMessage").textContent = sent.message;
         return;
       }
 
@@ -781,11 +785,8 @@ function wireEvents() {
     const button = $("resendCodeButton");
     button.disabled = true;
     try {
-      const { error } = await window.sb.auth.signInWithOtp({
-        email: pendingEmail,
-        options: { shouldCreateUser: pendingBootstrap }
-      });
-      if (error) $("otpMessage").textContent = error.message || "Unable to resend the code.";
+      const sent = await requestLoginCode(pendingEmail);
+      if (!sent.ok) $("otpMessage").textContent = sent.message;
       else { startResendTimer(60); toast("Code resent."); }
     } catch (error) {
       $("otpMessage").textContent = "Unable to connect to the server.";
