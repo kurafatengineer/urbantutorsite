@@ -1513,7 +1513,7 @@ async function submitAddStudent(event) {
 
   try {
 
-    const result = await window.sbCall("register_student", { p: student });
+    const result = await window.sbCallNotify("registerStudent", { p: student });
 
     if (!result.success) {
       message.textContent = result.message || "The student could not be added.";
@@ -1690,7 +1690,7 @@ async function submitNewTuition(event) {
 
   try {
 
-    const result = await window.sbCall("add_tuition", {
+    const result = await window.sbCallNotify("addTuition", {
       p: Object.assign({ studentId: student.studentId }, tuition)
     });
 
