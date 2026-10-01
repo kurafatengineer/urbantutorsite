@@ -31,8 +31,26 @@ export function emailTemplate(opts: {
   intro: string;
   detailRowsHtml?: string;
   footerNote?: string;
+  // a small coloured status pill under the heading (e.g. "Accepted")
+  badge?: { text: string; tone: "green" | "red" | "blue" | "orange" | "purple" };
+  // a green button at the end of the message
+  cta?: { label: string; url: string };
 }): string {
-  const { heading, greeting, intro, detailRowsHtml = "", footerNote = "" } = opts;
+  const { heading, greeting, intro, detailRowsHtml = "", footerNote = "", badge, cta } = opts;
+
+  const TONES = {
+    green: ["#14532d", "#86efac"], red: ["#7f1d1d", "#fca5a5"], blue: ["#1e3a8a", "#93c5fd"],
+    orange: ["#7c2d12", "#fdba74"], purple: ["#4c1d95", "#c4b5fd"],
+  } as const;
+  const badgeHtml = badge
+    ? '<div style="margin:0 0 12px;"><span style="display:inline-block;padding:5px 14px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.4px;background-color:' +
+      TONES[badge.tone][0] + ";color:" + TONES[badge.tone][1] + ';">' + escapeHtml(badge.text) + "</span></div>"
+    : "";
+  const ctaHtml = cta
+    ? '<tr><td style="padding:18px 24px 0;text-align:center;"><a href="' + escapeHtml(cta.url) +
+      '" style="display:inline-block;padding:12px 28px;border-radius:999px;background-color:#16a34a;color:#050505;font-size:14px;font-weight:700;text-decoration:none;">' +
+      escapeHtml(cta.label) + "</a></td></tr>"
+    : "";
 
   // Full-width layout: the black header sits at the very top of the mail
   // (only its bottom corners are curved), the white footer at the very
@@ -43,6 +61,7 @@ export function emailTemplate(opts: {
   const inner =
     '<table role="presentation" align="center" width="100%" style="max-width:380px;margin:0 auto;" cellpadding="0" cellspacing="0">' +
       '<tr><td style="padding:28px 24px 4px;text-align:center;">' +
+        badgeHtml +
         '<h1 style="margin:0 0 10px;font-size:19px;color:#ffffff;text-align:center;">' + escapeHtml(heading) + "</h1>" +
         '<p style="margin:0;font-size:14px;line-height:1.6;color:#aaaaaa;text-align:center;">' + escapeHtml(greeting) + "<br>" + escapeHtml(intro) + "</p>" +
       "</td></tr>" +
@@ -53,6 +72,7 @@ export function emailTemplate(opts: {
             "</table>" +
           "</td></tr>"
         : "") +
+      ctaHtml +
       (footerNote
         ? '<tr><td style="padding:14px 24px 4px;text-align:center;"><span style="font-size:12px;color:#999999;">' + escapeHtml(footerNote) + "</span></td></tr>"
         : "") +
