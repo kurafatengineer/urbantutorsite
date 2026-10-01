@@ -349,7 +349,7 @@
           <div class="ld-av" style="background:${AVATAR_COLORS[i % AVATAR_COLORS.length]}">${esc(initials(t.name))}</div>
           <div class="ld-name">
             <b>${esc(t.name)}</b>
-            <svg class="ld-badge" viewBox="0 0 24 24" role="img" aria-label="Verified"><use href="#ld-verified"/></svg>
+            <svg class="ld-badge" data-tone="${esc(t.tone || "")}" viewBox="0 0 24 24" role="img" aria-label="Verified"><use href="#ld-verified"/></svg>
           </div>
           ${exp ? `<span class="ld-exp">${esc(exp)}</span>` : ""}
         </div>`;
