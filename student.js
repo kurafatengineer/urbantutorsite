@@ -1038,7 +1038,7 @@ async function verifyOTP() {
 
     if (currentMode === "register") {
 
-      const result = await window.sbCall("register_student", { p: pendingRegistration });
+      const result = await window.sbCallNotify("registerStudent", { p: pendingRegistration });
 
       if (!result.success) {
 

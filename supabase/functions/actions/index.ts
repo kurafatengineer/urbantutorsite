@@ -1,9 +1,9 @@
 // =====================================================================
 // URBANTUTORSITE - STUDENT/TUTOR SELF-SERVICE ACTIONS  (Edge Function "actions")
 //
-// Thin wrapper around three self-service RPCs that students and tutors
-// already call directly from the site:
-//   apply_for_tuition, respond_to_demo, respond_to_demo_tutor
+// Thin wrapper around the self-service RPCs that students and tutors call
+// from the site: add_tuition, register_student, apply_for_tuition,
+// respond_to_demo, respond_to_demo_tutor
 //
 // It exists only so a notification email can go out to the OTHER party
 // after a successful call, without touching the RPCs themselves (they
@@ -18,7 +18,8 @@
 // =====================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { emailTemplate, detailRow, sendMail } from "../_shared/email.ts";
+import { sendMail } from "../_shared/email.ts";
+import { tuitionPostedMail, tutorAppliedMail, parentResponseMail, tutorResponseMail } from "../_shared/mails.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
@@ -52,144 +53,136 @@ function callAsUser(token: string) {
 }
 
 /* ------------------------------------------------------------------
-   NOTIFICATION CONTEXT - who to email and what to say
+   LOOKUPS used by the notification emails
 ------------------------------------------------------------------ */
 
-interface DemoContext {
-  demoId: string;
-  subject: string | null;
-  student: { name: string; email: string | null } | null;
-  tutor: { id: string; name: string; email: string | null } | null;
+async function demoAndStudent(demoId: string) {
+  const { data: tuition } = await db.from("tuitions")
+    .select("demo_id, subject, student_id, medium, preferred_tutor").eq("demo_id", demoId).maybeSingle();
+  const { data: student } = tuition?.student_id
+    ? await db.from("students").select("student_id, student_name, email, class_name, board, city, pin_code")
+        .eq("student_id", tuition.student_id).maybeSingle()
+    : { data: null };
+  return { tuition, student };
 }
 
-async function loadDemoContext(demoId: string, tutorId?: string): Promise<DemoContext> {
-  const { data: tuition } = await db
-    .from("tuitions")
-    .select("demo_id, subject, student_id")
-    .eq("demo_id", demoId)
-    .maybeSingle();
-
-  let student: DemoContext["student"] = null;
-  if (tuition?.student_id) {
-    const { data: s } = await db
-      .from("students")
-      .select("student_name, email")
-      .eq("student_id", tuition.student_id)
-      .maybeSingle();
-    if (s) student = { name: s.student_name, email: s.email };
-  }
-
-  let tutor: DemoContext["tutor"] = null;
-  if (tutorId) {
-    const { data: t } = await db
-      .from("tutors")
-      .select("tutor_id, full_name, email")
-      .eq("tutor_id", tutorId)
-      .maybeSingle();
-    if (t) tutor = { id: t.tutor_id, name: t.full_name, email: t.email };
-  }
-
-  return { demoId, subject: tuition?.subject ?? null, student, tutor };
+async function tutorByEmail(email: string) {
+  const { data } = await db.from("tutors")
+    .select("tutor_id, full_name, gender, experience_years").ilike("email", email).maybeSingle();
+  return data;
 }
 
-async function notify(to: string | null | undefined, subject: string, heading: string, greeting: string, intro: string, rows: [string, string][]) {
-  const detailRowsHtml = rows.map(([label, value]) => detailRow(label, value)).join("");
-  const html = emailTemplate({ heading, greeting, intro, detailRowsHtml });
-  await sendMail(to, subject, html);
+async function tutorById(tutorId: string) {
+  const { data } = await db.from("tutors").select("tutor_id, full_name, email").eq("tutor_id", tutorId).maybeSingle();
+  return data;
+}
+
+async function callerEmail(userClient: ReturnType<typeof callAsUser>): Promise<string> {
+  const { data } = await userClient.auth.getUser();
+  return (data?.user?.email ?? "").toLowerCase();
+}
+
+// 1 - tuition request(s) posted: one mail to the student listing every Demo ID.
+async function sendTuitionPosted(studentId: string, demoIds: string[]) {
+  if (!studentId || !demoIds?.length) return;
+  const { data: student } = await db.from("students")
+    .select("student_name, email, class_name, board, city, pin_code").eq("student_id", studentId).maybeSingle();
+  if (!student?.email) return;
+  const { data: rows } = await db.from("tuitions")
+    .select("demo_id, subject, medium, preferred_tutor").in("demo_id", demoIds).order("demo_id");
+  if (!rows?.length) return;
+  const mail = tuitionPostedMail({
+    name: student.student_name, demos: rows.map((r: Json) => ({ demoId: r.demo_id, subject: r.subject })),
+    cls: student.class_name, board: student.board, medium: rows[0].medium, preferredTutor: rows[0].preferred_tutor,
+    city: student.city, pin: student.pin_code,
+  });
+  await sendMail(student.email, mail.subject, mail.html);
 }
 
 /* ------------------------------------------------------------------
    ACTIONS
 ------------------------------------------------------------------ */
 
+// 1 - a student posts a new tuition request
+async function handleAddTuition(userClient: ReturnType<typeof callAsUser>, body: Json) {
+  const p = body.p ?? {};
+  const { data, error } = await userClient.rpc("add_tuition", { p });
+  if (error) return reply({ success: false, message: error.message }, 400);
+  if (data?.success) await sendTuitionPosted(String(p.studentId ?? ""), data.demoIds ?? []);
+  return reply(data ?? { success: true });
+}
+
+// 1 - a new student registers with their first tuition request(s)
+async function handleRegisterStudent(userClient: ReturnType<typeof callAsUser>, body: Json) {
+  const { data, error } = await userClient.rpc("register_student", { p: body.p ?? {} });
+  if (error) return reply({ success: false, message: error.message }, 400);
+  if (data?.success) await sendTuitionPosted(String(data.studentId ?? ""), data.demoIds ?? []);
+  return reply(data ?? { success: true });
+}
+
+// 2 - a tutor applied: tell the student
 async function handleApplyForTuition(userClient: ReturnType<typeof callAsUser>, body: Json) {
   const demoId = String(body.p_demo_id ?? "").trim();
   const { data, error } = await userClient.rpc("apply_for_tuition", { p_demo_id: demoId });
   if (error) return reply({ success: false, message: error.message }, 400);
 
   if (data?.success && !data?.alreadyApplied) {
-    // Applications table doesn't record which tutor made this specific
-    // call outside the RPC's own auth context, so look it up by demo+caller.
-    const { data: authUser } = await userClient.auth.getUser();
-    const email = (authUser?.user?.email ?? "").toLowerCase();
-    const { data: tutorRow } = await db.from("tutors").select("tutor_id, full_name").ilike("email", email).maybeSingle();
-    if (tutorRow) {
-      const ctx = await loadDemoContext(demoId);
-      if (ctx.student?.email) {
-        await notify(
-          ctx.student.email,
-          "A tutor applied for your tuition request",
-          "New Tutor Application",
-          `Hi ${ctx.student.name},`,
-          `${tutorRow.full_name} has applied to teach your tuition request. Log in to your dashboard to review and schedule a demo.`,
-          [["Demo ID", demoId], ["Subject", ctx.subject ?? "-"], ["Tutor", tutorRow.full_name]],
-        );
-      }
+    const tutor = await tutorByEmail(await callerEmail(userClient));
+    const { tuition, student } = await demoAndStudent(demoId);
+    if (tutor && student?.email) {
+      const mail = tutorAppliedMail({
+        name: student.student_name, demoId, subject: tuition?.subject ?? "", tutorName: tutor.full_name,
+        tutorId: tutor.tutor_id, experience: tutor.experience_years, gender: tutor.gender,
+      });
+      await sendMail(student.email, mail.subject, mail.html);
     }
   }
 
   return reply(data ?? { success: true });
 }
 
+// 5 - the parent accepted / rejected a tutor: tell the tutor
 async function handleRespondToDemo(userClient: ReturnType<typeof callAsUser>, body: Json) {
   const demoId = String(body.p_demo_id ?? "").trim();
   const tutorId = String(body.p_tutor_id ?? "").trim();
   const decision = String(body.p_decision ?? "").trim();
   const { data, error } = await userClient.rpc("respond_to_demo", {
-    p_demo_id: demoId,
-    p_tutor_id: tutorId,
-    p_decision: decision,
+    p_demo_id: demoId, p_tutor_id: tutorId, p_decision: decision,
   });
   if (error) return reply({ success: false, message: error.message }, 400);
 
   if (data?.success) {
-    const ctx = await loadDemoContext(demoId, tutorId);
-    if (ctx.tutor?.email && ctx.student) {
-      const accepted = decision.toLowerCase() === "accept";
-      await notify(
-        ctx.tutor.email,
-        accepted ? "A parent accepted your demo" : "A parent responded to your demo application",
-        accepted ? "Demo Accepted" : "Demo Not Accepted",
-        `Hi ${ctx.tutor.name},`,
-        accepted
-          ? `${ctx.student.name} has accepted you for this tuition. You can view the details in your dashboard.`
-          : `${ctx.student.name} has decided not to proceed with you for this tuition.`,
-        [["Demo ID", demoId], ["Subject", ctx.subject ?? "-"], ["Student", ctx.student.name]],
-      );
+    const tutor = await tutorById(tutorId);
+    const { tuition, student } = await demoAndStudent(demoId);
+    if (tutor?.email && student) {
+      const mail = parentResponseMail({
+        name: tutor.full_name, demoId, subject: tuition?.subject ?? "", studentName: student.student_name,
+        cls: student.class_name, board: student.board, city: student.city, pin: student.pin_code,
+        accepted: decision.toLowerCase() === "accept",
+      });
+      await sendMail(tutor.email, mail.subject, mail.html);
     }
   }
 
   return reply(data ?? { success: true });
 }
 
+// 4 - the tutor accepted / rejected: tell the student
 async function handleRespondToDemoTutor(userClient: ReturnType<typeof callAsUser>, body: Json) {
   const demoId = String(body.p_demo_id ?? "").trim();
   const decision = String(body.p_decision ?? "").trim();
-  const { data, error } = await userClient.rpc("respond_to_demo_tutor", {
-    p_demo_id: demoId,
-    p_decision: decision,
-  });
+  const { data, error } = await userClient.rpc("respond_to_demo_tutor", { p_demo_id: demoId, p_decision: decision });
   if (error) return reply({ success: false, message: error.message }, 400);
 
   if (data?.success) {
-    const { data: authUser } = await userClient.auth.getUser();
-    const email = (authUser?.user?.email ?? "").toLowerCase();
-    const { data: tutorRow } = await db.from("tutors").select("tutor_id, full_name").ilike("email", email).maybeSingle();
-    if (tutorRow) {
-      const ctx = await loadDemoContext(demoId);
-      if (ctx.student?.email) {
-        const accepted = decision.toLowerCase() === "accept";
-        await notify(
-          ctx.student.email,
-          accepted ? "Your tutor accepted the demo" : "Your tutor responded to the demo",
-          accepted ? "Tuition Accepted" : "Tuition Not Accepted",
-          `Hi ${ctx.student.name},`,
-          accepted
-            ? `${tutorRow.full_name} has accepted your tuition request.`
-            : `${tutorRow.full_name} is unable to take up your tuition request.`,
-          [["Demo ID", demoId], ["Subject", ctx.subject ?? "-"], ["Tutor", tutorRow.full_name]],
-        );
-      }
+    const tutor = await tutorByEmail(await callerEmail(userClient));
+    const { tuition, student } = await demoAndStudent(demoId);
+    if (tutor && student?.email) {
+      const mail = tutorResponseMail({
+        name: student.student_name, demoId, subject: tuition?.subject ?? "", tutorName: tutor.full_name,
+        tutorId: tutor.tutor_id, accepted: decision.toLowerCase() === "accept",
+      });
+      await sendMail(student.email, mail.subject, mail.html);
     }
   }
 
@@ -220,6 +213,10 @@ Deno.serve(async (req: Request) => {
 
   try {
     switch (action) {
+      case "addTuition":
+        return await handleAddTuition(userClient, body);
+      case "registerStudent":
+        return await handleRegisterStudent(userClient, body);
       case "applyForTuition":
         return await handleApplyForTuition(userClient, body);
       case "respondToDemo":

@@ -94,7 +94,7 @@
         });
 
       case "addTuition":
-        return window.sbCall("add_tuition", {
+        return window.sbCallNotify("addTuition", {
           p: Object.assign({ studentId: payload.studentId }, payload.tuition)
         });
 
