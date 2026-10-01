@@ -785,6 +785,9 @@ async function verifyOtp() {
       return;
     }
 
+    // this login was made at the TUTOR door (see js/portal.js)
+    await window.UrbanPortal.set("tutor");
+
     /* LOGIN finished */
     if (currentMode === "login") {
       showSuccess("login");
@@ -1080,7 +1083,7 @@ showPage("email");
 
     const { data } = await window.sb.auth.getSession();
 
-    if (data && data.session) {
+    if (data && data.session && await window.UrbanPortal.allows("tutor")) {
 
       // already logged in as a tutor on this device -> go home
       const profile = await window.sbCall("get_tutor_profile", {});

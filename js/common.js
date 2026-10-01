@@ -9,6 +9,8 @@
                         "<script>" from being run as code). Always use it
                         when putting user-typed text into innerHTML.
      hasSession()       true if someone is logged in right now.
+     hasPortalSession(role)  true only if that login was made at the
+                        "student" / "tutor" door (see js/portal.js).
    ===================================================================== */
 
 function escapeHTML(value) {
@@ -28,4 +30,11 @@ async function hasSession() {
     console.error("Session check error:", error);
     return false;
   }
+}
+
+// Logged in AND through the right door? (a Student login must not open the
+// Tutor profile, even when the email is the same - see js/portal.js)
+async function hasPortalSession(role) {
+  if (!window.UrbanPortal) return hasSession();
+  return window.UrbanPortal.allows(role);
 }

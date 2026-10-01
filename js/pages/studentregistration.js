@@ -1036,6 +1036,9 @@ async function verifyOTP() {
 
     }
 
+    // this login was made at the STUDENT door (see js/portal.js)
+    await window.UrbanPortal.set("student");
+
     if (currentMode === "register") {
 
       const result = await window.sbCallNotify("registerStudent", { p: pendingRegistration });
@@ -1731,7 +1734,7 @@ ensureMediumOptions();
 
     // Only skip ahead if this login actually has a student - a
     // logged-in tutor may be here to register their child.
-    if (data && data.session) {
+    if (data && data.session && await window.UrbanPortal.allows("student")) {
 
       const profile = await window.sbCall("get_student_profile", {});
 

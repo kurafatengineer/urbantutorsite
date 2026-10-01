@@ -30,6 +30,7 @@ Shared pieces used by several pages (change them once, every page changes):
 | File | Used for |
 |---|---|
 | `js/supabase-client.js` | The connection to the server. Every page loads it first. `sbCall()` runs a database action; `sbCallNotify()` runs an action that also sends an email. |
+| `js/portal.js` | Stamps every login with the door it was made at (Student / Tutor / Admin), so one email logged in at one door does not silently open the others. |
 | `js/common.js` | `escapeHTML()` (safe text) and `hasSession()` (is someone logged in). |
 | `js/profile-common.js` | Date/time text, address, badge helpers shared by the two profile pages. |
 | `js/header.js`, `js/footer.js`, `components/*.html` | The top bar and the footer on every page. |

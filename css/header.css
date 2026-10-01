@@ -374,9 +374,6 @@
   bottom: -2px;
   width: 17px;
   height: 17px;
-  border-radius: 50%;
-  background: #101010;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   color: #6f6f6f;
 }
 
@@ -384,10 +381,12 @@
   display: block;
   width: 100%;
   height: 100%;
-  padding: 1.5px;
+  padding: 0;
 }
 
 .header-sub-badge svg path { fill: currentColor; }
+/* the tick is see-through in the seal; black shows through it */
+.header-sub-badge svg path.badge-tick { fill: #000000; }
 
 .header-sub-badge[data-tone="paid"]    { color: #16a34a; }
 .header-sub-badge[data-tone="partial"] { color: #ffa15c; }

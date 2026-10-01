@@ -61,6 +61,9 @@
 .db-pill svg.db-seal[data-tone="unpaid"] { color: #ff6868; }
 .db-pill.ok { background: rgba(94, 227, 154, 0.12); color: var(--db-green); border: 1px solid rgba(94, 227, 154, 0.3); }
 .db-pill.wait { background: rgba(255, 201, 71, 0.12); color: var(--db-amber); border: 1px solid rgba(255, 201, 71, 0.3); }
+/* the whole "Verified Tutor" badge follows the subscription payment colour too */
+.db-pill.ok[data-tone="partial"] { background: rgba(255, 161, 92, 0.12); color: #ffa15c; border-color: rgba(255, 161, 92, 0.3); }
+.db-pill.ok[data-tone="unpaid"]  { background: rgba(255, 104, 104, 0.12); color: #ff6868; border-color: rgba(255, 104, 104, 0.3); }
 .db-pill.no { background: rgba(255, 107, 107, 0.12); color: var(--db-red); border: 1px solid rgba(255, 107, 107, 0.3); }
 
 .db-btns { position: relative; display: flex; justify-content: center; gap: 10px; margin-top: 26px; flex-wrap: wrap; }

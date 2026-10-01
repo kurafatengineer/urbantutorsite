@@ -454,7 +454,7 @@ function renderTuitionCard(item) {
 
 async function applyForTuition(demoId, button) {
 
-  if (!(await hasSession())) {
+  if (!(await hasPortalSession("tutor"))) {
     // Leave the homepage frame too, not just the frame.
     (EMBEDDED ? window.top : window).location.href = "tutorregistration.html";
     return;

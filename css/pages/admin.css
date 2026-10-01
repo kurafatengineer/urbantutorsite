@@ -2964,11 +2964,6 @@ body[data-page="admin"] {
   bottom: -3px;
   width: 19px;
   height: 19px;
-  border-radius: 50%;
-  /* a solid backing behind the seal, so the cut-out checkmark reads as
-     a clean neutral hole no matter what colour the avatar behind it is */
-  background: var(--card-bg, var(--surface));
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   color: var(--muted-2);
 }
 
@@ -2976,10 +2971,12 @@ body[data-page="admin"] {
   display: block;
   width: 100%;
   height: 100%;
-  padding: 1.5px;
+  padding: 0;
 }
 
 .admin-sub-badge svg path { fill: currentColor; }
+/* the tick is see-through in the seal; black shows through it */
+.admin-sub-badge svg path.badge-tick { fill: #000000; }
 
 .admin-sub-badge[data-tone="paid"]    { color: var(--lime); }
 .admin-sub-badge[data-tone="partial"] { color: var(--orange); }
