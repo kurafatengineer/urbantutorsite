@@ -46,25 +46,6 @@ function showPage(name) {
   );
 }
 
-function escapeHTML(value) {
-  return String(value == null ? "" : value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-async function hasSession() {
-  try {
-    const { data: { session } } = await window.sb.auth.getSession();
-    return !!session;
-  } catch (error) {
-    console.error("Session check error:", error);
-    return false;
-  }
-}
-
 // Embedded on the homepage (see index.html)?
 const EMBEDDED = document.documentElement.classList.contains("embed");
 

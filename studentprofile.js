@@ -64,15 +64,6 @@ function showPage(name) {
   );
 }
 
-function escapeHTML(value) {
-  return String(value == null ? "" : value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
 function getStudentSession() {
   try {
     const raw = localStorage.getItem(STUDENT_SESSION_KEY);
@@ -113,15 +104,6 @@ function initialsOf(name, fallback) {
 // localStorage flag saved by student.js can go stale - e.g. the tab was
 // left open across a sign-out on another tab - so this is the check
 // that actually decides whether a Supabase RPC will succeed.)
-async function hasSession() {
-  try {
-    const { data } = await window.sb.auth.getSession();
-    return !!(data && data.session);
-  } catch (error) {
-    return false;
-  }
-}
-
 
 /************************************************************
  * ICONS  (same set as tutorprofile.js, plus phone)

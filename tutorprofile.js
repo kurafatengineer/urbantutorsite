@@ -52,15 +52,6 @@ function showPage(name) {
   );
 }
 
-function escapeHTML(value) {
-  return String(value == null ? "" : value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
 function getTutorSession() {
   try {
     const raw = localStorage.getItem(TUTOR_SESSION_KEY);
@@ -73,16 +64,6 @@ function getTutorSession() {
 
 function clearTutorSession() {
   localStorage.removeItem(TUTOR_SESSION_KEY);
-}
-
-async function hasSession() {
-  try {
-    const { data: { session } } = await window.sb.auth.getSession();
-    return !!session;
-  } catch (error) {
-    console.error("Session check error:", error);
-    return false;
-  }
 }
 
 
