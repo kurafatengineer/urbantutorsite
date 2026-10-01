@@ -1737,7 +1737,7 @@ function permChecklistHtml(selected, disabled) {
   const info = STATE.permInfo;
   if (!info) return "";
   return info.groups.map(g => `
-    <fieldset class="perm-group">
+    <fieldset class="perm-group perm-group-${esc(g.id)}">
       <legend>${esc(g.label)}</legend>
       ${g.items.map(i => `
         <label class="perm-item">
@@ -3341,8 +3341,8 @@ function paymentHead(key, p) {
           ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="${s.target.action}" data-highlight="1"${s.target.demo ? ` data-demo="${esc(s.target.demo)}"` : ""}${s.target.part ? ` data-part="${esc(s.target.part)}"` : ""}${s.target.tab ? ` data-tab="${esc(s.target.tab)}" data-key="${esc(s.target.key)}"` : ""} title="Open what this payment is for">₹</button>`
           : `<div class="admin-avatar">₹</div>`}
         ${equalRow([
-          ledgerDate(p.payment_date), s.partyName, s.partyMobile, s.partyWhatsapp,
-          s.studentId, s.demoId, s.tutorId, rupees(p.amount), s.dues == null ? "" : rupees(s.dues)
+          { text: ledgerDate(p.payment_date), sub: timeIST(p.created_at) }, s.partyName, s.partyMobile, s.partyWhatsapp,
+          s.studentId, s.demoId, s.tutorId, s.dues == null ? "" : rupees(s.dues), rupees(p.amount)
         ])}
         <span class="admin-caret" aria-hidden="true"></span>
         <span class="admin-status-rail admin-rail-purpose" data-tone="black" tabindex="-1">${esc(s.purpose)}</span>
@@ -3710,10 +3710,28 @@ function ledgerDate(iso) {
 }
 
 function ledgerRow(cells) {
-  return `<div class="ledger-grid">${cells.map(c => {
-    const text = (c === undefined || c === null || c === "") ? "-" : String(c);
-    return `<span class="ledger-cell" title="${esc(text)}">${esc(text)}</span>`;
-  }).join("")}</div>`;
+  return `<div class="ledger-grid">${cells.map(cellHtml).join("")}</div>`;
+}
+
+// One grid cell. A plain value is cut with "..." when too long; a
+// { text, sub } cell (the Date columns) shows the date with its time
+// below in small type.
+function cellHtml(c) {
+  if (c && typeof c === "object") {
+    const text = String(c.text || "") || "-";
+    const sub = String(c.sub || "");
+    return `<span class="ledger-cell" title="${esc(sub ? text + ", " + sub : text)}">${esc(text)}${sub ? `<small class="cell-sub">${esc(sub)}</small>` : ""}</span>`;
+  }
+  const text = (c === undefined || c === null || c === "") ? "-" : String(c);
+  return `<span class="ledger-cell" title="${esc(text)}">${esc(text)}</span>`;
+}
+
+// "5:34 AM" - the time a payment was recorded, in Indian time.
+function timeIST(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  return d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }).toUpperCase();
 }
 
 // Money in (green) or out (red) - only a Tutor payout goes out.
@@ -3737,7 +3755,7 @@ function ledgerCard(e) {
           ${e.subscriptionId ? `data-sub="${e.subscriptionId}"` : `data-demo="${esc(t.demo)}" data-part="${esc(t.part)}"`}
           title="Record this payment" aria-label="Record this payment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>`;
   const cells = [
-    ledgerDate(e.date), e.kind, e.partyName, e.mobile,
+    { text: ledgerDate(e.date), sub: e.status === "paid" ? timeIST(e.recordedAt) : "" }, e.kind, e.partyName, e.mobile,
     e.tutorId, e.studentId, e.demoId, "₹" + Number(e.amount || 0).toLocaleString("en-IN")
   ];
   return `
@@ -3934,10 +3952,7 @@ const SUBSCRIPTION_STATUS_TONES = { active: "running", paused: "schedule", cance
 // Payment, Student and Tutor cards.
 function equalRow(cells, widths) {
   const template = widths || `repeat(${cells.length}, minmax(0, 1fr))`;
-  return `<div class="eq-grid" style="grid-template-columns: ${template}">${cells.map(c => {
-    const text = (c === undefined || c === null || c === "") ? "-" : String(c);
-    return `<span class="ledger-cell" title="${esc(text)}">${esc(text)}</span>`;
-  }).join("")}</div>`;
+  return `<div class="eq-grid" style="grid-template-columns: ${template}">${cells.map(cellHtml).join("")}</div>`;
 }
 
 // A slim, rounded header-row card above a list, naming its columns -
@@ -3960,7 +3975,7 @@ function studentHeaderCard() {
 function paymentHeaderCard() {
   return listHeaderCard(`
     <div class="admin-avatar">₹</div>
-    ${equalRow(["Date", "Name", "Mobile", "WhatsApp", "Student ID", "Demo ID", "Tutor ID", "Amount Paid", "Dues"])}
+    ${equalRow(["Date", "Name", "Mobile", "WhatsApp", "Student ID", "Demo ID", "Tutor ID", "Dues", "Amount Paid"])}
     <span class="admin-caret" aria-hidden="true"></span>
     <span class="admin-status-rail admin-rail-purpose" data-tone="black">Type</span>
     <span class="admin-status-rail admin-rail-party" data-tone="black">Who</span>
