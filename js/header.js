@@ -418,7 +418,7 @@ function updateLoginDestination() {
    =========================================================
    Read-only check against localStorage - the header never
    creates, verifies with the server, or clears a session.
-   That stays entirely in tutorregistration.js / tutorprofile.js.
+   That stays entirely in tutor-registration.js / tutor-profile.js.
    ========================================================= */
 
 function isLoggedInTutor_() {
@@ -435,8 +435,8 @@ function isLoggedInTutor_() {
 /* =========================================================
    NEW: STUDENT SESSION CHECK
    =========================================================
-   Read-only, same as the tutor check above. student.js and
-   studentprofile.js remain the only places that create,
+   Read-only, same as the tutor check above. student-registration.js and
+   student-profile.js remain the only places that create,
    verify, or clear a student session.
    ========================================================= */
 

@@ -4,7 +4,7 @@
    Same dark brand system as the rest of the site, with a
    richer multi-accent palette for stats / class cards.
    Every class name and id below is identical to the markup
-   in tutorprofile.html and every hook tutorprofile.js reads
+   in tutorprofile.html and every hook tutor-profile.js reads
    or writes. No selector was renamed, so no functionality
    changes are required elsewhere on the site.
 ========================================================= */
