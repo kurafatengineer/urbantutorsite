@@ -89,6 +89,16 @@ function esc(value) {
     .replace(/'/g, "&#039;");
 }
 
+// Money text, Indian style: 1500 -> "₹1,500".
+// rupeesRounded() does the same but first rounds to a whole rupee (graphs).
+function rupees(n) {
+  return "₹" + Number(n || 0).toLocaleString("en-IN");
+}
+
+function rupeesRounded(n) {
+  return "₹" + Math.round(n).toLocaleString("en-IN");
+}
+
 // Strips currency symbols/commas etc. off a display value like "₹1,200"
 // and returns a plain number, or 0 if there's nothing usable in it.
 function num(value) {
@@ -3334,7 +3344,6 @@ function paymentSummary(p) {
 // no live Tuition) its Tutor.
 function paymentHead(key, p) {
   const s = paymentSummary(p);
-  const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
   return `
       <div class="admin-card-head" data-toggle="${esc(key)}">
         ${s.target
@@ -3383,7 +3392,6 @@ function paymentCard(p, ctx) {
   const student = DIR_STUDENT_BY_ID[studentId] || {};
   const tutorId = p.tutor_id || (t ? t.activeRow.tutorId : "");
   const tutor = DIR_TUTOR_BY_ID[tutorId] || {};
-  const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
   const paying = num(p.amount);
   const remaining = t ? Math.max(t.duesBefore - paying, 0) : null;
 
@@ -3495,7 +3503,6 @@ function subscriptionPaymentCard(p, key, open, editing, buttons) {
     .reduce((sum, o) => sum + Number(o.amount || 0), 0);
   const duesThen = Math.max(planAmount - paidBefore, 0);
   const remaining = Math.max(duesThen - paying, 0);
-  const rupees = n => "₹" + Number(n).toLocaleString("en-IN");
   const startDate = sub.start_date || "";
   const nextDue = subscriptionNextDue(sub);
 
@@ -3560,7 +3567,6 @@ function agencyChargePaymentCard(p, key, open, editing, buttons) {
       (o.payment_date < p.payment_date || (o.payment_date === p.payment_date && o.id < p.id)))
     .reduce((sum, o) => sum + Number(o.amount || 0), 0);
   const duesThen = Math.max(charge - paidBefore, 0);
-  const rupees = n => "₹" + Number(n).toLocaleString("en-IN");
   const transactionLabel = isTutorSide ? "Tutor Agency Charge" : "Student Agency Charge";
 
   const boxes = `
@@ -3843,14 +3849,13 @@ function renderGraph() {
   const totalOut = paid.filter(isOut).reduce((s, e) => s + e.amount, 0);
   const totalDues = due.reduce((s, e) => s + e.amount, 0);
   const totalOverdue = due.filter(e => e.status === "overdue").reduce((s, e) => s + e.amount, 0);
-  const rupees = n => "₹" + Math.round(n).toLocaleString("en-IN");
 
   const stats = [
-    ["Total Collected", rupees(totalIn), "green"],
-    ["Total Paid Out", rupees(totalOut), "red"],
-    ["Net", rupees(totalIn - totalOut), totalIn - totalOut >= 0 ? "lime" : "red"],
-    ["Outstanding Dues", rupees(totalDues), "amber"],
-    ["Over Dues", rupees(totalOverdue), "red"]
+    ["Total Collected", rupeesRounded(totalIn), "green"],
+    ["Total Paid Out", rupeesRounded(totalOut), "red"],
+    ["Net", rupeesRounded(totalIn - totalOut), totalIn - totalOut >= 0 ? "lime" : "red"],
+    ["Outstanding Dues", rupeesRounded(totalDues), "amber"],
+    ["Over Dues", rupeesRounded(totalOverdue), "red"]
   ];
 
   $("graphStats").innerHTML = stats.map(([label, value, tone]) => `
@@ -3885,7 +3890,6 @@ function graphBarChart(monthKeys, byMonth) {
   const maxVal = Math.max(1, ...monthKeys.map(k => Math.max(byMonth.get(k).in, byMonth.get(k).out)));
   const groupW = plotW / monthKeys.length;
   const barW = Math.min(22, groupW / 3);
-  const rupees = n => "₹" + Math.round(n).toLocaleString("en-IN");
 
   const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
     const y = padT + plotH * (1 - f);
@@ -3900,10 +3904,10 @@ function graphBarChart(monthKeys, byMonth) {
     const outH = (outVal / maxVal) * plotH;
     return `
       <rect class="graph-bar-in" x="${cx - barW - 2}" y="${padT + plotH - inH}" width="${barW}" height="${Math.max(inH, 0.5)}" rx="3">
-        <title>${esc(graphMonthLabel(key))} - In: ${esc(rupees(inVal))}</title>
+        <title>${esc(graphMonthLabel(key))} - In: ${esc(rupeesRounded(inVal))}</title>
       </rect>
       <rect class="graph-bar-out" x="${cx + 2}" y="${padT + plotH - outH}" width="${barW}" height="${Math.max(outH, 0.5)}" rx="3">
-        <title>${esc(graphMonthLabel(key))} - Out: ${esc(rupees(outVal))}</title>
+        <title>${esc(graphMonthLabel(key))} - Out: ${esc(rupeesRounded(outVal))}</title>
       </rect>
       <text class="graph-month-label" x="${cx}" y="${h - 8}" text-anchor="middle">${esc(graphMonthLabel(key))}</text>
     `;
@@ -4525,7 +4529,6 @@ function classCard(g, activeRow) {
   // Payment/Total Amount on the far left, Tutor's on the far right, and
   // each side's own Agency Payment/Agency Amount centred between them
   // (Student's agency fraction first, then Tutor's).
-  const rupees = n => "₹" + Number(n || 0).toLocaleString("en-IN");
   const frac = (paid, total) => `
     <span class="admin-class-frac-num">${esc(rupees(paid))}</span>
     <span class="admin-class-frac-den">${esc(rupees(total))}</span>`;
