@@ -736,9 +736,9 @@ async function activeTutorForDemo(demoId?: string | null): Promise<Party | null>
   return data ? lookupTutor(data.tutor_id) : null;
 }
 
-// Switched off for now: no email goes out for admin edits. Set this back
-// to true to resume the notifications above (nothing else needs changing).
-const SEND_EDIT_EMAILS = false;
+// Admin edits email the affected student/tutor. Set this to false to stop them
+// (nothing else needs changing).
+const SEND_EDIT_EMAILS = true;
 
 async function notify(party: Party | null, subject: string, heading: string, intro: string, rows: [string, string][] = []) {
   if (!SEND_EDIT_EMAILS) return;
