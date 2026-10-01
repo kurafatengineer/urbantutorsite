@@ -30,6 +30,7 @@ import {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
 const DOC_LINK_SECONDS = 60 * 60;
 const DOC_BUCKET = "tutor-documents";
@@ -881,9 +882,35 @@ async function realignSubscriptionCycle(subscriptionId: number, paymentDate: str
   await db.from("subscriptions").update(changes).eq("id", subscriptionId);
 }
 
+// LOGIN STEP 1 - the only action that runs BEFORE someone is logged in.
+// It decides on the SERVER whether this email may receive a login code, and
+// the answer to the browser is always the same ("code requested"), so nobody
+// can use the login page to find out which emails belong to office staff.
+// A code is only really sent to an active employee - or, while no employee
+// exists yet, to whoever sets up the first Super Admin.
+async function handleSendCode(body: Json): Promise<Json> {
+  const email = String(body?.email ?? "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { success: false, message: "Enter a valid email address." };
+  }
+
+  const { data: row } = await db.from("admin_users").select("id").ilike("email", email).eq("active", true).maybeSingle();
+  const { count } = await db.from("admin_users").select("id", { count: "exact", head: true });
+  const bootstrap = !count;
+
+  if (row || bootstrap) {
+    const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { error } = await anon.auth.signInWithOtp({ email, options: { shouldCreateUser: bootstrap } });
+    if (error) console.error("admin send code failed", error.message);
+  }
+
+  return { success: true };
+}
+
 async function handle(body: Json, authHeader: string | null): Promise<Json> {
 
   const action = String(body?.action ?? "");
+  if (action === "adminSendCode") return handleSendCode(body);
   const user = await currentUser(authHeader);
 
   if (!user) {
