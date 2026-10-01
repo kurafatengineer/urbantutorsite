@@ -258,7 +258,7 @@ function stat(value, label, accent) {
  ************************************************************/
 
 // The subject pill is always a plain black chip (see
-// .subject-badge in tutorprofile.css) — no colour keyed to the
+// .subject-badge in tutor-profile.css) — no colour keyed to the
 // subject text, and no borrowed status colour. That keeps it
 // visually distinct from every status pill (including
 // "Completed") with zero risk of ever landing on the same

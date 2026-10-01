@@ -2669,7 +2669,7 @@ body {
 
 
 /* "Find your perfect tutor." is exactly as wide as the email box
-   and Continue button (student.js fits the font size; the value
+   and Continue button (student-registration.js fits the font size; the value
    below is only the starting size / fallback). */
 #emailPage .intro {
   max-width: 520px;

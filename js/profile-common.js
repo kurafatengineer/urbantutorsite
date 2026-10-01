@@ -1,10 +1,10 @@
 /* =====================================================================
    PROFILE PAGES - SHARED HELPERS
-   Used by BOTH studentprofile.js and tutorprofile.js.
+   Used by BOTH student-profile.js and tutor-profile.js.
    (These functions used to be copied word-for-word in each file; they now
    live here once, so a fix made here applies to both profile pages.)
 
-   Load order in the HTML:  profile-common.js  ->  studentprofile.js / tutorprofile.js
+   Load order in the HTML:  profile-common.js  ->  student-profile.js / tutor-profile.js
    Needs from the page:     $()  and  escapeHTML()  (defined in each page's own JS)
 
    What is inside:
@@ -50,7 +50,7 @@ function isTicked(value) {
   return value === true || /^(true|yes|y|1)$/i.test(String(value == null ? "" : value).trim());
 }
 
-// Same parsing as tutorprofile.js: "25 September 2026, 11:00 AM".
+// Same parsing as tutor-profile.js: "25 September 2026, 11:00 AM".
 // The Payment Date chosen for the payment, followed by the time it was
 // actually recorded (paidAt), in Indian time.
 function paymentDateTime(p) {

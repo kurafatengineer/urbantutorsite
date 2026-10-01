@@ -13,7 +13,7 @@
  *
  * SUPABASE (replaces the old Apps Script API)
  *   Login + registration use Supabase Auth's own e-mail OTP
- *   (window.sb.auth.signInWithOtp / verifyOtp) - same as student.js.
+ *   (window.sb.auth.signInWithOtp / verifyOtp) - same as student-registration.js.
  *   RPC functions (supabase-setup-3-register-profile.sql):
  *     email_status(p_email)      -> { student, tutor }
  *     register_tutor(p)          -> { success, tutorId }
@@ -1004,7 +1004,7 @@ function showSuccess(type, result) {
    */
 
   // Supabase keeps the real login; this flag only tells the header /
-  // homepage "a tutor is logged in here" (same idea as student.js).
+  // homepage "a tutor is logged in here" (same idea as student-registration.js).
   {
 
     try {

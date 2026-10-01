@@ -1,7 +1,7 @@
 /* =========================================================
    URBANTUTORSITE - STUDENT PROFILE
    ---------------------------------------------------------
-   Loaded AFTER tutorprofile.css, which supplies every shared
+   Loaded AFTER tutor-profile.css, which supplies every shared
    style (profile card, stats, filter tabs, class cards). This
    file only adds what the Student Profile needs on top:
    the student switcher, two student-only status colours and
@@ -330,7 +330,7 @@ body.add-modal-open {
 ========================================================= */
 
 .profile-card {
-  /* Padding of .profile-card (tutorprofile.css), kept in one place
+  /* Padding of .profile-card (tutor-profile.css), kept in one place
      so the "Apply for new tuition" bar can bleed out to the card's
      sides and bottom edge exactly. */
   --pc-x: 28px;
@@ -530,7 +530,7 @@ body.add-modal-open {
 }
 
 /* top layer: "Applied by" / "Demo Scheduled" / "Your Tutor" (+ note).
-   Centred, always ONE line - studentprofile.js shrinks the font
+   Centred, always ONE line - student-profile.js shrinks the font
    (fitHeadText) when the text would not fit. */
 .tutor-head {
   display: flex;
