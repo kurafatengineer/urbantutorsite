@@ -1268,16 +1268,6 @@ function renderStudentProfile(profile) {
     .join("");
 }
 
-function escapeHTML(value) {
-
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
 function closeStudentProfileModal() {
 
   if (!studentProfileModal) {
