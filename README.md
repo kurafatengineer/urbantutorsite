@@ -85,6 +85,12 @@ Project id: `zbvtdcqoouwyrcxkzjfv`
 received · 7 Agency charge received · 8 Payment to tutor · 9 Student
 subscription · 10 Tutor subscription. Nothing else sends mail.
 
+**Emails On / Off** (Admin Panel top bar, Super Admin only): switches off the
+emails that *Admin Panel updates* send, for the whole office. It is stored in
+the database table `app_settings` (key `admin_mails`). Login codes and emails
+caused by students / tutors themselves are not affected. The **Light / Dark
+Mode** button next to it only changes the panel's look on that device.
+
 ---
 
 ## 3. When something breaks

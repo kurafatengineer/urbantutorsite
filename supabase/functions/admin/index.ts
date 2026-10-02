@@ -681,6 +681,7 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
     email: caller.email, fullName: caller.fullName, role: caller.role,
     permissions: [...caller.permissions],
   };
+  withLinks.settings = { mailsEnabled: await adminMailsEnabled() };
 
   if (canSeePayments(caller)) {
     const { data: payments, error } = await db
@@ -725,8 +726,17 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
      a subscription payment (student / tutor). Everything else is silent.
    A failed send never blocks the action itself (see _shared/email.ts). */
 
+// The "Mails On / Off" switch in the Admin Panel header (app_settings.admin_mails).
+// Off = none of the emails below are sent for updates made in the Admin Panel.
+async function adminMailsEnabled(): Promise<boolean> {
+  const { data } = await db.from("app_settings").select("value").eq("key", "admin_mails").maybeSingle();
+  return data?.value?.enabled !== false;
+}
+
 async function sendTo(email: string | null | undefined, mail: { subject: string; html: string }) {
-  if (email) await sendMail(email, mail.subject, mail.html);
+  if (!email) return;
+  if (!(await adminMailsEnabled())) return;   // the office switched emails off
+  await sendMail(email, mail.subject, mail.html);
 }
 
 const num = (v: unknown) => Number(v) || 0;
@@ -950,6 +960,20 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
   }
 
   if (action === READ_ONLY_ACTION) return handleGetOverview(caller);
+
+  // Only a Super Admin can turn the Admin Panel's emails on / off (for everyone).
+  if (action === "adminSetMails") {
+    if (caller.role !== "super_admin") return forbidden();
+    const enabled = body.enabled === true;
+    const { error } = await db.from("app_settings").upsert({
+      key: "admin_mails", value: { enabled }, updated_at: new Date().toISOString(), updated_by: caller.id,
+    });
+    if (error) return { success: false, message: error.message };
+    return {
+      success: true, mailsEnabled: enabled,
+      message: enabled ? "Emails are ON - updates will email students and tutors again." : "Emails are OFF - updates will not send any email.",
+    };
+  }
 
   if (!canRunAction(caller, action)) return forbidden();
 

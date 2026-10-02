@@ -272,6 +272,7 @@ const STATE = {
     verificationValues: []
   },
   me: null,             // { email, fullName, role }
+  settings: null,       // { mailsEnabled } - office-wide switches
   payments: [],
   subscriptions: [],
   employees: [],
@@ -603,7 +604,97 @@ function applyRoleUI() {
     ? `${esc(STATE.me.fullName)} <span class="admin-role-pill" data-role="${esc(STATE.me.role)}">${esc(ROLE_LABELS[STATE.me.role] || STATE.me.role)}</span>`
     : "";
 
+  renderMailToggle();
+
   applyActiveTab();
+
+}
+
+/* =====================================================================
+   HEADER SWITCHES
+   - Emails On / Off: the office-wide switch for the emails that Admin
+     Panel updates send (payments, subscriptions, demo / tutor changes,
+     tuitions posted by the office). Only the Super Admin can change it;
+     everyone else just sees whether it is on. Login codes and emails
+     caused by students / tutors themselves are not affected.
+   - Dark / Light mode: only how this Admin Panel looks, saved on this
+     device (the <head> of admin.html applies it before the page draws).
+   ===================================================================== */
+
+const THEME_KEY = "urbanAdminTheme";
+
+function currentTheme() {
+  return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+}
+
+function applyTheme(theme) {
+  if (theme === "light") document.documentElement.setAttribute("data-theme", "light");
+  else document.documentElement.removeAttribute("data-theme");
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", theme === "light" ? "#f4f5f7" : "#050505");
+  const button = $("themeToggle");
+  if (button) {
+    const next = theme === "light" ? "Dark" : "Light";
+    button.querySelector(".admin-switch-text").textContent = next + " Mode";
+    button.setAttribute("aria-label", "Switch to " + next.toLowerCase() + " mode");
+    button.title = "Switch the Admin Panel to " + next.toLowerCase() + " mode";
+  }
+}
+
+function renderMailToggle() {
+  const button = $("mailToggle");
+  if (!button) return;
+  const known = !!(STATE.me && STATE.settings && typeof STATE.settings.mailsEnabled === "boolean");
+  button.classList.toggle("hidden", !known);
+  if (!known) return;
+  const on = STATE.settings.mailsEnabled;
+  const canChange = STATE.me.role === "super_admin";
+  button.dataset.on = String(on);
+  button.setAttribute("aria-pressed", String(on));
+  button.querySelector(".admin-switch-text").textContent = on ? "Emails On" : "Emails Off";
+  button.disabled = !canChange;
+  button.title = canChange
+    ? (on ? "Updates made here email students and tutors. Click to stop these emails."
+          : "Updates made here send no email. Click to start these emails again.")
+    : (on ? "Updates made here email students and tutors (only the Super Admin can change this)."
+          : "Updates made here send no email (only the Super Admin can change this).");
+}
+
+function wireHeaderSwitches() {
+
+  applyTheme(currentTheme());
+
+  $("themeToggle").addEventListener("click", () => {
+    const next = currentTheme() === "light" ? "dark" : "light";
+    applyTheme(next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+  });
+
+  $("mailToggle").addEventListener("click", async () => {
+    const button = $("mailToggle");
+    if (button.disabled || !STATE.settings || !STATE.me || STATE.me.role !== "super_admin") return;
+    const turnOn = !STATE.settings.mailsEnabled;
+    const ok = window.confirm(turnOn
+      ? "Turn emails ON?\n\nUpdates made in the Admin Panel will email students and tutors again."
+      : "Turn emails OFF?\n\nUpdates made in the Admin Panel (by everyone in the office) will NOT email students or tutors until you turn this back on.\n\nLogin codes and emails caused by students / tutors themselves still go out.");
+    if (!ok) return;
+    button.disabled = true;
+    button.classList.add("is-loading");
+    try {
+      const result = await adminCall({ action: "adminSetMails", enabled: turnOn });
+      if (result && result.success) {
+        STATE.settings = Object.assign({}, STATE.settings, { mailsEnabled: !!result.mailsEnabled });
+        toast(result.message || (turnOn ? "Emails are ON." : "Emails are OFF."));
+      } else {
+        toast((result && result.message) || "Unable to change the email setting.", true);
+      }
+    } catch (error) {
+      if (error.message !== "not-admin") toast("Unable to connect to the server.", true);
+    } finally {
+      button.classList.remove("is-loading");
+      renderMailToggle();
+    }
+  });
 
 }
 
@@ -641,6 +732,7 @@ async function loadOverview(quiet) {
       verificationValues: result.verificationValues || ["Verified", "Rejected", "Pending for Verification"]
     };
     STATE.me = result.me || null;
+    STATE.settings = result.settings || null;
     STATE.payments = result.payments || [];
     STATE.subscriptions = result.subscriptions || [];
     STATE.employees = result.employees || [];
@@ -837,6 +929,8 @@ function wireEvents() {
   $("logoutButton").addEventListener("click", async () => {
     await forceLogout();
   });
+
+  wireHeaderSwitches();
 
   $("refreshButton").addEventListener("click", async () => {
     const button = $("refreshButton");
