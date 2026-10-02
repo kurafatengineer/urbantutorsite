@@ -1,0 +1,119 @@
+/* =====================================================================
+   STUDENT FORMS IN A POP-UP - "Add a Student" + "Apply For New Tuition"
+   The exact look of the Student Profile page's pop-up forms (copied from
+   css/pages/student-profile.css), used by the Admin Panel so the office
+   fills in the very same-looking forms. Everything is scoped to .add-modal
+   so it cannot change anything else on the page.
+   ===================================================================== */
+
+.add-modal {
+  /* the Student Profile colours */
+  --surface: #101010;
+  --surface-2: #151515;
+  --border: #292929;
+  --border-light: #353535;
+  --text: #f5f5f5;
+  --muted: #9a9a9a;
+  --muted-2: #6f6f6f;
+  --lime: #16a34a;
+  --lime-hover: #22c55e;
+  --lime-dim: rgba(22, 163, 74, 0.12);
+  --lime-line: rgba(22, 163, 74, 0.28);
+  --danger: #ff6868;
+  --radius: 20px;
+  --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.45);
+
+  position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-start; justify-content: center;
+  padding: 16px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  color: var(--text);
+}
+.add-modal.hidden { display: none; }
+.add-modal .add-modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.72); }
+.add-modal .add-modal-box {
+  position: relative; width: min(620px, 100%); margin: auto 0; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 24px 24px; box-shadow: var(--shadow-card);
+  text-align: left;
+}
+.add-modal .add-modal-box h2 { margin: 0 36px 4px; font-size: 22px; font-weight: 800; text-align: center; }
+.add-modal .modal-subtitle { margin: 0 0 22px; text-align: center; font-size: 13.5px; font-weight: 600; color: var(--muted); overflow-wrap: anywhere; }
+.add-modal .add-modal-close {
+  position: absolute; top: 12px; right: 14px; width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center; padding: 0; border: 1px solid var(--lime-line); background: var(--lime-dim);
+  color: var(--lime); cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;
+}
+.add-modal .add-modal-close svg { width: 16px; height: 16px; display: block; }
+.add-modal .add-modal-close:hover { border-color: var(--lime); background: rgba(22, 163, 74, 0.2); }
+
+.add-modal .add-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.add-modal .add-wide { grid-column: 1 / -1; }
+.add-modal .add-section-title { grid-column: 1 / -1; margin: 6px 0 -4px; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); }
+
+.add-modal .float-field { position: relative; display: block; min-width: 0; }
+.add-modal .float-field.hidden { display: none; }
+.add-modal .float-field input {
+  width: 100%; box-sizing: border-box; padding: 15px 20px 13px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text); font: inherit; font-size: 15px; transition: border-color 0.15s ease;
+}
+.add-modal .float-field input:focus { outline: none; border-color: var(--lime-line); }
+.add-modal .float-field > span {
+  position: absolute; left: 16px; top: 50%; max-width: calc(100% - 32px); padding: 0 4px; transform: translateY(-50%);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14.5px; color: var(--muted-2); pointer-events: none;
+  background: linear-gradient(to bottom, var(--surface) 50%, var(--surface-2) 50%); border-radius: 4px;
+  transition: top 0.15s ease, font-size 0.15s ease, color 0.15s ease;
+}
+.add-modal .float-field input:focus + span,
+.add-modal .float-field input:not(:placeholder-shown) + span { top: 0; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.add-modal .float-field input:focus + span { color: var(--lime); }
+
+.add-modal .choice-row { display: grid; gap: 8px; min-width: 0; }
+.add-modal .choice-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.add-modal .choice-3,
+.add-modal .choice-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.add-modal .choice-row label { position: relative; min-width: 0; cursor: pointer; }
+.add-modal .choice-row input { position: absolute; opacity: 0; pointer-events: none; }
+.add-modal .choice-row label span {
+  display: block; width: 100%; box-sizing: border-box; padding: 10px 6px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 13px; font-weight: 600; transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.add-modal .choice-row input:checked + span { color: #050505; background: var(--lime); border-color: var(--lime); }
+.add-modal .choice-row input:focus-visible + span { outline: 2px solid var(--lime); outline-offset: 2px; }
+
+.add-modal .timing-block { display: flex; flex-direction: column; gap: 10px; }
+.add-modal .timing-title { text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); }
+
+.add-modal .pill-check {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px 11px 20px;
+  border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); cursor: pointer; user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.add-modal .pill-check input { position: absolute; opacity: 0; pointer-events: none; }
+.add-modal .pill-check-text { min-width: 0; font-size: 14px; font-weight: 600; color: var(--text); }
+.add-modal .pill-check-icon {
+  flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--border-light); display: grid; place-items: center;
+  color: #050505; transition: background 0.15s ease, border-color 0.15s ease;
+}
+.add-modal .pill-check-icon svg { width: 14px; height: 14px; opacity: 0; transition: opacity 0.15s ease; }
+.add-modal .pill-check:hover { border-color: var(--border-light); }
+.add-modal .pill-check:has(input:checked) { border-color: rgba(22, 163, 74, 0.45); background: var(--lime-dim); }
+.add-modal .pill-check input:checked ~ .pill-check-icon { background: var(--lime); border-color: var(--lime); }
+.add-modal .pill-check input:checked ~ .pill-check-icon svg { opacity: 1; }
+.add-modal .pill-check input:focus-visible ~ .pill-check-icon { outline: 2px solid var(--lime); outline-offset: 3px; }
+
+.add-modal .add-message { min-height: 1.3em; margin: 16px 0 0; font-size: 13.5px; color: var(--danger); text-align: center; }
+.add-modal .add-submit {
+  width: 100%; margin-top: 10px; padding: 14px 20px; border: none; border-radius: 999px; background: var(--lime);
+  color: #050505; font: inherit; font-weight: 700; font-size: 15px; cursor: pointer;
+}
+.add-modal .add-submit:hover { background: var(--lime-hover); }
+.add-modal .add-submit:disabled { opacity: 0.6; cursor: default; }
+
+body.add-modal-open { overflow: hidden; }
+
+@media (max-width: 560px) {
+  .add-modal { padding: 12px 10px calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .add-modal .add-modal-box { padding: 22px 16px 18px; }
+  .add-modal .add-modal-box h2 { font-size: 20px; }
+  .add-modal .choice-row label span { padding: 10px 4px; font-size: 12.5px; }
+  .add-modal .add-grid { grid-template-columns: 1fr; }
+}

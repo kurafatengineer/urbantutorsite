@@ -1592,104 +1592,122 @@ function wireSubscriptionForm() {
 /************************************************************
  * ADD A STUDENT  /  APPLY FOR NEW TUITION  (office does it for the student)
  *
- * The same details, choices and checks as the student's own
- * registration page and "Apply for New Tuition" form - the only
- * difference is that no OTP is needed because the office is
- * typing it in. The server ("adminAddStudent" / "adminAddTuition")
- * saves it and sends the student the usual "Tuition Request Posted"
- * email when a tuition request was made.
+ * Two pop-up forms with the very same look and choices as the Student
+ * Profile page's "Add a Student" and "Apply For New Tuition" pop-ups
+ * (style: css/student-forms.css). Add a Student also asks for the
+ * parent / contact details the website's registration asks for, since
+ * there is no student account to take them from. No OTP is needed - the
+ * server ("adminAddStudent" / "adminAddTuition") saves it and emails the
+ * student the usual "Tuition Request Posted" mail.
  ************************************************************/
-
-// "17:30" -> "5:30 PM" (how the website saves an "Other" time)
-function timeText(hhmm) {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || "");
-  if (!m) return "";
-  let h = Number(m[1]);
-  const suffix = h >= 12 ? "PM" : "AM";
-  h = h % 12 || 12;
-  return `${h}:${m[2]} ${suffix}`;
-}
 
 function radioValue(name) {
   const el = document.querySelector(`input[name="${name}"]:checked`);
   return el ? el.value : "";
 }
 
-// ticked time slots as the website writes them ("4 PM", "Other: 5:30 PM")
-function readTimings(prefix) {
-  const values = [...document.querySelectorAll(`input[name="${prefix}Timing"]:checked`)].map(i => i.value);
-  const other = values.indexOf("Other");
-  if (other !== -1) {
-    const text = timeText($(prefix + "TimingOtherInput").value);
-    if (text) values[other] = "Other: " + text;
-  }
-  return values;
-}
+// The timing grid exactly like the Student Profile: 8 AM ... 9 PM + Other.
+// "Other" switches the ready-made slots off and asks for the time in words.
+function buildTimingGrid(prefix) {
+  const TIMING_OPTIONS = ["8 AM", "9 AM", "10 AM", "11 AM", "12 PM", "1 PM", "2 PM",
+    "3 PM", "4 PM", "5 PM", "6 PM", "7 PM", "8 PM", "9 PM"];
+  const grid = $(prefix + "Timings");
+  grid.innerHTML = TIMING_OPTIONS.map(t =>
+    `<label><input type="checkbox" name="${prefix}Timing" value="${t}"><span>${t}</span></label>`
+  ).join("") + `<label><input type="checkbox" id="${prefix}TimingOther" value="Other"><span>Other</span></label>`;
 
-// "Other" and the ready-made slots exclude each other, like on the website
-function wireTimingGroup(prefix) {
-  const boxes = [...document.querySelectorAll(`input[name="${prefix}Timing"]`)];
-  const other = $(prefix + "TimingOther");
-  boxes.forEach(box => box.addEventListener("change", () => {
-    if (box === other && other.checked) boxes.forEach(b => { if (b !== other) b.checked = false; });
-    if (box !== other && box.checked) other.checked = false;
-    $(prefix + "TimingOtherWrap").classList.toggle("hidden", !other.checked);
-  }));
-}
-
-function resetChoices(prefix) {
-  document.querySelectorAll(`input[name="${prefix}Timing"]`).forEach(b => { b.checked = false; });
-  [prefix + "Tutor", prefix + "Mode"].forEach(name => {
-    const any = document.querySelector(`input[name="${name}"][value="Any"]`);
-    if (any) any.checked = true;
+  grid.addEventListener("change", (event) => {
+    const box = event.target;
+    if (box.id === prefix + "TimingOther") {
+      if (box.checked) grid.querySelectorAll(`input[name="${prefix}Timing"]`).forEach(b => { b.checked = false; });
+      $(prefix + "OtherTimingField").classList.toggle("hidden", !box.checked);
+      if (box.checked) $(prefix + "OtherTiming").focus();
+    } else if (box.checked) {
+      $(prefix + "TimingOther").checked = false;
+      $(prefix + "OtherTimingField").classList.add("hidden");
+    }
   });
-  $(prefix + "TimingOtherWrap").classList.add("hidden");
-  $(prefix + "TimingOtherInput").value = "";
 }
 
-// sends it to the server, shows the answer, refreshes the lists
-async function submitForOffice(payload, button, doneText) {
+// what the website saves: "4 PM, 5 PM" - or the typed time when "Other" is on
+function readTiming(prefix) {
+  return $(prefix + "TimingOther").checked
+    ? $(prefix + "OtherTiming").value.trim()
+    : [...document.querySelectorAll(`input[name="${prefix}Timing"]:checked`)].map(i => i.value).join(", ");
+}
+
+function openFormModal(id) {
+  const modal = $(id);
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("add-modal-open");
+}
+
+function closeFormModal(id) {
+  const modal = $(id);
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden", "true");
+  if (!document.querySelector(".add-modal:not(.hidden)")) document.body.classList.remove("add-modal-open");
+}
+
+function resetFormModal(prefix, formId, messageId) {
+  $(formId).reset();
+  $(messageId).textContent = "";
+  $(prefix + "OtherTimingField").classList.add("hidden");
+}
+
+// sends it to the server; a problem is shown under the form like on the website
+async function submitForOffice(payload, button, messageEl, doneText) {
 
   const label = button.textContent;
   button.disabled = true;
   button.textContent = "Saving...";
+  messageEl.textContent = "";
 
   try {
     const result = await adminCall(payload);
     if (!result.success) {
-      toast(result.message || "Unable to save.", true);
+      messageEl.textContent = result.message || "Unable to save.";
       return false;
     }
     await loadOverview(true);
     toast(doneText(result));
     return true;
   } catch (error) {
-    if (error.message !== "not-admin") toast("Unable to connect to the server.", true);
+    if (error.message !== "not-admin") messageEl.textContent = "Unable to connect to the server.";
     return false;
   } finally {
-    if (document.body.contains(button)) {
-      button.disabled = false;
-      button.textContent = label;
-    }
+    button.disabled = false;
+    button.textContent = label;
   }
 
 }
 
 function wireStudentForms() {
 
-  wireTimingGroup("sa");
-  wireTimingGroup("ta");
+  buildTimingGrid("sa");
+  buildTimingGrid("ta");
+
+  // close: the ×, a tap outside the box, or Esc
+  document.querySelectorAll(".add-modal [data-close-modal]").forEach(el =>
+    el.addEventListener("click", () => closeFormModal(el.closest(".add-modal").id)));
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    document.querySelectorAll(".add-modal:not(.hidden)").forEach(m => closeFormModal(m.id));
+  });
+
+  // WhatsApp same as mobile (ticked) -> the WhatsApp box is not needed
+  const syncWhatsapp = () => $("saWhatsapp").closest(".float-field").classList.toggle("hidden", $("saSameWhatsapp").checked);
+  $("saSameWhatsapp").addEventListener("change", syncWhatsapp);
 
   /* ---- Add a Student ---- */
 
   $("addStudentButton").addEventListener("click", () => {
-    $("tuitionApplyForm").classList.add("hidden");
-    const form = $("studentAddForm");
-    form.classList.toggle("hidden");
-    if (!form.classList.contains("hidden")) $("saEmail").focus();
+    resetFormModal("sa", "studentAddForm", "studentAddMessage");
+    syncWhatsapp();
+    openFormModal("studentAddModal");
+    $("saEmail").focus();
   });
-
-  $("cancelStudentAddButton").addEventListener("click", () => $("studentAddForm").classList.add("hidden"));
 
   $("studentAddForm").addEventListener("submit", async (event) => {
 
@@ -1697,119 +1715,113 @@ function wireStudentForms() {
 
     const v = id => $(id).value.trim();
     const phone = v("saPhone");
-    const whatsapp = v("saWhatsapp") || phone;
+    const whatsapp = $("saSameWhatsapp").checked ? phone : v("saWhatsapp");
     const subjects = v("saSubjects");
-    const timings = readTimings("sa");
+    const timing = readTiming("sa");
 
-    // the same checks as the student's own registration
+    // the same checks as the website's registration (tuition part optional)
     const problem =
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v("saEmail")) ? "Enter a valid email address." :
-      !/^\d{10}$/.test(phone) ? "Enter a valid 10-digit mobile number." :
-      !/^\d{10}$/.test(whatsapp) ? "Enter a valid 10-digit WhatsApp number." :
-      v("saParents").length < 2 ? "Please enter the parent's name." :
-      v("saStudent").length < 2 ? "Please enter the student's name." :
-      !$("saGender").value ? "Select the student's gender." :
-      v("saSchool").length < 2 ? "Please enter the school." :
-      !v("saClass") ? "Please enter the class." :
-      !v("saBoard") ? "Please enter the board." :
-      v("saCity").length < 2 ? "Please enter the city." :
-      v("saAddress").length < 3 ? "Please enter the address / location." :
-      !/^\d{6}$/.test(v("saPin")) ? "Enter a valid 6-digit PIN code." :
-      (subjects && !timings.length) ? "Select at least one preferred timing." :
-      (subjects && timings.includes("Other")) ? "Enter the other preferred time." :
-      "";
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v("saEmail")) ? ["Enter a valid email address.", "saEmail"] :
+      !/^\d{10}$/.test(phone) ? ["Enter a valid 10-digit mobile number.", "saPhone"] :
+      !/^\d{10}$/.test(whatsapp) ? ["Enter a valid 10-digit WhatsApp number.", "saWhatsapp"] :
+      v("saParents").length < 2 ? ["Please enter the parent's name.", "saParents"] :
+      v("saStudent").length < 2 ? ["Please enter the student's name.", "saStudent"] :
+      !radioValue("saGender") ? ["Select the student's gender.", ""] :
+      !v("saClass") ? ["Please enter the class / course.", "saClass"] :
+      v("saSchool").length < 2 ? ["Please enter the school / college.", "saSchool"] :
+      !v("saBoard") ? ["Please enter the board / university.", "saBoard"] :
+      v("saAddress").length < 3 ? ["Please enter the address.", "saAddress"] :
+      v("saCity").length < 2 ? ["Please enter the city.", "saCity"] :
+      !/^\d{6}$/.test(v("saPin")) ? ["Enter a valid 6-digit PIN code.", "saPin"] :
+      (subjects && subjects.length < 2) ? ["Enter at least one subject.", "saSubjects"] :
+      (subjects && !timing) ? [$("saTimingOther").checked ? "Enter the preferred time." : "Select at least one preferred timing.", $("saTimingOther").checked ? "saOtherTiming" : ""] :
+      null;
 
-    if (problem) { toast(problem, true); return; }
+    if (problem) {
+      $("studentAddMessage").textContent = problem[0];
+      if (problem[1]) $(problem[1]).focus();
+      return;
+    }
 
     const payload = {
       action: "adminAddStudent",
       p: {
         email: v("saEmail"), phone, whatsapp,
-        parentsName: v("saParents"), studentName: v("saStudent"), gender: $("saGender").value,
-        school: v("saSchool"), className: v("saClass"), board: v("saBoard"),
-        subjects, preferredTutor: radioValue("saTutor"), medium: radioValue("saMode"),
-        preferredTiming: timings.join(", "),
-        city: v("saCity"), address: v("saAddress"), pinCode: v("saPin"),
+        parentsName: v("saParents"), studentName: v("saStudent"), gender: radioValue("saGender"),
+        className: v("saClass"), school: v("saSchool"), board: v("saBoard"),
+        address: v("saAddress"), city: v("saCity"), pinCode: v("saPin"),
+        subjects, preferredTutor: radioValue("saTutor") || "Any", medium: radioValue("saMedium") || "Any",
+        preferredTiming: subjects ? timing : "",
         termsAccepted: $("saTerms").checked
       }
     };
 
-    const ok = await submitForOffice(payload, event.submitter || $("studentAddForm").querySelector("button[type=submit]"), result =>
+    const ok = await submitForOffice(payload, $("studentAddSubmit"), $("studentAddMessage"), result =>
       `Student ${result.studentId} added` + (result.demoIds && result.demoIds.length ? ` with tuition request ${result.demoIds.join(", ")}.` : "."));
 
-    if (ok) {
-      $("studentAddForm").reset();
-      resetChoices("sa");
-      $("studentAddForm").classList.add("hidden");
-    }
+    if (ok) closeFormModal("studentAddModal");
 
   });
 
-  /* ---- Apply for New Tuition ---- */
+  /* ---- Apply For New Tuition ---- */
 
   $("applyTuitionButton").addEventListener("click", () => {
 
-    $("studentAddForm").classList.add("hidden");
-
-    const form = $("tuitionApplyForm");
-    form.classList.toggle("hidden");
-    if (form.classList.contains("hidden")) return;
+    resetFormModal("ta", "tuitionApplyForm", "tuitionApplyMessage");
 
     // every student, as "ID · Name" (typing either finds them)
     $("taStudentList").innerHTML = ((STATE.data && STATE.data.students && STATE.data.students.rows) || [])
       .map(r => `<option value="${esc(r.id + " · " + ((r.values && r.values["Student Name"]) || ""))}"></option>`)
       .join("");
 
+    openFormModal("tuitionApplyModal");
     $("taStudent").focus();
 
   });
-
-  $("cancelTuitionApplyButton").addEventListener("click", () => $("tuitionApplyForm").classList.add("hidden"));
 
   $("tuitionApplyForm").addEventListener("submit", async (event) => {
 
     event.preventDefault();
 
-    // "SID... · Name" or just the ID / exact name
+    // "SID... · Name", just the ID, or the exact name
     const typed = $("taStudent").value.trim();
     const rows = (STATE.data && STATE.data.students && STATE.data.students.rows) || [];
-    const pick = rows.find(r => typed.toUpperCase().startsWith(String(r.id).toUpperCase())) ||
-      rows.find(r => ((r.values && r.values["Student Name"]) || "").toLowerCase() === typed.toLowerCase());
+    const pick = typed && (rows.find(r => typed.toUpperCase().startsWith(String(r.id).toUpperCase())) ||
+      rows.find(r => ((r.values && r.values["Student Name"]) || "").toLowerCase() === typed.toLowerCase()));
 
     const subjects = $("taSubjects").value.trim();
-    const timings = readTimings("ta");
+    const timing = readTiming("ta");
 
+    // the same checks as the Student Profile's "Apply For New Tuition"
     const problem =
-      !pick ? "Choose a student from the list." :
-      subjects.length < 2 ? "Please enter at least one subject." :
-      !timings.length ? "Select at least one preferred timing." :
-      timings.includes("Other") ? "Enter the other preferred time." :
-      "";
+      !pick ? ["Choose a student from the list.", "taStudent"] :
+      subjects.length < 2 ? ["Enter at least one subject.", "taSubjects"] :
+      !timing ? [$("taTimingOther").checked ? "Enter the preferred time." : "Select at least one preferred timing.", $("taTimingOther").checked ? "taOtherTiming" : ""] :
+      null;
 
-    if (problem) { toast(problem, true); return; }
+    if (problem) {
+      $("tuitionApplyMessage").textContent = problem[0];
+      if (problem[1]) $(problem[1]).focus();
+      return;
+    }
 
     const payload = {
       action: "adminAddTuition",
       p: {
         studentId: pick.id, subjects,
-        preferredTutor: radioValue("taTutor"), medium: radioValue("taMode"),
-        preferredTiming: timings.join(", ")
+        preferredTutor: radioValue("taTutor") || "Any", medium: radioValue("taMedium") || "Any",
+        preferredTiming: timing
       }
     };
 
-    const ok = await submitForOffice(payload, event.submitter || $("tuitionApplyForm").querySelector("button[type=submit]"), result =>
+    const ok = await submitForOffice(payload, $("tuitionApplySubmit"), $("tuitionApplyMessage"), result =>
       `Tuition request ${(result.demoIds || []).join(", ")} posted for ${pick.id}.`);
 
-    if (ok) {
-      $("tuitionApplyForm").reset();
-      resetChoices("ta");
-      $("tuitionApplyForm").classList.add("hidden");
-    }
+    if (ok) closeFormModal("tuitionApplyModal");
 
   });
 
 }
-
 
 /************************************************************
  * DEMO ID / TUTOR ID SEARCH SUGGESTIONS

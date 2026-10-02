@@ -12,7 +12,8 @@
 
   <link rel="stylesheet" href="css/header.css">
   <link rel="stylesheet" href="css/photos.css?v=20261002a">
-  <link rel="stylesheet" href="css/pages/admin.css?v=20261003b">
+  <link rel="stylesheet" href="css/student-forms.css?v=20261003a">
+  <link rel="stylesheet" href="css/pages/admin.css?v=20261003c">
 </head>
 
 <body data-page="admin">
@@ -170,134 +171,12 @@
         </label>
       </div>
 
-      <!-- Add a Student / Apply for New Tuition - the same details as the student's own
-           registration and tuition application, but filled in by the office (no OTP). -->
+      <!-- Add a Student / Apply for New Tuition - open the same pop-up forms the
+           Student Profile page uses (see the two .add-modal blocks at the end). -->
       <div id="studentActionsRow" class="admin-pair" style="margin-bottom:14px;">
         <button id="addStudentButton" class="admin-ghost" type="button">+ Add a Student</button>
         <button id="applyTuitionButton" class="admin-ghost" type="button">+ Apply for New Tuition</button>
       </div>
-
-      <form id="studentAddForm" class="admin-card hidden" novalidate style="margin-bottom:14px;">
-        <h3 class="admin-section-title">Add a Student</h3>
-        <p class="admin-note-muted">Same details as the student's own registration - no OTP needed. The student can log in later with this email.</p>
-        <div class="admin-form">
-          <div class="admin-form-row admin-form-row-3">
-            <label class="admin-float"><input id="saEmail" type="email" placeholder=" " autocomplete="off"><span>Email Address *</span></label>
-            <label class="admin-float"><input id="saPhone" type="tel" inputmode="numeric" maxlength="10" placeholder=" " autocomplete="off"><span>Mobile Number *</span></label>
-            <label class="admin-float"><input id="saWhatsapp" type="tel" inputmode="numeric" maxlength="10" placeholder=" " autocomplete="off"><span>WhatsApp (blank = same as mobile)</span></label>
-          </div>
-          <div class="admin-form-row admin-form-row-3">
-            <label class="admin-float"><input id="saParents" type="text" maxlength="100" placeholder=" " autocomplete="off"><span>Parents Name *</span></label>
-            <label class="admin-float"><input id="saStudent" type="text" maxlength="100" placeholder=" " autocomplete="off"><span>Student Name *</span></label>
-            <label class="admin-float is-select"><select id="saGender"><option value="">Select</option><option>Male</option><option>Female</option></select><span>Gender *</span></label>
-          </div>
-          <div class="admin-form-row admin-form-row-3">
-            <label class="admin-float"><input id="saSchool" type="text" placeholder=" " autocomplete="off"><span>School / College Name *</span></label>
-            <label class="admin-float"><input id="saClass" type="text" placeholder=" " autocomplete="off"><span>Class *</span></label>
-            <label class="admin-float"><input id="saBoard" type="text" placeholder=" " autocomplete="off"><span>Board / University *</span></label>
-          </div>
-          <div class="admin-form-row admin-form-row-3">
-            <label class="admin-float"><input id="saCity" type="text" placeholder=" " autocomplete="off"><span>City *</span></label>
-            <label class="admin-float"><input id="saAddress" type="text" placeholder=" " autocomplete="off"><span>Locality / Complete Address *</span></label>
-            <label class="admin-float"><input id="saPin" type="text" inputmode="numeric" maxlength="6" placeholder=" " autocomplete="off"><span>PIN Code *</span></label>
-          </div>
-
-          <p class="perm-title" style="margin-top:6px;">Tuition requirement <small>- optional: leave Subjects empty to only register the student</small></p>
-          <div class="admin-form-row">
-            <label class="admin-float"><input id="saSubjects" type="text" placeholder=" " autocomplete="off"><span>Subjects (separated by commas)</span></label>
-          </div>
-          <div class="admin-choice-label">Preferred Tutor</div>
-          <div class="admin-choices">
-              <label class="admin-choice"><input type="radio" name="saTutor" value="Male"><span>Male</span></label>
-              <label class="admin-choice"><input type="radio" name="saTutor" value="Any" checked><span>Any</span></label>
-              <label class="admin-choice"><input type="radio" name="saTutor" value="Female"><span>Female</span></label>
-          </div>
-          <div class="admin-choice-label">Mode of Study</div>
-          <div class="admin-choices">
-              <label class="admin-choice"><input type="radio" name="saMode" value="Home"><span>Home</span></label>
-              <label class="admin-choice"><input type="radio" name="saMode" value="Any" checked><span>Any</span></label>
-              <label class="admin-choice"><input type="radio" name="saMode" value="Online"><span>Online</span></label>
-          </div>
-          <div class="admin-choice-label">Student Preferred Timing <small>(needed when Subjects are given)</small></div>
-          <div class="admin-choices">
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="8 AM"><span>8 AM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="9 AM"><span>9 AM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="10 AM"><span>10 AM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="11 AM"><span>11 AM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="12 PM"><span>12 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="1 PM"><span>1 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="2 PM"><span>2 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="3 PM"><span>3 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="4 PM"><span>4 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="5 PM"><span>5 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="6 PM"><span>6 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="7 PM"><span>7 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="8 PM"><span>8 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="9 PM"><span>9 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="saTiming" value="Other" id="saTimingOther"><span>Other</span></label>
-          </div>
-          <div id="saTimingOtherWrap" class="admin-form-row hidden">
-            <label class="admin-float"><input id="saTimingOtherInput" type="time" placeholder=" "><span>Other preferred time</span></label>
-          </div>
-
-          <label class="perm-item" style="margin-top:10px;"><input id="saTerms" type="checkbox"><span>The parent has accepted the Terms &amp; Conditions</span></label>
-        </div>
-        <div class="admin-pair" style="margin-top:12px;">
-          <button class="admin-primary" type="submit">Add Student</button>
-          <button id="cancelStudentAddButton" class="admin-ghost" type="button">Cancel</button>
-        </div>
-      </form>
-
-      <form id="tuitionApplyForm" class="admin-card hidden" novalidate style="margin-bottom:14px;">
-        <h3 class="admin-section-title">Apply for New Tuition</h3>
-        <p class="admin-note-muted">Posts a new tuition request for an existing student, exactly like the student's own "Apply for New Tuition".</p>
-        <div class="admin-form">
-          <div class="admin-form-row">
-            <label class="admin-float"><input id="taStudent" type="text" list="taStudentList" placeholder=" " autocomplete="off"><span>Student (type an ID or name, then pick) *</span></label>
-            <datalist id="taStudentList"></datalist>
-          </div>
-          <div class="admin-form-row">
-            <label class="admin-float"><input id="taSubjects" type="text" placeholder=" " autocomplete="off"><span>Subjects (separated by commas) *</span></label>
-          </div>
-          <div class="admin-choice-label">Preferred Tutor</div>
-          <div class="admin-choices">
-              <label class="admin-choice"><input type="radio" name="taTutor" value="Male"><span>Male</span></label>
-              <label class="admin-choice"><input type="radio" name="taTutor" value="Any" checked><span>Any</span></label>
-              <label class="admin-choice"><input type="radio" name="taTutor" value="Female"><span>Female</span></label>
-          </div>
-          <div class="admin-choice-label">Mode of Study</div>
-          <div class="admin-choices">
-              <label class="admin-choice"><input type="radio" name="taMode" value="Home"><span>Home</span></label>
-              <label class="admin-choice"><input type="radio" name="taMode" value="Any" checked><span>Any</span></label>
-              <label class="admin-choice"><input type="radio" name="taMode" value="Online"><span>Online</span></label>
-          </div>
-          <div class="admin-choice-label">Student Preferred Timing *</div>
-          <div class="admin-choices">
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="8 AM"><span>8 AM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="9 AM"><span>9 AM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="10 AM"><span>10 AM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="11 AM"><span>11 AM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="12 PM"><span>12 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="1 PM"><span>1 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="2 PM"><span>2 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="3 PM"><span>3 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="4 PM"><span>4 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="5 PM"><span>5 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="6 PM"><span>6 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="7 PM"><span>7 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="8 PM"><span>8 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="9 PM"><span>9 PM</span></label>
-              <label class="admin-choice"><input type="checkbox" name="taTiming" value="Other" id="taTimingOther"><span>Other</span></label>
-          </div>
-          <div id="taTimingOtherWrap" class="admin-form-row hidden">
-            <label class="admin-float"><input id="taTimingOtherInput" type="time" placeholder=" "><span>Other preferred time</span></label>
-          </div>
-        </div>
-        <div class="admin-pair" style="margin-top:12px;">
-          <button class="admin-primary" type="submit">Post Tuition Request</button>
-          <button id="cancelTuitionApplyButton" class="admin-ghost" type="button">Cancel</button>
-        </div>
-      </form>
 
       <div id="studentHeader"></div>
       <div id="studentList" class="admin-stack-list"></div>
@@ -691,10 +570,161 @@
 <div id="adminToast" class="admin-toast" role="status"></div>
 
 <script src="js/header.js?v=20261002a"></script>
+
+<!-- =====================================================
+     ADD A STUDENT  (office) - the Student Profile pop-up look, plus the
+     parent / contact details the website's registration asks for. No OTP.
+===================================================== -->
+<div id="studentAddModal" class="add-modal hidden" aria-hidden="true">
+  <div class="add-modal-overlay" data-close-modal></div>
+  <section class="add-modal-box" role="dialog" aria-modal="true" aria-labelledby="studentAddTitle">
+    <button class="add-modal-close" type="button" aria-label="Close" data-close-modal><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+    <h2 id="studentAddTitle" class="modal-title">Add a Student</h2>
+    <p class="modal-subtitle">Same details as the website's registration - no OTP needed.</p>
+    <form id="studentAddForm" novalidate>
+      <div class="add-grid">
+        <label class="float-field add-wide">
+          <input id="saEmail" type="email" autocomplete="off" placeholder=" " maxlength="150">
+          <span>Email Address</span>
+        </label>
+        <label class="float-field">
+          <input id="saPhone" type="tel" autocomplete="off" placeholder=" " inputmode="numeric" maxlength="10">
+          <span>Mobile Number</span>
+        </label>
+        <label class="float-field">
+          <input id="saWhatsapp" type="tel" autocomplete="off" placeholder=" " inputmode="numeric" maxlength="10">
+          <span>WhatsApp Number</span>
+        </label>
+        <label class="pill-check add-wide">
+          <input type="checkbox" id="saSameWhatsapp" checked>
+          <span class="pill-check-text">WhatsApp same as mobile number</span>
+          <span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        </label>
+        <label class="float-field add-wide">
+          <input id="saParents" type="text" autocomplete="off" placeholder=" " maxlength="100">
+          <span>Parents Name</span>
+        </label>
+        <label class="float-field add-wide">
+          <input id="saStudent" type="text" autocomplete="off" placeholder=" " maxlength="80">
+          <span>Student Name</span>
+        </label>
+        <div class="choice-row choice-2 add-wide" role="radiogroup" aria-label="Gender">
+          <label><input type="radio" name="saGender" value="Male"><span>Male</span></label>
+          <label><input type="radio" name="saGender" value="Female"><span>Female</span></label>
+        </div>
+        <label class="float-field add-wide">
+          <input id="saClass" type="text" autocomplete="off" placeholder=" " maxlength="80">
+          <span>Class / Course</span>
+        </label>
+        <label class="float-field add-wide">
+          <input id="saSchool" type="text" autocomplete="off" placeholder=" " maxlength="150">
+          <span>School / College Name</span>
+        </label>
+        <label class="float-field add-wide">
+          <input id="saBoard" type="text" autocomplete="off" placeholder=" " maxlength="150">
+          <span>Board / University</span>
+        </label>
+        <label class="float-field add-wide">
+          <input id="saAddress" type="text" autocomplete="off" placeholder=" " maxlength="250">
+          <span>Address</span>
+        </label>
+        <label class="float-field">
+          <input id="saCity" type="text" autocomplete="off" placeholder=" " maxlength="80">
+          <span>City</span>
+        </label>
+        <label class="float-field">
+          <input id="saPin" type="text" autocomplete="off" placeholder=" " inputmode="numeric" maxlength="6">
+          <span>PIN Code</span>
+        </label>
+
+        <p class="add-section-title">Tuition requirement (optional - leave subjects empty to only add the student)</p>
+        <label class="float-field add-wide">
+          <input id="saSubjects" type="text" autocomplete="off" placeholder=" " maxlength="250">
+          <span>Add subjects separated by commas</span>
+        </label>
+        <div class="choice-row choice-3 add-wide" role="radiogroup" aria-label="Preferred tutor">
+          <label><input type="radio" name="saTutor" value="Male"><span>Male</span></label>
+          <label><input type="radio" name="saTutor" value="Any" checked><span>Any</span></label>
+          <label><input type="radio" name="saTutor" value="Female"><span>Female</span></label>
+        </div>
+        <div class="choice-row choice-3 add-wide" role="radiogroup" aria-label="Mode">
+          <label><input type="radio" name="saMedium" value="Home"><span>Home</span></label>
+          <label><input type="radio" name="saMedium" value="Any" checked><span>Any</span></label>
+          <label><input type="radio" name="saMedium" value="Online"><span>Online</span></label>
+        </div>
+        <div class="add-wide timing-block">
+          <span class="timing-title">Preferred timing</span>
+          <div class="choice-row choice-grid-3" id="saTimings"><!-- filled by admin.js: 8 AM ... 9 PM + Other --></div>
+        </div>
+
+        <label class="float-field add-wide hidden" id="saOtherTimingField">
+          <input id="saOtherTiming" type="text" maxlength="120" autocomplete="off" placeholder=" ">
+          <span>Add your preferred time</span>
+        </label>
+
+        <label class="pill-check add-wide">
+          <input type="checkbox" id="saTerms">
+          <span class="pill-check-text">Parent has accepted the Terms &amp; Conditions</span>
+          <span class="pill-check-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        </label>
+      </div>
+      <p id="studentAddMessage" class="add-message" role="alert"></p>
+      <button id="studentAddSubmit" class="add-submit" type="submit">Add Student</button>
+    </form>
+  </section>
+</div>
+
+<!-- =====================================================
+     APPLY FOR NEW TUITION  (office) - the Student Profile pop-up, with a
+     student picker instead of the profile's own student.
+===================================================== -->
+<div id="tuitionApplyModal" class="add-modal hidden" aria-hidden="true">
+  <div class="add-modal-overlay" data-close-modal></div>
+  <section class="add-modal-box" role="dialog" aria-modal="true" aria-labelledby="tuitionApplyTitle">
+    <button class="add-modal-close" type="button" aria-label="Close" data-close-modal><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+    <h2 id="tuitionApplyTitle" class="modal-title">Apply For New Tuition</h2>
+    <p class="modal-subtitle">For an existing student - type the Student ID or name and pick it.</p>
+    <form id="tuitionApplyForm" novalidate>
+      <div class="add-grid">
+        <label class="float-field add-wide">
+          <input id="taStudent" type="text" list="taStudentList" autocomplete="off" placeholder=" ">
+          <span>Student (ID or name)</span>
+        </label>
+        <datalist id="taStudentList"></datalist>
+        <label class="float-field add-wide">
+          <input id="taSubjects" type="text" autocomplete="off" placeholder=" " maxlength="250">
+          <span>Add subjects separated by commas</span>
+        </label>
+        <div class="choice-row choice-3 add-wide" role="radiogroup" aria-label="Preferred tutor">
+          <label><input type="radio" name="taTutor" value="Male"><span>Male</span></label>
+          <label><input type="radio" name="taTutor" value="Any" checked><span>Any</span></label>
+          <label><input type="radio" name="taTutor" value="Female"><span>Female</span></label>
+        </div>
+        <div class="choice-row choice-3 add-wide" role="radiogroup" aria-label="Mode">
+          <label><input type="radio" name="taMedium" value="Home"><span>Home</span></label>
+          <label><input type="radio" name="taMedium" value="Any" checked><span>Any</span></label>
+          <label><input type="radio" name="taMedium" value="Online"><span>Online</span></label>
+        </div>
+        <div class="add-wide timing-block">
+          <span class="timing-title">Preferred timing</span>
+          <div class="choice-row choice-grid-3" id="taTimings"><!-- filled by admin.js: 8 AM ... 9 PM + Other --></div>
+        </div>
+
+        <label class="float-field add-wide hidden" id="taOtherTimingField">
+          <input id="taOtherTiming" type="text" maxlength="120" autocomplete="off" placeholder=" ">
+          <span>Add your preferred time</span>
+        </label>
+      </div>
+      <p id="tuitionApplyMessage" class="add-message" role="alert"></p>
+      <button id="tuitionApplySubmit" class="add-submit" type="submit">Post Tuition Request</button>
+    </form>
+  </section>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
 <script src="js/portal.js?v=20261001a"></script>
-<script src="js/pages/admin.js?v=20261003a" defer></script>
+<script src="js/pages/admin.js?v=20261003d" defer></script>
 
 </body>
 </html>
