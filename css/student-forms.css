@@ -35,6 +35,8 @@
   text-align: left;
 }
 .add-modal .add-modal-box h2 { margin: 0 36px 4px; font-size: 22px; font-weight: 800; text-align: center; }
+/* no subtitle under the title -> keep the same gap before the form */
+.add-modal .add-modal-box h2 + form { margin-top: 22px; }
 .add-modal .modal-subtitle { margin: 0 0 22px; text-align: center; font-size: 13.5px; font-weight: 600; color: var(--muted); overflow-wrap: anywhere; }
 .add-modal .add-modal-close {
   position: absolute; top: 12px; right: 14px; width: 36px; height: 36px; border-radius: 50%;
@@ -64,6 +66,21 @@
 .add-modal .float-field input:focus + span,
 .add-modal .float-field input:not(:placeholder-shown) + span { top: 0; font-size: 11.5px; font-weight: 700; color: var(--muted); }
 .add-modal .float-field input:focus + span { color: var(--lime); }
+
+/* mobile / WhatsApp box with the Indian flag - the registration page's look */
+.add-modal .phone-input {
+  display: flex; align-items: stretch; width: 100%; box-sizing: border-box; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-2); transition: border-color 0.15s ease;
+}
+.add-modal .phone-input.hidden { display: none; }
+.add-modal .phone-input:focus-within { border-color: var(--lime-line); }
+.add-modal .phone-input .flag-code { display: flex; align-items: center; padding: 0 12px 0 18px; border-right: 1px solid var(--border); }
+.add-modal .in-flag { display: block; width: 28px; height: 19px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12); }
+.add-modal .float-field.in-phone { flex: 1; min-width: 0; }
+.add-modal .float-field.in-phone input { padding: 15px 20px 13px 12px; border: 0; background: transparent; border-radius: 0 999px 999px 0; }
+.add-modal .float-field.in-phone > span { left: 8px; }
+.add-modal .float-field.in-phone input:focus + span,
+.add-modal .float-field.in-phone input:not(:placeholder-shown) + span { top: -1px; }
 
 .add-modal .choice-row { display: grid; gap: 8px; min-width: 0; }
 .add-modal .choice-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
