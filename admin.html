@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="css/header.css?v=20261003a">
   <link rel="stylesheet" href="css/photos.css?v=20261002a">
   <link rel="stylesheet" href="css/student-forms.css?v=20261003b">
-  <link rel="stylesheet" href="css/pages/admin.css?v=20261003g">
+  <link rel="stylesheet" href="css/pages/admin.css?v=20261003h">
 </head>
 
 <body data-page="admin">
@@ -109,21 +109,25 @@
 <main id="panelPage" class="admin-page hidden">
   <div class="admin-container">
 
-    <!-- Refresh | Emails on/off | signed-in-as name + role | Dark/Light | Log out -->
+    <!-- Refresh (left) | Emails on/off | name + role (centre) | Dark/Light | Log out (right) -->
     <header class="admin-top admin-top-3">
-      <button id="refreshButton" class="admin-ghost" type="button">Refresh</button>
+      <button id="refreshButton" class="admin-ghost admin-icon-btn" type="button" aria-label="Refresh" title="Refresh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+      </button>
+      <!-- Emails that Admin Panel updates send (Super Admin can switch them off) -->
+      <button id="mailToggle" class="admin-ghost admin-switch hidden" type="button" data-on="true" aria-pressed="true">
+        <span class="admin-switch-dot" aria-hidden="true"></span><span class="admin-switch-text">Emails On</span>
+      </button>
       <div class="admin-top-mid">
-        <!-- Emails that Admin Panel updates send (Super Admin can switch them off) -->
-        <button id="mailToggle" class="admin-ghost admin-switch hidden" type="button" data-on="true" aria-pressed="true">
-          <span class="admin-switch-dot" aria-hidden="true"></span><span class="admin-switch-text">Emails On</span>
-        </button>
         <div class="admin-me" id="adminMe"></div>
-        <!-- Admin Panel look: dark / light (saved on this device) -->
-        <button id="themeToggle" class="admin-ghost admin-switch" type="button" aria-label="Switch to light mode">
-          <span class="admin-switch-text">Light Mode</span>
-        </button>
       </div>
-      <button id="logoutButton" class="admin-ghost admin-danger" type="button">Log out</button>
+      <!-- Admin Panel look: dark / light (saved on this device) -->
+      <button id="themeToggle" class="admin-ghost admin-switch" type="button" aria-label="Switch to light mode">
+        <span class="admin-switch-text">Light Mode</span>
+      </button>
+      <button id="logoutButton" class="admin-ghost admin-danger admin-icon-btn" type="button" aria-label="Log out" title="Log out">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
     </header>
 
     <!-- counts -->
@@ -801,7 +805,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
 <script src="js/portal.js?v=20261001a"></script>
-<script src="js/pages/admin.js?v=20261003h" defer></script>
+<script src="js/pages/admin.js?v=20261003i" defer></script>
 
 </body>
 </html>
