@@ -612,12 +612,14 @@ function applyRoleUI() {
 
 /* =====================================================================
    HEADER SWITCHES
-   - Emails On / Off: each employee's OWN switch for the emails that the
-     updates THEY make in the Admin Panel send (payments, subscriptions,
-     demo changes, tuitions posted by the office). Other employees' updates
-     still email as usual. Needs the "Switch off emails" permission (a Super
-     Admin always has it); without it the button shows but is disabled.
-     Login codes and emails caused by students / tutors are not affected.
+   - Emails On / Off:
+       Super Admin -> the switch for the WHOLE SITE: Off stops every
+         notification email (Admin Panel, students, tutors); only login
+         codes (OTP) still go out.
+       Other employees -> their OWN switch: Off stops the emails for the
+         updates THEY make. Needs the "Switch off emails" permission;
+         without it (or while the Super Admin has all emails off) the
+         button shows but is disabled.
    - Dark / Light mode: only how this Admin Panel looks, saved on this
      device (the <head> of admin.html applies it before the page draws).
    ===================================================================== */
@@ -654,10 +656,16 @@ function renderMailToggle() {
   button.setAttribute("aria-pressed", String(on));
   button.querySelector(".admin-switch-text").textContent = on ? "Emails On" : "Emails Off";
   button.disabled = !canChange;
-  button.title = canChange
-    ? (on ? "Your updates email students and tutors. Click to stop emails for your updates."
-          : "Your updates send no email. Click to start these emails again.")
-    : "Your updates email students and tutors. You don't have permission to switch this off.";
+  const site = STATE.settings.scope === "site";
+  button.title = site
+    ? (on ? "Emails are on for the whole site. Click to switch OFF every notification email (login codes still go out)."
+          : "All notification emails are off for the whole site. Click to switch them back on.")
+    : STATE.settings.siteOff
+      ? "The Super Admin has switched off all emails."
+      : canChange
+        ? (on ? "Your updates email students and tutors. Click to stop emails for your updates."
+              : "Your updates send no email. Click to start these emails again.")
+        : "Your updates email students and tutors. You don't have permission to switch this off.";
 }
 
 // The "are you sure?" box: title, justified text, Cancel (left) / OK (right).
@@ -704,7 +712,15 @@ function wireHeaderSwitches() {
     const button = $("mailToggle");
     if (button.disabled || !STATE.settings || !STATE.settings.canToggleMails) return;
     const turnOn = !STATE.settings.mailsEnabled;
-    const ok = await askConfirm(turnOn
+    const site = STATE.settings.scope === "site";
+    const ok = await askConfirm(site
+      ? (turnOn
+        ? { title: "Turn emails ON?",
+            lines: ["Notification emails will go out again across the whole site - Admin Panel updates and students' / tutors' own actions."] }
+        : { title: "Turn ALL emails OFF?",
+            lines: ["No notification email will go out from anywhere on the site - not for any employee's updates in the Admin Panel, and not for anything students or tutors do.",
+                    "Only login codes (OTP) still go out. Employees' own switches stay as they are."] })
+      : turnOn
       ? { title: "Turn emails ON?",
           lines: ["The updates you make in the Admin Panel will email students and tutors again."] }
       : { title: "Turn emails OFF?",

@@ -3623,5 +3623,10 @@ html[data-theme="light"] .tutor-stats-pop { box-shadow: 0 18px 44px rgba(0, 0, 0
 .tsp-list dt { color: var(--muted); }
 .tsp-list dd { margin: 0; font-weight: 800; }
 
-/* Emails group (one permission) runs the full width, like Privacy */
-.perm-group-emails { grid-column: 1 / -1; }
+/* Emails | Privacy on one line: Emails one column, Privacy the other two */
+.perm-group-emails { grid-column: 1 / 2; }
+.perm-grid .perm-group-privacy { grid-column: 2 / -1; }
+@media (max-width: 760px) {
+  .perm-group-emails,
+  .perm-grid .perm-group-privacy { grid-column: 1 / -1; }
+}

@@ -7,7 +7,5 @@
 alter table public.admin_users
   add column if not exists mails_enabled boolean not null default true;
 
--- The old office-wide switch (0028, table app_settings) is no longer read
--- by anything. It is left in place (service-role only) - dropping it timed
--- out on the live database; it can be dropped later with:
---   drop table if exists public.app_settings;
+-- app_settings "admin_mails" (0028) stays: it is now the SUPER ADMIN's
+-- site-wide switch (see 0030).

@@ -1531,3 +1531,21 @@ body .class-card.payment-card.is-collapsed .class-body > *:not(.pay-mini) {
   overflow: hidden;
   white-space: nowrap;
 }
+
+
+/* Phones: the card pills keep their text in the exact middle. (The small-
+   screen .status-badge padding above added 4px top/bottom, which pushed
+   the text down inside the fixed 34px pill.) */
+.class-row-top .pill,
+.pill.pill-l,
+.pill.pill-r {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+@media (max-width: 560px) {
+  .class-row-top .pill.pill-l,
+  .class-row-top .pill.pill-r {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}

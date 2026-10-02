@@ -85,13 +85,16 @@ Project id: `zbvtdcqoouwyrcxkzjfv`
 received · 7 Agency charge received · 8 Payment to tutor · 9 Student
 subscription · 10 Tutor subscription. Nothing else sends mail.
 
-**Emails On / Off** (Admin Panel top bar): each employee's OWN switch.
-Off = the updates that employee makes send no email; other employees'
-updates still email as usual. Stored per employee in `admin_users.mails_enabled`.
-Using it needs the "Switch off emails" permission (Employees section; a
-Super Admin always has it) - without it the button shows but is disabled.
-Login codes and emails caused by students / tutors themselves are not
-affected. The **Light / Dark
+**Emails On / Off** (Admin Panel top bar):
+- **Super Admin** - the switch for the whole site (`app_settings` key
+  `admin_mails`). Off = no notification email at all (Admin Panel updates and
+  students' / tutors' own actions); only login codes (OTP) still go out. It is
+  checked inside `_shared/email.ts` `sendMail`, so every function obeys it.
+- **Other employees** - their own switch (`admin_users.mails_enabled`). Off =
+  the updates that employee makes send no email. Needs the "Switch off emails"
+  permission (Employees section); without it - or while the Super Admin has all
+  emails off - the button shows but is disabled.
+The **Light / Dark
 Mode** button next to it only changes the panel's look on that device.
 
 ---
