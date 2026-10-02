@@ -3,6 +3,11 @@
 
 <head>
 
+  <!-- start connecting to the servers the page needs right away -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://zbvtdcqoouwyrcxkzjfv.supabase.co" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+
   <!-- =====================================================
        BASIC PAGE INFORMATION
        ===================================================== -->
@@ -127,9 +132,10 @@
        ===================================================== -->
 
   <!-- Landing (+ Chart.js for its charts) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <!-- loaded in the background so a slow connection to this library cannot hold the page up -->
+  <script async src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" onload="window.dispatchEvent(new Event('chartjs-ready'))"></script>
 
-  <script src="homepage/landing/landing.js?v=20261002b"></script>
+  <script src="homepage/landing/landing.js?v=20261002c"></script>
 
   <!-- Dashboard -->
   <script src="homepage/dashboard/dashboard.js?v=20261002a"></script>
