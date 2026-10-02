@@ -1,0 +1,116 @@
+// URBANTUTORSITE - TELEGRAM BOT  (Supabase Edge Function "telegram")
+//
+// @UrbanTutorSiteBot. The bot itself only greets and hands out a button;
+// the registration is the website's own page, opened INSIDE Telegram as a
+// Mini App - same flow (email + 6-digit code), same design, same database.
+//
+//   POST (from Telegram)  /start, /register, anything else -> reply with the
+//                         "Register as Student" button.
+//                         Only accepted with Telegram's secret header.
+//   GET  ?setup=1         one-time setup: points the bot's webhook here, sets
+//                         the menu button and the command list. Safe to run
+//                         again (always the same values).
+//
+// Secret: TELEGRAM_BOT_TOKEN (from @BotFather). The webhook's secret header is
+// derived from it, so no second secret is needed.
+
+const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SITE_URL = "https://kurafatengineer.github.io/urbantutorsite";
+const REGISTER_URL = `${SITE_URL}/studentregistration.html`;
+const WEBHOOK_URL = `${SUPABASE_URL}/functions/v1/telegram`;
+
+// deno-lint-ignore no-explicit-any
+type Json = any;
+
+async function webhookSecret(): Promise<string> {
+  const data = new TextEncoder().encode("urbantutorsite-telegram:" + BOT_TOKEN);
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", data));
+  return [...hash].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 48);
+}
+
+async function telegram(method: string, body: Json): Promise<Json> {
+  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return await res.json().catch(() => ({ ok: false }));
+}
+
+function json(body: Json, status = 200): Response {
+  return new Response(JSON.stringify(body, null, 2), { status, headers: { "Content-Type": "application/json" } });
+}
+
+const registerButton = {
+  inline_keyboard: [[{ text: "📝 Register as Student", web_app: { url: REGISTER_URL } }]],
+};
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+async function greet(chatId: number, firstName: string) {
+  const name = firstName ? ` ${escapeHtml(firstName)}` : "";
+  await telegram("sendMessage", {
+    chat_id: chatId,
+    parse_mode: "HTML",
+    text:
+      `👋 Hi${name}! Welcome to <b>Urban Tutor Site</b>.\n\n` +
+      `Find a verified home or online tutor for your child.\n\n` +
+      `Tap the button below to register - it opens our registration form right here in Telegram. ` +
+      `You'll log in with your email and a 6-digit code.`,
+    reply_markup: registerButton,
+  });
+}
+
+async function setup(): Promise<Response> {
+  if (!BOT_TOKEN) return json({ ok: false, message: "TELEGRAM_BOT_TOKEN is not set in Supabase Edge Function secrets." }, 500);
+  const webhook = await telegram("setWebhook", {
+    url: WEBHOOK_URL,
+    secret_token: await webhookSecret(),
+    allowed_updates: ["message"],
+    drop_pending_updates: true,
+  });
+  const menu = await telegram("setChatMenuButton", {
+    menu_button: { type: "web_app", text: "Register", web_app: { url: REGISTER_URL } },
+  });
+  const commands = await telegram("setMyCommands", {
+    commands: [
+      { command: "start", description: "Welcome & registration" },
+      { command: "register", description: "Register as a student" },
+    ],
+  });
+  return json({ ok: !!(webhook.ok && menu.ok && commands.ok), webhook, menu, commands });
+}
+
+Deno.serve(async (req: Request) => {
+  const url = new URL(req.url);
+
+  if (req.method === "GET") {
+    if (url.searchParams.get("setup") === "1") return await setup();
+    return json({ ok: true, bot: "@UrbanTutorSiteBot" });
+  }
+
+  if (req.method !== "POST") return json({ ok: false }, 405);
+  if (!BOT_TOKEN) return json({ ok: false }, 500);
+
+  // only Telegram knows the secret header
+  if (req.headers.get("x-telegram-bot-api-secret-token") !== await webhookSecret()) {
+    return json({ ok: false }, 401);
+  }
+
+  try {
+    const update = await req.json();
+    const msg = update?.message;
+    // private chats only; groups are ignored
+    if (msg?.chat?.id && msg.chat.type === "private") {
+      await greet(msg.chat.id, String(msg.from?.first_name ?? ""));
+    }
+  } catch (err) {
+    console.error("telegram update failed", String(err));
+  }
+
+  // always 200, so Telegram doesn't keep re-sending the same update
+  return json({ ok: true });
+});
