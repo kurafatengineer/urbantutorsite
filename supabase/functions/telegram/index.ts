@@ -9,8 +9,10 @@
 //                         /tutor -> just that one button. (The two pages do
 //                         both: a new email registers, a known email logs in
 //                         and lands on its profile.)
-//                         Whatever the user types is deleted right away, so
-//                         the chat stays just the bot's buttons.
+//                         The chat always holds just ONE message: whatever the
+//                         user types is deleted, and the bot's previous buttons
+//                         message (remembered in table telegram_chats) is
+//                         deleted once the new one is sent.
 //                         Only accepted with Telegram's secret header.
 //   GET  ?setup=1         one-time setup: points the bot's webhook here, makes
 //                         the menu button open the website, and removes the
@@ -21,6 +23,7 @@
 
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const SITE_URL = "https://kurafatengineer.github.io/urbantutorsite";
 const STUDENT_URL = `${SITE_URL}/studentregistration.html`;
 const TUTOR_URL = `${SITE_URL}/tutorregistration.html`;
@@ -49,6 +52,42 @@ function json(body: Json, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2), { status, headers: { "Content-Type": "application/json" } });
 }
 
+/* ---- the one message per chat (table telegram_chats) ---- */
+
+async function db(path: string, init: RequestInit = {}): Promise<Json> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...init,
+    headers: {
+      apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`,
+      "Content-Type": "application/json", ...(init.headers ?? {}),
+    },
+  });
+  return res.ok ? await res.json().catch(() => null) : null;
+}
+
+async function lastMessageId(chatId: number): Promise<number | null> {
+  const rows = await db(`telegram_chats?chat_id=eq.${chatId}&select=last_message_id`);
+  return rows?.[0]?.last_message_id ?? null;
+}
+
+async function rememberMessage(chatId: number, messageId: number) {
+  await db("telegram_chats?on_conflict=chat_id", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ chat_id: chatId, last_message_id: messageId, updated_at: new Date().toISOString() }),
+  });
+}
+
+// send the new buttons message, then remove the previous one
+async function sendReplacing(chatId: number, message: Json) {
+  const previous = await lastMessageId(chatId);
+  const sent = await telegram("sendMessage", { chat_id: chatId, ...message });
+  const newId = sent?.result?.message_id;
+  if (!newId) return;
+  await rememberMessage(chatId, newId);
+  if (previous && previous !== newId) await telegram("deleteMessage", { chat_id: chatId, message_id: previous });
+}
+
 const studentButton = { text: "🎓 Student - Register / Login", web_app: { url: STUDENT_URL } };
 const tutorButton = { text: "👨‍🏫 Tutor - Register / Login", web_app: { url: TUTOR_URL } };
 
@@ -58,8 +97,7 @@ function escapeHtml(s: string): string {
 
 async function greet(chatId: number, firstName: string) {
   const name = firstName ? ` ${escapeHtml(firstName)}` : "";
-  await telegram("sendMessage", {
-    chat_id: chatId,
+  await sendReplacing(chatId, {
     parse_mode: "HTML",
     text:
       `👋 Hi${name}! Welcome to <b>Urban Tutor Site</b>.\n\n` +
@@ -73,8 +111,7 @@ async function greet(chatId: number, firstName: string) {
 }
 
 async function sendOne(chatId: number, forTutor: boolean) {
-  await telegram("sendMessage", {
-    chat_id: chatId,
+  await sendReplacing(chatId, {
     text: forTutor ? "Tap below to register or log in as a tutor:" : "Tap below to register or log in as a student / parent:",
     reply_markup: { inline_keyboard: [[forTutor ? tutorButton : studentButton]] },
   });
