@@ -4,9 +4,11 @@
 // the registration is the website's own page, opened INSIDE Telegram as a
 // Mini App - same flow (email + 6-digit code), same design, same database.
 //
-//   POST (from Telegram)  /start or anything else -> "Register as Student" and
-//                         "Register as Tutor" buttons; /student and /tutor
-//                         -> just that one button.
+//   POST (from Telegram)  /start or anything else -> "Student - Register / Login"
+//                         and "Tutor - Register / Login" buttons; /student and
+//                         /tutor -> just that one button. (The two pages do
+//                         both: a new email registers, a known email logs in
+//                         and lands on its profile.)
 //                         Only accepted with Telegram's secret header.
 //   GET  ?setup=1         one-time setup: points the bot's webhook here, sets
 //                         the menu (the command list) and the commands. Safe
@@ -44,8 +46,8 @@ function json(body: Json, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2), { status, headers: { "Content-Type": "application/json" } });
 }
 
-const studentButton = { text: "🎓 Register as Student", web_app: { url: STUDENT_URL } };
-const tutorButton = { text: "👨‍🏫 Register as Tutor", web_app: { url: TUTOR_URL } };
+const studentButton = { text: "🎓 Student - Register / Login", web_app: { url: STUDENT_URL } };
+const tutorButton = { text: "👨‍🏫 Tutor - Register / Login", web_app: { url: TUTOR_URL } };
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -60,8 +62,9 @@ async function greet(chatId: number, firstName: string) {
       `👋 Hi${name}! Welcome to <b>Urban Tutor Site</b>.\n\n` +
       `🎓 <b>Parents / Students</b> - find a verified home or online tutor.\n` +
       `👨‍🏫 <b>Tutors</b> - register and get tuition requests near you.\n\n` +
-      `Choose below - the form opens right here in Telegram. ` +
-      `You'll log in with your email and a 6-digit code.`,
+      `Choose below to register or log in - it opens right here in Telegram. ` +
+      `New here? Just register. Already registered? Use the same email to log in. ` +
+      `A 6-digit code comes to your email either way.`,
     reply_markup: { inline_keyboard: [[studentButton], [tutorButton]] },
   });
 }
@@ -69,7 +72,7 @@ async function greet(chatId: number, firstName: string) {
 async function sendOne(chatId: number, forTutor: boolean) {
   await telegram("sendMessage", {
     chat_id: chatId,
-    text: forTutor ? "Tap below to register as a tutor:" : "Tap below to register as a student:",
+    text: forTutor ? "Tap below to register or log in as a tutor:" : "Tap below to register or log in as a student / parent:",
     reply_markup: { inline_keyboard: [[forTutor ? tutorButton : studentButton]] },
   });
 }
@@ -87,8 +90,8 @@ async function setup(): Promise<Response> {
   const commands = await telegram("setMyCommands", {
     commands: [
       { command: "start", description: "Welcome - choose Student or Tutor" },
-      { command: "student", description: "Register as a student / parent" },
-      { command: "tutor", description: "Register as a tutor" },
+      { command: "student", description: "Student / Parent - register or log in" },
+      { command: "tutor", description: "Tutor - register or log in" },
     ],
   });
   return json({ ok: !!(webhook.ok && menu.ok && commands.ok), webhook, menu, commands });
