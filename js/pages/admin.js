@@ -3607,13 +3607,12 @@ function toggleTutorStats(button, tutorId) {
   pop.setAttribute("role", "dialog");
   pop.setAttribute("aria-label", `Tuition record of ${name}`);
   pop.innerHTML = `
-    <div class="tsp-head"><strong>${esc(name)}</strong><span>${esc(tutorId)}</span></div>
     <div class="tsp-bar${decided ? "" : " is-empty"}" title="Accepted ${okPct}% · Rejected after demo ${noPct}%">
       ${decided ? `<span class="tsp-ok" style="width:${okPct}%"></span><span class="tsp-no" style="width:${noPct}%"></span>` : ""}
     </div>
     <div class="tsp-legend">
-      <span class="tsp-ok-text">Accepted ${decided ? okPct + "%" : "-"}</span>
-      <span class="tsp-no-text">Rejected after demo ${decided ? noPct + "%" : "-"}</span>
+      <span class="tsp-ok-text">${decided ? okPct + "%" : "-"}</span>
+      <span class="tsp-no-text">${decided ? noPct + "%" : "-"}</span>
     </div>
     <dl class="tsp-list">
       <div><dt>Completed</dt><dd>${s.completed}</dd></div>
