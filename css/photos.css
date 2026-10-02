@@ -1,0 +1,20 @@
+/* Profile photos inside the round name-letter avatars (see js/photos.js).
+   The photo sits on top of the letters; if it cannot load it removes itself
+   and the letters stay. */
+.photo-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  z-index: 1;
+  display: block;
+}
+
+/* the verified seal stays above the photo */
+.header-sub-badge,
+.profile-sub-badge,
+.admin-sub-badge {
+  z-index: 2;
+}

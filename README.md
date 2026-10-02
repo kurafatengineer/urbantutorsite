@@ -31,6 +31,7 @@ Shared pieces used by several pages (change them once, every page changes):
 |---|---|
 | `js/supabase-client.js` | The connection to the server. Every page loads it first. `sbCall()` runs a database action; `sbCallNotify()` runs an action that also sends an email. |
 | `js/portal.js` | Stamps every login with the door it was made at (Student / Tutor / Admin), so one email logged in at one door does not silently open the others. |
+| `js/photos.js`, `css/photos.css` | Tutor profile photos on the round name-letter avatars (tutor's own header/profile, student dashboard for verified tutors who applied, Admin cards). Not shown on the public homepage. |
 | `js/common.js` | `escapeHTML()` (safe text) and `hasSession()` (is someone logged in). |
 | `js/profile-common.js` | Date/time text, address, badge helpers shared by the two profile pages. |
 | `js/header.js`, `js/footer.js`, `components/*.html` | The top bar and the footer on every page. |
@@ -66,6 +67,7 @@ Project id: `zbvtdcqoouwyrcxkzjfv`
     employees, hiding mobile numbers / addresses).
   - `actions/` — student/tutor actions that must also send an email (new
     tuition, tutor applied, accept/reject).
+  - `tutor-photos/` — gives a logged-in student 1-hour links to the photos of VERIFIED tutors who applied to his tuitions.
   - `_shared/email.ts` — the email design + sending. `_shared/mails.ts` — the
     wording of the 10 emails.
 - `supabase/archive/` — old, switched-off code kept only for reference (the WhatsApp webhook). Nothing there is live.

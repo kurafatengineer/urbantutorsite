@@ -292,9 +292,9 @@
 
       let foot;
       if (mine) {
-        foot = `<div class="db-faces"><i style="background:${COLORS[0]}">${esc(initials(mine.fullName, "T"))}</i></div><span>Your tutor: ${esc(mine.fullName)}</span>`;
+        foot = `<div class="db-faces"><i data-tid="${esc(mine.tutorId)}" style="background:${COLORS[0]}">${esc(initials(mine.fullName, "T"))}</i></div><span>Your tutor: ${esc(mine.fullName)}</span>`;
       } else if (live.length) {
-        foot = `<div class="db-faces">${live.slice(0, 4).map((tu, i) => `<i style="background:${COLORS[i % COLORS.length]}">${esc(initials(tu.fullName, "T"))}</i>`).join("")}</div>
+        foot = `<div class="db-faces">${live.slice(0, 4).map((tu, i) => `<i data-tid="${esc(tu.tutorId)}" style="background:${COLORS[i % COLORS.length]}">${esc(initials(tu.fullName, "T"))}</i>`).join("")}</div>
                 <span>${live.length} tutor${live.length === 1 ? "" : "s"} applied</span>`;
       } else {
         foot = `<span>We're matching tutors near you</span>`;
@@ -309,6 +309,15 @@
         </a>`;
 
     }).join("") : `<div class="db-empty">No tuitions yet. Tap <b>Apply for New Tuition</b> to post one.</div>`;
+
+    // Photos of the VERIFIED tutors who applied to this student's tuitions
+    // (asked from the server; the letters stay if there is no photo).
+    if (window.UrbanPhoto) {
+      const faces = [...document.querySelectorAll("#dbSList .db-faces i[data-tid]")];
+      window.UrbanPhoto.forTutors(faces.map(el => el.dataset.tid)).then(photos => {
+        faces.forEach(el => window.UrbanPhoto.fill(el, photos[el.dataset.tid]));
+      });
+    }
 
   }
 

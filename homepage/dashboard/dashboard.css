@@ -119,7 +119,7 @@
 .db-steps-l .a { color: var(--db-text); }
 .db-tc-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; color: var(--db-muted); flex-wrap: wrap; }
 .db-faces { display: flex; align-items: center; }
-.db-faces i { width: 28px; height: 28px; border-radius: 50%; margin-left: -8px; border: 2px solid var(--db-surface); display: grid; place-items: center; font-style: normal; font-size: 10px; font-weight: 800; color: #08080b; }
+.db-faces i { position: relative; width: 28px; height: 28px; border-radius: 50%; margin-left: -8px; border: 2px solid var(--db-surface); display: grid; place-items: center; font-style: normal; font-size: 10px; font-weight: 800; color: #08080b; }
 .db-faces i:first-child { margin-left: 0; }
 
 /* tutor matching card */
