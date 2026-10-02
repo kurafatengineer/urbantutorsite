@@ -612,11 +612,12 @@ function applyRoleUI() {
 
 /* =====================================================================
    HEADER SWITCHES
-   - Emails On / Off: the office-wide switch for the emails that Admin
-     Panel updates send (payments, subscriptions, demo / tutor changes,
-     tuitions posted by the office). Only the Super Admin can change it;
-     everyone else just sees whether it is on. Login codes and emails
-     caused by students / tutors themselves are not affected.
+   - Emails On / Off: each employee's OWN switch for the emails that the
+     updates THEY make in the Admin Panel send (payments, subscriptions,
+     demo changes, tuitions posted by the office). Other employees' updates
+     still email as usual. Needs the "Switch off emails" permission (a Super
+     Admin always has it); without it the button shows but is disabled.
+     Login codes and emails caused by students / tutors are not affected.
    - Dark / Light mode: only how this Admin Panel looks, saved on this
      device (the <head> of admin.html applies it before the page draws).
    ===================================================================== */
@@ -648,16 +649,15 @@ function renderMailToggle() {
   button.classList.toggle("hidden", !known);
   if (!known) return;
   const on = STATE.settings.mailsEnabled;
-  const canChange = STATE.me.role === "super_admin";
+  const canChange = !!STATE.settings.canToggleMails;
   button.dataset.on = String(on);
   button.setAttribute("aria-pressed", String(on));
   button.querySelector(".admin-switch-text").textContent = on ? "Emails On" : "Emails Off";
   button.disabled = !canChange;
   button.title = canChange
-    ? (on ? "Updates made here email students and tutors. Click to stop these emails."
-          : "Updates made here send no email. Click to start these emails again.")
-    : (on ? "Updates made here email students and tutors (only the Super Admin can change this)."
-          : "Updates made here send no email (only the Super Admin can change this).");
+    ? (on ? "Your updates email students and tutors. Click to stop emails for your updates."
+          : "Your updates send no email. Click to start these emails again.")
+    : "Your updates email students and tutors. You don't have permission to switch this off.";
 }
 
 // The "are you sure?" box: title, justified text, Cancel (left) / OK (right).
@@ -702,14 +702,14 @@ function wireHeaderSwitches() {
 
   $("mailToggle").addEventListener("click", async () => {
     const button = $("mailToggle");
-    if (button.disabled || !STATE.settings || !STATE.me || STATE.me.role !== "super_admin") return;
+    if (button.disabled || !STATE.settings || !STATE.settings.canToggleMails) return;
     const turnOn = !STATE.settings.mailsEnabled;
     const ok = await askConfirm(turnOn
       ? { title: "Turn emails ON?",
-          lines: ["Updates made in the Admin Panel will email students and tutors again."] }
+          lines: ["The updates you make in the Admin Panel will email students and tutors again."] }
       : { title: "Turn emails OFF?",
-          lines: ["Updates made in the Admin Panel (by everyone in the office) will NOT email students or tutors until you turn this back on.",
-                  "Login codes and emails caused by students / tutors themselves still go out."] });
+          lines: ["The updates YOU make in the Admin Panel will NOT email students or tutors until you turn this back on.",
+                  "Other employees' updates, login codes and emails caused by students / tutors still go out."] });
     if (!ok) return;
     button.disabled = true;
     button.classList.add("is-loading");

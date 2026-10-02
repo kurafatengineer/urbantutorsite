@@ -76,6 +76,7 @@ interface Caller {
   fullName: string;
   role: Role;
   permissions: Set<string>;
+  mailsEnabled: boolean;
 }
 
 interface AuthedUser { id: string; email: string; }
@@ -108,7 +109,7 @@ async function loadCaller(authHeader: string | null): Promise<Caller | "no-sessi
 
   const { data: row } = await db
     .from("admin_users")
-    .select("id, email, full_name, role, active, permissions")
+    .select("id, email, full_name, role, active, permissions, mails_enabled")
     .ilike("email", user.email)
     .maybeSingle();
 
@@ -116,6 +117,7 @@ async function loadCaller(authHeader: string | null): Promise<Caller | "no-sessi
     return {
       id: row.id, email: row.email, fullName: row.full_name, role: row.role as Role,
       permissions: new Set(effectivePermissions(row.role as Role, row.permissions)),
+      mailsEnabled: row.mails_enabled !== false,
     };
   }
 
@@ -167,6 +169,9 @@ const PERMISSION_GROUPS = [
   ] },
   { id: "employees", label: "Employees", items: [
     { key: "employees_manage", label: "Manage employees & permissions" },
+  ] },
+  { id: "emails", label: "Emails", items: [
+    { key: "mails_toggle", label: "Switch off emails for own updates (Emails On / Off)" },
   ] },
   // Restrictions, not grants: when ticked, every mobile / WhatsApp number
   // (or every street address) is masked in what this employee's panel
@@ -681,7 +686,7 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
     email: caller.email, fullName: caller.fullName, role: caller.role,
     permissions: [...caller.permissions],
   };
-  withLinks.settings = { mailsEnabled: await adminMailsEnabled() };
+  withLinks.settings = { mailsEnabled: callerMailsOn(caller), canToggleMails: caller.permissions.has("mails_toggle") };
 
   if (canSeePayments(caller)) {
     const { data: payments, error } = await db
@@ -726,16 +731,16 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
      a subscription payment (student / tutor). Everything else is silent.
    A failed send never blocks the action itself (see _shared/email.ts). */
 
-// The "Mails On / Off" switch in the Admin Panel header (app_settings.admin_mails).
-// Off = none of the emails below are sent for updates made in the Admin Panel.
-async function adminMailsEnabled(): Promise<boolean> {
-  const { data } = await db.from("app_settings").select("value").eq("key", "admin_mails").maybeSingle();
-  return data?.value?.enabled !== false;
+// The "Emails On / Off" switch in the Admin Panel header is each
+// employee's own (admin_users.mails_enabled): Off = the updates THIS
+// employee makes send no email. Only counts while the employee has the
+// "mails_toggle" permission (a Super Admin always has it).
+function callerMailsOn(caller: Caller): boolean {
+  return !caller.permissions.has("mails_toggle") || caller.mailsEnabled;
 }
 
 async function sendTo(email: string | null | undefined, mail: { subject: string; html: string }) {
   if (!email) return;
-  if (!(await adminMailsEnabled())) return;   // the office switched emails off
   await sendMail(email, mail.subject, mail.html);
 }
 
@@ -961,17 +966,15 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
 
   if (action === READ_ONLY_ACTION) return handleGetOverview(caller);
 
-  // Only a Super Admin can turn the Admin Panel's emails on / off (for everyone).
+  // An employee's own Emails On / Off switch (needs the mails_toggle permission).
   if (action === "adminSetMails") {
-    if (caller.role !== "super_admin") return forbidden();
+    if (!caller.permissions.has("mails_toggle")) return forbidden();
     const enabled = body.enabled === true;
-    const { error } = await db.from("app_settings").upsert({
-      key: "admin_mails", value: { enabled }, updated_at: new Date().toISOString(), updated_by: caller.id,
-    });
+    const { error } = await db.from("admin_users").update({ mails_enabled: enabled }).eq("id", caller.id);
     if (error) return { success: false, message: error.message };
     return {
       success: true, mailsEnabled: enabled,
-      message: enabled ? "Emails are ON - updates will email students and tutors again." : "Emails are OFF - updates will not send any email.",
+      message: enabled ? "Emails are ON - your updates will email students and tutors again." : "Emails are OFF - your updates will not send any email.",
     };
   }
 
@@ -1014,7 +1017,7 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
         const newTime = String(body.changes?.["Demo Time"] ?? "");
         const changed = newDate !== String(before?.demo_date ?? "") || newTime.slice(0, 5) !== String(before?.demo_time ?? "").slice(0, 5);
         if (newDate && newTime && changed) {
-          try { await sendDemoScheduled(String(body.demoId), String(body.tutorId), newDate, newTime); } catch (e) { console.error("demo mail", e); }
+          if (callerMailsOn(caller)) try { await sendDemoScheduled(String(body.demoId), String(body.tutorId), newDate, newTime); } catch (e) { console.error("demo mail", e); }
         }
       }
       return result;
@@ -1040,7 +1043,7 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
       const p = body.p ?? {};
       const result = await rpc("admin_register_student", { p });
       if (result?.success && result.demoIds?.length) {
-        try { await sendTuitionPosted(String(result.studentId), result.demoIds); } catch (e) { console.error("tuition mail", e); }
+        if (callerMailsOn(caller)) try { await sendTuitionPosted(String(result.studentId), result.demoIds); } catch (e) { console.error("tuition mail", e); }
       }
       return result;
     }
@@ -1050,7 +1053,7 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
       const p = body.p ?? {};
       const result = await rpc("admin_add_tuition", { p });
       if (result?.success) {
-        try { await sendTuitionPosted(String(p.studentId ?? ""), result.demoIds ?? []); } catch (e) { console.error("tuition mail", e); }
+        if (callerMailsOn(caller)) try { await sendTuitionPosted(String(p.studentId ?? ""), result.demoIds ?? []); } catch (e) { console.error("tuition mail", e); }
       }
       return result;
     }
@@ -1077,7 +1080,7 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
         if (inserted.subscription_id) {
           await realignSubscriptionCycle(inserted.subscription_id, inserted.payment_date);
         }
-        try { await sendPaymentMail(inserted); } catch (e) { console.error("payment mail", e); }
+        if (callerMailsOn(caller)) try { await sendPaymentMail(inserted); } catch (e) { console.error("payment mail", e); }
       }
       return { success: true, message: "Payment recorded." };
     }
