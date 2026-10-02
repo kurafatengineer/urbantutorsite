@@ -3242,3 +3242,122 @@ body[data-page="admin"] {
   .perm-group-privacy .perm-item { width: 100%; }
 }
 
+
+
+/* =========================================================
+   TOP BAR SWITCHES
+   Refresh | [Emails On/Off] Name ROLE [Light/Dark Mode] | Log out
+========================================================= */
+
+.admin-top-3 .admin-top-mid {
+  flex-direction: row;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.admin-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.admin-switch-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 0 3px var(--lime-dim);
+}
+
+#mailToggle[data-on="false"] {
+  border-color: rgba(255, 104, 104, 0.45);
+  color: var(--danger);
+}
+#mailToggle[data-on="false"] .admin-switch-dot {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-dim);
+}
+
+/* employees can see the switch but only the Super Admin can press it */
+#mailToggle:disabled { opacity: 0.8; cursor: default; }
+#mailToggle:disabled:hover { border-color: var(--border-light); color: var(--text); }
+#mailToggle[data-on="false"]:disabled:hover { border-color: rgba(255, 104, 104, 0.45); color: var(--danger); }
+#mailToggle.is-loading { opacity: 0.55; }
+
+
+/* =========================================================
+   LIGHT MODE  (html[data-theme="light"], set by the top-bar switch)
+   Same layout - only the colours change.
+========================================================= */
+
+html[data-theme="light"] {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f3f4f6;
+  --surface-3: #eceef1;
+  --border: #dde0e5;
+  --border-light: #cfd3da;
+  --text: #111418;
+  --muted: #5b6472;
+  --muted-2: #808895;
+  --lime-dim: rgba(22, 163, 74, 0.12);
+  --blue-dim: rgba(37, 99, 235, 0.10);
+  --danger: #dc2626;
+  --danger-dim: rgba(220, 38, 38, 0.10);
+  --success: #15803d;
+  --success-dim: rgba(21, 128, 61, 0.12);
+  --warn: #b45309;
+  --warn-dim: rgba(180, 83, 9, 0.12);
+  --orange: #c2410c;
+  --violet: #7c3aed;
+  --violet-dim: rgba(124, 58, 237, 0.10);
+
+  /* top site bar (css/header.css) */
+  --header-bg: #ffffff;
+  --header-text: #111418;
+  --header-muted: #5b6472;
+  --header-border: rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea { color-scheme: light !important; }
+
+html[data-theme="light"] .brand-urban { color: #111418; }
+html[data-theme="light"] .header-login,
+html[data-theme="light"] .header-login.header-login-static,
+html[data-theme="light"] .header-login.header-login-static:hover { background: #ffffff; }
+
+/* places that used white-on-black tints */
+html[data-theme="light"] .admin-hl-small { background: rgba(0, 0, 0, 0.04); }
+html[data-theme="light"] .admin-hl-top[data-tone="completed"] { background: rgba(0, 0, 0, 0.06); }
+html[data-theme="light"] .admin-hl-top[data-tone="blue"] { background: rgba(37, 99, 235, 0.10); }
+html[data-theme="light"] .admin-role-pill[data-role="tutor_relations"] { color: #1d4ed8; }
+html[data-theme="light"] .admin-status-rail[data-tone="black"] { background: #111418; color: #ffffff; }
+html[data-theme="light"] .admin-wave::after {
+  background: linear-gradient(90deg, transparent 0%, rgba(37, 99, 235, 0.18) 50%, transparent 100%);
+}
+
+/* login code boxes */
+html[data-theme="light"] .otp-box,
+html[data-theme="light"] .otp-box::selection { color: var(--text); -webkit-text-fill-color: var(--text); }
+html[data-theme="light"] .otp-box:-webkit-autofill,
+html[data-theme="light"] .otp-box:-webkit-autofill:focus { -webkit-text-fill-color: var(--text); caret-color: var(--text); }
+
+/* "Add a Student" / "Apply For New Tuition" pop-ups (css/student-forms.css) */
+html[data-theme="light"] .add-modal {
+  --surface: #ffffff;
+  --surface-2: #ffffff;   /* inputs white, so the floating labels sit cleanly on them */
+  --border: #dde0e5;
+  --border-light: #cfd3da;
+  --text: #111418;
+  --muted: #5b6472;
+  --muted-2: #808895;
+  --danger: #dc2626;
+  --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.18);
+}
+html[data-theme="light"] .add-modal .add-modal-overlay { background: rgba(17, 20, 24, 0.45); }
