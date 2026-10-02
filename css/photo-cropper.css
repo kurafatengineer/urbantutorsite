@@ -1,0 +1,28 @@
+/* Round-crop window for profile photos (see js/photo-cropper.js) */
+.pc-modal { position: fixed; inset: 0; z-index: 1100; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.pc-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.72); }
+.pc-box {
+  position: relative; z-index: 1; width: min(360px, 100%); padding: 26px 22px 22px;
+  background: #101010; border: 1px solid #303030; border-radius: 22px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); text-align: center; color: #ffffff;
+  font-family: inherit;
+}
+.pc-box h3 { margin: 0 0 6px; font-size: 18px; font-weight: 800; }
+.pc-box p { margin: 0 0 16px; font-size: 13px; line-height: 1.5; color: #9a9a9a; }
+.pc-stage {
+  position: relative; width: 260px; height: 260px; margin: 0 auto 16px; overflow: hidden;
+  border-radius: 50%; background: #050505; border: 2px solid #16a34a;
+  touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
+}
+.pc-stage.pc-drag { cursor: grabbing; }
+.pc-stage img { position: absolute; max-width: none; pointer-events: none; -webkit-user-drag: none; }
+.pc-zoom { display: flex; align-items: center; gap: 10px; margin: 0 4px 18px; color: #9a9a9a; font-size: 12px; }
+.pc-zoom input[type="range"] { flex: 1; accent-color: #16a34a; }
+.pc-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pc-btn {
+  height: 44px; border-radius: 999px; border: 1px solid #303030; background: #151515; color: #ffffff;
+  font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.pc-btn.pc-primary { background: #16a34a; border-color: #16a34a; color: #050505; }
+.pc-save { display: inline-block; margin-top: 12px; background: none; border: 0; color: #9a9a9a; font: inherit; font-size: 12.5px; text-decoration: underline; cursor: pointer; }
+.pc-save:hover { color: #ffffff; }
