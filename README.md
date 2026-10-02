@@ -71,11 +71,11 @@ Project id: `zbvtdcqoouwyrcxkzjfv`
   - `actions/` — student/tutor actions that must also send an email (new
     tuition, tutor applied, accept/reject).
   - `telegram/` - the Telegram bot **@UrbanTutorSiteBot**. It only greets and
-    shows a "Register as Student" button that opens `studentregistration.html`
+    shows "Register as Student" / "Register as Tutor" buttons that open `studentregistration.html` / `tutorregistration.html`
     inside Telegram (a Mini App: same page, same flow, same database).
     Needs the secret `TELEGRAM_BOT_TOKEN`; after setting / changing it, open
     `https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/telegram?setup=1`
-    once (connects the bot, sets its menu button and commands).
+    once (connects the bot, sets its menu and the /start, /student, /tutor commands).
   - `home-photos/` — public: 1-hour links to the photos of the 4 verified tutors shown on the homepage (nothing else).
   - `tutor-photos/` — gives a logged-in student 1-hour links to the photos of VERIFIED tutors who applied to his tuitions.
   - `_shared/email.ts` — the email design + sending. `_shared/mails.ts` — the

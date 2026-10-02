@@ -1,15 +1,16 @@
 // URBANTUTORSITE - TELEGRAM BOT  (Supabase Edge Function "telegram")
 //
-// @UrbanTutorSiteBot. The bot itself only greets and hands out a button;
+// @UrbanTutorSiteBot. The bot itself only greets and hands out buttons;
 // the registration is the website's own page, opened INSIDE Telegram as a
 // Mini App - same flow (email + 6-digit code), same design, same database.
 //
-//   POST (from Telegram)  /start, /register, anything else -> reply with the
-//                         "Register as Student" button.
+//   POST (from Telegram)  /start or anything else -> "Register as Student" and
+//                         "Register as Tutor" buttons; /student and /tutor
+//                         -> just that one button.
 //                         Only accepted with Telegram's secret header.
 //   GET  ?setup=1         one-time setup: points the bot's webhook here, sets
-//                         the menu button and the command list. Safe to run
-//                         again (always the same values).
+//                         the menu (the command list) and the commands. Safe
+//                         to run again (always the same values).
 //
 // Secret: TELEGRAM_BOT_TOKEN (from @BotFather). The webhook's secret header is
 // derived from it, so no second secret is needed.
@@ -17,7 +18,8 @@
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SITE_URL = "https://kurafatengineer.github.io/urbantutorsite";
-const REGISTER_URL = `${SITE_URL}/studentregistration.html`;
+const STUDENT_URL = `${SITE_URL}/studentregistration.html`;
+const TUTOR_URL = `${SITE_URL}/tutorregistration.html`;
 const WEBHOOK_URL = `${SUPABASE_URL}/functions/v1/telegram`;
 
 // deno-lint-ignore no-explicit-any
@@ -42,9 +44,8 @@ function json(body: Json, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2), { status, headers: { "Content-Type": "application/json" } });
 }
 
-const registerButton = {
-  inline_keyboard: [[{ text: "📝 Register as Student", web_app: { url: REGISTER_URL } }]],
-};
+const studentButton = { text: "🎓 Register as Student", web_app: { url: STUDENT_URL } };
+const tutorButton = { text: "👨‍🏫 Register as Tutor", web_app: { url: TUTOR_URL } };
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -57,10 +58,19 @@ async function greet(chatId: number, firstName: string) {
     parse_mode: "HTML",
     text:
       `👋 Hi${name}! Welcome to <b>Urban Tutor Site</b>.\n\n` +
-      `Find a verified home or online tutor for your child.\n\n` +
-      `Tap the button below to register - it opens our registration form right here in Telegram. ` +
+      `🎓 <b>Parents / Students</b> - find a verified home or online tutor.\n` +
+      `👨‍🏫 <b>Tutors</b> - register and get tuition requests near you.\n\n` +
+      `Choose below - the form opens right here in Telegram. ` +
       `You'll log in with your email and a 6-digit code.`,
-    reply_markup: registerButton,
+    reply_markup: { inline_keyboard: [[studentButton], [tutorButton]] },
+  });
+}
+
+async function sendOne(chatId: number, forTutor: boolean) {
+  await telegram("sendMessage", {
+    chat_id: chatId,
+    text: forTutor ? "Tap below to register as a tutor:" : "Tap below to register as a student:",
+    reply_markup: { inline_keyboard: [[forTutor ? tutorButton : studentButton]] },
   });
 }
 
@@ -72,13 +82,13 @@ async function setup(): Promise<Response> {
     allowed_updates: ["message"],
     drop_pending_updates: true,
   });
-  const menu = await telegram("setChatMenuButton", {
-    menu_button: { type: "web_app", text: "Register", web_app: { url: REGISTER_URL } },
-  });
+  // the menu button shows the commands, so both choices are one tap away
+  const menu = await telegram("setChatMenuButton", { menu_button: { type: "commands" } });
   const commands = await telegram("setMyCommands", {
     commands: [
-      { command: "start", description: "Welcome & registration" },
-      { command: "register", description: "Register as a student" },
+      { command: "start", description: "Welcome - choose Student or Tutor" },
+      { command: "student", description: "Register as a student / parent" },
+      { command: "tutor", description: "Register as a tutor" },
     ],
   });
   return json({ ok: !!(webhook.ok && menu.ok && commands.ok), webhook, menu, commands });
@@ -105,7 +115,10 @@ Deno.serve(async (req: Request) => {
     const msg = update?.message;
     // private chats only; groups are ignored
     if (msg?.chat?.id && msg.chat.type === "private") {
-      await greet(msg.chat.id, String(msg.from?.first_name ?? ""));
+      const command = String(msg.text ?? "").trim().split(/[\s@]/)[0].toLowerCase();
+      if (command === "/student") await sendOne(msg.chat.id, false);
+      else if (command === "/tutor") await sendOne(msg.chat.id, true);
+      else await greet(msg.chat.id, String(msg.from?.first_name ?? ""));
     }
   } catch (err) {
     console.error("telegram update failed", String(err));
