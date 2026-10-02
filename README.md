@@ -31,7 +31,7 @@ Shared pieces used by several pages (change them once, every page changes):
 |---|---|
 | `js/supabase-client.js` | The connection to the server. Every page loads it first. `sbCall()` runs a database action; `sbCallNotify()` runs an action that also sends an email. |
 | `js/portal.js` | Stamps every login with the door it was made at (Student / Tutor / Admin), so one email logged in at one door does not silently open the others. |
-| `js/photos.js`, `css/photos.css` | Tutor profile photos on the round name-letter avatars (tutor's own header/profile, student dashboard for verified tutors who applied, Admin cards). Not shown on the public homepage. |
+| `js/photos.js`, `css/photos.css` | Tutor profile photos on the round name-letter avatars (tutor's own header/profile, student dashboard for verified tutors who applied, Admin cards). The homepage "Tutors worth meeting" cards also show them (via the public home-photos function). |
 | `js/photo-cropper.js`, `css/photo-cropper.css` | The round-crop window on tutor registration: shows the round picture, drag / zoom, "Use this photo" and "Save a copy". |
 | `js/common.js` | `escapeHTML()` (safe text) and `hasSession()` (is someone logged in). |
 | `js/profile-common.js` | Date/time text, address, badge helpers shared by the two profile pages. |
@@ -68,6 +68,7 @@ Project id: `zbvtdcqoouwyrcxkzjfv`
     employees, hiding mobile numbers / addresses).
   - `actions/` — student/tutor actions that must also send an email (new
     tuition, tutor applied, accept/reject).
+  - `home-photos/` — public: 1-hour links to the photos of the 4 verified tutors shown on the homepage (nothing else).
   - `tutor-photos/` — gives a logged-in student 1-hour links to the photos of VERIFIED tutors who applied to his tuitions.
   - `_shared/email.ts` — the email design + sending. `_shared/mails.ts` — the
     wording of the 10 emails.
