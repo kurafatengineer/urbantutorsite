@@ -3538,3 +3538,9 @@ html[data-theme="light"] .admin-confirm-overlay { background: rgba(17, 20, 24, 0
 /* Refresh: the icon gives way to the spinner while loading */
 #refreshButton.is-loading svg { display: none; }
 #refreshButton.is-loading::before { margin: 0; }
+
+
+/* Class days: below the Tuition ID; locked (read-only) until "Edit" */
+.admin-day-chips { margin-bottom: 14px; }
+.admin-day-chips.is-locked .admin-day-chip:disabled { opacity: 1; cursor: default; }
+.admin-day-chips.is-locked .admin-day-chip:not(.is-on):hover { border-color: var(--border); color: var(--muted); }

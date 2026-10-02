@@ -1020,6 +1020,7 @@ function wireEvents() {
   document.addEventListener("click", collapseOnOutsideClick, true);
 
   wirePaymentForm();
+  wireIdleForms();
   wirePaymentIdSuggestions();
   wirePaymentSubPartySuggestion();
   wireSubscriptionForm();
@@ -1469,6 +1470,62 @@ function openPaymentFormForClass(kind, g, activeRow) {
 
 }
 
+/* ---- "+ Record a Payment" / "+ Create a Subscription" left untouched ----
+   If the form is opened but nothing is typed or changed in it, going to
+   another section or clicking anywhere outside it simply closes it again.
+   (Once something has been typed it stays open until Save / Cancel.)
+   While the New Subscription form is open, the list below it is hidden. */
+
+function closeIdleForms() {
+  ["paymentForm", "subscriptionForm"].forEach(id => {
+    const form = $(id);
+    const st = (STATE.idleForms || {})[id];
+    if (form && !form.classList.contains("hidden") && st && !st.dirty) form.classList.add("hidden");
+  });
+}
+
+function wireIdleForms() {
+
+  // (kept on STATE: init runs this before the rest of the file has loaded)
+  STATE.idleForms = {};   // form id -> { openedAt, dirty, isOpen }
+  const idleForms = STATE.idleForms;
+
+  ["paymentForm", "subscriptionForm"].forEach(id => {
+    const form = $(id);
+    idleForms[id] = { openedAt: 0, dirty: false };
+
+    // a person typing / picking something makes it "in use"
+    const touch = (event) => { if (event.isTrusted) idleForms[id].dirty = true; };
+    form.addEventListener("input", touch);
+    form.addEventListener("change", touch);
+
+    // every way of opening or closing it goes through its "hidden" class
+    new MutationObserver(() => {
+      const open = !form.classList.contains("hidden");
+      if (open && !idleForms[id].isOpen) idleForms[id] = { openedAt: performance.now(), dirty: false, isOpen: true };
+      if (!open) idleForms[id].isOpen = false;
+      if (id === "subscriptionForm") {
+        $("subscriptionHeader").classList.toggle("hidden", open);
+        $("subscriptionList").classList.toggle("hidden", open);
+      }
+    }).observe(form, { attributes: true, attributeFilter: ["class"] });
+  });
+
+  document.addEventListener("click", (event) => {
+    ["paymentForm", "subscriptionForm"].forEach(id => {
+      const form = $(id);
+      const st = idleForms[id];
+      if (form.classList.contains("hidden") || st.dirty) return;
+      // the same click that opened it (button, card figure...) doesn't count
+      if (performance.now() - st.openedAt < 400) return;
+      if (form.contains(event.target)) return;
+      if (event.target.closest("#addPaymentButton, #addSubscriptionButton")) return;
+      form.classList.add("hidden");
+    });
+  });
+
+}
+
 function wirePaymentForm() {
 
   $("addPaymentButton").addEventListener("click", () => {
@@ -1653,7 +1710,7 @@ function wireSubscriptionForm() {
     const isStudent = $("subscriptionPartyType").value === "student";
     $("subscriptionPartyIdLabel").textContent = isStudent ? "Student ID" : "Tutor ID";
     $("subscriptionPartyId").value = "";
-    updateIdDetail($("subscriptionPartyDetail"), null);
+    fillSubscriptionParty(null);
     document.querySelector('#subscriptionPartyIdField .admin-suggest').classList.add("hidden");
     applySubscriptionDefaults();
   });
@@ -1667,7 +1724,7 @@ function wireSubscriptionForm() {
       $("subscriptionPartyId").value = "";
       $("subscriptionNotes").value = "";
       applySubscriptionDefaults();
-      updateIdDetail($("subscriptionPartyDetail"), null);
+      fillSubscriptionParty(null);
       document.querySelector('#subscriptionPartyIdField .admin-suggest').classList.add("hidden");
       $("subscriptionPartyId").focus();
     }
@@ -2261,11 +2318,16 @@ function wirePaymentIdSuggestions() {
 
 }
 
+// New Subscription: the picked student's / tutor's Name and Mobile Number
+function fillSubscriptionParty(item) {
+  $("subscriptionPartyName").value = (item && item.name) || "";
+  $("subscriptionPartyMobile").value = (item && item.mobile) || "";
+}
+
 function wireSubscriptionIdSuggestion() {
 
   const input = $("subscriptionPartyId");
   const suggest = document.querySelector('#subscriptionPartyIdField [data-suggest="party"]');
-  const detail = $("subscriptionPartyDetail");
 
   const isStudent = () => $("subscriptionPartyType").value === "student";
   const currentParty = () => {
@@ -2274,7 +2336,7 @@ function wireSubscriptionIdSuggestion() {
   };
 
   input.addEventListener("input", () => {
-    updateIdDetail(detail, currentParty());
+    fillSubscriptionParty(currentParty());
     renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent()), "party");
   });
 
@@ -2433,7 +2495,7 @@ function resetFilter(tab) {
 
 function showTab(name) {
 
-  if (name !== STATE.tab) collapseAll();
+  if (name !== STATE.tab) { collapseAll(); closeIdleForms(); }
 
   STATE.tab = name;
 
@@ -2448,6 +2510,7 @@ function showTab(name) {
 function goToFilter(tab, filter) {
 
   collapseAll();
+  closeIdleForms();
 
   if (tab === "tuitions") {
     STATE.tuitionFilter = filter;
@@ -2831,28 +2894,9 @@ async function onListClick(event) {
     }
 
     case "toggle-class-day": {
-      const day = actionEl.dataset.day;
-      const rowNumber = Number(actionEl.dataset.row);
-      const demoId = box.dataset.demo;
-      const tutorId = actionEl.dataset.tutorId;
-      const row = (STATE.data.demos || []).find(r => r.rowNumber === rowNumber && r.demoId === demoId);
-      const current = new Set((row && row.classDays && row.classDays.length) ? row.classDays : DEFAULT_CLASS_DAYS);
-      const adding = !current.has(day);
-      if (adding) current.add(day); else current.delete(day);
-      const days = WEEKDAYS.filter(d => current.has(d));
-      actionEl.classList.toggle("is-on", adding);
-      actionEl.disabled = true;
-      const ok = await save({
-        action: "adminUpdateDemoRow",
-        rowNumber,
-        demoId,
-        tutorId,
-        changes: { "Class Days": days }
-      });
-      if (!ok) {
-        actionEl.classList.toggle("is-on", !adding);
-        actionEl.disabled = false;
-      }
+      // only in edit mode (the chips are locked otherwise); saved with the rest
+      if (!STATE.editing.has("class:" + box.dataset.demo)) break;
+      actionEl.classList.toggle("is-on");
       break;
     }
 
@@ -3109,6 +3153,12 @@ async function saveClassDetails(box, button) {
   box.querySelectorAll("[data-cfield]").forEach(input => {
     changes[input.dataset.cfield] = input.value.trim();
   });
+
+  // the class days ticked in edit mode
+  const dayBox = box.querySelector("[data-class-days]");
+  if (dayBox) {
+    changes["Class Days"] = [...dayBox.querySelectorAll(".admin-day-chip.is-on")].map(b => b.dataset.day);
+  }
 
   const ok = await save({ action: "adminUpdateDemoRow", rowNumber, demoId, tutorId, changes }, button);
 
@@ -5051,7 +5101,7 @@ function classCard(g, activeRow) {
 
   const dayChips = WEEKDAYS.map(d => `
     <button type="button" class="admin-chip admin-day-chip${days.has(d) ? " is-on" : ""}"
-      data-action="toggle-class-day" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}" data-day="${esc(d)}">${esc(WEEKDAY_LABELS[d])}</button>
+      data-action="toggle-class-day" data-day="${esc(d)}"${editing ? "" : " disabled"}>${esc(WEEKDAY_LABELS[d])}</button>
   `).join("");
 
   const student = STUDENT_BY_ID[g.first.studentId];
@@ -5187,9 +5237,10 @@ function classCard(g, activeRow) {
 
       <div class="admin-card-body">
 
-        <div class="admin-day-chips">${dayChips}</div>
-
         <h3 class="admin-section-title admin-section-title-center">Tuition ID: ${esc(g.demoId)}</h3>
+
+        <!-- class days: changed only in edit mode, saved with "Save changes" -->
+        <div class="admin-day-chips${editing ? "" : " is-locked"}" data-class-days>${dayChips}</div>
         ${tuitionTermsBoxes}
         <div class="admin-class-count">
           <span>Number of Classes: <strong>${esc(activeRow.classCount || 0)}</strong></span>

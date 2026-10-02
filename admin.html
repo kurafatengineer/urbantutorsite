@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="css/header.css?v=20261003a">
   <link rel="stylesheet" href="css/photos.css?v=20261002a">
   <link rel="stylesheet" href="css/student-forms.css?v=20261003b">
-  <link rel="stylesheet" href="css/pages/admin.css?v=20261003k">
+  <link rel="stylesheet" href="css/pages/admin.css?v=20261003l">
 </head>
 
 <body data-page="admin">
@@ -455,6 +455,7 @@
               <span>Billing Cycle</span>
             </label>
           </div>
+          <!-- Student ID (or Tutor ID) | Name | Mobile Number -->
           <div class="admin-form-row admin-form-row-3">
             <div class="admin-id-row" id="subscriptionPartyIdField">
               <label class="admin-float">
@@ -462,8 +463,18 @@
                 <span id="subscriptionPartyIdLabel">Student ID</span>
               </label>
               <div class="admin-suggest hidden" data-suggest="party"></div>
-              <p class="admin-id-detail hidden" id="subscriptionPartyDetail"></p>
             </div>
+            <label class="admin-float">
+              <input id="subscriptionPartyName" type="text" readonly placeholder=" ">
+              <span>Name</span>
+            </label>
+            <label class="admin-float">
+              <input id="subscriptionPartyMobile" type="text" readonly placeholder=" ">
+              <span>Mobile Number</span>
+            </label>
+          </div>
+          <!-- Amount | Start Date | Next Due Date -->
+          <div class="admin-form-row admin-form-row-3">
             <label class="admin-float">
               <input id="subscriptionAmount" type="number" min="0" step="1" placeholder=" " required>
               <span>Amount (₹)</span>
@@ -472,15 +483,16 @@
               <input id="subscriptionStartDate" type="date" placeholder=" ">
               <span>Start Date</span>
             </label>
-          </div>
-          <div class="admin-form-row admin-form-row-3">
-            <label class="admin-float wide" style="grid-column: span 2;">
-              <textarea id="subscriptionNotes" rows="2" placeholder=" "></textarea>
-              <span>Notes</span>
-            </label>
             <label class="admin-float">
               <input id="subscriptionNextDueDate" type="date" placeholder=" ">
               <span>Next Due Date</span>
+            </label>
+          </div>
+          <!-- Notes, full width -->
+          <div class="admin-form-row">
+            <label class="admin-float wide">
+              <textarea id="subscriptionNotes" rows="2" placeholder=" "></textarea>
+              <span>Notes</span>
             </label>
           </div>
         </div>
@@ -805,7 +817,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
 <script src="js/portal.js?v=20261001a"></script>
-<script src="js/pages/admin.js?v=20261003i" defer></script>
+<script src="js/pages/admin.js?v=20261003j" defer></script>
 
 </body>
 </html>
