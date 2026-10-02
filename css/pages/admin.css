@@ -3544,3 +3544,81 @@ html[data-theme="light"] .admin-confirm-overlay { background: rgba(17, 20, 24, 0
 .admin-day-chips { margin-bottom: 14px; }
 .admin-day-chips.is-locked .admin-day-chip:disabled { opacity: 1; cursor: default; }
 .admin-day-chips.is-locked .admin-day-chip:not(.is-on):hover { border-color: var(--border); color: var(--muted); }
+
+
+/* =========================================================
+   TUTORS TAB: tuition record box (rises from the tutor's picture)
+========================================================= */
+
+.tutor-stats-pop {
+  position: absolute;
+  z-index: 1150;
+  width: 270px;
+  padding: 14px 16px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border-light);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: translateY(8px) scale(0.92);
+  transform-origin: var(--arrow-x, 34px) 100%;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+.tutor-stats-pop.is-below { transform: translateY(-8px) scale(0.92); transform-origin: var(--arrow-x, 34px) 0; }
+.tutor-stats-pop.is-shown { opacity: 1; transform: none; }
+html[data-theme="light"] .tutor-stats-pop { box-shadow: 0 18px 44px rgba(0, 0, 0, 0.14); }
+
+.tsp-arrow {
+  position: absolute;
+  left: calc(var(--arrow-x, 34px) - 7px);
+  width: 14px;
+  height: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  transform: rotate(45deg);
+}
+.tutor-stats-pop.is-above .tsp-arrow { bottom: -8px; border-top: 0; border-left: 0; }
+.tutor-stats-pop.is-below .tsp-arrow { top: -8px; border-bottom: 0; border-right: 0; }
+
+.tsp-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.tsp-head strong { font-size: 14.5px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tsp-head span { flex: 0 0 auto; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+
+.tsp-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-3);
+}
+.tsp-ok { background: var(--lime); }
+.tsp-no { background: var(--danger); }
+
+.tsp-legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 6px 0 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.tsp-ok-text { color: var(--lime); }
+.tsp-no-text { color: var(--danger); }
+
+.tsp-list { margin: 0; display: grid; gap: 2px; }
+.tsp-list > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 2px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.tsp-list dt { color: var(--muted); }
+.tsp-list dd { margin: 0; font-weight: 800; }
