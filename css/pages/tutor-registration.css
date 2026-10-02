@@ -1541,6 +1541,9 @@ sup {
   stroke-linejoin: round;
 }
 
+/* the profile photo card shows the round picture */
+#profileCard .upload-icon { border-radius: 50%; }
+
 .upload-preview {
   width: 100%;
   height: 100%;

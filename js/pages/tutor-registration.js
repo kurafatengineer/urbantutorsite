@@ -403,6 +403,32 @@ function bindUpload(prefix, inputId) {
 bindUpload("identity", "identityProof");
 bindUpload("profile", "profileImage");
 
+// Profile photo: before it is kept, the tutor sees the ROUND picture and can
+// move / zoom it (js/photo-cropper.js). What gets uploaded is the cropped
+// 600 x 600 JPEG. Cancel = no photo chosen yet. A wrong file type / size is
+// left alone here and reported by the normal check when the form is sent.
+$("profileImage").addEventListener("change", async () => {
+
+  const input = $("profileImage");
+
+  // this change was fired by us after cropping - nothing more to do
+  if (input.dataset.cropped === "1") { input.dataset.cropped = ""; return; }
+
+  const file = input.files[0];
+  if (!file || !window.PhotoCropper) return;
+  if (!/^image\/(jpeg|png)$/.test(file.type) || file.size > MAX_FILE_SIZE) return;
+
+  const cropped = await window.PhotoCropper.open(file);
+
+  const list = new DataTransfer();
+  if (cropped) list.items.add(cropped);
+  input.files = list.files;
+
+  input.dataset.cropped = "1";
+  input.dispatchEvent(new Event("change"));
+
+});
+
 
 /************************************************************
  * TERMS MODAL
