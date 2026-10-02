@@ -66,27 +66,100 @@
 
   /* ---------------- fetch ---------------- */
 
+  // Why this is built the way it is: the figures used to be asked through the
+  // shared Supabase library, which waits for a login-refresh lock and has no
+  // time limit - on a bad connection (or after a stale login) it could hang for
+  // ever, even across refreshes. Now:
+  //   1. the figures are requested DIRECTLY with a 7-second limit and one retry,
+  //   2. if that is slow, the figures from the visitor's last visit are shown
+  //      after 1.5 s and replaced when the fresh ones arrive,
+  //   3. the old library call is only a last resort.
+  const STATS_CACHE_KEY = "urbantutorsite_home_stats";
+  const STATS_URL = "https://zbvtdcqoouwyrcxkzjfv.supabase.co/rest/v1/rpc/get_home_stats";
+  const STATS_KEY = "sb_publishable_HW0yD0ilgbwDCsLJByrvbQ_AvxmNBI6";   // public, safe in the browser
+
+  function cachedStats() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STATS_CACHE_KEY) || "null");
+      return saved && saved.success ? saved : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async function fetchStats() {
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 7000);
+
+      try {
+        const response = await fetch(STATS_URL, {
+          method: "POST",
+          headers: { "apikey": STATS_KEY, "Authorization": "Bearer " + STATS_KEY, "Content-Type": "application/json" },
+          body: "{}",
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const data = await response.json();
+        if (data && data.success) return data;
+      } catch (error) {
+        console.warn("Homepage figures, attempt " + (attempt + 1) + ":", error);
+      } finally {
+        clearTimeout(timer);
+      }
+
+    }
+
+    return null;
+
+  }
+
+  async function lastResortStats() {
+    if (typeof window.sbCall !== "function") return null;
+    try {
+      const result = await Promise.race([
+        window.sbCall("get_home_stats", {}),
+        new Promise(resolve => setTimeout(() => resolve(null), 5000))
+      ]);
+      return result && result.success ? result : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
   async function load() {
 
-    try {
+    const cached = cachedStats();
+    let shown = false;
 
-      if (typeof window.sbCall !== "function") throw new Error("Supabase is not loaded.");
+    // slow connection: show the last visit's figures after 1.5 s
+    const slow = setTimeout(() => {
+      if (!shown && cached) { DATA = cached; shown = true; render(); }
+    }, 1500);
 
-      const result = await window.sbCall("get_home_stats", {});
+    const fresh = (await fetchStats()) || (await lastResortStats());
 
-      if (!result || !result.success) throw new Error(result && result.message);
+    clearTimeout(slow);
 
-      DATA = result;
-      render();
+    if (fresh) {
+      try { localStorage.setItem(STATS_CACHE_KEY, JSON.stringify(fresh)); } catch (error) { /* storage blocked */ }
+      if (!shown || JSON.stringify(fresh) !== JSON.stringify(cached)) {
+        DATA = fresh;
+        shown = true;
+        render();
+      }
+      return;
+    }
 
-    } catch (error) {
+    if (!shown && cached) { DATA = cached; shown = true; render(); return; }
 
-      console.error("Homepage figures:", error);
-
+    if (!shown) {
+      console.error("Homepage figures could not be loaded.");
       // No figures -> hide the number strip, keep the rest of the page.
       const kpis = $("ldKpis");
       if (kpis) kpis.classList.add("ld-hidden");
-
     }
 
   }
@@ -410,6 +483,15 @@
     document.querySelectorAll(".landing .ld-reveal").forEach(el => observer.observe(el));
 
   }
+
+
+  // Chart.js is loaded in the background (index.html); once it is there the
+  // charts that were waiting for it are drawn.
+  window.addEventListener("chartjs-ready", () => {
+    if (!DATA) return;
+    drawn.clear();
+    watchSections();
+  });
 
 
   /* ---------------- component API (index.html loader) ---------------- */
