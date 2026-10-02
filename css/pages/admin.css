@@ -3512,3 +3512,15 @@ html[data-theme="light"] .admin-confirm-overlay { background: rgba(17, 20, 24, 0
   padding: 11px 22px;
   font-size: 14px;
 }
+
+/* Mobile Number | Student ID | Student Name - one line */
+.add-modal .ta-find-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.add-modal .ta-find .admin-suggest { min-width: 100%; }
+.add-modal .ta-find .admin-suggest-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) {
+  .add-modal .ta-find-row { grid-template-columns: 1fr; }
+}
