@@ -75,7 +75,7 @@ Project id: `zbvtdcqoouwyrcxkzjfv`
     inside Telegram (a Mini App: same page, same flow, same database).
     Needs the secret `TELEGRAM_BOT_TOKEN`; after setting / changing it, open
     `https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/telegram?setup=1`
-    once (connects the bot, sets its menu and the /start, /student, /tutor commands).
+    once (connects the bot; its menu button opens the website; anything a user types is deleted). The footer's Telegram icon links to https://t.me/UrbanTutorSiteBot.
   - `home-photos/` — public: 1-hour links to the photos of the 4 verified tutors shown on the homepage (nothing else).
   - `tutor-photos/` — gives a logged-in student 1-hour links to the photos of VERIFIED tutors who applied to his tuitions.
   - `_shared/email.ts` — the email design + sending. `_shared/mails.ts` — the

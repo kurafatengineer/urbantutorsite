@@ -9,10 +9,12 @@
 //                         /tutor -> just that one button. (The two pages do
 //                         both: a new email registers, a known email logs in
 //                         and lands on its profile.)
+//                         Whatever the user types is deleted right away, so
+//                         the chat stays just the bot's buttons.
 //                         Only accepted with Telegram's secret header.
-//   GET  ?setup=1         one-time setup: points the bot's webhook here, sets
-//                         the menu (the command list) and the commands. Safe
-//                         to run again (always the same values).
+//   GET  ?setup=1         one-time setup: points the bot's webhook here, makes
+//                         the menu button open the website, and removes the
+//                         command list. Safe to run again.
 //
 // Secret: TELEGRAM_BOT_TOKEN (from @BotFather). The webhook's secret header is
 // derived from it, so no second secret is needed.
@@ -22,6 +24,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SITE_URL = "https://kurafatengineer.github.io/urbantutorsite";
 const STUDENT_URL = `${SITE_URL}/studentregistration.html`;
 const TUTOR_URL = `${SITE_URL}/tutorregistration.html`;
+const HOME_URL = `${SITE_URL}/index.html`;
 const WEBHOOK_URL = `${SUPABASE_URL}/functions/v1/telegram`;
 
 // deno-lint-ignore no-explicit-any
@@ -85,15 +88,11 @@ async function setup(): Promise<Response> {
     allowed_updates: ["message"],
     drop_pending_updates: true,
   });
-  // the menu button shows the commands, so both choices are one tap away
-  const menu = await telegram("setChatMenuButton", { menu_button: { type: "commands" } });
-  const commands = await telegram("setMyCommands", {
-    commands: [
-      { command: "start", description: "Welcome - choose Student or Tutor" },
-      { command: "student", description: "Student / Parent - register or log in" },
-      { command: "tutor", description: "Tutor - register or log in" },
-    ],
+  // the menu button opens the website itself (no command list)
+  const menu = await telegram("setChatMenuButton", {
+    menu_button: { type: "web_app", text: "Open", web_app: { url: HOME_URL } },
   });
+  const commands = await telegram("deleteMyCommands", {});
   return json({ ok: !!(webhook.ok && menu.ok && commands.ok), webhook, menu, commands });
 }
 
@@ -118,6 +117,8 @@ Deno.serve(async (req: Request) => {
     const msg = update?.message;
     // private chats only; groups are ignored
     if (msg?.chat?.id && msg.chat.type === "private") {
+      // keep the chat clean: whatever the user sent is removed
+      if (msg.message_id) await telegram("deleteMessage", { chat_id: msg.chat.id, message_id: msg.message_id });
       const command = String(msg.text ?? "").trim().split(/[\s@]/)[0].toLowerCase();
       if (command === "/student") await sendOne(msg.chat.id, false);
       else if (command === "/tutor") await sendOne(msg.chat.id, true);
