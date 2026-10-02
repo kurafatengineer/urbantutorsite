@@ -3538,3 +3538,60 @@ html[data-theme="light"] .admin-confirm-overlay { background: rgba(17, 20, 24, 0
 /* Refresh: the icon gives way to the spinner while loading */
 #refreshButton.is-loading svg { display: none; }
 #refreshButton.is-loading::before { margin: 0; }
+
+
+/* =========================================================
+   ONE HEIGHT FOR EVERY FIELD
+   Every box you type in or pick from (text, number, date, select)
+   is exactly as tall as the panel's buttons: 44px. Text areas and the
+   six login-code boxes keep their own size.
+========================================================= */
+
+:is(#loginPage, #panelPage, .add-modal) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="search"]):not(.otp-box), select) {
+  height: 44px !important;
+  min-height: 0 !important;
+  box-sizing: border-box;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* search: the outer pill is the box (44px); the input inside stays slim */
+.admin-search-wrap {
+  min-height: 44px;
+  box-sizing: border-box;
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+/* mobile / WhatsApp with the flag: the outer box carries the border */
+.add-modal .phone-input .float-field.in-phone input {
+  height: 42px !important;
+}
+
+/* pop-up buttons and ticks: the same 44px */
+.add-modal .add-submit,
+.add-modal .pill-check {
+  height: 44px;
+  box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.add-modal .choice-row label span {
+  height: 44px;
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: 42px;
+}
+
+/* one-line "Notes" boxes (pill-shaped text areas) and the Payment Mode
+   toggle sit in the same rows as the fields - same 44px */
+#agencySlotNotes textarea,
+#slotSubNotes textarea,
+#subscriptionForm #subscriptionNotes {
+  height: 44px;
+  min-height: 44px;
+  padding-top: 12px;
+  padding-bottom: 10px;
+}
+.admin-mode-field { height: 44px; padding: 0 4px; }
+.admin-mode-seg .admin-mode-opt { padding-top: 5px; padding-bottom: 5px; }
