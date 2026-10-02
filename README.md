@@ -33,6 +33,7 @@ Shared pieces used by several pages (change them once, every page changes):
 | `js/portal.js` | Stamps every login with the door it was made at (Student / Tutor / Admin), so one email logged in at one door does not silently open the others. |
 | `js/photos.js`, `css/photos.css` | Tutor profile photos on the round name-letter avatars (tutor's own header/profile, student dashboard for verified tutors who applied, Admin cards). The homepage "Tutors worth meeting" cards also show them (via the public home-photos function). |
 | `js/photo-cropper.js`, `css/photo-cropper.css` | The round-crop window on tutor registration: shows the round picture, drag / zoom, "Use this photo" and "Save a copy". |
+| `css/student-forms.css` | The Student Profile pop-up look ("Add a Student", "Apply For New Tuition"), reused by the Admin Panel's Students tab. |
 | `js/common.js` | `escapeHTML()` (safe text) and `hasSession()` (is someone logged in). |
 | `js/profile-common.js` | Date/time text, address, badge helpers shared by the two profile pages. |
 | `js/header.js`, `js/footer.js`, `components/*.html` | The top bar and the footer on every page. |

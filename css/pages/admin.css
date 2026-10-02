@@ -3242,35 +3242,3 @@ body[data-page="admin"] {
   .perm-group-privacy .perm-item { width: 100%; }
 }
 
-
-/* ---------------- Add a Student / Apply for New Tuition forms ---------------- */
-
-.admin-note-muted { margin: -4px 0 14px; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
-
-.admin-choice-label { margin: 14px 0 8px; text-align: center; font-size: 13px; font-weight: 700; color: var(--text); }
-.admin-choice-label small { font-weight: 600; color: var(--muted); }
-
-.admin-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
-
-.admin-choice { position: relative; display: inline-flex; }
-.admin-choice input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
-.admin-choice span {
-  display: inline-block;
-  padding: 7px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  user-select: none;
-}
-.admin-choice input:checked + span { border-color: var(--lime); background: var(--lime-dim); color: var(--lime); }
-.admin-choice input:focus-visible + span { outline: 2px solid var(--lime-line); outline-offset: 2px; }
-
-/* inside the form grid the choice rows take the full width (label above, options below) */
-.admin-form > .admin-choice-label,
-.admin-form > .admin-choices,
-.admin-form > .admin-note-muted,
-.admin-form > .perm-title { grid-column: 1 / -1; }
