@@ -31,6 +31,7 @@ Shared pieces used by several pages (change them once, every page changes):
 |---|---|
 | `js/supabase-client.js` | The connection to the server. Every page loads it first. `sbCall()` runs a database action; `sbCallNotify()` runs an action that also sends an email. |
 | `js/portal.js` | Stamps every login with the door it was made at (Student / Tutor / Admin), so one email logged in at one door does not silently open the others. |
+| `js/telegram.js` | When a page is opened inside Telegram (from the bot), fits it to Telegram: full height, black colours, Telegram's Back button. Does nothing in a normal browser. |
 | `js/photos.js`, `css/photos.css` | Tutor profile photos on the round name-letter avatars (tutor's own header/profile, student dashboard for verified tutors who applied, Admin cards). The homepage "Tutors worth meeting" cards also show them (via the public home-photos function). |
 | `js/photo-cropper.js`, `css/photo-cropper.css` | The round-crop window on tutor registration: shows the round picture, drag / zoom, "Use this photo" and "Save a copy". |
 | `css/student-forms.css` | The Student Profile pop-up look ("Add a Student", "Apply For New Tuition"), reused by the Admin Panel's Students tab. |
@@ -69,6 +70,12 @@ Project id: `zbvtdcqoouwyrcxkzjfv`
     employees, hiding mobile numbers / addresses, adding a student / posting a tuition for a student without OTP).
   - `actions/` — student/tutor actions that must also send an email (new
     tuition, tutor applied, accept/reject).
+  - `telegram/` - the Telegram bot **@UrbanTutorSiteBot**. It only greets and
+    shows a "Register as Student" button that opens `studentregistration.html`
+    inside Telegram (a Mini App: same page, same flow, same database).
+    Needs the secret `TELEGRAM_BOT_TOKEN`; after setting / changing it, open
+    `https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/telegram?setup=1`
+    once (connects the bot, sets its menu button and commands).
   - `home-photos/` — public: 1-hour links to the photos of the 4 verified tutors shown on the homepage (nothing else).
   - `tutor-photos/` — gives a logged-in student 1-hour links to the photos of VERIFIED tutors who applied to his tuitions.
   - `_shared/email.ts` — the email design + sending. `_shared/mails.ts` — the
@@ -77,7 +84,7 @@ Project id: `zbvtdcqoouwyrcxkzjfv`
 - **Login emails** (the 6-digit code mail) — `supabase/email-templates/`; they
   are pasted by hand into Supabase → Authentication → Email Templates.
 - **Secrets** (set in Supabase → Edge Functions → Secrets, never in the code):
-  `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`.
+  `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`, `TELEGRAM_BOT_TOKEN`.
 
 ### The 10 emails that are sent
 1 Student posted a tuition · 2 Tutor applied · 3 Demo scheduled ·
