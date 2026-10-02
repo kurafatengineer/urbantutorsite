@@ -116,7 +116,7 @@
 /* tutors: avatar, name + verified badge, experience */
 .ld-tutors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .ld-tt { padding: 22px 14px; border-radius: 24px; background: var(--ld-surface); border: 1px solid var(--ld-line); text-align: center; }
-.ld-av { width: 64px; height: 64px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; font-family: Sora, Inter, sans-serif; font-weight: 600; font-size: 20px; color: #08080b; }
+.ld-av { position: relative; width: 64px; height: 64px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; font-family: Sora, Inter, sans-serif; font-weight: 600; font-size: 20px; color: #08080b; }
 .ld-name { display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 14px; min-width: 0; }
 .ld-name b { font-size: 15.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ld-badge { width: 18px; height: 18px; flex: 0 0 auto; color: #1d9bf0; }

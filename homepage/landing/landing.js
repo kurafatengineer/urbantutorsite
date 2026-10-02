@@ -355,6 +355,30 @@
         </div>`;
     }).join("");
 
+    showTutorPhotos(list);
+
+  }
+
+  // The tutors' uploaded photos go on top of the name letters. They come from
+  // the public "home-photos" server function (only the verified tutors shown
+  // here). No photo / no connection -> the letters simply stay.
+  async function showTutorPhotos(list) {
+
+    if (!window.UrbanPhoto) return;
+
+    try {
+      const response = await fetch("https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/home-photos");
+      const result = JSON.parse(await response.text());
+      const circles = document.querySelectorAll("#ldTutorGrid .ld-av");
+
+      (result.photos || []).forEach((photo, i) => {
+        // the name must match the card at the same position
+        if (photo.url && list[i] && photo.name === list[i].name) window.UrbanPhoto.fill(circles[i], photo.url);
+      });
+    } catch (error) {
+      /* letters stay */
+    }
+
   }
 
 
