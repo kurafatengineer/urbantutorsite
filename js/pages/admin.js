@@ -402,9 +402,9 @@ function startIdleWatch() {
 
 let pendingEmail = "";
 // Asks the server to email a login code. Returns { ok, message }.
-// Normal path: the server's "adminSendCode" action. If the server can't be
-// reached with it (e.g. an older server version), the previous direct
-// method is used so office staff are never locked out.
+// The server ("adminSendCode") decides whether this email may get a code and
+// always answers the same way, so this page never reveals which emails belong
+// to office staff.
 async function requestLoginCode(email) {
 
   try {
@@ -412,16 +412,11 @@ async function requestLoginCode(email) {
     if (result && result.success) return { ok: true };
     if (result && result.message) return { ok: false, message: result.message };
   } catch (error) {
-    console.error("adminSendCode unavailable, using fallback", error);
+    console.error("adminSendCode failed", error);
   }
 
-  const { data: check, error: checkError } = await window.sb.rpc("admin_email_allowed", { p_email: email });
-  if (checkError) return { ok: false, message: "Unable to check this email right now. Please try again." };
-  if (!check || (!check.allowed && !check.bootstrap)) return { ok: false, message: "This email is not set up for office access." };
+  return { ok: false, message: "Unable to send the code right now. Please try again." };
 
-  const { error } = await window.sb.auth.signInWithOtp({ email, options: { shouldCreateUser: !!check.bootstrap } });
-  if (error) return { ok: false, message: error.message || "Unable to send the code." };
-  return { ok: true };
 }
 
 let resendTimer = null;
