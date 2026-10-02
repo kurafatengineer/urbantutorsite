@@ -69,6 +69,7 @@ function myPerms() {
     payments: has("payments_view"), paymentsAdd: has("payments_add"),
     paymentsEdit: has("payments_edit"), paymentsDelete: has("payments_delete"),
     subscriptionsAdd: has("subscriptions_add"), subscriptionsEdit: has("subscriptions_edit"),
+    studentsAdd: has("students_add"), tuitionsAdd: has("tuitions_add"),
     employees: has("employees_manage")
   };
 }
@@ -590,6 +591,9 @@ function applyRoleUI() {
 
   $("addPaymentButton").classList.toggle("hidden", !perms.paymentsAdd);
   $("addSubscriptionButton").classList.toggle("hidden", !perms.subscriptionsAdd);
+  $("addStudentButton").classList.toggle("hidden", !perms.studentsAdd);
+  $("applyTuitionButton").classList.toggle("hidden", !perms.tuitionsAdd);
+  $("studentActionsRow").classList.toggle("hidden", !perms.studentsAdd && !perms.tuitionsAdd);
 
   if (!visibility[STATE.tab]) STATE.tab = firstVisible || "tuitions";
 
@@ -894,6 +898,8 @@ function wireEvents() {
   wireSubscriptionForm();
   wireSubscriptionIdSuggestion();
   wireEmployeeForm();
+
+  wireStudentForms();
 
 }
 
@@ -1577,6 +1583,228 @@ function wireSubscriptionForm() {
     const ok = await save(payload, button);
 
     if (ok) $("subscriptionForm").classList.add("hidden");
+
+  });
+
+}
+
+
+/************************************************************
+ * ADD A STUDENT  /  APPLY FOR NEW TUITION  (office does it for the student)
+ *
+ * The same details, choices and checks as the student's own
+ * registration page and "Apply for New Tuition" form - the only
+ * difference is that no OTP is needed because the office is
+ * typing it in. The server ("adminAddStudent" / "adminAddTuition")
+ * saves it and sends the student the usual "Tuition Request Posted"
+ * email when a tuition request was made.
+ ************************************************************/
+
+// "17:30" -> "5:30 PM" (how the website saves an "Other" time)
+function timeText(hhmm) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || "");
+  if (!m) return "";
+  let h = Number(m[1]);
+  const suffix = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${m[2]} ${suffix}`;
+}
+
+function radioValue(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : "";
+}
+
+// ticked time slots as the website writes them ("4 PM", "Other: 5:30 PM")
+function readTimings(prefix) {
+  const values = [...document.querySelectorAll(`input[name="${prefix}Timing"]:checked`)].map(i => i.value);
+  const other = values.indexOf("Other");
+  if (other !== -1) {
+    const text = timeText($(prefix + "TimingOtherInput").value);
+    if (text) values[other] = "Other: " + text;
+  }
+  return values;
+}
+
+// "Other" and the ready-made slots exclude each other, like on the website
+function wireTimingGroup(prefix) {
+  const boxes = [...document.querySelectorAll(`input[name="${prefix}Timing"]`)];
+  const other = $(prefix + "TimingOther");
+  boxes.forEach(box => box.addEventListener("change", () => {
+    if (box === other && other.checked) boxes.forEach(b => { if (b !== other) b.checked = false; });
+    if (box !== other && box.checked) other.checked = false;
+    $(prefix + "TimingOtherWrap").classList.toggle("hidden", !other.checked);
+  }));
+}
+
+function resetChoices(prefix) {
+  document.querySelectorAll(`input[name="${prefix}Timing"]`).forEach(b => { b.checked = false; });
+  [prefix + "Tutor", prefix + "Mode"].forEach(name => {
+    const any = document.querySelector(`input[name="${name}"][value="Any"]`);
+    if (any) any.checked = true;
+  });
+  $(prefix + "TimingOtherWrap").classList.add("hidden");
+  $(prefix + "TimingOtherInput").value = "";
+}
+
+// sends it to the server, shows the answer, refreshes the lists
+async function submitForOffice(payload, button, doneText) {
+
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = "Saving...";
+
+  try {
+    const result = await adminCall(payload);
+    if (!result.success) {
+      toast(result.message || "Unable to save.", true);
+      return false;
+    }
+    await loadOverview(true);
+    toast(doneText(result));
+    return true;
+  } catch (error) {
+    if (error.message !== "not-admin") toast("Unable to connect to the server.", true);
+    return false;
+  } finally {
+    if (document.body.contains(button)) {
+      button.disabled = false;
+      button.textContent = label;
+    }
+  }
+
+}
+
+function wireStudentForms() {
+
+  wireTimingGroup("sa");
+  wireTimingGroup("ta");
+
+  /* ---- Add a Student ---- */
+
+  $("addStudentButton").addEventListener("click", () => {
+    $("tuitionApplyForm").classList.add("hidden");
+    const form = $("studentAddForm");
+    form.classList.toggle("hidden");
+    if (!form.classList.contains("hidden")) $("saEmail").focus();
+  });
+
+  $("cancelStudentAddButton").addEventListener("click", () => $("studentAddForm").classList.add("hidden"));
+
+  $("studentAddForm").addEventListener("submit", async (event) => {
+
+    event.preventDefault();
+
+    const v = id => $(id).value.trim();
+    const phone = v("saPhone");
+    const whatsapp = v("saWhatsapp") || phone;
+    const subjects = v("saSubjects");
+    const timings = readTimings("sa");
+
+    // the same checks as the student's own registration
+    const problem =
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v("saEmail")) ? "Enter a valid email address." :
+      !/^\d{10}$/.test(phone) ? "Enter a valid 10-digit mobile number." :
+      !/^\d{10}$/.test(whatsapp) ? "Enter a valid 10-digit WhatsApp number." :
+      v("saParents").length < 2 ? "Please enter the parent's name." :
+      v("saStudent").length < 2 ? "Please enter the student's name." :
+      !$("saGender").value ? "Select the student's gender." :
+      v("saSchool").length < 2 ? "Please enter the school." :
+      !v("saClass") ? "Please enter the class." :
+      !v("saBoard") ? "Please enter the board." :
+      v("saCity").length < 2 ? "Please enter the city." :
+      v("saAddress").length < 3 ? "Please enter the address / location." :
+      !/^\d{6}$/.test(v("saPin")) ? "Enter a valid 6-digit PIN code." :
+      (subjects && !timings.length) ? "Select at least one preferred timing." :
+      (subjects && timings.includes("Other")) ? "Enter the other preferred time." :
+      "";
+
+    if (problem) { toast(problem, true); return; }
+
+    const payload = {
+      action: "adminAddStudent",
+      p: {
+        email: v("saEmail"), phone, whatsapp,
+        parentsName: v("saParents"), studentName: v("saStudent"), gender: $("saGender").value,
+        school: v("saSchool"), className: v("saClass"), board: v("saBoard"),
+        subjects, preferredTutor: radioValue("saTutor"), medium: radioValue("saMode"),
+        preferredTiming: timings.join(", "),
+        city: v("saCity"), address: v("saAddress"), pinCode: v("saPin"),
+        termsAccepted: $("saTerms").checked
+      }
+    };
+
+    const ok = await submitForOffice(payload, event.submitter || $("studentAddForm").querySelector("button[type=submit]"), result =>
+      `Student ${result.studentId} added` + (result.demoIds && result.demoIds.length ? ` with tuition request ${result.demoIds.join(", ")}.` : "."));
+
+    if (ok) {
+      $("studentAddForm").reset();
+      resetChoices("sa");
+      $("studentAddForm").classList.add("hidden");
+    }
+
+  });
+
+  /* ---- Apply for New Tuition ---- */
+
+  $("applyTuitionButton").addEventListener("click", () => {
+
+    $("studentAddForm").classList.add("hidden");
+
+    const form = $("tuitionApplyForm");
+    form.classList.toggle("hidden");
+    if (form.classList.contains("hidden")) return;
+
+    // every student, as "ID · Name" (typing either finds them)
+    $("taStudentList").innerHTML = ((STATE.data && STATE.data.students && STATE.data.students.rows) || [])
+      .map(r => `<option value="${esc(r.id + " · " + ((r.values && r.values["Student Name"]) || ""))}"></option>`)
+      .join("");
+
+    $("taStudent").focus();
+
+  });
+
+  $("cancelTuitionApplyButton").addEventListener("click", () => $("tuitionApplyForm").classList.add("hidden"));
+
+  $("tuitionApplyForm").addEventListener("submit", async (event) => {
+
+    event.preventDefault();
+
+    // "SID... · Name" or just the ID / exact name
+    const typed = $("taStudent").value.trim();
+    const rows = (STATE.data && STATE.data.students && STATE.data.students.rows) || [];
+    const pick = rows.find(r => typed.toUpperCase().startsWith(String(r.id).toUpperCase())) ||
+      rows.find(r => ((r.values && r.values["Student Name"]) || "").toLowerCase() === typed.toLowerCase());
+
+    const subjects = $("taSubjects").value.trim();
+    const timings = readTimings("ta");
+
+    const problem =
+      !pick ? "Choose a student from the list." :
+      subjects.length < 2 ? "Please enter at least one subject." :
+      !timings.length ? "Select at least one preferred timing." :
+      timings.includes("Other") ? "Enter the other preferred time." :
+      "";
+
+    if (problem) { toast(problem, true); return; }
+
+    const payload = {
+      action: "adminAddTuition",
+      p: {
+        studentId: pick.id, subjects,
+        preferredTutor: radioValue("taTutor"), medium: radioValue("taMode"),
+        preferredTiming: timings.join(", ")
+      }
+    };
+
+    const ok = await submitForOffice(payload, event.submitter || $("tuitionApplyForm").querySelector("button[type=submit]"), result =>
+      `Tuition request ${(result.demoIds || []).join(", ")} posted for ${pick.id}.`);
+
+    if (ok) {
+      $("tuitionApplyForm").reset();
+      resetChoices("ta");
+      $("tuitionApplyForm").classList.add("hidden");
+    }
 
   });
 

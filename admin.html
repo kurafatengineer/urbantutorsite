@@ -12,7 +12,7 @@
 
   <link rel="stylesheet" href="css/header.css">
   <link rel="stylesheet" href="css/photos.css?v=20261002a">
-  <link rel="stylesheet" href="css/pages/admin.css?v=20261001h">
+  <link rel="stylesheet" href="css/pages/admin.css?v=20261003b">
 </head>
 
 <body data-page="admin">
@@ -169,6 +169,136 @@
           <span>Search</span>
         </label>
       </div>
+
+      <!-- Add a Student / Apply for New Tuition - the same details as the student's own
+           registration and tuition application, but filled in by the office (no OTP). -->
+      <div id="studentActionsRow" class="admin-pair" style="margin-bottom:14px;">
+        <button id="addStudentButton" class="admin-ghost" type="button">+ Add a Student</button>
+        <button id="applyTuitionButton" class="admin-ghost" type="button">+ Apply for New Tuition</button>
+      </div>
+
+      <form id="studentAddForm" class="admin-card hidden" novalidate style="margin-bottom:14px;">
+        <h3 class="admin-section-title">Add a Student</h3>
+        <p class="admin-note-muted">Same details as the student's own registration - no OTP needed. The student can log in later with this email.</p>
+        <div class="admin-form">
+          <div class="admin-form-row admin-form-row-3">
+            <label class="admin-float"><input id="saEmail" type="email" placeholder=" " autocomplete="off"><span>Email Address *</span></label>
+            <label class="admin-float"><input id="saPhone" type="tel" inputmode="numeric" maxlength="10" placeholder=" " autocomplete="off"><span>Mobile Number *</span></label>
+            <label class="admin-float"><input id="saWhatsapp" type="tel" inputmode="numeric" maxlength="10" placeholder=" " autocomplete="off"><span>WhatsApp (blank = same as mobile)</span></label>
+          </div>
+          <div class="admin-form-row admin-form-row-3">
+            <label class="admin-float"><input id="saParents" type="text" maxlength="100" placeholder=" " autocomplete="off"><span>Parents Name *</span></label>
+            <label class="admin-float"><input id="saStudent" type="text" maxlength="100" placeholder=" " autocomplete="off"><span>Student Name *</span></label>
+            <label class="admin-float is-select"><select id="saGender"><option value="">Select</option><option>Male</option><option>Female</option></select><span>Gender *</span></label>
+          </div>
+          <div class="admin-form-row admin-form-row-3">
+            <label class="admin-float"><input id="saSchool" type="text" placeholder=" " autocomplete="off"><span>School / College Name *</span></label>
+            <label class="admin-float"><input id="saClass" type="text" placeholder=" " autocomplete="off"><span>Class *</span></label>
+            <label class="admin-float"><input id="saBoard" type="text" placeholder=" " autocomplete="off"><span>Board / University *</span></label>
+          </div>
+          <div class="admin-form-row admin-form-row-3">
+            <label class="admin-float"><input id="saCity" type="text" placeholder=" " autocomplete="off"><span>City *</span></label>
+            <label class="admin-float"><input id="saAddress" type="text" placeholder=" " autocomplete="off"><span>Locality / Complete Address *</span></label>
+            <label class="admin-float"><input id="saPin" type="text" inputmode="numeric" maxlength="6" placeholder=" " autocomplete="off"><span>PIN Code *</span></label>
+          </div>
+
+          <p class="perm-title" style="margin-top:6px;">Tuition requirement <small>- optional: leave Subjects empty to only register the student</small></p>
+          <div class="admin-form-row">
+            <label class="admin-float"><input id="saSubjects" type="text" placeholder=" " autocomplete="off"><span>Subjects (separated by commas)</span></label>
+          </div>
+          <div class="admin-choice-label">Preferred Tutor</div>
+          <div class="admin-choices">
+              <label class="admin-choice"><input type="radio" name="saTutor" value="Male"><span>Male</span></label>
+              <label class="admin-choice"><input type="radio" name="saTutor" value="Any" checked><span>Any</span></label>
+              <label class="admin-choice"><input type="radio" name="saTutor" value="Female"><span>Female</span></label>
+          </div>
+          <div class="admin-choice-label">Mode of Study</div>
+          <div class="admin-choices">
+              <label class="admin-choice"><input type="radio" name="saMode" value="Home"><span>Home</span></label>
+              <label class="admin-choice"><input type="radio" name="saMode" value="Any" checked><span>Any</span></label>
+              <label class="admin-choice"><input type="radio" name="saMode" value="Online"><span>Online</span></label>
+          </div>
+          <div class="admin-choice-label">Student Preferred Timing <small>(needed when Subjects are given)</small></div>
+          <div class="admin-choices">
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="8 AM"><span>8 AM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="9 AM"><span>9 AM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="10 AM"><span>10 AM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="11 AM"><span>11 AM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="12 PM"><span>12 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="1 PM"><span>1 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="2 PM"><span>2 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="3 PM"><span>3 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="4 PM"><span>4 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="5 PM"><span>5 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="6 PM"><span>6 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="7 PM"><span>7 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="8 PM"><span>8 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="9 PM"><span>9 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="saTiming" value="Other" id="saTimingOther"><span>Other</span></label>
+          </div>
+          <div id="saTimingOtherWrap" class="admin-form-row hidden">
+            <label class="admin-float"><input id="saTimingOtherInput" type="time" placeholder=" "><span>Other preferred time</span></label>
+          </div>
+
+          <label class="perm-item" style="margin-top:10px;"><input id="saTerms" type="checkbox"><span>The parent has accepted the Terms &amp; Conditions</span></label>
+        </div>
+        <div class="admin-pair" style="margin-top:12px;">
+          <button class="admin-primary" type="submit">Add Student</button>
+          <button id="cancelStudentAddButton" class="admin-ghost" type="button">Cancel</button>
+        </div>
+      </form>
+
+      <form id="tuitionApplyForm" class="admin-card hidden" novalidate style="margin-bottom:14px;">
+        <h3 class="admin-section-title">Apply for New Tuition</h3>
+        <p class="admin-note-muted">Posts a new tuition request for an existing student, exactly like the student's own "Apply for New Tuition".</p>
+        <div class="admin-form">
+          <div class="admin-form-row">
+            <label class="admin-float"><input id="taStudent" type="text" list="taStudentList" placeholder=" " autocomplete="off"><span>Student (type an ID or name, then pick) *</span></label>
+            <datalist id="taStudentList"></datalist>
+          </div>
+          <div class="admin-form-row">
+            <label class="admin-float"><input id="taSubjects" type="text" placeholder=" " autocomplete="off"><span>Subjects (separated by commas) *</span></label>
+          </div>
+          <div class="admin-choice-label">Preferred Tutor</div>
+          <div class="admin-choices">
+              <label class="admin-choice"><input type="radio" name="taTutor" value="Male"><span>Male</span></label>
+              <label class="admin-choice"><input type="radio" name="taTutor" value="Any" checked><span>Any</span></label>
+              <label class="admin-choice"><input type="radio" name="taTutor" value="Female"><span>Female</span></label>
+          </div>
+          <div class="admin-choice-label">Mode of Study</div>
+          <div class="admin-choices">
+              <label class="admin-choice"><input type="radio" name="taMode" value="Home"><span>Home</span></label>
+              <label class="admin-choice"><input type="radio" name="taMode" value="Any" checked><span>Any</span></label>
+              <label class="admin-choice"><input type="radio" name="taMode" value="Online"><span>Online</span></label>
+          </div>
+          <div class="admin-choice-label">Student Preferred Timing *</div>
+          <div class="admin-choices">
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="8 AM"><span>8 AM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="9 AM"><span>9 AM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="10 AM"><span>10 AM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="11 AM"><span>11 AM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="12 PM"><span>12 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="1 PM"><span>1 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="2 PM"><span>2 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="3 PM"><span>3 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="4 PM"><span>4 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="5 PM"><span>5 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="6 PM"><span>6 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="7 PM"><span>7 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="8 PM"><span>8 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="9 PM"><span>9 PM</span></label>
+              <label class="admin-choice"><input type="checkbox" name="taTiming" value="Other" id="taTimingOther"><span>Other</span></label>
+          </div>
+          <div id="taTimingOtherWrap" class="admin-form-row hidden">
+            <label class="admin-float"><input id="taTimingOtherInput" type="time" placeholder=" "><span>Other preferred time</span></label>
+          </div>
+        </div>
+        <div class="admin-pair" style="margin-top:12px;">
+          <button class="admin-primary" type="submit">Post Tuition Request</button>
+          <button id="cancelTuitionApplyButton" class="admin-ghost" type="button">Cancel</button>
+        </div>
+      </form>
+
       <div id="studentHeader"></div>
       <div id="studentList" class="admin-stack-list"></div>
     </section>
@@ -564,7 +694,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
 <script src="js/portal.js?v=20261001a"></script>
-<script src="js/pages/admin.js?v=20261002b" defer></script>
+<script src="js/pages/admin.js?v=20261003a" defer></script>
 
 </body>
 </html>
