@@ -3378,3 +3378,137 @@ html[data-theme="light"] .add-modal .add-modal-overlay { background: rgba(17, 20
 .add-modal .add-grid .add-grid { gap: 14px; }
 html[data-theme="light"] .add-modal .in-flag { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12); }
 html[data-theme="light"] .add-modal .ta-find .admin-suggest { box-shadow: 0 14px 30px rgba(0, 0, 0, 0.12); }
+
+
+/* =========================================================
+   TOP BAR - final arrangement
+   Refresh | Emails On | Name (role pill under it) | Dark Mode | Log out
+   The two switches have the same width so the name sits exactly in
+   the middle; the pill is a little wider than the name.
+========================================================= */
+
+.admin-top-3 .admin-top-mid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  column-gap: 22px;
+}
+
+.admin-top-3 #mailToggle  { justify-self: end; }
+.admin-top-3 #themeToggle { justify-self: start; }
+
+.admin-top-3 .admin-switch {
+  min-width: 128px;
+  justify-content: center;
+}
+
+.admin-top-mid .admin-me {
+  display: inline-grid;
+  grid-template-columns: max-content;
+  justify-items: stretch;
+  row-gap: 6px;
+  margin: 0;
+  line-height: 1.1;
+}
+
+/* the side padding makes the pill (stretched to this width) a bit wider than the name */
+.admin-top-mid .admin-me-name {
+  padding: 0 14px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.admin-top-mid .admin-me .admin-role-pill {
+  text-align: center;
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   DARK <-> LIGHT: a slow, soft change (no sudden flash)
+========================================================= */
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.9s;
+  animation-timing-function: ease-in-out;
+}
+
+html.theme-fading,
+html.theme-fading *,
+html.theme-fading *::before,
+html.theme-fading *::after {
+  transition:
+    background-color 0.9s ease-in-out,
+    color 0.9s ease-in-out,
+    border-color 0.9s ease-in-out,
+    box-shadow 0.9s ease-in-out,
+    fill 0.9s ease-in-out !important;
+}
+
+
+/* =========================================================
+   "ARE YOU SURE?" BOX (Emails On / Off)
+   Centred box, justified text, Cancel on the left, OK on the right.
+========================================================= */
+
+.admin-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.admin-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.66);
+}
+
+html[data-theme="light"] .admin-confirm-overlay { background: rgba(17, 20, 24, 0.42); }
+
+.admin-confirm-box {
+  position: relative;
+  width: min(440px, 100%);
+  padding: 26px 26px 22px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-light);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+  text-align: center;
+}
+
+.admin-confirm-box h3 {
+  margin: 0 0 14px;
+  font-size: 19px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.admin-confirm-text p {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+  text-align: justify;
+  text-align-last: center;
+  hyphens: auto;
+}
+
+.admin-confirm-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.admin-confirm-actions > button {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 120px;
+  padding: 11px 22px;
+  font-size: 14px;
+}

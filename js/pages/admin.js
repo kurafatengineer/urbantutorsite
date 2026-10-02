@@ -601,7 +601,7 @@ function applyRoleUI() {
   if (window.setAdminHeaderInitials) window.setAdminHeaderInitials(STATE.me && STATE.me.fullName);
 
   $("adminMe").innerHTML = (STATE.me && STATE.me.fullName)
-    ? `${esc(STATE.me.fullName)} <span class="admin-role-pill" data-role="${esc(STATE.me.role)}">${esc(ROLE_LABELS[STATE.me.role] || STATE.me.role)}</span>`
+    ? `<span class="admin-me-name">${esc(STATE.me.fullName)}</span><span class="admin-role-pill" data-role="${esc(STATE.me.role)}">${esc(ROLE_LABELS[STATE.me.role] || STATE.me.role)}</span>`
     : "";
 
   renderMailToggle();
@@ -660,23 +660,75 @@ function renderMailToggle() {
           : "Updates made here send no email (only the Super Admin can change this).");
 }
 
+// Dark <-> Light slowly (about 0.9 s), so the screen never flashes:
+// a soft cross-fade where the browser supports it, otherwise every
+// colour eases over to the new one.
+function fadeTheme(change) {
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { change(); return; }
+  if (document.startViewTransition) {
+    document.documentElement.classList.add("theme-crossfade");
+    const t = document.startViewTransition(change);
+    t.finished.finally(() => document.documentElement.classList.remove("theme-crossfade"));
+    return;
+  }
+  const root = document.documentElement;
+  root.classList.add("theme-fading");
+  change();
+  clearTimeout(fadeTheme.timer);
+  fadeTheme.timer = setTimeout(() => root.classList.remove("theme-fading"), 1000);
+}
+
+// The "are you sure?" box: title, justified text, Cancel (left) / OK (right).
+// Resolves true for OK; Cancel, Esc or a tap outside the box give false.
+function askConfirm({ title, lines }) {
+  const box = $("adminConfirm");
+  $("adminConfirmTitle").textContent = title;
+  $("adminConfirmText").innerHTML = lines.map(l => `<p>${esc(l)}</p>`).join("");
+  box.classList.remove("hidden");
+  box.setAttribute("aria-hidden", "false");
+  const cancelButton = box.querySelector('[data-confirm="cancel"].admin-ghost');
+  cancelButton.focus();
+  return new Promise(resolve => {
+    const finish = (answer) => {
+      box.classList.add("hidden");
+      box.setAttribute("aria-hidden", "true");
+      box.removeEventListener("click", onClick);
+      document.removeEventListener("keydown", onKey, true);
+      resolve(answer);
+    };
+    const onClick = (event) => {
+      const el = event.target.closest("[data-confirm]");
+      if (el) finish(el.dataset.confirm === "ok");
+    };
+    const onKey = (event) => {
+      if (event.key === "Escape") { event.stopPropagation(); finish(false); }
+    };
+    box.addEventListener("click", onClick);
+    document.addEventListener("keydown", onKey, true);
+  });
+}
+
 function wireHeaderSwitches() {
 
   applyTheme(currentTheme());
 
   $("themeToggle").addEventListener("click", () => {
     const next = currentTheme() === "light" ? "dark" : "light";
-    applyTheme(next);
     try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+    fadeTheme(() => applyTheme(next));
   });
 
   $("mailToggle").addEventListener("click", async () => {
     const button = $("mailToggle");
     if (button.disabled || !STATE.settings || !STATE.me || STATE.me.role !== "super_admin") return;
     const turnOn = !STATE.settings.mailsEnabled;
-    const ok = window.confirm(turnOn
-      ? "Turn emails ON?\n\nUpdates made in the Admin Panel will email students and tutors again."
-      : "Turn emails OFF?\n\nUpdates made in the Admin Panel (by everyone in the office) will NOT email students or tutors until you turn this back on.\n\nLogin codes and emails caused by students / tutors themselves still go out.");
+    const ok = await askConfirm(turnOn
+      ? { title: "Turn emails ON?",
+          lines: ["Updates made in the Admin Panel will email students and tutors again."] }
+      : { title: "Turn emails OFF?",
+          lines: ["Updates made in the Admin Panel (by everyone in the office) will NOT email students or tutors until you turn this back on.",
+                  "Login codes and emails caused by students / tutors themselves still go out."] });
     if (!ok) return;
     button.disabled = true;
     button.classList.add("is-loading");
