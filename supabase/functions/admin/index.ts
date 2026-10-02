@@ -25,7 +25,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { sendMail } from "../_shared/email.ts";
 import {
-  demoScheduledMail, paymentReceivedMail, agencyChargeMail, payoutMail, subscriptionMail,
+  demoScheduledMail, paymentReceivedMail, agencyChargeMail, payoutMail, subscriptionMail, tuitionPostedMail,
 } from "../_shared/mails.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -143,6 +143,7 @@ const PERMISSION_GROUPS = [
     { key: "tuitions_edit", label: "Edit tuition & demo details" },
     { key: "tuitions_assign_tutor", label: "Assign tutors" },
     { key: "tuitions_close", label: "Close / reopen tuitions" },
+    { key: "tuitions_add", label: "Apply for new tuition for students" },
   ] },
   { id: "tutors", label: "Tutors", items: [
     { key: "tutors_view", label: "View tutors" },
@@ -152,6 +153,7 @@ const PERMISSION_GROUPS = [
   { id: "students", label: "Students", items: [
     { key: "students_view", label: "View students" },
     { key: "students_edit", label: "Edit student details" },
+    { key: "students_add", label: "Register students (Add a Student)" },
   ] },
   { id: "payments", label: "Payments", items: [
     { key: "payments_view", label: "View Payments, Ledger & Graph" },
@@ -187,7 +189,7 @@ const ALL_GRANTS: string[] = ALL_PERMISSIONS.filter((p) => !RESTRICTION_PERMISSI
 const PERMISSION_PARENT: Record<string, string> = {
   tuitions_edit: "tuitions_view", tuitions_assign_tutor: "tuitions_view", tuitions_close: "tuitions_view",
   tutors_edit: "tutors_view", tutors_verify: "tutors_view",
-  students_edit: "students_view",
+  students_edit: "students_view", students_add: "students_view", tuitions_add: "students_view",
   payments_add: "payments_view", payments_edit: "payments_view", payments_delete: "payments_view",
   subscriptions_add: "payments_view", subscriptions_edit: "payments_view",
 };
@@ -196,7 +198,7 @@ const ROLE_PRESETS: Record<Role, string[]> = {
   super_admin: ALL_GRANTS,
   tuition_coordinator: [
     "tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_close",
-    "tutors_view", "tutors_edit", "students_view", "students_edit",
+    "tutors_view", "tutors_edit", "students_view", "students_edit", "students_add", "tuitions_add",
   ],
   verification_staff: ["tutors_view", "tutors_verify"],
   accounts_finance: [
@@ -224,6 +226,8 @@ const ACTION_PERMISSION: Record<string, string> = {
   adminUpdateDemoRow: "tuitions_edit",
   adminAssignTutor: "tuitions_assign_tutor",
   adminSetTerminated: "tuitions_close",
+  adminAddStudent: "students_add",
+  adminAddTuition: "tuitions_add",
   adminAddPayment: "payments_add",
   adminUpdatePayment: "payments_edit",
   adminDeletePayment: "payments_delete",
@@ -763,6 +767,23 @@ async function sumPayments(filter: (q: Json) => Json): Promise<number> {
   return (data ?? []).reduce((sum: number, r: Json) => sum + num(r.amount), 0);
 }
 
+// Tuition request(s) posted for a student (by the office): the same
+// "Tuition Request Posted" email the student gets when posting it themselves.
+async function sendTuitionPosted(studentId: string, demoIds: string[]) {
+  if (!studentId || !demoIds?.length) return;
+  const { data: student } = await db.from("students")
+    .select("student_name, email, class_name, board, city, pin_code").eq("student_id", studentId).maybeSingle();
+  if (!student?.email) return;
+  const { data: rows } = await db.from("tuitions")
+    .select("demo_id, subject, medium, preferred_tutor").in("demo_id", demoIds).order("demo_id");
+  if (!rows?.length) return;
+  await sendTo(student.email, tuitionPostedMail({
+    name: student.student_name, demos: rows.map((r: Json) => ({ demoId: r.demo_id, subject: r.subject })),
+    cls: student.class_name, board: student.board, medium: rows[0].medium, preferredTutor: rows[0].preferred_tutor,
+    city: student.city, pin: student.pin_code,
+  }));
+}
+
 // Demo scheduled: a date + time was newly set (or changed) on an application.
 async function sendDemoScheduled(demoId: string, tutorId: string, date: string, time: string) {
   const { tuition, student } = await demoWithStudent(demoId);
@@ -988,6 +1009,26 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
         p_demo_id: body.demoId,
         p_terminated: terminated,
       });
+    }
+
+    // Add a Student - the same details as the student's own registration, with no OTP.
+    case "adminAddStudent": {
+      const p = body.p ?? {};
+      const result = await rpc("admin_register_student", { p });
+      if (result?.success && result.demoIds?.length) {
+        try { await sendTuitionPosted(String(result.studentId), result.demoIds); } catch (e) { console.error("tuition mail", e); }
+      }
+      return result;
+    }
+
+    // Apply for New Tuition on a student's behalf.
+    case "adminAddTuition": {
+      const p = body.p ?? {};
+      const result = await rpc("admin_add_tuition", { p });
+      if (result?.success) {
+        try { await sendTuitionPosted(String(p.studentId ?? ""), result.demoIds ?? []); } catch (e) { console.error("tuition mail", e); }
+      }
+      return result;
     }
 
     case "adminAddPayment": {

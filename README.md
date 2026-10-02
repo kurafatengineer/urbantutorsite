@@ -65,7 +65,7 @@ Project id: `zbvtdcqoouwyrcxkzjfv`
   database (do not run it).
 - **Edge Functions** — `supabase/functions/`
   - `admin/` — everything the Admin Panel does (permissions, payments,
-    employees, hiding mobile numbers / addresses).
+    employees, hiding mobile numbers / addresses, adding a student / posting a tuition for a student without OTP).
   - `actions/` — student/tutor actions that must also send an email (new
     tuition, tutor applied, accept/reject).
   - `home-photos/` — public: 1-hour links to the photos of the 4 verified tutors shown on the homepage (nothing else).
