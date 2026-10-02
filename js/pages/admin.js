@@ -660,25 +660,6 @@ function renderMailToggle() {
           : "Updates made here send no email (only the Super Admin can change this).");
 }
 
-// Dark <-> Light slowly (about 0.9 s), so the screen never flashes:
-// a soft cross-fade where the browser supports it, otherwise every
-// colour eases over to the new one.
-function fadeTheme(change) {
-  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (reduce) { change(); return; }
-  if (document.startViewTransition) {
-    document.documentElement.classList.add("theme-crossfade");
-    const t = document.startViewTransition(change);
-    t.finished.finally(() => document.documentElement.classList.remove("theme-crossfade"));
-    return;
-  }
-  const root = document.documentElement;
-  root.classList.add("theme-fading");
-  change();
-  clearTimeout(fadeTheme.timer);
-  fadeTheme.timer = setTimeout(() => root.classList.remove("theme-fading"), 1000);
-}
-
 // The "are you sure?" box: title, justified text, Cancel (left) / OK (right).
 // Resolves true for OK; Cancel, Esc or a tap outside the box give false.
 function askConfirm({ title, lines }) {
@@ -716,7 +697,7 @@ function wireHeaderSwitches() {
   $("themeToggle").addEventListener("click", () => {
     const next = currentTheme() === "light" ? "dark" : "light";
     try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
-    fadeTheme(() => applyTheme(next));
+    applyTheme(next);
   });
 
   $("mailToggle").addEventListener("click", async () => {

@@ -3425,29 +3425,6 @@ html[data-theme="light"] .add-modal .ta-find .admin-suggest { box-shadow: 0 14px
 
 
 /* =========================================================
-   DARK <-> LIGHT: a slow, soft change (no sudden flash)
-========================================================= */
-
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 0.9s;
-  animation-timing-function: ease-in-out;
-}
-
-html.theme-fading,
-html.theme-fading *,
-html.theme-fading *::before,
-html.theme-fading *::after {
-  transition:
-    background-color 0.9s ease-in-out,
-    color 0.9s ease-in-out,
-    border-color 0.9s ease-in-out,
-    box-shadow 0.9s ease-in-out,
-    fill 0.9s ease-in-out !important;
-}
-
-
-/* =========================================================
    "ARE YOU SURE?" BOX (Emails On / Off)
    Centred box, justified text, Cancel on the left, OK on the right.
 ========================================================= */
@@ -3524,3 +3501,40 @@ html[data-theme="light"] .admin-confirm-overlay { background: rgba(17, 20, 24, 0
 @media (max-width: 560px) {
   .add-modal .ta-find-row { grid-template-columns: 1fr; }
 }
+
+
+/* =========================================================
+   TOP BAR - five places
+   Refresh (left edge) | Emails, centred between Refresh and the name |
+   name + role (page centre) | Mode, centred between the name and
+   Log out | Log out (right edge). Refresh and Log out are the same
+   size, so the two middle gaps are equal and the name stays centred.
+========================================================= */
+
+.admin-top.admin-top-3 {
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  column-gap: 12px;
+}
+
+.admin-top-3 #refreshButton { justify-self: start; }
+.admin-top-3 #logoutButton  { justify-self: end; }
+.admin-top-3 #mailToggle,
+.admin-top-3 #themeToggle   { justify-self: center; }
+
+/* the switch keeps its place in the line even while hidden */
+.admin-top-3 #mailToggle.hidden { display: inline-flex !important; visibility: hidden; }
+
+.admin-top-3 .admin-top-mid { display: flex; justify-content: center; }
+
+.admin-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+.admin-icon-btn svg { width: 19px; height: 19px; display: block; }
+
+/* Refresh: the icon gives way to the spinner while loading */
+#refreshButton.is-loading svg { display: none; }
+#refreshButton.is-loading::before { margin: 0; }
