@@ -115,11 +115,31 @@ function transport() {
   return cachedTransport;
 }
 
+// The Super Admin's "Emails Off" (app_settings key "admin_mails") stops
+// EVERY notification email, site-wide. Login codes (OTP) are sent by
+// Supabase Auth itself, not from here, so they always go out.
+async function siteMailsOn(): Promise<boolean> {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return true;
+  try {
+    const res = await fetch(`${url}/rest/v1/app_settings?key=eq.admin_mails&select=value`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+    if (!res.ok) return true;
+    const rows = await res.json();
+    return rows?.[0]?.value?.enabled !== false;
+  } catch {
+    return true;
+  }
+}
+
 // Best-effort: a notification failure must never break the underlying
 // action (payment saved, demo response recorded, etc.), so errors are
 // logged and swallowed rather than thrown.
 export async function sendMail(to: string | null | undefined, subject: string, html: string): Promise<void> {
   if (!to) return;
+  if (!(await siteMailsOn())) return;   // Super Admin switched all emails off
   const user = Deno.env.get("GMAIL_ADDRESS");
   try {
     await transport().sendMail({

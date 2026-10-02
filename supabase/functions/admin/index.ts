@@ -686,7 +686,11 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
     email: caller.email, fullName: caller.fullName, role: caller.role,
     permissions: [...caller.permissions],
   };
-  withLinks.settings = { mailsEnabled: callerMailsOn(caller), canToggleMails: caller.permissions.has("mails_toggle") };
+  const siteOn = await siteMailsOn();
+  withLinks.settings = caller.role === "super_admin"
+    ? { mailsEnabled: siteOn, canToggleMails: true, scope: "site" }
+    : { mailsEnabled: siteOn && callerMailsOn(caller), canToggleMails: siteOn && caller.permissions.has("mails_toggle"),
+        scope: "own", siteOff: !siteOn };
 
   if (canSeePayments(caller)) {
     const { data: payments, error } = await db
@@ -731,11 +735,20 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
      a subscription payment (student / tutor). Everything else is silent.
    A failed send never blocks the action itself (see _shared/email.ts). */
 
-// The "Emails On / Off" switch in the Admin Panel header is each
-// employee's own (admin_users.mails_enabled): Off = the updates THIS
-// employee makes send no email. Only counts while the employee has the
-// "mails_toggle" permission (a Super Admin always has it).
+// The "Emails On / Off" switch in the Admin Panel header:
+//  - Super Admin: the switch for the WHOLE SITE (app_settings "admin_mails").
+//    Off = no notification email at all - Admin Panel, students, tutors -
+//    except login codes (checked inside _shared/email.ts sendMail).
+//  - Any other employee: their OWN switch (admin_users.mails_enabled).
+//    Off = the updates THAT employee makes send no email. Only counts while
+//    they have the "mails_toggle" permission.
+async function siteMailsOn(): Promise<boolean> {
+  const { data } = await db.from("app_settings").select("value").eq("key", "admin_mails").maybeSingle();
+  return data?.value?.enabled !== false;
+}
+
 function callerMailsOn(caller: Caller): boolean {
+  if (caller.role === "super_admin") return true;   // the site-wide switch covers them
   return !caller.permissions.has("mails_toggle") || caller.mailsEnabled;
 }
 
@@ -966,10 +979,22 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
 
   if (action === READ_ONLY_ACTION) return handleGetOverview(caller);
 
-  // An employee's own Emails On / Off switch (needs the mails_toggle permission).
+  // Emails On / Off: a Super Admin switches the whole site, anyone else
+  // (with the mails_toggle permission) only their own updates.
   if (action === "adminSetMails") {
-    if (!caller.permissions.has("mails_toggle")) return forbidden();
     const enabled = body.enabled === true;
+    if (caller.role === "super_admin") {
+      const { error } = await db.from("app_settings").upsert({
+        key: "admin_mails", value: { enabled }, updated_at: new Date().toISOString(), updated_by: caller.id,
+      });
+      if (error) return { success: false, message: error.message };
+      return {
+        success: true, mailsEnabled: enabled,
+        message: enabled ? "Emails are ON for the whole site again." : "All emails are OFF (login codes still go out).",
+      };
+    }
+    if (!caller.permissions.has("mails_toggle")) return forbidden();
+    if (!(await siteMailsOn())) return { success: false, message: "The Super Admin has switched off all emails." };
     const { error } = await db.from("admin_users").update({ mails_enabled: enabled }).eq("id", caller.id);
     if (error) return { success: false, message: error.message };
     return {
