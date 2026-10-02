@@ -657,6 +657,7 @@ async function renderHeaderAvatar() {
     (role === "tutor" && session.profile && session.profile.fullName) || "";
 
   setHeaderInitials_(button, initialsFromName_(name));
+  setHeaderPhoto_(button, role);
 
   if (name || !token) return;
 
@@ -687,6 +688,18 @@ async function renderHeaderAvatar() {
   } catch (error) {
     console.warn("Header avatar:", error);
   }
+
+}
+
+// A tutor's own uploaded photo goes on top of the name letters (js/photos.js).
+// Students keep their letters; nobody's photo is shown to other visitors here.
+function setHeaderPhoto_(button, role) {
+
+  if (role !== "tutor" || !window.UrbanPhoto) return;
+
+  window.UrbanPhoto.mine().then(function (url) {
+    if (url) window.UrbanPhoto.fill(button, url);
+  });
 
 }
 

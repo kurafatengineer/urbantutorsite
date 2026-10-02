@@ -2971,11 +2971,23 @@ function subscriptionFor(partyType, partyId) {
 // A Tuition's student/tutor initials circle, which opens (and wave-
 // highlights) that person's own card on the Students/Tutors tab - a
 // plain circle when there's no such card to go to.
+// The tutor's uploaded photo as a round image over the letters ("" when there
+// is none or this employee may not see tutor details). The link is made by
+// the admin server function, so it only exists for allowed employees.
+function tutorPhotoHtml(id) {
+  const row = id && TUTOR_BY_ID[id];
+  const url = row && row.values ? String(row.values["Profile Image"] || "") : "";
+  return /^https?:\/\//i.test(url)
+    ? `<img class="photo-fill" src="${esc(url)}" alt="" loading="lazy" onerror="this.remove()">`
+    : "";
+}
+
 function profileAvatar(kind, id, letters, badgeHtml) {
   const exists = id && (kind === "students" ? STUDENT_BY_ID : TUTOR_BY_ID)[id];
+  const photo = kind === "tutors" ? tutorPhotoHtml(id) : "";
   return exists
-    ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="go-to-card" data-tab="${kind}" data-key="${esc(kind + ":" + id)}" title="Open profile">${esc(letters)}${badgeHtml}</button>`
-    : `<div class="admin-avatar">${esc(letters)}${badgeHtml}</div>`;
+    ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="go-to-card" data-tab="${kind}" data-key="${esc(kind + ":" + id)}" title="Open profile">${esc(letters)}${photo}${badgeHtml}</button>`
+    : `<div class="admin-avatar">${esc(letters)}${photo}${badgeHtml}</div>`;
 }
 
 function subscriptionPayBadge(partyType, partyId) {
@@ -3032,7 +3044,7 @@ function recordCard(kind, record, opts) {
       data-box data-kind="${kind}" data-row="${record.rowNumber}" data-id="${esc(record.id)}" data-key="${esc(key)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar">${esc(initials(opts.name, kind === "tutors" ? "T" : "S"))}${subscriptionPayBadge(kind === "tutors" ? "tutor" : "student", record.id)}</div>
+        <div class="admin-avatar">${esc(initials(opts.name, kind === "tutors" ? "T" : "S"))}${kind === "tutors" ? tutorPhotoHtml(record.id) : ""}${subscriptionPayBadge(kind === "tutors" ? "tutor" : "student", record.id)}</div>
         <div class="admin-card-title">
           ${opts.titleHtml || `<strong>${esc(opts.name || record.id)}</strong><small>${esc(opts.sub)}</small>`}
         </div>
@@ -4166,7 +4178,7 @@ function subscriptionCard(sub) {
     <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="neutral" data-box data-id="${sub.id}" data-key="${esc(key)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar">${esc(initials(partyName, "$"))}${subscriptionPayBadge(sub.student_id ? "student" : "tutor", partyId)}</div>
+        <div class="admin-avatar">${esc(initials(partyName, "$"))}${sub.student_id ? "" : tutorPhotoHtml(partyId)}${subscriptionPayBadge(sub.student_id ? "student" : "tutor", partyId)}</div>
         ${equalRow([partyKind, partyName || partyId, partyPhone, partyWhatsapp, partyId, sub.plan_name, "₹" + amount.toLocaleString("en-IN")])}
         <span class="admin-caret" aria-hidden="true"></span>
         <span class="admin-status-rail admin-rail-sub" data-tone="${SUBSCRIPTION_STATUS_TONES[sub.status] || ""}" tabindex="-1">${esc(SUBSCRIPTION_STATUS_LABELS[sub.status] || sub.status)}</span>

@@ -178,9 +178,14 @@ function renderProfile(profile, classes, subscriptions) {
     .map(part => part[0].toUpperCase())
     .join("");
 
-  // Always show the name-letter avatar — never a photo, even
-  // if profile.profileImage exists.
+  // Name letters first; the tutor's own uploaded photo is put on top of
+  // them when it is available (js/photos.js).
   $("profileAvatarInitials").textContent = initials || "T";
+  if (window.UrbanPhoto) {
+    window.UrbanPhoto.mine(profile).then(url => {
+      if (url) window.UrbanPhoto.fill($("profileAvatarWrap"), url);
+    });
+  }
 
   $("profileKicker").textContent = profile.tutorId
     ? profile.tutorId
