@@ -2495,6 +2495,8 @@ function resetFilter(tab) {
 
 function showTab(name) {
 
+  closeTutorStats();
+
   if (name !== STATE.tab) { collapseAll(); closeIdleForms(); }
 
   STATE.tab = name;
@@ -2773,6 +2775,10 @@ async function onListClick(event) {
 
     case "go-to-card":
       goToCard(actionEl.dataset.tab, actionEl.dataset.key);
+      break;
+
+    case "tutor-stats":
+      toggleTutorStats(actionEl, actionEl.dataset.id);
       break;
 
     case "ledger-record": {
@@ -3544,6 +3550,105 @@ function tutorPhotoHtml(id) {
     : "";
 }
 
+/* ---- Tutors tab: tap a tutor's picture -> his tuition record ----
+   A small box rises from the top of the picture:
+     a bar of Accepted (Running + Completed) vs Rejected after a demo,
+     then Completed, Running, Demo Given, Rejected (After Demo), Applied.
+   Counted from every tuition this tutor applied to. */
+
+function dmyToDate(text) {
+  const m = String(text || "").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : null;
+}
+
+function tutorTuitionStats(tutorId) {
+  const tutor = TUTOR_BY_ID[tutorId];
+  const key = tutor ? tutorKey(tutor) : "";
+  const rows = (STATE.data.demos || []).filter(r => r.hasTutor &&
+    (r.tutorId === tutorId || (!r.tutorId && key && r.mobileKey === key)));
+  const today = new Date(); today.setHours(23, 59, 59, 999);
+  const s = { applied: rows.length, demoGiven: 0, running: 0, completed: 0, rejectedAfterDemo: 0 };
+  rows.forEach(r => {
+    const state = rowState(r);
+    const hadDemo = !!(r.demoDate || r.demoTime);
+    const demoDay = dmyToDate(r.demoDate);
+    if (state === "running") s.running++;
+    if (state === "completed") s.completed++;
+    if (state === "declined" && hadDemo) s.rejectedAfterDemo++;
+    // a demo counts as given once its day has come (or the tuition went past it)
+    if (hadDemo && (["running", "completed", "declined", "processing"].includes(state) || (demoDay && demoDay <= today))) s.demoGiven++;
+  });
+  s.accepted = s.running + s.completed;
+  return s;
+}
+
+function closeTutorStats() {
+  const pop = document.getElementById("tutorStatsPop");
+  if (pop) pop.remove();
+  document.querySelectorAll('[data-action="tutor-stats"][aria-expanded="true"]').forEach(b => b.setAttribute("aria-expanded", "false"));
+}
+
+function toggleTutorStats(button, tutorId) {
+
+  const wasOpenHere = button.getAttribute("aria-expanded") === "true";
+  closeTutorStats();
+  if (wasOpenHere) return;
+
+  const s = tutorTuitionStats(tutorId);
+  const decided = s.accepted + s.rejectedAfterDemo;
+  const okPct = decided ? Math.round((s.accepted / decided) * 100) : 0;
+  const noPct = decided ? 100 - okPct : 0;
+  const tutor = TUTOR_BY_ID[tutorId];
+  const name = (tutor && tutor.values["Full Name"]) || tutorId;
+
+  const pop = document.createElement("div");
+  pop.id = "tutorStatsPop";
+  pop.className = "tutor-stats-pop";
+  pop.setAttribute("role", "dialog");
+  pop.setAttribute("aria-label", `Tuition record of ${name}`);
+  pop.innerHTML = `
+    <div class="tsp-head"><strong>${esc(name)}</strong><span>${esc(tutorId)}</span></div>
+    <div class="tsp-bar${decided ? "" : " is-empty"}" title="Accepted ${okPct}% · Rejected after demo ${noPct}%">
+      ${decided ? `<span class="tsp-ok" style="width:${okPct}%"></span><span class="tsp-no" style="width:${noPct}%"></span>` : ""}
+    </div>
+    <div class="tsp-legend">
+      <span class="tsp-ok-text">Accepted ${decided ? okPct + "%" : "-"}</span>
+      <span class="tsp-no-text">Rejected after demo ${decided ? noPct + "%" : "-"}</span>
+    </div>
+    <dl class="tsp-list">
+      <div><dt>Completed</dt><dd>${s.completed}</dd></div>
+      <div><dt>Running</dt><dd>${s.running}</dd></div>
+      <div><dt>Demo Given</dt><dd>${s.demoGiven}</dd></div>
+      <div><dt>Rejected (After Demo)</dt><dd>${s.rejectedAfterDemo}</dd></div>
+      <div><dt>Applied</dt><dd>${s.applied}</dd></div>
+    </dl>
+    <span class="tsp-arrow" aria-hidden="true"></span>`;
+  document.body.appendChild(pop);
+  button.setAttribute("aria-expanded", "true");
+
+  // place it just above the picture (below it if there is no room above)
+  const r = button.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  const centre = r.left + r.width / 2;
+  const left = Math.min(Math.max(12, centre - 34), window.innerWidth - w - 12);
+  const above = r.top - h - 12 >= 8;
+  pop.style.left = (left + window.scrollX) + "px";
+  pop.style.top = ((above ? r.top - h - 12 : r.bottom + 12) + window.scrollY) + "px";
+  pop.classList.add(above ? "is-above" : "is-below");
+  pop.style.setProperty("--arrow-x", (centre - left) + "px");
+  requestAnimationFrame(() => pop.classList.add("is-shown"));
+
+}
+
+// close it: a click anywhere else, Esc, or a page change
+document.addEventListener("click", (event) => {
+  if (!document.getElementById("tutorStatsPop")) return;
+  if (event.target.closest("#tutorStatsPop, [data-action='tutor-stats']")) return;
+  closeTutorStats();
+});
+document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeTutorStats(); });
+window.addEventListener("resize", closeTutorStats);
+
 function profileAvatar(kind, id, letters, badgeHtml) {
   const exists = id && (kind === "students" ? STUDENT_BY_ID : TUTOR_BY_ID)[id];
   const photo = kind === "tutors" ? tutorPhotoHtml(id) : "";
@@ -3606,7 +3711,9 @@ function recordCard(kind, record, opts) {
       data-box data-kind="${kind}" data-row="${record.rowNumber}" data-id="${esc(record.id)}" data-key="${esc(key)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar">${esc(initials(opts.name, kind === "tutors" ? "T" : "S"))}${kind === "tutors" ? tutorPhotoHtml(record.id) : ""}${subscriptionPayBadge(kind === "tutors" ? "tutor" : "student", record.id)}</div>
+        ${kind === "tutors"
+          ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="tutor-stats" data-id="${esc(record.id)}" title="Tuition record" aria-haspopup="dialog">${esc(initials(opts.name, "T"))}${tutorPhotoHtml(record.id)}${subscriptionPayBadge("tutor", record.id)}</button>`
+          : `<div class="admin-avatar">${esc(initials(opts.name, "S"))}${subscriptionPayBadge("student", record.id)}</div>`}
         <div class="admin-card-title">
           ${opts.titleHtml || `<strong>${esc(opts.name || record.id)}</strong><small>${esc(opts.sub)}</small>`}
         </div>
