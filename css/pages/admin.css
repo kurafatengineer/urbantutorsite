@@ -3361,3 +3361,20 @@ html[data-theme="light"] .add-modal {
   --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.18);
 }
 html[data-theme="light"] .add-modal .add-modal-overlay { background: rgba(17, 20, 24, 0.45); }
+
+
+/* "Apply For New Tuition": find the student by mobile, ID or name */
+.add-modal .ta-find { position: relative; min-width: 0; }
+.add-modal .ta-find .admin-suggest {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 260px;
+  overflow-y: auto;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+.add-modal .add-grid .add-grid { gap: 14px; }
+html[data-theme="light"] .add-modal .in-flag { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12); }
+html[data-theme="light"] .add-modal .ta-find .admin-suggest { box-shadow: 0 14px 30px rgba(0, 0, 0, 0.12); }

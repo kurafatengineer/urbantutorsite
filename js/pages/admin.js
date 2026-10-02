@@ -1791,14 +1791,26 @@ function wireStudentForms() {
   });
 
   // WhatsApp same as mobile (ticked) -> the WhatsApp box is not needed
-  const syncWhatsapp = () => $("saWhatsapp").closest(".float-field").classList.toggle("hidden", $("saSameWhatsapp").checked);
+  const syncWhatsapp = () => $("saWhatsappWrap").classList.toggle("hidden", $("saSameWhatsapp").checked);
   $("saSameWhatsapp").addEventListener("change", syncWhatsapp);
+
+  // "Add a tuition requirement" (unticked) -> the tuition part stays closed
+  const syncTuition = () => $("saTuitionBlock").classList.toggle("hidden", !$("saWantsTuition").checked);
+  $("saWantsTuition").addEventListener("change", () => {
+    syncTuition();
+    if ($("saWantsTuition").checked) $("saSubjects").focus();
+  });
+
+  // numbers only in the mobile boxes
+  ["saPhone", "saWhatsapp", "taMobile"].forEach(id =>
+    $(id).addEventListener("input", () => { $(id).value = $(id).value.replace(/\D/g, "").slice(0, 10); }));
 
   /* ---- Add a Student ---- */
 
   $("addStudentButton").addEventListener("click", () => {
     resetFormModal("sa", "studentAddForm", "studentAddMessage");
     syncWhatsapp();
+    syncTuition();
     openFormModal("studentAddModal");
     $("saEmail").focus();
   });
@@ -1810,8 +1822,9 @@ function wireStudentForms() {
     const v = id => $(id).value.trim();
     const phone = v("saPhone");
     const whatsapp = $("saSameWhatsapp").checked ? phone : v("saWhatsapp");
-    const subjects = v("saSubjects");
-    const timing = readTiming("sa");
+    const wantsTuition = $("saWantsTuition").checked;
+    const subjects = wantsTuition ? v("saSubjects") : "";
+    const timing = wantsTuition ? readTiming("sa") : "";
 
     // the same checks as the website's registration (tuition part optional)
     const problem =
@@ -1827,8 +1840,8 @@ function wireStudentForms() {
       v("saAddress").length < 3 ? ["Please enter the address.", "saAddress"] :
       v("saCity").length < 2 ? ["Please enter the city.", "saCity"] :
       !/^\d{6}$/.test(v("saPin")) ? ["Enter a valid 6-digit PIN code.", "saPin"] :
-      (subjects && subjects.length < 2) ? ["Enter at least one subject.", "saSubjects"] :
-      (subjects && !timing) ? [$("saTimingOther").checked ? "Enter the preferred time." : "Select at least one preferred timing.", $("saTimingOther").checked ? "saOtherTiming" : ""] :
+      (wantsTuition && subjects.length < 2) ? ["Enter at least one subject.", "saSubjects"] :
+      (wantsTuition && !timing) ? [$("saTimingOther").checked ? "Enter the preferred time." : "Select at least one preferred timing.", $("saTimingOther").checked ? "saOtherTiming" : ""] :
       null;
 
     if (problem) {
@@ -1844,7 +1857,9 @@ function wireStudentForms() {
         parentsName: v("saParents"), studentName: v("saStudent"), gender: radioValue("saGender"),
         className: v("saClass"), school: v("saSchool"), board: v("saBoard"),
         address: v("saAddress"), city: v("saCity"), pinCode: v("saPin"),
-        subjects, preferredTutor: radioValue("saTutor") || "Any", medium: radioValue("saMedium") || "Any",
+        subjects,
+        preferredTutor: wantsTuition ? (radioValue("saTutor") || "Any") : "Any",
+        medium: wantsTuition ? (radioValue("saMedium") || "Any") : "Any",
         preferredTiming: subjects ? timing : "",
         termsAccepted: $("saTerms").checked
       }
@@ -1862,14 +1877,11 @@ function wireStudentForms() {
   $("applyTuitionButton").addEventListener("click", () => {
 
     resetFormModal("ta", "tuitionApplyForm", "tuitionApplyMessage");
-
-    // every student, as "ID · Name" (typing either finds them)
-    $("taStudentList").innerHTML = ((STATE.data && STATE.data.students && STATE.data.students.rows) || [])
-      .map(r => `<option value="${esc(r.id + " · " + ((r.values && r.values["Student Name"]) || ""))}"></option>`)
-      .join("");
+    taPicked = null;
+    document.querySelectorAll("#tuitionApplyModal [data-suggest]").forEach(el => el.classList.add("hidden"));
 
     openFormModal("tuitionApplyModal");
-    $("taStudent").focus();
+    $("taMobile").focus();
 
   });
 
@@ -1877,18 +1889,15 @@ function wireStudentForms() {
 
     event.preventDefault();
 
-    // "SID... · Name", just the ID, or the exact name
-    const typed = $("taStudent").value.trim();
-    const rows = (STATE.data && STATE.data.students && STATE.data.students.rows) || [];
-    const pick = typed && (rows.find(r => typed.toUpperCase().startsWith(String(r.id).toUpperCase())) ||
-      rows.find(r => ((r.values && r.values["Student Name"]) || "").toLowerCase() === typed.toLowerCase()));
+    // the student picked from the suggestions (or an exact Student ID typed in)
+    const pick = taPicked || taStudentRows().find(r => lower(r.id) === lower($("taStudentId").value));
 
     const subjects = $("taSubjects").value.trim();
     const timing = readTiming("ta");
 
     // the same checks as the Student Profile's "Apply For New Tuition"
     const problem =
-      !pick ? ["Choose a student from the list.", "taStudent"] :
+      !pick ? ["Find the student by mobile number, Student ID or name, and pick one from the suggestions.", "taMobile"] :
       subjects.length < 2 ? ["Enter at least one subject.", "taSubjects"] :
       !timing ? [$("taTimingOther").checked ? "Enter the preferred time." : "Select at least one preferred timing.", $("taTimingOther").checked ? "taOtherTiming" : ""] :
       null;
@@ -1913,6 +1922,101 @@ function wireStudentForms() {
 
     if (ok) closeFormModal("tuitionApplyModal");
 
+  });
+
+  wireTuitionStudentFinder();
+
+}
+
+/* ---- Apply For New Tuition: find the student ----
+   Three boxes - Mobile / WhatsApp number, Student ID, Student Name. Each
+   box searches only its own field and shows the same suggestion list as
+   the rest of the Admin Panel; picking a student fills all three. Typing
+   in a box again after a pick clears the other two. */
+
+// (var / function, not let / const: init wires the forms before this part of the file has run)
+var taPicked = null;
+
+function taStudentRows() { return (STATE.data && STATE.data.students && STATE.data.students.rows) || []; }
+function taVal(row, key) { return String((row.values && row.values[key]) || ""); }
+function taDigits(v) { return String(v || "").replace(/\D/g, ""); }
+
+// which box searches which field
+function taFields() { return { mobile: "taMobile", id: "taStudentId", name: "taStudentName" }; }
+
+function taMatches(kind, text) {
+  const q = lower(text);
+  const digits = taDigits(text);
+  const rows = taStudentRows();
+  let list;
+  if (kind === "mobile") {
+    list = digits ? rows.filter(r => taDigits(taVal(r, "Phone")).includes(digits) || taDigits(taVal(r, "WhatsApp")).includes(digits)) : rows;
+  } else if (kind === "id") {
+    list = q ? rows.filter(r => lower(r.id).includes(q)) : rows;
+  } else {
+    list = q ? rows.filter(r => lower(taVal(r, "Student Name")).includes(q)) : rows;
+  }
+  return list.slice(0, 8);
+}
+
+function taRenderSuggestions(kind) {
+  const box = document.querySelector(`#tuitionApplyModal [data-find="${kind}"] [data-suggest]`);
+  const items = taMatches(kind, $(taFields()[kind]).value.trim());
+  if (!items.length) {
+    box.innerHTML = `<p class="admin-suggest-empty">No match found.</p>`;
+  } else {
+    box.innerHTML = items.map(r => {
+      const phone = taVal(r, "Phone");
+      const whatsapp = taVal(r, "WhatsApp");
+      const numbers = phone && whatsapp && taDigits(phone) !== taDigits(whatsapp) ? `${phone} / ${whatsapp}` : (phone || whatsapp || "No mobile");
+      return `
+      <button type="button" class="admin-suggest-item" data-pick-id="${esc(r.id)}">
+        <strong>${esc(r.id)}</strong>
+        <span>${esc(taVal(r, "Student Name"))} · ${esc(numbers)}</span>
+      </button>`;
+    }).join("");
+  }
+  document.querySelectorAll("#tuitionApplyModal [data-suggest]").forEach(el => el.classList.toggle("hidden", el !== box));
+}
+
+function taPick(row) {
+  taPicked = row;
+  const number = taVal(row, "Phone") || taVal(row, "WhatsApp");
+  // a hidden number (Hide Mobile Number permission) is shown as the server sent it
+  $("taMobile").value = number.includes("*") ? number : taDigits(number).slice(-10);
+  $("taStudentId").value = row.id;
+  $("taStudentName").value = taVal(row, "Student Name");
+  document.querySelectorAll("#tuitionApplyModal [data-suggest]").forEach(el => el.classList.add("hidden"));
+  $("tuitionApplyMessage").textContent = "";
+}
+
+function wireTuitionStudentFinder() {
+
+  const fields = taFields();
+  Object.entries(fields).forEach(([kind, id]) => {
+    const input = $(id);
+
+    input.addEventListener("input", () => {
+      if (taPicked) {
+        taPicked = null;
+        Object.values(fields).forEach(other => { if (other !== id) $(other).value = ""; });
+      }
+      taRenderSuggestions(kind);
+    });
+
+    input.addEventListener("focus", () => { if (!taPicked) taRenderSuggestions(kind); });
+  });
+
+  $("tuitionApplyModal").addEventListener("click", (event) => {
+    const pick = event.target.closest("[data-pick-id]");
+    if (pick) {
+      const row = taStudentRows().find(r => String(r.id) === pick.dataset.pickId);
+      if (row) taPick(row);
+      return;
+    }
+    if (!event.target.closest(".ta-find")) {
+      document.querySelectorAll("#tuitionApplyModal [data-suggest]").forEach(el => el.classList.add("hidden"));
+    }
   });
 
 }
