@@ -1929,8 +1929,7 @@ function wireStudentForms() {
   $("applyTuitionButton").addEventListener("click", () => {
 
     resetFormModal("ta", "tuitionApplyForm", "tuitionApplyMessage");
-    taPicked = null;
-    document.querySelectorAll("#tuitionApplyModal [data-suggest]").forEach(el => el.classList.add("hidden"));
+    taResetFinder();
 
     openFormModal("tuitionApplyModal");
     $("taMobile").focus();
@@ -1949,7 +1948,9 @@ function wireStudentForms() {
 
     // the same checks as the Student Profile's "Apply For New Tuition"
     const problem =
-      !pick ? ["Find the student by mobile number, Student ID or name, and pick one from the suggestions.", "taMobile"] :
+      !pick ? (taNumberIds
+        ? ["More than one student uses this number - pick the Student ID or Name.", "taStudentId"]
+        : ["Find the student by mobile number, Student ID or name, and pick one from the suggestions.", "taMobile"]) :
       subjects.length < 2 ? ["Enter at least one subject.", "taSubjects"] :
       !timing ? [$("taTimingOther").checked ? "Enter the preferred time." : "Select at least one preferred timing.", $("taTimingOther").checked ? "taOtherTiming" : ""] :
       null;
@@ -1981,94 +1982,139 @@ function wireStudentForms() {
 }
 
 /* ---- Apply For New Tuition: find the student ----
-   Three boxes - Mobile / WhatsApp number, Student ID, Student Name. Each
-   box searches only its own field and shows the same suggestion list as
-   the rest of the Admin Panel; picking a student fills all three. Typing
-   in a box again after a pick clears the other two. */
+   Three boxes on one line - Mobile Number, Student ID, Student Name.
+   - Nothing is suggested on a plain click: suggestions start once some
+     of it is typed (3+ digits for a number, 2+ letters for ID / name).
+   - Each box suggests only its own thing: numbers (mobile or WhatsApp),
+     Student IDs, or student names.
+   - Picking a student fills all three. Picking a number that more than
+     one student uses keeps the number and asks to pick which student
+     (by Student ID or Name) from just those students.
+   - Typing in a box again after a pick starts that search afresh. */
 
 // (var / function, not let / const: init wires the forms before this part of the file has run)
-var taPicked = null;
+var taPicked = null;        // the chosen student row
+var taNumberIds = null;     // after picking a shared number: the IDs of the students using it
 
 function taStudentRows() { return (STATE.data && STATE.data.students && STATE.data.students.rows) || []; }
 function taVal(row, key) { return String((row.values && row.values[key]) || ""); }
 function taDigits(v) { return String(v || "").replace(/\D/g, ""); }
+function taNumbersOf(row) {
+  return [taVal(row, "Phone"), taVal(row, "WhatsApp")].map(n => taDigits(n).slice(-10)).filter(n => n.length >= 3);
+}
+function taSuggestBox(kind) { return document.querySelector(`#tuitionApplyModal [data-find="${kind}"] [data-suggest]`); }
+function taHideSuggestions() { document.querySelectorAll("#tuitionApplyModal [data-suggest]").forEach(el => el.classList.add("hidden")); }
 
-// which box searches which field
-function taFields() { return { mobile: "taMobile", id: "taStudentId", name: "taStudentName" }; }
-
-function taMatches(kind, text) {
-  const q = lower(text);
-  const digits = taDigits(text);
+// only the students a shared number narrowed it down to (or everyone)
+function taPool() {
   const rows = taStudentRows();
-  let list;
-  if (kind === "mobile") {
-    list = digits ? rows.filter(r => taDigits(taVal(r, "Phone")).includes(digits) || taDigits(taVal(r, "WhatsApp")).includes(digits)) : rows;
-  } else if (kind === "id") {
-    list = q ? rows.filter(r => lower(r.id).includes(q)) : rows;
-  } else {
-    list = q ? rows.filter(r => lower(taVal(r, "Student Name")).includes(q)) : rows;
-  }
-  return list.slice(0, 8);
+  return taNumberIds ? rows.filter(r => taNumberIds.includes(String(r.id))) : rows;
 }
 
-function taRenderSuggestions(kind) {
-  const box = document.querySelector(`#tuitionApplyModal [data-find="${kind}"] [data-suggest]`);
-  const items = taMatches(kind, $(taFields()[kind]).value.trim());
-  if (!items.length) {
-    box.innerHTML = `<p class="admin-suggest-empty">No match found.</p>`;
-  } else {
-    box.innerHTML = items.map(r => {
-      const phone = taVal(r, "Phone");
-      const whatsapp = taVal(r, "WhatsApp");
-      const numbers = phone && whatsapp && taDigits(phone) !== taDigits(whatsapp) ? `${phone} / ${whatsapp}` : (phone || whatsapp || "No mobile");
-      return `
-      <button type="button" class="admin-suggest-item" data-pick-id="${esc(r.id)}">
-        <strong>${esc(r.id)}</strong>
-        <span>${esc(taVal(r, "Student Name"))} · ${esc(numbers)}</span>
-      </button>`;
-    }).join("");
-  }
+function taShow(kind, html) {
+  const box = taSuggestBox(kind);
+  box.innerHTML = html || `<p class="admin-suggest-empty">No match found.</p>`;
   document.querySelectorAll("#tuitionApplyModal [data-suggest]").forEach(el => el.classList.toggle("hidden", el !== box));
+}
+
+function taSuggestNumbers(text) {
+  const digits = taDigits(text);
+  if (digits.length < 3) { taHideSuggestions(); return; }
+  const count = {};
+  taStudentRows().forEach(r => {
+    [...new Set(taNumbersOf(r))].forEach(n => { if (n.includes(digits)) count[n] = (count[n] || 0) + 1; });
+  });
+  const numbers = Object.keys(count).slice(0, 8);
+  taShow("mobile", numbers.map(n => `
+    <button type="button" class="admin-suggest-item" data-pick-number="${esc(n)}">
+      <strong>${esc(n)}</strong>${count[n] > 1 ? `<span>${count[n]} students</span>` : ""}
+    </button>`).join(""));
+}
+
+// Student IDs or names, from the pool. With a number already chosen an
+// empty box lists that number's students straight away.
+function taSuggestStudents(kind, text) {
+  const q = lower(text);
+  if (!taNumberIds && q.length < 2) { taHideSuggestions(); return; }
+  const list = taPool().filter(r => !q || lower(kind === "id" ? r.id : taVal(r, "Student Name")).includes(q)).slice(0, 8);
+  const names = list.map(r => lower(taVal(r, "Student Name")));
+  taShow(kind, list.map((r, i) => {
+    const name = taVal(r, "Student Name");
+    // a name that appears twice gets its ID beside it, so the two can be told apart
+    const twin = kind === "name" && names.indexOf(names[i]) !== names.lastIndexOf(names[i]);
+    return `
+    <button type="button" class="admin-suggest-item" data-pick-id="${esc(r.id)}">
+      <strong>${esc(kind === "id" ? r.id : name)}</strong>${twin ? `<span>${esc(r.id)}</span>` : ""}
+    </button>`;
+  }).join(""));
 }
 
 function taPick(row) {
   taPicked = row;
-  const number = taVal(row, "Phone") || taVal(row, "WhatsApp");
-  // a hidden number (Hide Mobile Number permission) is shown as the server sent it
-  $("taMobile").value = number.includes("*") ? number : taDigits(number).slice(-10);
+  if (!taNumberIds) {
+    const number = taVal(row, "Phone") || taVal(row, "WhatsApp");
+    // a hidden number (Hide Mobile Number permission) is shown as the server sent it
+    $("taMobile").value = number.includes("*") ? number : taDigits(number).slice(-10);
+  }
   $("taStudentId").value = row.id;
   $("taStudentName").value = taVal(row, "Student Name");
-  document.querySelectorAll("#tuitionApplyModal [data-suggest]").forEach(el => el.classList.add("hidden"));
+  taHideSuggestions();
   $("tuitionApplyMessage").textContent = "";
+}
+
+function taPickNumber(number) {
+  const users = taStudentRows().filter(r => taNumbersOf(r).includes(number));
+  $("taMobile").value = number;
+  if (users.length === 1) { taNumberIds = null; taPick(users[0]); $("taMobile").value = number; return; }
+  taPicked = null;
+  taNumberIds = users.map(r => String(r.id));
+  $("taStudentId").value = "";
+  $("taStudentName").value = "";
+  $("tuitionApplyMessage").textContent = `${users.length} students use this number - pick the Student ID or Name.`;
+  $("taStudentId").focus();
+  taSuggestStudents("id", "");
+}
+
+function taResetFinder() {
+  taPicked = null;
+  taNumberIds = null;
+  taHideSuggestions();
 }
 
 function wireTuitionStudentFinder() {
 
-  const fields = taFields();
-  Object.entries(fields).forEach(([kind, id]) => {
-    const input = $(id);
+  $("taMobile").addEventListener("input", () => {
+    taPicked = null;
+    taNumberIds = null;
+    $("taStudentId").value = "";
+    $("taStudentName").value = "";
+    $("tuitionApplyMessage").textContent = "";
+    taSuggestNumbers($("taMobile").value);
+  });
 
-    input.addEventListener("input", () => {
+  [["id", "taStudentId", "taStudentName"], ["name", "taStudentName", "taStudentId"]].forEach(([kind, id, otherId]) => {
+    $(id).addEventListener("input", () => {
       if (taPicked) {
         taPicked = null;
-        Object.values(fields).forEach(other => { if (other !== id) $(other).value = ""; });
+        $(otherId).value = "";
+        if (!taNumberIds) $("taMobile").value = "";
       }
-      taRenderSuggestions(kind);
+      taSuggestStudents(kind, $(id).value.trim());
     });
-
-    input.addEventListener("focus", () => { if (!taPicked) taRenderSuggestions(kind); });
+    // no list on a plain click - except to choose among a shared number's students
+    $(id).addEventListener("focus", () => { if (taNumberIds && !taPicked) taSuggestStudents(kind, $(id).value.trim()); });
   });
 
   $("tuitionApplyModal").addEventListener("click", (event) => {
+    const number = event.target.closest("[data-pick-number]");
+    if (number) { taPickNumber(number.dataset.pickNumber); return; }
     const pick = event.target.closest("[data-pick-id]");
     if (pick) {
       const row = taStudentRows().find(r => String(r.id) === pick.dataset.pickId);
       if (row) taPick(row);
       return;
     }
-    if (!event.target.closest(".ta-find")) {
-      document.querySelectorAll("#tuitionApplyModal [data-suggest]").forEach(el => el.classList.add("hidden"));
-    }
+    if (!event.target.closest(".ta-find")) taHideSuggestions();
   });
 
 }
