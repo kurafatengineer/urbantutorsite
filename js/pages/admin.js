@@ -3195,8 +3195,15 @@ async function saveClassDetails(box, button) {
   const plan = box.querySelector("[data-class-plan]");
   if (plan) {
     recalcClassPlan(plan);
+    const mode = plan.dataset.mode;
+    const both = { classes: billSetValues(plan, "classes"), hourly: billSetValues(plan, "hourly") };
     changes["Class Dates"] = planDates(plan);
-    changes["Billing Mode"] = plan.dataset.mode;
+    changes["Billing Mode"] = mode;
+    changes["Billing Plan"] = both;
+    // the chosen option's boxes are the ones the totals use
+    changes["Class Duration"] = both[mode].minutes;
+    changes["Class Charges"] = both[mode].price;
+    changes["Class Total Amount"] = both[mode].amount;
   }
 
   const ok = await save({ action: "adminUpdateDemoRow", rowNumber, demoId, tutorId, changes }, button);
@@ -5238,13 +5245,16 @@ function classMoney(g, activeRow) {
 /* =====================================================================
    CLASS PLAN (Payments card, under the class days)
    Left: a month calendar - tap dates to pick the class days (light green).
-   Right: how the class is billed, each with 3 boxes:
-     Number of Classes  ->  Number of Classes (= dates picked) | Price per
-                            Class | Amount  (Amount = Price x Classes)
-     Hourly             ->  Minutes per Class | Price per Hour | Amount
-                            (Amount = Price x Minutes/60 x Classes)
+   Right: how the class is billed - Number of Classes or Hourly. Each
+   option has its own 4 boxes (Duration in Minutes | Number of Classes
+   (= dates picked) | Price per Class or per Hour | Amount), kept apart so
+   switching never mixes them:
+     Number of Classes  ->  Amount = Price x Classes
+     Hourly             ->  Amount = Price x Minutes/60 x Classes
    Typing a Price fills the Amount and typing an Amount fills the Price.
-   Only in edit mode; saved with "Save changes". (STATE.calMonth keeps the
+   Only in edit mode; saved with the panel's "Save" or "Save changes".
+   Both options are stored (billing_plan); the chosen one also fills
+   Class Duration / Charges / Total Amount. (STATE.calMonth keeps the
    month each card's calendar shows.)
    ===================================================================== */
 
@@ -5298,11 +5308,25 @@ function classPlanHtml(g, activeRow, editing) {
     || (dates[0] || toDateInput(activeRow.classStartDate) || isoToday()).slice(0, 7);
   STATE.calMonth[g.demoId] = monthKey;
 
+  // each option keeps its own boxes; the old single values fill the chosen one
+  const saved = activeRow.billingPlan || {};
+  const values = set => saved[set] || (set === mode
+    ? { minutes: activeRow.classDuration || "", price: activeRow.classCharges || "", amount: activeRow.classTotalAmount || "" }
+    : {});
   const count = dates.length;
-  const minutes = activeRow.classDuration || "";
-  const price = activeRow.classCharges || "";
-  const amount = activeRow.classTotalAmount || "";
-  const f = (name, extra) => editing ? `data-cfield="${esc(name)}" ${extra || ""}` : (extra || "");
+  const num0 = { editable: editing, type: "number" };
+
+  const setHtml = (set, priceLabel) => {
+    const v = values(set);
+    return `
+      <div class="bill-set" data-set="${set}">
+        ${box("Duration (Minutes)", v.minutes || "", { ...num0, attr: 'data-bill="minutes" min="0"' })}
+        ${box("Number of Classes", count, { attr: 'data-bill="count"' })}
+        ${box(priceLabel, v.price || "", { ...num0, attr: 'data-bill="price" min="0"' })}
+        ${box("Amount (₹)", v.amount || "", { ...num0, attr: 'data-bill="amount" min="0"' })}
+        <p class="bill-note" data-bill-note>${esc(planNoteText(set === "hourly", count, num(v.minutes)))}</p>
+      </div>`;
+  };
 
   return `
     <div class="class-plan" data-class-plan data-mode="${mode}" data-month="${esc(monthKey)}" data-dates='${esc(JSON.stringify(dates))}'>
@@ -5312,13 +5336,9 @@ function classPlanHtml(g, activeRow, editing) {
           <button type="button" class="bill-opt${mode === "classes" ? " is-on" : ""}" data-action="bill-mode" data-mode="classes"${editing ? "" : " disabled"}>Number of Classes</button>
           <button type="button" class="bill-opt${mode === "hourly" ? " is-on" : ""}" data-action="bill-mode" data-mode="hourly"${editing ? "" : " disabled"}>Hourly</button>
         </div>
-        <div class="bill-boxes">
-          <div class="bill-only-classes">${box("Number of Classes", count, { attr: 'data-bill="count"' })}</div>
-          <div class="bill-only-hourly">${box("Minutes per Class", minutes, { editable: editing, type: "number", attr: f("Class Duration", 'data-bill="minutes" min="0"') })}</div>
-          <div class="bill-price">${box(mode === "hourly" ? "Price per Hour (₹)" : "Price per Class (₹)", price, { editable: editing, type: "number", attr: f("Class Charges", 'data-bill="price" min="0"') })}</div>
-          <div>${box("Amount (₹)", amount, { editable: editing, type: "number", attr: f("Class Total Amount", 'data-bill="amount" min="0"') })}</div>
-          <p class="bill-note" data-bill-note>${esc(planNoteText(mode === "hourly", count, num(minutes)))}</p>
-        </div>
+        ${setHtml("classes", "Price per Class (₹)")}
+        ${setHtml("hourly", "Price per Hour (₹)")}
+        ${editing ? `<button class="admin-primary bill-save" data-action="save-class-details" type="button">Save</button>` : ""}
       </div>
     </div>`;
 }
@@ -5330,27 +5350,34 @@ function planNoteText(hourly, n, minutes) {
     : `Amount = Price per Class × ${n} class${n === 1 ? "" : "es"}`;
 }
 
-// keeps Number of Classes, the hourly note and Price <-> Amount in step
-function recalcClassPlan(plan, changed) {
-  const q = k => plan.querySelector(`[data-bill="${k}"]`);
+// the Duration / Price / Amount typed in one option ("classes" or "hourly")
+function billSetValues(plan, set) {
+  const q = k => plan.querySelector(`[data-set="${set}"] [data-bill="${k}"]`);
+  return { minutes: q("minutes").value.trim(), price: q("price").value.trim(), amount: q("amount").value.trim() };
+}
+
+// keeps Number of Classes, the notes and Price <-> Amount in step.
+// The two options never touch each other's boxes.
+function recalcClassPlan(plan, changedEl) {
   const n = planDates(plan).length;
-  const hourly = plan.dataset.mode === "hourly";
-  const minutes = num(q("minutes") && q("minutes").value);
-  const units = hourly ? n * (minutes / 60) : n;
-  const price = q("price"), amount = q("amount");
-  if (q("count")) q("count").value = n;
   const round2 = v => String(Math.round(v * 100) / 100);
-  if (price && amount && !price.readOnly) {
-    if (changed === "amount") {
-      price.value = amount.value === "" ? "" : (units > 0 ? round2(num(amount.value) / units) : price.value);
-    } else if (price.value !== "") {
-      amount.value = round2(num(price.value) * units);
+  plan.querySelectorAll(".bill-set").forEach(setEl => {
+    const q = k => setEl.querySelector(`[data-bill="${k}"]`);
+    const hourly = setEl.dataset.set === "hourly";
+    const minutes = num(q("minutes").value);
+    const units = hourly ? n * (minutes / 60) : n;
+    const price = q("price"), amount = q("amount");
+    q("count").value = n;
+    if (!price.readOnly) {
+      if (changedEl === amount) {
+        price.value = amount.value === "" ? "" : (units > 0 ? round2(num(amount.value) / units) : price.value);
+      } else if (price.value !== "") {
+        amount.value = round2(num(price.value) * units);
+      }
     }
-  }
-  const label = plan.querySelector(".bill-price .admin-box > span");
-  if (label) label.textContent = hourly ? "Price per Hour (₹)" : "Price per Class (₹)";
-  const note = plan.querySelector("[data-bill-note]");
-  if (note) note.textContent = planNoteText(hourly, n, minutes);
+    const note = setEl.querySelector("[data-bill-note]");
+    if (note) note.textContent = planNoteText(hourly, n, minutes);
+  });
 }
 
 function redrawCalendar(plan) {
@@ -5358,7 +5385,7 @@ function redrawCalendar(plan) {
   plan.querySelector("[data-cal]").innerHTML = calendarHtml(plan.dataset.month, planDates(plan), editing);
 }
 
-// clicks on the plan (calendar days / months, billing mode)
+// clicks on the plan (calendar days / months, billing option)
 function onClassPlanClick(actionEl) {
   const plan = actionEl.closest("[data-class-plan]");
   if (!plan) return;
@@ -5380,7 +5407,6 @@ function onClassPlanClick(actionEl) {
   } else if (action === "bill-mode") {
     plan.dataset.mode = actionEl.dataset.mode;
     plan.querySelectorAll(".bill-opt").forEach(b => b.classList.toggle("is-on", b === actionEl));
-    recalcClassPlan(plan);
   }
 }
 
@@ -5388,7 +5414,7 @@ function onClassPlanClick(actionEl) {
 document.addEventListener("input", (event) => {
   const field = event.target.closest && event.target.closest("[data-class-plan] [data-bill]");
   if (!field) return;
-  recalcClassPlan(field.closest("[data-class-plan]"), field.dataset.bill);
+  recalcClassPlan(field.closest("[data-class-plan]"), field);
 });
 
 function classCard(g, activeRow) {

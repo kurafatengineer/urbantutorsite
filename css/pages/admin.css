@@ -3686,8 +3686,12 @@ html[data-theme="light"] .tutor-stats-pop { box-shadow: 0 18px 44px rgba(0, 0, 0
   padding: 2px 0 4px;
 }
 .cal-day {
-  height: 32px;
-  border-radius: 10px;
+  width: 34px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  justify-self: center;
+  padding: 0;
+  border-radius: 50%;
   border: 1px solid transparent;
   background: var(--surface);
   color: var(--text);
@@ -3726,10 +3730,12 @@ html[data-theme="light"] .tutor-stats-pop { box-shadow: 0 18px 44px rgba(0, 0, 0
 .bill-opt:disabled { cursor: default; }
 .bill-opt:disabled:not(.is-on) { opacity: 0.6; }
 
-.bill-boxes { display: grid; gap: 10px; }
-.bill-boxes > div > .admin-box { width: 100%; }
-.class-plan[data-mode="classes"] .bill-only-hourly,
-.class-plan[data-mode="hourly"] .bill-only-classes { display: none; }
+.bill-set { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bill-set > .admin-box { width: 100%; min-width: 0; }
+.bill-set > .bill-note { grid-column: 1 / -1; }
+.class-plan[data-mode="classes"] .bill-set[data-set="hourly"],
+.class-plan[data-mode="hourly"] .bill-set[data-set="classes"] { display: none; }
+.bill-save { width: 100%; margin-top: 12px; }
 .bill-note { margin: 0; font-size: 12px; color: var(--muted); text-align: center; }
 
 @media (max-width: 760px) {
