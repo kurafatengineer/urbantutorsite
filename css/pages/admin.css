@@ -3630,3 +3630,108 @@ html[data-theme="light"] .tutor-stats-pop { box-shadow: 0 18px 44px rgba(0, 0, 0
   .perm-group-emails,
   .perm-grid .perm-group-privacy { grid-column: 1 / -1; }
 }
+
+
+/* =========================================================
+   PAYMENTS CARD - CLASS PLAN (under the class days)
+   left: calendar (picked days light green) | right: billing + 3 boxes
+========================================================= */
+
+.class-plan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  margin: 0 0 14px;
+}
+
+.class-cal,
+.class-bill {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  background: var(--surface-2);
+  min-width: 0;
+}
+
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.cal-head strong { font-size: 14px; font-weight: 800; }
+.cal-nav {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border-light);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cal-nav:hover { border-color: var(--lime-line); color: var(--lime); }
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.cal-wd {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+  padding: 2px 0 4px;
+}
+.cal-day {
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cal-day:not(:disabled):hover { border-color: var(--lime-line); }
+.cal-day.is-today { border-color: var(--border-light); }
+.cal-day.is-on {
+  background: rgba(22, 163, 74, 0.22);
+  border-color: rgba(22, 163, 74, 0.5);
+  color: var(--lime);
+  font-weight: 800;
+}
+.cal-day:disabled { cursor: default; opacity: 1; }
+.cal-note { margin: 8px 0 0; text-align: center; font-size: 12px; color: var(--muted); }
+
+.bill-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.bill-opt {
+  padding: 9px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+}
+.bill-opt.is-on { background: var(--lime); border-color: var(--lime); color: #050505; }
+.bill-opt:disabled { cursor: default; }
+.bill-opt:disabled:not(.is-on) { opacity: 0.6; }
+
+.bill-boxes { display: grid; gap: 10px; }
+.bill-boxes > div > .admin-box { width: 100%; }
+.class-plan[data-mode="classes"] .bill-only-hourly,
+.class-plan[data-mode="hourly"] .bill-only-classes { display: none; }
+.bill-note { margin: 0; font-size: 12px; color: var(--muted); text-align: center; }
+
+@media (max-width: 760px) {
+  .class-plan { grid-template-columns: 1fr; }
+}
