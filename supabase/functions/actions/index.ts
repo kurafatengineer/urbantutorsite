@@ -5,8 +5,9 @@
 // from the site: add_tuition, register_student, apply_for_tuition,
 // respond_to_demo, respond_to_demo_tutor
 //
-// It exists only so a notification email can go out to the OTHER party
-// after a successful call, without touching the RPCs themselves (they
+// It exists only so a notification (email + the same message on Telegram,
+// for whoever has linked Telegram) can go out to the OTHER party after a
+// successful call, without touching the RPCs themselves (they
 // stay SECURITY DEFINER functions run with the CALLER's own auth
 // context - this function re-authenticates as that same caller using
 // their access token, so RLS/ownership checks behave identically to a
@@ -18,7 +19,7 @@
 // =====================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { sendMail } from "../_shared/email.ts";
+import { notify } from "../_shared/telegram.ts";
 import { tuitionPostedMail, tutorAppliedMail, parentResponseMail, tutorResponseMail } from "../_shared/mails.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -96,7 +97,7 @@ async function sendTuitionPosted(studentId: string, demoIds: string[]) {
     cls: student.class_name, board: student.board, medium: rows[0].medium, preferredTutor: rows[0].preferred_tutor,
     city: student.city, pin: student.pin_code,
   });
-  await sendMail(student.email, mail.subject, mail.html);
+  await notify(student.email, mail);
 }
 
 /* ------------------------------------------------------------------
@@ -134,7 +135,7 @@ async function handleApplyForTuition(userClient: ReturnType<typeof callAsUser>, 
         name: student.student_name, demoId, subject: tuition?.subject ?? "", tutorName: tutor.full_name,
         tutorId: tutor.tutor_id, experience: tutor.experience_years, gender: tutor.gender,
       });
-      await sendMail(student.email, mail.subject, mail.html);
+      await notify(student.email, mail);
     }
   }
 
@@ -160,7 +161,7 @@ async function handleRespondToDemo(userClient: ReturnType<typeof callAsUser>, bo
         cls: student.class_name, board: student.board, city: student.city, pin: student.pin_code,
         accepted: decision.toLowerCase() === "accept",
       });
-      await sendMail(tutor.email, mail.subject, mail.html);
+      await notify(tutor.email, mail);
     }
   }
 
@@ -182,7 +183,7 @@ async function handleRespondToDemoTutor(userClient: ReturnType<typeof callAsUser
         name: student.student_name, demoId, subject: tuition?.subject ?? "", tutorName: tutor.full_name,
         tutorId: tutor.tutor_id, accepted: decision.toLowerCase() === "accept",
       });
-      await sendMail(student.email, mail.subject, mail.html);
+      await notify(student.email, mail);
     }
   }
 

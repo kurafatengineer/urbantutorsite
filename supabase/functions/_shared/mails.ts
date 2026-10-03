@@ -8,27 +8,39 @@
 //   7 agency charge received        (student or tutor)
 //   8 payment sent to a tutor       (tutor)
 //   9 / 10 subscription payment     (student / tutor)
-// Each builder returns { subject, html } in the shared Urban Tutor Site template.
+// Each builder returns { subject, html } in the shared Urban Tutor Site template,
+// plus tg / cta: the same message for Telegram (see telegram.ts notify).
 
 import { emailTemplate, detailRow } from "./email.ts";
 
 export const SITE_URL = "https://kurafatengineer.github.io/urbantutorsite";
 
 type Row = [string, string];
-type Built = { subject: string; html: string };
+// tg: the same message for Telegram (HTML), cta: its button
+export type Built = { subject: string; html: string; tg: string; cta: { label: string; page: string } };
 type Tone = "green" | "red" | "blue" | "orange" | "purple";
+
+const TG_ICON: Record<Tone, string> = { green: "✅", red: "❌", blue: "📝", orange: "🔔", purple: "📅" };
+const tgText = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 const make = (
   subject: string, heading: string, badge: { text: string; tone: Tone },
   name: string, intro: string, rows: Row[], cta: { label: string; page: string },
-): Built => ({
-  subject,
-  html: emailTemplate({
-    heading, badge, greeting: `Hi ${name || "there"},`, intro,
-    detailRowsHtml: rows.filter(([, v]) => v !== "" && v != null).map(([l, v]) => detailRow(l, v)).join(""),
-    cta: { label: cta.label, url: `${SITE_URL}/${cta.page}` },
-  }),
-});
+): Built => {
+  const shown = rows.filter(([, v]) => v !== "" && v != null);
+  return {
+    subject,
+    html: emailTemplate({
+      heading, badge, greeting: `Hi ${name || "there"},`, intro,
+      detailRowsHtml: shown.map(([l, v]) => detailRow(l, v)).join(""),
+      cta: { label: cta.label, url: `${SITE_URL}/${cta.page}` },
+    }),
+    tg: `${TG_ICON[badge.tone]} <b>${tgText(heading)}</b>\n\n` +
+      `Hi ${tgText(name || "there")},\n${tgText(intro)}\n\n` +
+      shown.map(([l, v]) => `• ${tgText(l)}: <b>${tgText(v)}</b>`).join("\n"),
+    cta,
+  };
+};
 
 /* ---------- formatting ---------- */
 

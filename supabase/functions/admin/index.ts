@@ -23,8 +23,8 @@
 // =====================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { sendMail } from "../_shared/email.ts";
-import { sendTelegram, demoScheduledTelegram } from "../_shared/telegram.ts";
+import { notify, sendTelegram, demoScheduledTelegram } from "../_shared/telegram.ts";
+import type { Built } from "../_shared/mails.ts";
 import {
   demoScheduledMail, paymentReceivedMail, agencyChargeMail, payoutMail, subscriptionMail, tuitionPostedMail,
 } from "../_shared/mails.ts";
@@ -730,10 +730,13 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
   return withLinks;
 }
 
-/* NOTIFICATIONS - only these emails are ever sent from the admin panel:
+/* NOTIFICATIONS - only these are ever sent from the admin panel:
      demo scheduled (student + tutor), tuition payment received (student),
      agency charge received (student / tutor), payment sent to a tutor, and
      a subscription payment (student / tutor). Everything else is silent.
+   Each goes out as an email AND, to whoever has linked Telegram, as the same
+   message from @UrbanTutorSiteBot (see _shared/telegram.ts notify). The
+   Emails On / Off switches below stop only the emails.
    A failed send never blocks the action itself (see _shared/email.ts). */
 
 // The "Emails On / Off" switch in the Admin Panel header:
@@ -753,9 +756,10 @@ function callerMailsOn(caller: Caller): boolean {
   return !caller.permissions.has("mails_toggle") || caller.mailsEnabled;
 }
 
-async function sendTo(email: string | null | undefined, mail: { subject: string; html: string }) {
-  if (!email) return;
-  await sendMail(email, mail.subject, mail.html);
+// The email (when this employee's / the site's switch allows it) and the
+// same message on Telegram (always, when the person has linked Telegram).
+async function sendTo(email: string | null | undefined, mail: Built, mails = true) {
+  await notify(email, mail, { email: mails });
 }
 
 const num = (v: unknown) => Number(v) || 0;
@@ -802,7 +806,7 @@ async function sumPayments(filter: (q: Json) => Json): Promise<number> {
 
 // Tuition request(s) posted for a student (by the office): the same
 // "Tuition Request Posted" email the student gets when posting it themselves.
-async function sendTuitionPosted(studentId: string, demoIds: string[]) {
+async function sendTuitionPosted(studentId: string, demoIds: string[], mails = true) {
   if (!studentId || !demoIds?.length) return;
   const { data: student } = await db.from("students")
     .select("student_name, email, class_name, board, city, pin_code").eq("student_id", studentId).maybeSingle();
@@ -814,7 +818,7 @@ async function sendTuitionPosted(studentId: string, demoIds: string[]) {
     name: student.student_name, demos: rows.map((r: Json) => ({ demoId: r.demo_id, subject: r.subject })),
     cls: student.class_name, board: student.board, medium: rows[0].medium, preferredTutor: rows[0].preferred_tutor,
     city: student.city, pin: student.pin_code,
-  }));
+  }), mails);
 }
 
 // Demo scheduled: a date + time was newly set (or changed) on an application.
@@ -825,10 +829,9 @@ async function sendDemoScheduled(demoId: string, tutorId: string, date: string, 
   const tutor = await tutorById(tutorId);
   if (!tuition || !student || !tutor) return;
   const base = { demoId, subject: tuition.subject ?? "", date, time, mode: tuition.medium };
-  if (mails) {
-    await sendTo(student.email, demoScheduledMail({ ...base, forTutor: false, name: student.student_name, otherName: tutor.full_name }));
-    await sendTo(tutor.email, demoScheduledMail({ ...base, forTutor: true, name: tutor.full_name, otherName: student.student_name }));
-  }
+  // emails only here: the Telegram message below carries more (class, area)
+  await notify(student.email, demoScheduledMail({ ...base, forTutor: false, name: student.student_name, otherName: tutor.full_name }), { email: mails, telegram: false });
+  await notify(tutor.email, demoScheduledMail({ ...base, forTutor: true, name: tutor.full_name, otherName: student.student_name }), { email: mails, telegram: false });
   try {
     const { data: s } = await db.from("students").select("telegram_chat_id, class_name, board, city, pin_code")
       .eq("student_id", student.student_id).maybeSingle();
@@ -844,7 +847,7 @@ async function sendDemoScheduled(demoId: string, tutorId: string, date: string, 
 }
 
 // Payment recorded: pick the right email for what the payment was.
-async function sendPaymentMail(pay: Json) {
+async function sendPaymentMail(pay: Json, mails = true) {
   const common = { receipt: pay.id, amount: num(pay.amount), mode: pay.payment_mode ?? "", paymentDate: pay.payment_date, createdAt: pay.created_at };
 
   // 9 / 10 - a subscription payment
@@ -858,7 +861,7 @@ async function sendPaymentMail(pay: Json) {
     await sendTo(party.email, subscriptionMail({
       forTutor: !sub.student_id, name: sub.student_id ? party.student_name : party.full_name,
       plan: sub.plan_name, amount: num(sub.amount), paid, startDate: sub.start_date, nextDue: sub.next_due_date,
-    }));
+    }), mails);
     return;
   }
 
@@ -881,7 +884,7 @@ async function sendPaymentMail(pay: Json) {
     await sendTo(party.email, agencyChargeMail({
       ...common, forTutor, name: forTutor ? party.full_name : party.student_name, subject, demoId: pay.demo_id,
       remaining: app ? Math.max(charge - received, 0) : undefined,
-    }));
+    }), mails);
     return;
   }
 
@@ -897,7 +900,7 @@ async function sendPaymentMail(pay: Json) {
     await sendTo(tutor.email, payoutMail({
       ...common, name: tutor.full_name, subject, demoId: pay.demo_id, studentName: student?.student_name ?? "",
       totalReceived: total > 0 ? received : undefined, stillDue: total > 0 ? Math.max(total - received, 0) : undefined,
-    }));
+    }), mails);
     return;
   }
 
@@ -907,7 +910,7 @@ async function sendPaymentMail(pay: Json) {
   await sendTo(student.email, paymentReceivedMail({
     ...common, name: student.student_name, subject, demoId: pay.demo_id, type: pay.payment_type,
     totalPaid: total > 0 ? paid : undefined, duesLeft: total > 0 ? Math.max(total - paid, 0) : undefined,
-  }));
+  }), mails);
 }
 
 // Sum of everything paid in against a subscription so far (payouts
@@ -1089,7 +1092,7 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
       const p = body.p ?? {};
       const result = await rpc("admin_register_student", { p });
       if (result?.success && result.demoIds?.length) {
-        if (callerMailsOn(caller)) try { await sendTuitionPosted(String(result.studentId), result.demoIds); } catch (e) { console.error("tuition mail", e); }
+        try { await sendTuitionPosted(String(result.studentId), result.demoIds, callerMailsOn(caller)); } catch (e) { console.error("tuition mail", e); }
       }
       return result;
     }
@@ -1099,7 +1102,7 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
       const p = body.p ?? {};
       const result = await rpc("admin_add_tuition", { p });
       if (result?.success) {
-        if (callerMailsOn(caller)) try { await sendTuitionPosted(String(p.studentId ?? ""), result.demoIds ?? []); } catch (e) { console.error("tuition mail", e); }
+        try { await sendTuitionPosted(String(p.studentId ?? ""), result.demoIds ?? [], callerMailsOn(caller)); } catch (e) { console.error("tuition mail", e); }
       }
       return result;
     }
@@ -1126,7 +1129,7 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
         if (inserted.subscription_id) {
           await realignSubscriptionCycle(inserted.subscription_id, inserted.payment_date);
         }
-        if (callerMailsOn(caller)) try { await sendPaymentMail(inserted); } catch (e) { console.error("payment mail", e); }
+        try { await sendPaymentMail(inserted, callerMailsOn(caller)); } catch (e) { console.error("payment mail", e); }
       }
       return { success: true, message: "Payment recorded." };
     }

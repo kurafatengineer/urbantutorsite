@@ -2,8 +2,13 @@
 // is linked (students.telegram_chat_id / tutors.telegram_chat_id).
 // These messages stay in the chat (they are not the bot's one buttons
 // message, which the telegram function replaces).
+//
+// notify(): every notification goes out as the email AND, to whoever has
+// linked their Telegram, as the same message on Telegram. The email follows
+// the Emails On / Off switches; the Telegram message always goes.
 
-import { fmtDate, fmtTime, modeText, SITE_URL } from "./mails.ts";
+import { sendMail } from "./email.ts";
+import { type Built, fmtDate, fmtTime, modeText, SITE_URL } from "./mails.ts";
 
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 
@@ -21,6 +26,37 @@ export async function sendTelegram(chatId: unknown, html: string, button?: { tex
     body: JSON.stringify(body),
   });
   if (!res.ok) console.error("telegram send failed", res.status, await res.text().catch(() => ""));
+}
+
+// the linked chat of the student / tutor record(s) with this email
+async function chatIdByEmail(email: string): Promise<number | null> {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const target = email.trim().toLowerCase();
+  if (!url || !key || !target) return null;
+  for (const table of ["students", "tutors"]) {
+    const res = await fetch(
+      `${url}/rest/v1/${table}?email=ilike.${encodeURIComponent(target)}&telegram_chat_id=not.is.null&select=email,telegram_chat_id`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+    );
+    if (!res.ok) continue;
+    const rows = await res.json().catch(() => []);
+    const hit = (rows ?? []).find((r: { email?: string }) => String(r.email ?? "").trim().toLowerCase() === target);
+    if (hit?.telegram_chat_id) return Number(hit.telegram_chat_id);
+  }
+  return null;
+}
+
+export async function notify(email: string | null | undefined, mail: Built, opts: { email?: boolean; telegram?: boolean } = {}) {
+  if (!email) return;
+  if (opts.email !== false) await sendMail(email, mail.subject, mail.html);
+  if (opts.telegram === false) return;
+  try {
+    const chatId = await chatIdByEmail(email);
+    if (chatId) await sendTelegram(chatId, mail.tg, { text: mail.cta.label, page: mail.cta.page });
+  } catch (e) {
+    console.error("telegram notify failed", String(e));
+  }
 }
 
 const line = (icon: string, label: string, value: unknown) =>
