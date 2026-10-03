@@ -31,7 +31,7 @@ Shared pieces used by several pages (change them once, every page changes):
 |---|---|
 | `js/supabase-client.js` | The connection to the server. Every page loads it first. `sbCall()` runs a database action; `sbCallNotify()` runs an action that also sends an email. |
 | `js/portal.js` | Stamps every login with the door it was made at (Student / Tutor / Admin), so one email logged in at one door does not silently open the others. |
-| `js/telegram.js` | When a page is opened inside Telegram (from the bot), fits it to Telegram: full height, black colours, Telegram's Back button. Does nothing in a normal browser. |
+| `js/telegram.js` | When a page is opened inside Telegram (from the bot), fits it to Telegram: full height, black colours, Telegram's Back button; once logged in, links the person's Telegram chat to their student / tutor record (for bot notifications). Does nothing in a normal browser. |
 | `js/photos.js`, `css/photos.css` | Tutor profile photos on the round name-letter avatars (tutor's own header/profile, student dashboard for verified tutors who applied, Admin cards). The homepage "Tutors worth meeting" cards also show them (via the public home-photos function). |
 | `js/photo-cropper.js`, `css/photo-cropper.css` | The round-crop window on tutor registration: shows the round picture, drag / zoom, "Use this photo" and "Save a copy". |
 | `css/student-forms.css` | The Student Profile pop-up look ("Add a Student", "Apply For New Tuition"), reused by the Admin Panel's Students tab. |
@@ -76,6 +76,7 @@ Project id: `zbvtdcqoouwyrcxkzjfv`
     Needs the secret `TELEGRAM_BOT_TOKEN`; after setting / changing it, open
     `https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/telegram?setup=1`
     once (connects the bot; its menu button opens the website). The chat keeps ONE message: what a user types is deleted, and the bot's previous buttons message is deleted when it sends a new one (table `telegram_chats`). The footer's Telegram icon links to https://t.me/UrbanTutorSiteBot.
+    Notifications: logging in on the site inside Telegram saves the chat (`?link=1`, checked with Telegram's signed initData) in `students.telegram_chat_id` / `tutors.telegram_chat_id`. When a demo date + time is set in the Admin Panel, both get a "Demo Scheduled" message (`_shared/telegram.ts`) - no mobile numbers, and the tutor sees only the student's area (city - PIN), never the full address.
   - `home-photos/` — public: 1-hour links to the photos of the 4 verified tutors shown on the homepage (nothing else).
   - `tutor-photos/` — gives a logged-in student 1-hour links to the photos of VERIFIED tutors who applied to his tuitions.
   - `_shared/email.ts` — the email design + sending. `_shared/mails.ts` — the

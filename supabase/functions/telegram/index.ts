@@ -14,6 +14,12 @@
 //                         message (remembered in table telegram_chats) is
 //                         deleted once the new one is sent.
 //                         Only accepted with Telegram's secret header.
+//   POST ?link=1          from the site opened INSIDE Telegram, once the person
+//                         is logged in: { initData } + their login token. The
+//                         initData is checked against the bot token (so it
+//                         really is that Telegram user), then the chat is saved
+//                         on their student / tutor record(s)
+//                         (telegram_chat_id) for "Demo Scheduled" messages.
 //   GET  ?setup=1         one-time setup: points the bot's webhook here, makes
 //                         the menu button open the website, and removes the
 //                         command list. Safe to run again.
@@ -24,6 +30,7 @@
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const SITE_URL = "https://kurafatengineer.github.io/urbantutorsite";
 const STUDENT_URL = `${SITE_URL}/studentregistration.html`;
 const TUTOR_URL = `${SITE_URL}/tutorregistration.html`;
@@ -117,6 +124,73 @@ async function sendOne(chatId: number, forTutor: boolean) {
   });
 }
 
+/* ---- linking a logged-in student / tutor to their Telegram chat ---- */
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+async function hmac(key: Uint8Array, data: string): Promise<Uint8Array> {
+  const k = await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(data)));
+}
+
+// Telegram's check for Mini App initData; returns the Telegram user id or null.
+async function telegramUserId(initData: string): Promise<number | null> {
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  if (!hash) return null;
+  params.delete("hash");
+  const check = [...params.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join("\n");
+  const secret = await hmac(new TextEncoder().encode("WebAppData"), BOT_TOKEN);
+  const mine = [...await hmac(secret, check)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  if (mine !== hash) return null;
+  const age = Date.now() / 1000 - Number(params.get("auth_date") ?? 0);
+  if (!(age < 7 * 24 * 3600)) return null;
+  try {
+    const id = Number(JSON.parse(params.get("user") ?? "{}").id);
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+async function loginEmail(token: string): Promise<string> {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: ANON_KEY, Authorization: `Bearer ${token}` } });
+  if (!res.ok) return "";
+  const user = await res.json().catch(() => null);
+  return String(user?.email ?? "").trim().toLowerCase();
+}
+
+// saves the chat on every student / tutor record with this exact email
+async function saveChat(table: "students" | "tutors", idColumn: string, email: string, chatId: number): Promise<number> {
+  const rows = await db(`${table}?email=ilike.${encodeURIComponent(email)}&select=${idColumn},email`) ?? [];
+  const ids = rows.filter((r: Json) => String(r.email ?? "").trim().toLowerCase() === email).map((r: Json) => r[idColumn]);
+  if (!ids.length) return 0;
+  await db(`${table}?${idColumn}=in.(${ids.map((x: string) => encodeURIComponent(`"${x}"`)).join(",")})`, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ telegram_chat_id: chatId }),
+  });
+  return ids.length;
+}
+
+async function link(req: Request): Promise<Response> {
+  const reply = (body: Json, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+  const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  const body = await req.json().catch(() => ({}));
+  const chatId = await telegramUserId(String(body?.initData ?? ""));
+  if (!chatId) return reply({ ok: false, message: "Not opened from Telegram." }, 400);
+  const email = token ? await loginEmail(token) : "";
+  if (!email) return reply({ ok: false, message: "Please log in first." }, 401);
+  const students = await saveChat("students", "student_id", email, chatId);
+  const tutors = await saveChat("tutors", "tutor_id", email, chatId);
+  return reply({ ok: true, students, tutors });
+}
+
 async function setup(): Promise<Response> {
   if (!BOT_TOKEN) return json({ ok: false, message: "TELEGRAM_BOT_TOKEN is not set in Supabase Edge Function secrets." }, 500);
   const webhook = await telegram("setWebhook", {
@@ -141,8 +215,18 @@ Deno.serve(async (req: Request) => {
     return json({ ok: true, bot: "@UrbanTutorSiteBot" });
   }
 
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ ok: false }, 405);
   if (!BOT_TOKEN) return json({ ok: false }, 500);
+
+  if (url.searchParams.get("link") === "1") {
+    try {
+      return await link(req);
+    } catch (err) {
+      console.error("telegram link failed", String(err));
+      return new Response(JSON.stringify({ ok: false }), { status: 500, headers: { ...CORS, "Content-Type": "application/json" } });
+    }
+  }
 
   // only Telegram knows the secret header
   if (req.headers.get("x-telegram-bot-api-secret-token") !== await webhookSecret()) {

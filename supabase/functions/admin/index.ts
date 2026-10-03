@@ -24,6 +24,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { sendMail } from "../_shared/email.ts";
+import { sendTelegram, demoScheduledTelegram } from "../_shared/telegram.ts";
 import {
   demoScheduledMail, paymentReceivedMail, agencyChargeMail, payoutMail, subscriptionMail, tuitionPostedMail,
 } from "../_shared/mails.ts";
@@ -817,13 +818,29 @@ async function sendTuitionPosted(studentId: string, demoIds: string[]) {
 }
 
 // Demo scheduled: a date + time was newly set (or changed) on an application.
-async function sendDemoScheduled(demoId: string, tutorId: string, date: string, time: string) {
+// Emails follow the email switch; the Telegram message goes to whoever has
+// linked their chat (no mobile numbers, only the student's area).
+async function sendDemoScheduled(demoId: string, tutorId: string, date: string, time: string, mails: boolean) {
   const { tuition, student } = await demoWithStudent(demoId);
   const tutor = await tutorById(tutorId);
   if (!tuition || !student || !tutor) return;
   const base = { demoId, subject: tuition.subject ?? "", date, time, mode: tuition.medium };
-  await sendTo(student.email, demoScheduledMail({ ...base, forTutor: false, name: student.student_name, otherName: tutor.full_name }));
-  await sendTo(tutor.email, demoScheduledMail({ ...base, forTutor: true, name: tutor.full_name, otherName: student.student_name }));
+  if (mails) {
+    await sendTo(student.email, demoScheduledMail({ ...base, forTutor: false, name: student.student_name, otherName: tutor.full_name }));
+    await sendTo(tutor.email, demoScheduledMail({ ...base, forTutor: true, name: tutor.full_name, otherName: student.student_name }));
+  }
+  try {
+    const { data: s } = await db.from("students").select("telegram_chat_id, class_name, board, city, pin_code")
+      .eq("student_id", student.student_id).maybeSingle();
+    const { data: t } = await db.from("tutors").select("telegram_chat_id").eq("tutor_id", tutorId).maybeSingle();
+    const online = /^online$/i.test(String(tuition.medium ?? "").trim());
+    const msg = {
+      ...base, studentName: student.student_name, cls: s?.class_name, board: s?.board,
+      area: online ? "" : [s?.city, s?.pin_code].filter(Boolean).join(" - "), tutorName: tutor.full_name, tutorId,
+    };
+    if (s?.telegram_chat_id) await sendTelegram(s.telegram_chat_id, demoScheduledTelegram({ ...msg, forTutor: false, name: student.student_name }), { text: "Open My Profile", page: "studentprofile.html" });
+    if (t?.telegram_chat_id) await sendTelegram(t.telegram_chat_id, demoScheduledTelegram({ ...msg, forTutor: true, name: tutor.full_name }), { text: "Open My Profile", page: "tutorprofile.html" });
+  } catch (e) { console.error("demo telegram", e); }
 }
 
 // Payment recorded: pick the right email for what the payment was.
@@ -1041,12 +1058,12 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
         p_changes: body.changes ?? {},
       });
       if (result?.success) {
-        // "Demo Scheduled" goes out only when a date + time is newly set or changed.
+        // "Demo Scheduled" (email + Telegram) goes out only when a date + time is newly set or changed.
         const newDate = String(body.changes?.["Demo Date"] ?? "");
         const newTime = String(body.changes?.["Demo Time"] ?? "");
         const changed = newDate !== String(before?.demo_date ?? "") || newTime.slice(0, 5) !== String(before?.demo_time ?? "").slice(0, 5);
         if (newDate && newTime && changed) {
-          if (callerMailsOn(caller)) try { await sendDemoScheduled(String(body.demoId), String(body.tutorId), newDate, newTime); } catch (e) { console.error("demo mail", e); }
+          try { await sendDemoScheduled(String(body.demoId), String(body.tutorId), newDate, newTime, callerMailsOn(caller)); } catch (e) { console.error("demo mail", e); }
         }
       }
       return result;
