@@ -780,7 +780,7 @@ async function demoWithStudent(demoId?: string | null) {
 // The application that is actually running the tuition (both sides accepted).
 async function activeApplication(demoId: string, tutorId?: string | null) {
   let q = db.from("applications")
-    .select("tutor_id, class_duration, class_charges, class_count, student_agency_charge, tutor_agency_charge, tutor_advance_payment")
+    .select("tutor_id, class_duration, class_charges, class_count, class_total_amount, billing_mode, student_agency_charge, tutor_agency_charge, tutor_advance_payment")
     .eq("demo_id", demoId).eq("parent_accepted", true).eq("tutor_accepted", true)
     .eq("parent_rejected", false).eq("tutor_rejected", false);
   if (tutorId) q = q.eq("tutor_id", tutorId);
@@ -788,7 +788,11 @@ async function activeApplication(demoId: string, tutorId?: string | null) {
   return data?.[0] ?? null;
 }
 
-const classTotal = (a: Json) => (num(a?.class_duration) / 60) * num(a?.class_charges) * num(a?.class_count);
+// The Tuition Fee: the Amount from the card's billing plan (calendar +
+// Number of Classes / Hourly), or the older Duration x Charges x Count.
+const classTotal = (a: Json) => a?.billing_mode
+  ? num(a?.class_total_amount)
+  : (num(a?.class_duration) / 60) * num(a?.class_charges) * num(a?.class_count);
 
 async function sumPayments(filter: (q: Json) => Json): Promise<number> {
   const { data } = await filter(db.from("payments").select("amount"));
