@@ -16,10 +16,13 @@ export function tgEscape(s: unknown): string {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-export async function sendTelegram(chatId: unknown, html: string, button?: { text: string; page: string }) {
+// rows: extra button rows above the page button (e.g. the demo's Accept / Reject)
+export async function sendTelegram(chatId: unknown, html: string, button?: { text: string; page: string }, rows: unknown[][] = []) {
   if (!BOT_TOKEN || !chatId) return;
   const body: Record<string, unknown> = { chat_id: chatId, text: html, parse_mode: "HTML", disable_web_page_preview: true };
-  if (button) body.reply_markup = { inline_keyboard: [[{ text: button.text, web_app: { url: `${SITE_URL}/${button.page}` } }]] };
+  const keyboard = [...rows];
+  if (button) keyboard.push([{ text: button.text, web_app: { url: `${SITE_URL}/${button.page}` } }]);
+  if (keyboard.length) body.reply_markup = { inline_keyboard: keyboard };
   const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -59,6 +62,17 @@ export async function notify(email: string | null | undefined, mail: Built, opts
   }
 }
 
+// Accept / Reject under a "Demo Scheduled" message. The telegram function
+// handles the press (callback_data "dr:<step>:<a|r>:<s|t>:<demoId>:<tutorId>",
+// s = the student / parent answering, t = the tutor): first tap asks to
+// confirm, then it runs the same accept / reject as the website.
+export function demoResponseButtons(side: "s" | "t", demoId: string, tutorId: string): unknown[][] {
+  return [[
+    { text: "✅ Accept", callback_data: `dr:q:a:${side}:${demoId}:${tutorId}` },
+    { text: "❌ Reject", callback_data: `dr:q:r:${side}:${demoId}:${tutorId}` },
+  ]];
+}
+
 const line = (icon: string, label: string, value: unknown) =>
   String(value ?? "").trim() ? `${icon} ${label}: <b>${tgEscape(value)}</b>\n` : "";
 
@@ -78,5 +92,5 @@ export function demoScheduledTelegram(d: {
     line("🗓", "Date", fmtDate(d.date)) +
     line("⏰", "Time", fmtTime(d.time)) +
     line("🏠", "Mode", modeText(d.mode)) +
-    `\nPlease be ready a few minutes early.`;
+    `\nPlease be ready a few minutes early. After the demo, tap Accept or Reject below.`;
 }

@@ -20,12 +20,24 @@
 //                         really is that Telegram user), then the chat is saved
 //                         on their student / tutor record(s)
 //                         (telegram_chat_id) for "Demo Scheduled" messages.
+//   POST (from Telegram)  a press on Accept / Reject under a "Demo Scheduled"
+//                         message: asks to confirm, then - only if the press
+//                         came from the chat linked to that student / tutor -
+//                         runs the website's own accept / reject as them
+//                         (bot_respond_to_demo / bot_respond_to_demo_tutor),
+//                         tells the other side (email + Telegram) and shows
+//                         the result on the message.
 //   GET  ?setup=1         one-time setup: points the bot's webhook here, makes
 //                         the menu button open the website, and removes the
 //                         command list. Safe to run again.
 //
+// After changing what the bot listens to (allowed_updates), open ?setup=1 once.
+//
 // Secret: TELEGRAM_BOT_TOKEN (from @BotFather). The webhook's secret header is
 // derived from it, so no second secret is needed.
+
+import { notify, demoResponseButtons } from "../_shared/telegram.ts";
+import { parentResponseMail, tutorResponseMail } from "../_shared/mails.ts";
 
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -124,6 +136,114 @@ async function sendOne(chatId: number, forTutor: boolean) {
   });
 }
 
+/* ---- Accept / Reject buttons under a "Demo Scheduled" message ---- */
+
+// callback_data "dr:<step>:<a|r>:<s|t>:<demoId>:<tutorId>"
+//   step q = first tap (ask to confirm), y = confirmed, b = back, x = nothing
+async function rpcCall(fn: string, args: Json): Promise<Json> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify(args),
+  });
+  return await res.json().catch(() => ({ success: false, message: "Something went wrong. Please try again." }));
+}
+
+const one = async (path: string) => (await db(path))?.[0] ?? null;
+const q = (v: string) => encodeURIComponent(v);
+
+function profileRow(side: string) {
+  return [{ text: "Open My Profile", web_app: { url: `${SITE_URL}/${side === "t" ? "tutorprofile" : "studentprofile"}.html` } }];
+}
+
+async function setButtons(chatId: number, messageId: number, rows: Json[][]) {
+  await telegram("editMessageReplyMarkup", { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: rows } });
+}
+
+async function onDemoButton(cb: Json) {
+  const chatId = Number(cb.message?.chat?.id ?? 0);
+  const messageId = Number(cb.message?.message_id ?? 0);
+  const fromId = Number(cb.from?.id ?? 0);
+  const [, step, choice, side, demoId, tutorId] = String(cb.data ?? "").split(":");
+  const answer = (text = "", alert = false) =>
+    telegram("answerCallbackQuery", { callback_query_id: cb.id, text, show_alert: alert });
+
+  if (!chatId || !messageId || !demoId || !tutorId || !["s", "t"].includes(side) || !["a", "r"].includes(choice)) {
+    await answer();
+    return;
+  }
+  const accept = choice === "a";
+  const tail = `${side}:${demoId}:${tutorId}`;
+
+  if (step === "q") {
+    await setButtons(chatId, messageId, [[
+      { text: accept ? "✅ Yes, accept" : "❌ Yes, reject", callback_data: `dr:y:${choice}:${tail}` },
+      { text: "↩️ Back", callback_data: `dr:b:${choice}:${tail}` },
+    ], profileRow(side)]);
+    await answer(accept ? "Tap \"Yes, accept\" to confirm." : "Tap \"Yes, reject\" to confirm. This cannot be undone.");
+    return;
+  }
+  if (step === "b") {
+    await setButtons(chatId, messageId, [...demoResponseButtons(side as "s" | "t", demoId, tutorId), profileRow(side)]);
+    await answer();
+    return;
+  }
+  if (step !== "y") {
+    await answer();
+    return;
+  }
+
+  // who is answering: only the chat linked to this student / tutor may
+  const tuition = await one(`tuitions?demo_id=eq.${q(demoId)}&select=subject,student_id`);
+  const student = tuition?.student_id
+    ? await one(`students?student_id=eq.${q(tuition.student_id)}&select=student_name,email,telegram_chat_id,class_name,board,city,pin_code`)
+    : null;
+  const tutor = await one(`tutors?tutor_id=eq.${q(tutorId)}&select=tutor_id,full_name,email,telegram_chat_id`);
+  const me = side === "s" ? student : tutor;
+  if (!tuition || !student || !tutor || !me?.email || Number(me.telegram_chat_id) !== fromId) {
+    await answer("This button is not for your account. Please use the website.", true);
+    return;
+  }
+
+  const decision = accept ? "accept" : "reject";
+  const result = side === "s"
+    ? await rpcCall("bot_respond_to_demo", { p_email: me.email, p_demo_id: demoId, p_tutor_id: tutorId, p_decision: decision })
+    : await rpcCall("bot_respond_to_demo_tutor", { p_email: me.email, p_demo_id: demoId, p_decision: decision });
+
+  if (!result?.success) {
+    const message = String(result?.message ?? "Your response could not be saved.");
+    const final = /no longer|already been confirmed/i.test(message);
+    await setButtons(chatId, messageId, final
+      ? [profileRow(side)]
+      : [...demoResponseButtons(side as "s" | "t", demoId, tutorId), profileRow(side)]);
+    await answer(message, true);
+    return;
+  }
+
+  await setButtons(chatId, messageId, [
+    [{ text: accept ? "✅ You accepted" : "❌ You rejected", callback_data: "dr:x:a:s:-:-" }],
+    profileRow(side),
+  ]);
+  await answer(String(result.message ?? "Saved."));
+
+  // tell the other side - the same email + Telegram message as from the website
+  try {
+    const subject = String(tuition.subject ?? "");
+    if (side === "s") {
+      await notify(tutor.email, parentResponseMail({
+        name: tutor.full_name, demoId, subject, studentName: student.student_name,
+        cls: student.class_name, board: student.board, city: student.city, pin: student.pin_code, accepted: accept,
+      }));
+    } else {
+      await notify(student.email, tutorResponseMail({
+        name: student.student_name, demoId, subject, tutorName: tutor.full_name, tutorId: tutor.tutor_id, accepted: accept,
+      }));
+    }
+  } catch (err) {
+    console.error("demo response notify failed", String(err));
+  }
+}
+
 /* ---- linking a logged-in student / tutor to their Telegram chat ---- */
 
 const CORS = {
@@ -196,7 +316,7 @@ async function setup(): Promise<Response> {
   const webhook = await telegram("setWebhook", {
     url: WEBHOOK_URL,
     secret_token: await webhookSecret(),
-    allowed_updates: ["message"],
+    allowed_updates: ["message", "callback_query"],
     drop_pending_updates: true,
   });
   // the menu button opens the website itself (no command list)
@@ -235,6 +355,12 @@ Deno.serve(async (req: Request) => {
 
   try {
     const update = await req.json();
+    if (update?.callback_query) {
+      const cb = update.callback_query;
+      if (String(cb.data ?? "").startsWith("dr:")) await onDemoButton(cb);
+      else await telegram("answerCallbackQuery", { callback_query_id: cb.id });
+      return json({ ok: true });
+    }
     const msg = update?.message;
     // private chats only; groups are ignored
     if (msg?.chat?.id && msg.chat.type === "private") {

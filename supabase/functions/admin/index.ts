@@ -23,7 +23,7 @@
 // =====================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { notify, sendTelegram, demoScheduledTelegram } from "../_shared/telegram.ts";
+import { notify, sendTelegram, demoScheduledTelegram, demoResponseButtons } from "../_shared/telegram.ts";
 import type { Built } from "../_shared/mails.ts";
 import {
   demoScheduledMail, paymentReceivedMail, agencyChargeMail, payoutMail, subscriptionMail, tuitionPostedMail,
@@ -841,8 +841,8 @@ async function sendDemoScheduled(demoId: string, tutorId: string, date: string, 
       ...base, studentName: student.student_name, cls: s?.class_name, board: s?.board,
       area: online ? "" : [s?.city, s?.pin_code].filter(Boolean).join(" - "), tutorName: tutor.full_name, tutorId,
     };
-    if (s?.telegram_chat_id) await sendTelegram(s.telegram_chat_id, demoScheduledTelegram({ ...msg, forTutor: false, name: student.student_name }), { text: "Open My Profile", page: "studentprofile.html" });
-    if (t?.telegram_chat_id) await sendTelegram(t.telegram_chat_id, demoScheduledTelegram({ ...msg, forTutor: true, name: tutor.full_name }), { text: "Open My Profile", page: "tutorprofile.html" });
+    if (s?.telegram_chat_id) await sendTelegram(s.telegram_chat_id, demoScheduledTelegram({ ...msg, forTutor: false, name: student.student_name }), { text: "Open My Profile", page: "studentprofile.html" }, demoResponseButtons("s", demoId, tutorId));
+    if (t?.telegram_chat_id) await sendTelegram(t.telegram_chat_id, demoScheduledTelegram({ ...msg, forTutor: true, name: tutor.full_name }), { text: "Open My Profile", page: "tutorprofile.html" }, demoResponseButtons("t", demoId, tutorId));
   } catch (e) { console.error("demo telegram", e); }
 }
 
