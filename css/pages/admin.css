@@ -1327,6 +1327,8 @@ button { cursor: pointer; }
   gap: 8px;
 }
 
+.admin-split.admin-split-3 { grid-template-columns: 1fr 1fr 1fr; }
+
 .admin-split > button {
   width: 100%;
   padding: 12px 8px;

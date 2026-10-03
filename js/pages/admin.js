@@ -20,7 +20,7 @@
  *   anymore. The function looks your email up in admin_users to
  *   find your role, and only allows the actions your role permits:
  *   adminGetOverview  adminUpdateRecord  adminUpdateTuition
- *   adminUpdateDemoRow  adminAssignTutor  adminSetTerminated
+ *   adminUpdateDemoRow  adminAssignTutor  adminSetTerminated  adminDeleteTuition
  *   adminAddPayment  adminUpdatePayment  adminDeletePayment
  *   adminListEmployees  adminAddEmployee  adminUpdateEmployee
  *   adminBootstrapSuperAdmin (only while no admin account exists yet)
@@ -69,7 +69,7 @@ function myPerms() {
     payments: has("payments_view"), paymentsAdd: has("payments_add"),
     paymentsEdit: has("payments_edit"), paymentsDelete: has("payments_delete"),
     subscriptionsAdd: has("subscriptions_add"), subscriptionsEdit: has("subscriptions_edit"),
-    studentsAdd: has("students_add"), tuitionsAdd: has("tuitions_add"),
+    studentsAdd: has("students_add"), tuitionsAdd: has("tuitions_add"), tuitionsDelete: has("tuitions_delete"),
     employees: has("employees_manage")
   };
 }
@@ -2858,6 +2858,20 @@ async function onListClick(event) {
       break;
     }
 
+    // Delete a tuition request for good (with its tutors' applications / demos)
+    case "delete-tuition": {
+      const demoId = box.dataset.demo;
+      const ok = await askConfirm({
+        title: `Delete ${demoId}?`,
+        lines: [
+          "The tuition request and every tutor's application / demo on it will be deleted for good. This cannot be undone.",
+          "If you only want to stop it, use Terminate instead.",
+        ],
+      });
+      if (ok) await save({ action: "adminDeleteTuition", demoId }, actionEl);
+      break;
+    }
+
     case "save-row":
       await saveDemoRow(box, actionEl);
       break;
@@ -5092,11 +5106,14 @@ function tuitionStack(g) {
 
   const tuitionButtons = editing
     ? editButtons(key, true, "save-tuition", "Edit Tuition")
-    : `<div class="admin-split">
+    : `<div class="admin-split${myPerms().tuitionsDelete ? " admin-split-3" : ""}">
          <button class="admin-ghost" data-action="edit" data-key="${esc(key)}" type="button">Edit Tuition</button>
          ${terminated
            ? `<button class="admin-ghost" data-action="reopen" type="button">Reopen Tuition</button>`
            : `<button class="admin-ghost admin-danger" data-action="terminate" type="button">Terminate Tuition</button>`}
+         ${myPerms().tuitionsDelete
+           ? `<button class="admin-ghost admin-danger" data-action="delete-tuition" type="button">Delete Tuition</button>`
+           : ""}
        </div>`;
 
   // Top layer (coloured by status): Demo ID | Subject | Class | Gender of
