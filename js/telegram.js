@@ -70,11 +70,17 @@
     } catch (e) {}
   }
 
-  window.addEventListener("load", async () => {
+  async function linkIfLoggedIn() {
     if (!window.sb) return;
     try {
       const { data } = await window.sb.auth.getSession();
       if (data && data.session) linkChat(data.session);
+    } catch (e) {}
+  }
+
+  window.addEventListener("load", () => {
+    linkIfLoggedIn();
+    try {
       window.sb.auth.onAuthStateChange((event, session) => {
         if (event === "SIGNED_IN" && session) linkChat(session);
       });
@@ -84,7 +90,7 @@
   const s = document.createElement("script");
   s.src = "https://telegram.org/js/telegram-web-app.js";
   s.async = true;
-  s.onload = fit;
+  s.onload = () => { fit(); linkIfLoggedIn(); };   // again, now with Telegram's own initData
   document.head.appendChild(s);
 
 })();
