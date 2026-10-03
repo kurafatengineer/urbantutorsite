@@ -147,6 +147,7 @@ const PERMISSION_GROUPS = [
     { key: "tuitions_assign_tutor", label: "Assign tutors" },
     { key: "tuitions_close", label: "Close / reopen tuitions" },
     { key: "tuitions_add", label: "Apply for new tuition for students" },
+    { key: "tuitions_delete", label: "Delete tuitions" },
   ] },
   { id: "tutors", label: "Tutors", items: [
     { key: "tutors_view", label: "View tutors" },
@@ -193,7 +194,7 @@ const ALL_GRANTS: string[] = ALL_PERMISSIONS.filter((p) => !RESTRICTION_PERMISSI
 // ticks the parent, and (server side, too) saving a child without its
 // parent adds the parent.
 const PERMISSION_PARENT: Record<string, string> = {
-  tuitions_edit: "tuitions_view", tuitions_assign_tutor: "tuitions_view", tuitions_close: "tuitions_view",
+  tuitions_edit: "tuitions_view", tuitions_assign_tutor: "tuitions_view", tuitions_close: "tuitions_view", tuitions_delete: "tuitions_view",
   tutors_edit: "tutors_view", tutors_verify: "tutors_view",
   students_edit: "students_view", students_add: "students_view", tuitions_add: "students_view",
   payments_add: "payments_view", payments_edit: "payments_view", payments_delete: "payments_view",
@@ -232,6 +233,7 @@ const ACTION_PERMISSION: Record<string, string> = {
   adminUpdateDemoRow: "tuitions_edit",
   adminAssignTutor: "tuitions_assign_tutor",
   adminSetTerminated: "tuitions_close",
+  adminDeleteTuition: "tuitions_delete",
   adminAddStudent: "students_add",
   adminAddTuition: "tuitions_add",
   adminAddPayment: "payments_add",
@@ -1085,6 +1087,23 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
         p_demo_id: body.demoId,
         p_terminated: terminated,
       });
+    }
+
+    // Delete a tuition request with its tutors' applications / demos. Not
+    // while payments are recorded against it (delete those first).
+    case "adminDeleteTuition": {
+      const demoId = String(body.demoId ?? "").trim();
+      if (!demoId) return { success: false, message: "Missing tuition." };
+      const { count } = await db.from("payments").select("id", { count: "exact", head: true }).eq("demo_id", demoId);
+      if (count) {
+        return { success: false, message: `${demoId} has ${count} payment${count === 1 ? "" : "s"} recorded. Delete ${count === 1 ? "it" : "them"} in Payments first.` };
+      }
+      const { error: appError } = await db.from("applications").delete().eq("demo_id", demoId);
+      if (appError) return { success: false, message: appError.message };
+      const { data: gone, error } = await db.from("tuitions").delete().eq("demo_id", demoId).select("demo_id");
+      if (error) return { success: false, message: error.message };
+      if (!gone?.length) return { success: false, message: `${demoId} was not found.` };
+      return { success: true, message: `${demoId} deleted.` };
     }
 
     // Add a Student - the same details as the student's own registration, with no OTP.
