@@ -1858,6 +1858,23 @@ function closeFormModal(id) {
   if (!document.querySelector(".add-modal:not(.hidden)")) document.body.classList.remove("add-modal-open");
 }
 
+// Add a Student: a student already on file with the same name, mobile
+// number and email (a brother / sister on the same number is fine)
+function duplicateStudent() {
+  const norm = t => lower(String(t || "").trim().replace(/\s+/g, " "));
+  const phone = taDigits($("saPhone").value).slice(-10);
+  const email = norm($("saEmail").value);
+  const name = norm($("saStudent").value);
+  if (phone.length !== 10 || !email || !name) return null;
+  return taStudentRows().find(r =>
+    taDigits(taVal(r, "Phone")).slice(-10) === phone && norm(taVal(r, "Email")) === email &&
+    norm(taVal(r, "Student Name")) === name) || null;
+}
+
+function duplicateStudentText(row) {
+  return `This student already exists (${row.id}) - same name, mobile number and email. Change the student's name if it's a different child.`;
+}
+
 function resetFormModal(prefix, formId, messageId) {
   $(formId).reset();
   $(messageId).textContent = "";
@@ -1926,8 +1943,18 @@ function wireStudentForms() {
     syncWhatsapp();
     syncTuition();
     openFormModal("studentAddModal");
-    $("saEmail").focus();
+    // the agency's email and the Terms tick come filled in (both can be changed)
+    $("saPhone").focus();
   });
+
+  // the same student again (same name, mobile and email) - said right away
+  ["saEmail", "saPhone", "saStudent"].forEach(id => $(id).addEventListener("input", () => {
+    const dup = duplicateStudent();
+    const msg = $("studentAddMessage");
+    if (dup) msg.textContent = duplicateStudentText(dup);
+    else if (msg.dataset.dup) msg.textContent = "";
+    msg.dataset.dup = dup ? "1" : "";
+  }));
 
   $("studentAddForm").addEventListener("submit", async (event) => {
 
@@ -1961,6 +1988,13 @@ function wireStudentForms() {
     if (problem) {
       $("studentAddMessage").textContent = problem[0];
       if (problem[1]) $(problem[1]).focus();
+      return;
+    }
+
+    const dup = duplicateStudent();
+    if (dup) {
+      $("studentAddMessage").textContent = duplicateStudentText(dup);
+      $("saStudent").focus();
       return;
     }
 
