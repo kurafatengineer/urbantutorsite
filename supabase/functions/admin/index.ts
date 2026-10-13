@@ -23,10 +23,10 @@
 // =====================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { notify, sendTelegram, demoScheduledTelegram, demoResponseButtons } from "../_shared/telegram.ts";
+import { notify, sendTelegram, demoScheduledTelegram, demoResponseButtons, studentQuiet } from "../_shared/telegram.ts";
 import type { Built } from "../_shared/mails.ts";
 import {
-  demoScheduledMail, paymentReceivedMail, agencyChargeMail, payoutMail, subscriptionMail, tuitionPostedMail, agreementMail, officeMessageMail,
+  demoScheduledMail, paymentReceivedMail, agencyChargeMail, payoutMail, subscriptionMail, tuitionPostedMail, agreementMail,
 } from "../_shared/mails.ts";
 import { dealNumbers, type Deal } from "../_shared/deal.ts";
 
@@ -177,8 +177,8 @@ const PERMISSION_GROUPS = [
     { key: "students_view", label: "View students" },
     { key: "students_edit", label: "Edit student details" },
     { key: "students_add", label: "Register students (Add a Student)" },
-    { key: "students_notify", label: "Send notifications to students" },
-    { key: "students_delete", label: "Delete / restore students (Trash)" },
+    { key: "students_mute", label: "Disable / enable a student's notifications" },
+    { key: "students_block", label: "Block / unblock students" },
   ] },
   { id: "payments", label: "Payments", items: [
     { key: "payments_view", label: "View Payments, Ledger & Graph" },
@@ -218,7 +218,7 @@ const PERMISSION_PARENT: Record<string, string> = {
   tuitions_edit: "tuitions_view", tuitions_assign_tutor: "tuitions_view", tuitions_close: "tuitions_view", tuitions_delete: "tuitions_view",
   tutors_edit: "tutors_view", tutors_verify: "tutors_view",
   students_edit: "students_view", students_add: "students_view", tuitions_add: "students_view",
-  students_notify: "students_view", students_delete: "students_view",
+  students_mute: "students_view", students_block: "students_view",
   payments_add: "payments_view", payments_edit: "payments_view", payments_delete: "payments_view",
   subscriptions_add: "payments_view", subscriptions_edit: "payments_view",
 };
@@ -227,7 +227,7 @@ const ROLE_PRESETS: Record<Role, string[]> = {
   super_admin: ALL_GRANTS,
   tuition_coordinator: [
     "tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_close",
-    "tutors_view", "tutors_edit", "students_view", "students_edit", "students_add", "tuitions_add", "students_notify",
+    "tutors_view", "tutors_edit", "students_view", "students_edit", "students_add", "tuitions_add", "students_mute",
   ],
   verification_staff: ["tutors_view", "tutors_verify"],
   accounts_finance: [
@@ -259,8 +259,8 @@ const ACTION_PERMISSION: Record<string, string> = {
   adminSetTerminated: "tuitions_close",
   adminDeleteTuition: "tuitions_delete",
   adminAddStudent: "students_add",
-  adminNotifyStudent: "students_notify",
-  adminDeleteStudent: "students_delete",
+  adminMuteStudent: "students_mute",
+  adminBlockStudent: "students_block",
   adminAddTuition: "tuitions_add",
   adminAddPayment: "payments_add",
   adminUpdatePayment: "payments_edit",
@@ -559,7 +559,7 @@ async function buildPaymentDirectory(): Promise<Json> {
     selectAll(() => db.from("applications").select(
       "demo_id, tutor_id, parent_accepted, tutor_accepted, parent_rejected, tutor_rejected, classes_completed, demo_date"
     ).order("id")),
-    selectAll(() => db.from("students").select("student_id, student_name, parents_name, phone, whatsapp").order("student_id")),
+    selectAll(() => db.from("students").select("student_id, student_name, parents_name, phone, whatsapp, blocked_at").order("student_id")),
     selectAll(() => db.from("tutors").select("tutor_id, full_name, mobile_number, whatsapp_number").order("tutor_id")),
   ]);
 
@@ -607,7 +607,7 @@ async function buildPaymentDirectory(): Promise<Json> {
     })),
     students: (students ?? []).map((s: Json) => ({
       id: s.student_id, name: s.student_name, parentsName: s.parents_name || "",
-      mobile: s.phone || s.whatsapp || "", whatsapp: s.whatsapp || "",
+      mobile: s.phone || s.whatsapp || "", whatsapp: s.whatsapp || "", blocked: !!s.blocked_at,
     })),
     tutors: (tutors ?? []).map((t: Json) => ({
       id: t.tutor_id, name: t.full_name, mobile: t.mobile_number || t.whatsapp_number || "",
@@ -769,15 +769,15 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
   if (!access.tutorsFull) withLinks.tutors = nameOnlyTable(withLinks.tutors, "Full Name");
   if (!access.studentsFull) withLinks.students = nameOnlyTable(withLinks.students, "Student Name");
 
-  // When each student was last edited / sent a notification / moved to
-  // the Trash - shown as icons on the Students tab and searchable there.
+  // Per student: last edited, notifications switched off, blocked - shown as
+  // the icons on the Students tab and searchable there.
   if (access.studentsFull && withLinks.students?.rows?.length) {
     const { data: marks } = await selectAll(() => db.from("students")
-      .select("student_id, edited_at, notified_at, deleted_at").order("student_id"));
+      .select("student_id, edited_at, notifications_off, blocked_at").order("student_id"));
     const byId = new Map((marks ?? []).map((m: Json) => [m.student_id, m]));
     for (const r of withLinks.students.rows) {
       const m: Json = byId.get(r.id) ?? {};
-      r.meta = { editedAt: m.edited_at ?? null, notifiedAt: m.notified_at ?? null, deletedAt: m.deleted_at ?? null };
+      r.meta = { editedAt: m.edited_at ?? null, notificationsOff: m.notifications_off === true, blockedAt: m.blocked_at ?? null };
     }
   }
 
@@ -907,6 +907,7 @@ async function sumPayments(filter: (q: Json) => Json): Promise<number> {
 // "Tuition Request Posted" email the student gets when posting it themselves.
 async function sendTuitionPosted(studentId: string, demoIds: string[], mails = true) {
   if (!studentId || !demoIds?.length) return;
+  if (await studentQuiet(studentId)) return;
   const { data: student } = await db.from("students")
     .select("student_name, email, class_name, board, city, pin_code").eq("student_id", studentId).maybeSingle();
   if (!student?.email) return;
@@ -928,8 +929,9 @@ async function sendDemoScheduled(demoId: string, tutorId: string, date: string, 
   const tutor = await tutorById(tutorId);
   if (!tuition || !student || !tutor) return;
   const base = { demoId, subject: tuition.subject ?? "", date, time, mode: tuition.medium };
+  const quiet = await studentQuiet(student.student_id);
   // emails only here: the Telegram message below carries more (class, area)
-  await notify(student.email, demoScheduledMail({ ...base, forTutor: false, name: student.student_name, otherName: tutor.full_name }), { email: mails, telegram: false });
+  if (!quiet) await notify(student.email, demoScheduledMail({ ...base, forTutor: false, name: student.student_name, otherName: tutor.full_name }), { email: mails, telegram: false });
   await notify(tutor.email, demoScheduledMail({ ...base, forTutor: true, name: tutor.full_name, otherName: student.student_name }), { email: mails, telegram: false });
   try {
     const { data: s } = await db.from("students").select("telegram_chat_id, class_name, board, city, pin_code")
@@ -940,7 +942,7 @@ async function sendDemoScheduled(demoId: string, tutorId: string, date: string, 
       ...base, studentName: student.student_name, cls: s?.class_name, board: s?.board,
       area: online ? "" : [s?.city, s?.pin_code].filter(Boolean).join(" - "), tutorName: tutor.full_name, tutorId,
     };
-    if (s?.telegram_chat_id) await sendTelegram(s.telegram_chat_id, demoScheduledTelegram({ ...msg, forTutor: false, name: student.student_name }), { text: "Open My Profile", page: "studentprofile.html" }, demoResponseButtons("s", demoId, tutorId));
+    if (!quiet && s?.telegram_chat_id) await sendTelegram(s.telegram_chat_id, demoScheduledTelegram({ ...msg, forTutor: false, name: student.student_name }), { text: "Open My Profile", page: "studentprofile.html" }, demoResponseButtons("s", demoId, tutorId));
     if (t?.telegram_chat_id) await sendTelegram(t.telegram_chat_id, demoScheduledTelegram({ ...msg, forTutor: true, name: tutor.full_name }), { text: "Open My Profile", page: "tutorprofile.html" }, demoResponseButtons("t", demoId, tutorId));
   } catch (e) { console.error("demo telegram", e); }
 }
@@ -964,7 +966,7 @@ async function sendAgreements(demoId: string, tutorId: string, deal: Deal, dates
     startDate: String(startDate || dates[0] || ""), days, time: String(deal.time ?? ""),
     m: m as Record<string, unknown>, parentFreq: String(deal.parentFreq ?? ""), tutorFreq: String(deal.tutorFreq ?? ""),
   };
-  if (st?.email) await notify(st.email, agreementMail({ ...base, forTutor: false, name: String(st.parents_name || st.student_name || "") }), { email: mails });
+  if (st?.email && !(await studentQuiet(t.student_id))) await notify(st.email, agreementMail({ ...base, forTutor: false, name: String(st.parents_name || st.student_name || "") }), { email: mails });
   if (tu?.email) await notify(tu.email, agreementMail({ ...base, forTutor: true, name: String(tu.full_name ?? "") }), { email: mails });
 }
 
@@ -979,6 +981,7 @@ async function sendPaymentMail(pay: Json, mails = true) {
     const paid = await sumPayments((q) => q.eq("subscription_id", pay.subscription_id).neq("transaction_type", "payout"));
     const party = sub.student_id ? await studentById(sub.student_id) : await tutorById(sub.tutor_id);
     if (!party) return;
+    if (sub.student_id && await studentQuiet(sub.student_id)) return;
     await sendTo(party.email, subscriptionMail({
       forTutor: !sub.student_id, name: sub.student_id ? party.student_name : party.full_name,
       plan: sub.plan_name, amount: num(sub.amount), paid, startDate: sub.start_date, nextDue: sub.next_due_date,
@@ -1002,6 +1005,7 @@ async function sendPaymentMail(pay: Json, mails = true) {
     });
     const party = forTutor ? await tutorById(pay.tutor_id) : student;
     if (!party) return;
+    if (!forTutor && await studentQuiet(student?.student_id)) return;
     await sendTo(party.email, agencyChargeMail({
       ...common, forTutor, name: forTutor ? party.full_name : party.student_name, subject, demoId: pay.demo_id,
       remaining: app ? Math.max(charge - received, 0) : undefined,
@@ -1027,6 +1031,7 @@ async function sendPaymentMail(pay: Json, mails = true) {
 
   // 6 - a parent's payment for the tuition
   if (!student) return;
+  if (await studentQuiet(student.student_id)) return;
   const paid = await sumPayments((q) => q.eq("demo_id", pay.demo_id).eq("transaction_type", "collection"));
   await sendTo(student.email, paymentReceivedMail({
     ...common, name: student.student_name, subject, demoId: pay.demo_id, type: pay.payment_type,
@@ -1183,6 +1188,10 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
     case "adminUpdateRecord": {
       const scopeError = checkUpdateRecordScope(caller, String(body.kind), body.changes ?? {});
       if (scopeError) return { success: false, message: scopeError };
+      if (String(body.kind) === "students") {
+        const { data: cur } = await db.from("students").select("blocked_at").eq("student_id", body.id).maybeSingle();
+        if (cur?.blocked_at) return { success: false, message: "This student is blocked. Unblock them to edit." };
+      }
       const result = await rpc("admin_update_record", {
         p_kind: body.kind,
         p_id: body.id,
@@ -1332,33 +1341,37 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
     }
 
     // Add a Student - the same details as the student's own registration, with no OTP.
-    // A message from the office to one student: email + Telegram (when
-    // linked). Marks the student as notified.
-    case "adminNotifyStudent": {
+    // Switch a student's notifications off / on. While off (or blocked) no
+    // email and no Telegram message about them goes out - see studentQuiet.
+    case "adminMuteStudent": {
       const id = String(body.id ?? "").trim();
-      const message = String(body.message ?? "").trim();
       if (!id) return { success: false, message: "Missing student." };
-      if (!message) return { success: false, message: "Write the message first." };
-      const { data: st } = await db.from("students").select("student_name, parents_name, email").eq("student_id", id).maybeSingle();
-      if (!st) return { success: false, message: "Student not found." };
-      if (!st.email) return { success: false, message: "This student has no email." };
-      await notify(st.email, officeMessageMail({ name: st.parents_name || st.student_name, studentId: id, message }), { email: callerMailsOn(caller) });
-      await db.from("students").update({ notified_at: new Date().toISOString() }).eq("student_id", id);
-      return { success: true, message: `Notification sent to ${st.student_name || id}.` };
+      const off = body.off === true;
+      const { data: cur } = await db.from("students").select("student_name, blocked_at").eq("student_id", id).maybeSingle();
+      if (!cur) return { success: false, message: "Student not found." };
+      if (cur.blocked_at) return { success: false, message: "This student is blocked, so notifications are already off. Unblock them first." };
+      const { error } = await db.from("students").update({ notifications_off: off }).eq("student_id", id);
+      if (error) return { success: false, message: error.message };
+      return { success: true, message: off
+        ? `Notifications are OFF for ${cur.student_name || id}. No email or Telegram message will go to them.`
+        : `Notifications are ON again for ${cur.student_name || id}.` };
     }
 
-    // Delete only moves a student to the Trash (nothing is erased):
-    // hidden from the Students list, found again by searching "delete",
-    // and restored from there.
-    case "adminDeleteStudent": {
+    // Block / unblock. Nothing is erased. A blocked student can open their
+    // page only: no new tuitions, no replies to tutors, no tuition of theirs
+    // shown to tutors, no notifications, no edits - until unblocked.
+    case "adminBlockStudent": {
       const id = String(body.id ?? "").trim();
       if (!id) return { success: false, message: "Missing student." };
-      const restore = body.restore === true;
-      const { data: gone, error } = await db.from("students")
-        .update({ deleted_at: restore ? null : new Date().toISOString() }).eq("student_id", id).select("student_id");
+      const unblock = body.unblock === true;
+      const { data: done, error } = await db.from("students")
+        .update({ blocked_at: unblock ? null : new Date().toISOString() }).eq("student_id", id).select("student_name");
       if (error) return { success: false, message: error.message };
-      if (!gone?.length) return { success: false, message: "Student not found." };
-      return { success: true, message: restore ? `${id} restored.` : `${id} moved to Trash. Search "delete" to see or restore it.` };
+      if (!done?.length) return { success: false, message: "Student not found." };
+      const name = done[0].student_name || id;
+      return { success: true, message: unblock
+        ? `${name} is unblocked.`
+        : `${name} is blocked. They can only open their page; nothing else works and no notification goes to them.` };
     }
 
     case "adminAddStudent": {
@@ -1431,6 +1444,10 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
       // second one can't be opened - payments are added to the existing one.
       const partyColumn = changes.student_id ? "student_id" : "tutor_id";
       const partyId = changes.student_id ?? changes.tutor_id;
+      if (changes.student_id) {
+        const { data: cur } = await db.from("students").select("blocked_at").eq("student_id", changes.student_id).maybeSingle();
+        if (cur?.blocked_at) return { success: false, message: `${partyId} is blocked. Unblock them first.` };
+      }
       const { data: existingSub } = await db.from("subscriptions")
         .select("id").eq(partyColumn, partyId).neq("status", "cancelled").limit(1).maybeSingle();
       if (existingSub) {

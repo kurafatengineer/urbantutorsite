@@ -36,7 +36,7 @@
 // Secret: TELEGRAM_BOT_TOKEN (from @BotFather). The webhook's secret header is
 // derived from it, so no second secret is needed.
 
-import { notify, notifyIfMatched, demoResponseButtons } from "../_shared/telegram.ts";
+import { notify, notifyIfMatched, demoResponseButtons, studentQuiet } from "../_shared/telegram.ts";
 import { parentResponseMail, tutorResponseMail } from "../_shared/mails.ts";
 
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
@@ -237,7 +237,7 @@ async function onDemoButton(cb: Json) {
         name: tutor.full_name, demoId, subject, studentName: student.student_name,
         cls: student.class_name, board: student.board, city: student.city, pin: student.pin_code, accepted: accept,
       }));
-    } else {
+    } else if (!(await studentQuiet(tuition.student_id))) {
       await notify(student.email, tutorResponseMail({
         name: student.student_name, demoId, subject, tutorName: tutor.full_name, tutorId: tutor.tutor_id, accepted: accept,
       }));

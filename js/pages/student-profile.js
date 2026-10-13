@@ -348,7 +348,12 @@ function renderProfile(student) {
     return;
   }
 
-  $("applyTuitionButton").classList.remove("hidden");
+  // A blocked student can only look at their page: no new tuition, no new
+  // student, no answering tutors (the server refuses these too).
+  const blocked = !!student.blocked;
+  $("applyTuitionButton").classList.toggle("hidden", blocked);
+  $("addStudentButton").disabled = blocked;
+  $("blockedNotice").classList.toggle("hidden", !blocked);
 
   const name = student.studentName || "Student";
 
@@ -944,6 +949,7 @@ function renderTutorCard(tutor, item) {
 
   const acceptedByMe = isTicked(tutor.parentAccepted);
   const rejectedByMe = isTicked(tutor.parentRejected);
+  const blocked = !!(selectedStudent() || {}).blocked;
 
   // Always shown; the server switches them off (canAccept / canReject)
   // once an answer is given or another tutor is confirmed.
@@ -1003,11 +1009,11 @@ function renderTutorCard(tutor, item) {
             <button type="button" class="tutor-btn tutor-btn-accept${acceptedByMe ? " chosen" : ""}"
               data-respond="accept" ${data}
               title="${escapeHTML(acceptTitle)}"
-              ${tutor.canAccept ? "" : "disabled"}>Accept</button>
+              ${tutor.canAccept && !blocked ? "" : "disabled"}>Accept</button>
             <button type="button" class="tutor-btn tutor-btn-reject${rejectedByMe ? " chosen" : ""}"
               data-respond="reject" ${data}
               title="${rejectedByMe ? "You rejected this tutor" : "Reject this tutor"}"
-              ${tutor.canReject ? "" : "disabled"}>Reject</button>
+              ${tutor.canReject && !blocked ? "" : "disabled"}>Reject</button>
           </div>
         ` : ""}
 

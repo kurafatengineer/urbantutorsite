@@ -72,7 +72,7 @@ function myPerms() {
     tuitions: has("tuitions_view"),
     tutorsView: has("tutors_view"), tutorsEdit: has("tutors_edit"), tutorsVerify: has("tutors_verify"),
     students: has("students_view"), studentsEdit: has("students_edit"),
-    studentsNotify: has("students_notify"), studentsDelete: has("students_delete"),
+    studentsMute: has("students_mute"), studentsBlock: has("students_block"),
     payments: has("payments_view"), paymentsAdd: has("payments_add"),
     paymentsEdit: has("payments_edit"), paymentsDelete: has("payments_delete"),
     subscriptionsAdd: has("subscriptions_add"), subscriptionsEdit: has("subscriptions_edit"),
@@ -716,26 +716,18 @@ function renderMailToggle() {
 
 // The "are you sure?" box: title, justified text, Cancel (left) / OK (right).
 // Resolves true for OK; Cancel, Esc or a tap outside the box give false.
-// input: { value, placeholder } adds a message box - the promise then
-// gives the typed text (or false on Cancel). okText renames the OK button.
-function askConfirm({ title, lines, input, okText }) {
+// okText renames the OK button (Block, Unblock, ...).
+function askConfirm({ title, lines, okText }) {
   const box = $("adminConfirm");
   $("adminConfirmTitle").textContent = title;
-  $("adminConfirmText").innerHTML = lines.map(l => `<p>${esc(l)}</p>`).join("") +
-    (input ? `<textarea class="admin-confirm-input" rows="5" placeholder="${esc(input.placeholder || "")}">${esc(input.value || "")}</textarea>` : "");
-  const okButton = box.querySelector('[data-confirm="ok"]');
-  okButton.textContent = okText || "OK";
+  $("adminConfirmText").innerHTML = lines.map(l => `<p>${esc(l)}</p>`).join("");
+  box.querySelector('[data-confirm="ok"]').textContent = okText || "OK";
   box.classList.remove("hidden");
   box.setAttribute("aria-hidden", "false");
   const cancelButton = box.querySelector('[data-confirm="cancel"].admin-ghost');
-  const field = input ? box.querySelector(".admin-confirm-input") : null;
-  (field || cancelButton).focus();
+  cancelButton.focus();
   return new Promise(resolve => {
     const finish = (answer) => {
-      if (answer && field) {
-        if (!field.value.trim()) { field.focus(); return; }
-        answer = field.value.trim();
-      }
       box.classList.add("hidden");
       box.setAttribute("aria-hidden", "true");
       box.removeEventListener("click", onClick);
@@ -2310,7 +2302,7 @@ function studentHit(query, student, extra = []) {
 function paymentDemoSuggestions(query, tutorFilter, tutorSide = false) {
   // Payments are for classes actually running right now, not every
   // tuition ever posted.
-  let list = (STATE.directory.demos || []).filter(d => d.running);
+  let list = (STATE.directory.demos || []).filter(d => d.running && !(DIR_STUDENT_BY_ID[d.studentId] || {}).blocked);
   if (tutorFilter) list = list.filter(d => d.tutorIds.includes(tutorFilter));
   list = list.filter(d => studentHit(query, DIR_STUDENT_BY_ID[d.studentId], [d.demoId, d.studentId]) ||
     (tutorSide && d.tutorIds.some(id => { const t = DIR_TUTOR_BY_ID[id] || {}; return lookupHit(query, [id, t.name], [t.mobile]); })));
@@ -2335,7 +2327,7 @@ function paymentTutorSuggestions(query, demoFilter) {
 }
 
 function studentOrTutorSuggestions(query, isStudent, opts = {}) {
-  let list = isStudent ? (STATE.directory.students || []) : (STATE.directory.tutors || []);
+  let list = isStudent ? (STATE.directory.students || []).filter(p => !p.blocked) : (STATE.directory.tutors || []);
   if (opts.excludeFullyPaid) {
     list = list.filter(p => {
       const sub = subscriptionFor(isStudent ? "student" : "tutor", p.id);
@@ -3178,13 +3170,12 @@ async function onListClick(event) {
       rerenderCurrent();
       break;
 
-    case "student-notify":
-      await notifyStudent(actionEl.dataset.id, actionEl);
+    case "student-mute":
+      await muteStudent(actionEl.dataset.id, actionEl);
       break;
 
-    case "student-delete":
-    case "student-restore":
-      await trashStudent(actionEl.dataset.id, action === "student-restore", actionEl);
+    case "student-block":
+      await blockStudent(actionEl.dataset.id, actionEl);
       break;
 
     case "cancel":
@@ -4136,7 +4127,7 @@ function recordCard(kind, record, opts) {
   const editing = STATE.editing.has(key);
 
   return `
-    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}${kind === "students" && studentTags(record).includes("deleted") ? " is-trashed" : ""}" data-tone="${opts.tone || ""}"
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}${kind === "students" && studentTags(record).includes("blocked") ? " is-blocked" : ""}" data-tone="${opts.tone || ""}"
       data-box data-kind="${kind}" data-row="${record.rowNumber}" data-id="${esc(record.id)}" data-key="${esc(key)}"${kind === "students" ? ` data-tags="${studentTags(record).join(" ")}"` : ""}>
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
@@ -4154,7 +4145,7 @@ function recordCard(kind, record, opts) {
       <div class="admin-card-body">
         ${fieldsBoxes(kind, record, editing)}
         ${opts.extra || ""}
-        ${(kind === "tutors" ? myPerms().tutorsEdit : myPerms().studentsEdit) ? editButtons(key, editing, "save-record", "Edit Details") : ""}
+        ${(kind === "tutors" ? myPerms().tutorsEdit : (myPerms().studentsEdit && !studentTags(record).includes("blocked"))) ? editButtons(key, editing, "save-record", "Edit Details") : ""}
         ${editing && kind === "students" ? note("Changing the Email moves this student to that login. Brothers / sisters share one Email and Phone.") : ""}
         ${editing && kind === "tutors" ? note("Changing the Mobile Number also moves this tutor's tuitions to the new number.") : ""}
       </div>
@@ -5460,11 +5451,18 @@ function listHeaderCard(innerHtml) {
 }
 
 /* ---------------- student card icons ----------------
-   Right of the PIN Code on every Student card: Notification (bell),
-   Edit (pencil), Delete (bin - only moves the student to the Trash) and
-   a status mark - a green check when every detail is filled, an orange
-   flag when something is missing. What they record is searchable:
-   "notification", "edit", "delete", "check" / "approved", "flag". */
+   A 2 x 2 grid right of the PIN Code on every Student card:
+        Block    | Check / Flag
+        Bell     | Edit
+   Block (red)       - blocks the student: they can only open their page,
+                       nothing else works, no notification goes to them, and
+                       they can't be edited until unblocked. Nothing is erased.
+   Check / Flag      - green check when every detail is filled, orange flag
+                       when something is missing.
+   Bell (blue)       - switches this student's notifications off / on.
+   Edit (violet)     - opens the card ready to edit.
+   A tinted icon means "recorded": blocked, notifications off, edited.
+   All of it is searchable: block, notification, edit, check, flag. */
 const STUDENT_REQUIRED = ["Parents Name", "Student Name", "Phone", "WhatsApp", "Email", "Gender",
   "Class", "Board", "School", "Address", "City", "PIN Code"];
 
@@ -5476,8 +5474,9 @@ function studentTags(r) {
   const m = r.meta || {};
   const tags = [studentMissing(r).length ? "flagged" : "approved"];
   if (m.editedAt) tags.push("edited");
-  if (m.notifiedAt) tags.push("notified");
-  if (m.deletedAt) tags.push("deleted");
+  if (m.blockedAt) tags.push("blocked");
+  // a blocked student never gets notifications, so they count as switched off too
+  if (m.notificationsOff || m.blockedAt) tags.push("muted");
   return tags;
 }
 
@@ -5486,8 +5485,8 @@ const STATUS_WORDS = {
   approved: "approved", approve: "approved", check: "approved", checked: "approved", complete: "approved",
   flag: "flagged", flagged: "flagged", incomplete: "flagged",
   edit: "edited", edited: "edited",
-  notification: "notified", notifications: "notified", notify: "notified", notified: "notified",
-  delete: "deleted", deleted: "deleted", trash: "deleted",
+  notification: "muted", notifications: "muted", notify: "muted", mute: "muted", muted: "muted", disabled: "muted",
+  block: "blocked", blocked: "blocked", delete: "blocked", deleted: "blocked",
 };
 
 function cardMatches(query, el) {
@@ -5495,8 +5494,6 @@ function cardMatches(query, el) {
   if (tags === undefined) return matchesAll(query, cardSearchText(el));
   const have = tags.split(" ");
   const words = lower(query).split(/\s+/).filter(Boolean);
-  // a student in the Trash shows only when the search asks for it
-  if (have.includes("deleted") && !words.some(w => STATUS_WORDS[w] === "deleted")) return false;
   const textWords = words.filter(w => !STATUS_WORDS[w]);
   return words.every(w => !STATUS_WORDS[w] || have.includes(STATUS_WORDS[w])) &&
     matchesAll(textWords.join(" "), cardSearchText(el));
@@ -5504,9 +5501,9 @@ function cardMatches(query, el) {
 
 const STU_SVG = {
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  bellOff: '<path d="M8.7 3A6 6 0 0 1 18 8c0 2.2.3 4 .8 5.4"/><path d="M17 17H3s3-2 3-9c0-.7.1-1.4.3-2"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="m2 2 20 20"/>',
   edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
-  bin: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/>',
-  restore: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  ban: '<circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/>',
   check: '<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/>',
   flag: '<path d="M4 22V4"/><path d="M4 4h12l-2 4 2 4H4"/>',
 };
@@ -5524,51 +5521,57 @@ function studentIconsHtml(r, key) {
   const perms = myPerms();
   const m = r.meta || {};
   const missing = studentMissing(r);
-  const trashed = !!m.deletedAt;
+  const blocked = !!m.blockedAt;
+  const muted = !!m.notificationsOff;
   const btn = (action, icon, tone, label, allowed, on) =>
     `<button type="button" class="stu-icon" data-tone="${tone}"${on ? ' data-on="1"' : ""} data-action="${action}" data-id="${esc(r.id)}" data-key="${esc(key)}"
       title="${esc(label)}" aria-label="${esc(label)}"${allowed ? "" : " disabled"}>${stuIcon(icon)}</button>`;
+  // order = top-left, top-right, bottom-left, bottom-right
   return `<span class="stu-icons">
-    ${btn("student-notify", "bell", "blue", m.notifiedAt ? `Send a notification (last sent ${fmtWhen(m.notifiedAt)})` : "Send a notification", perms.studentsNotify && !trashed, !!m.notifiedAt)}
-    ${btn("student-edit", "edit", "violet", m.editedAt ? `Edit details (last edited ${fmtWhen(m.editedAt)})` : "Edit details", perms.studentsEdit && !trashed, !!m.editedAt)}
-    ${trashed
-      ? btn("student-restore", "restore", "green", `In Trash since ${fmtWhen(m.deletedAt)} - restore`, perms.studentsDelete, true)
-      : btn("student-delete", "bin", "red", "Delete (move to Trash)", perms.studentsDelete, false)}
+    ${btn("student-block", "ban", "red",
+      blocked ? `Blocked since ${fmtWhen(m.blockedAt)} - click to unblock` : "Block this student", perms.studentsBlock, blocked)}
     ${missing.length
       ? btn("student-status", "flag", "orange", `Needs check - missing: ${missing.join(", ")}`, true, true)
       : btn("student-status", "check", "green", "All details filled - approved", true, true)}
+    ${btn("student-mute", muted || blocked ? "bellOff" : "bell", "blue",
+      blocked ? "Blocked - notifications are off" : muted ? "Notifications are OFF - click to turn on" : "Notifications are ON - click to turn off",
+      perms.studentsMute && !blocked, muted || blocked)}
+    ${btn("student-edit", "edit", "violet",
+      blocked ? "Blocked - unblock to edit" : m.editedAt ? `Edit details (last edited ${fmtWhen(m.editedAt)})` : "Edit details",
+      perms.studentsEdit && !blocked, !!m.editedAt)}
   </span>`;
 }
 
-async function notifyStudent(id, button) {
+async function muteStudent(id, button) {
   const r = STUDENT_BY_ID[id];
   if (!r) return;
   const name = r.values["Student Name"] || id;
-  const missing = studentMissing(r).filter(f => f !== "Email");
-  const message = await askConfirm({
-    title: `Notify ${name}`,
-    lines: ["Goes to the student's email, and to Telegram if they have linked it."],
-    input: {
-      value: missing.length ? `Please complete your details on Urban Tutor Site - missing: ${missing.join(", ")}.` : "",
-      placeholder: "Write the message...",
-    },
-    okText: "Send",
-  });
-  if (!message) return;
+  const turnOff = !(r.meta && r.meta.notificationsOff);
+  const ok = await askConfirm(turnOff
+    ? { title: `Turn off notifications for ${name}?`, okText: "Turn Off",
+        lines: ["No email and no Telegram message about this student will be sent to them - tuition requests, demos, payments, agreements, tutor replies - until you turn it back on."] }
+    : { title: `Turn notifications back on for ${name}?`, okText: "Turn On",
+        lines: [`${name} will get emails and Telegram messages again.`] });
+  if (!ok) return;
   button.disabled = true;
-  await save({ action: "adminNotifyStudent", id, message });
+  await save({ action: "adminMuteStudent", id, off: turnOff });
   if (document.body.contains(button)) button.disabled = false;
 }
 
-async function trashStudent(id, restore, button) {
+async function blockStudent(id, button) {
   const r = STUDENT_BY_ID[id];
-  const name = (r && r.values["Student Name"]) || id;
-  const ok = await askConfirm(restore
-    ? { title: `Restore ${name}?`, lines: [`${id} comes back to the Students list.`], okText: "Restore" }
-    : { title: `Delete ${name}?`, lines: [`${id} moves to the Trash and leaves the Students list. Nothing is erased - search "delete" to see it or restore it.`], okText: "Delete" });
+  if (!r) return;
+  const name = r.values["Student Name"] || id;
+  const unblock = !!(r.meta && r.meta.blockedAt);
+  const ok = await askConfirm(unblock
+    ? { title: `Unblock ${name}?`, okText: "Unblock",
+        lines: [`${id} gets full access again, and can be edited. Their notifications go back to how they were before.`] }
+    : { title: `Block ${name}?`, okText: "Block",
+        lines: ["Nothing is deleted. The student can only open their page: they can't post or answer tuitions, their open tuitions are hidden from tutors, no update or notification is sent, and their details can't be edited - until you unblock."] });
   if (!ok) return;
   button.disabled = true;
-  await save({ action: "adminDeleteStudent", id, restore });
+  STATE.editing.delete("students:" + id);
+  await save({ action: "adminBlockStudent", id, unblock });
   if (document.body.contains(button)) button.disabled = false;
 }
 
