@@ -4399,11 +4399,11 @@ button.pc-stat[data-empty] { cursor: default; }
    CLASS CARD v3 - calendar | Student + Tutor on top, the deal below
 ========================================================= */
 .class-plan { display: grid; grid-template-columns: 1fr; gap: 16px; }
-.class-top { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.4fr); gap: 16px; align-items: start; }
+.class-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
 .class-top > .admin-class-parties { grid-template-columns: 1fr 1fr; gap: 12px; }
 .class-bill.deal { padding: 16px; }
 .deal-grid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
-@media (max-width: 1000px) {
+@media (max-width: 760px) {
   .class-top { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
@@ -4432,3 +4432,26 @@ button.pc-stat[data-empty] { cursor: default; }
 .cal-chip.cal-ok { color: #16a34a; background: rgba(22, 163, 74, 0.14); }
 .cal-chip.cal-bad { color: #ef4444; background: rgba(239, 68, 68, 0.14); }
 .cal-hint { margin: 8px 0 0; text-align: center; font-size: 11.5px; color: var(--muted); }
+
+
+/* Student / Tutor cards v2 - same design for both */
+.pc { padding: 14px; gap: 12px; }
+.pc-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: center; }
+.pc-head .admin-avatar { position: relative; width: 40px; height: 40px; grid-row: span 1; }
+.pc-who { min-width: 0; }
+.pc-who h3 { margin: 0; font-size: 14.5px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+.pc-who small { display: block; color: var(--muted); font-weight: 700; font-size: 11.5px; letter-spacing: 0.02em; }
+.pc-nums { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.pc-num { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.pc-num svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; color: var(--muted); }
+.pc-num.is-wa svg { color: #22c55e; }
+.pc-terms { grid-template-columns: 1fr 1fr; gap: 10px 8px; padding: 10px 12px; }
+.pc-terms .pc-due { grid-column: 1 / -1; padding-top: 8px; border-top: 1px dashed var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pc-terms .pc-due small { margin: 0; }
+.pc-stat em { font-style: normal; font-weight: 700; font-size: 12px; color: var(--muted); }
+.pc-stat.pc-wide { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pc-stat.pc-wide small { margin: 0; }
+.pc-bar { display: none; }
+.pc-stat.pc-wide small, .pc-stat.pc-wide b { white-space: nowrap; }
+.pc-stat.pc-wide b { font-size: 14px; }
+.pc-terms > div > .pc-chip { margin-top: 1px; }
