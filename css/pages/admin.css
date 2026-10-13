@@ -580,21 +580,27 @@ button { cursor: pointer; }
 
 
 /* ---------------- student card icons ----------------
-   Bell (blue) · Pencil (violet) · Bin (red) / Restore (green) · Check
-   (green) or Flag (orange). Outline while nothing is recorded; a soft
-   tint of the same colour once it is (notified, edited, in Trash). */
+   A 2 x 2 grid on the right of the card:
+        Block (red) | Check (green) / Flag (orange)
+        Bell (blue) | Edit (violet)
+   Outline while nothing is recorded; a soft tint of the same colour once
+   it is (blocked, notifications off, edited). */
 
 .stu-icons {
   flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, 32px);
+  grid-auto-rows: 32px;
   gap: 6px;
-  width: 146px;
-  justify-content: flex-end;
+  width: 70px;
+  margin-left: auto;
+  justify-content: end;
 }
 
 .stu-icons-label {
-  justify-content: center;
+  display: block;
+  line-height: 1.2;
+  text-align: center;
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
@@ -648,26 +654,14 @@ html[data-theme="light"] .stu-icon[data-tone="blue"] { --c: var(--blue); }
   cursor: not-allowed;
 }
 
-.admin-card.is-trashed {
-  opacity: 0.7;
-  border-style: dashed;
-}
-
-.admin-confirm-input {
-  width: 100%;
-  margin-top: 4px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border-light);
-  background: var(--surface-2);
-  color: var(--text);
-  font: inherit;
-  font-size: 14px;
-  resize: vertical;
+/* a blocked student: dimmed with a red edge, so it stands out in the list */
+.admin-card.is-blocked {
+  opacity: 0.72;
+  box-shadow: inset 3px 0 0 var(--danger);
 }
 
 @media (max-width: 720px) {
-  .stu-icons { width: auto; gap: 4px; }
+  .stu-icons { grid-template-columns: repeat(2, 28px); grid-auto-rows: 28px; gap: 4px; width: 60px; }
   .stu-icon { width: 28px; height: 28px; }
 }
 

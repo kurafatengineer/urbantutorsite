@@ -19,7 +19,7 @@
 // =====================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { notify, notifyIfMatched } from "../_shared/telegram.ts";
+import { notify, notifyIfMatched, studentQuiet } from "../_shared/telegram.ts";
 import { tuitionPostedMail, tutorAppliedMail, parentResponseMail, tutorResponseMail } from "../_shared/mails.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -97,6 +97,7 @@ async function sendTuitionPosted(studentId: string, demoIds: string[]) {
     cls: student.class_name, board: student.board, medium: rows[0].medium, preferredTutor: rows[0].preferred_tutor,
     city: student.city, pin: student.pin_code,
   });
+  if (await studentQuiet(studentId)) return;
   await notify(student.email, mail);
 }
 
@@ -130,7 +131,7 @@ async function handleApplyForTuition(userClient: ReturnType<typeof callAsUser>, 
   if (data?.success && !data?.alreadyApplied) {
     const tutor = await tutorByEmail(await callerEmail(userClient));
     const { tuition, student } = await demoAndStudent(demoId);
-    if (tutor && student?.email) {
+    if (tutor && student?.email && !(await studentQuiet(student.student_id))) {
       const mail = tutorAppliedMail({
         name: student.student_name, demoId, subject: tuition?.subject ?? "", tutorName: tutor.full_name,
         tutorId: tutor.tutor_id, experience: tutor.experience_years, gender: tutor.gender,
@@ -182,7 +183,7 @@ async function handleRespondToDemoTutor(userClient: ReturnType<typeof callAsUser
   const matched = !!tutor && decision.toLowerCase() === "accept" && await notifyIfMatched(demoId, tutor.tutor_id);
   if (data?.success && !matched) {
     const { tuition, student } = await demoAndStudent(demoId);
-    if (tutor && student?.email) {
+    if (tutor && student?.email && !(await studentQuiet(student.student_id))) {
       const mail = tutorResponseMail({
         name: student.student_name, demoId, subject: tuition?.subject ?? "", tutorName: tutor.full_name,
         tutorId: tutor.tutor_id, accepted: decision.toLowerCase() === "accept",

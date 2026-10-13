@@ -1536,3 +1536,21 @@ body.add-modal-open {
 .class-card.tuition-card.tone-declined:not(.is-collapsed) .class-body > .class-row-top {
   background: var(--danger-dim);
 }
+
+
+/* shown instead of the actions when the office has blocked this student */
+.blocked-notice {
+  margin: 14px 16px 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 104, 104, 0.12);
+  color: #ff8a8a;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+}
+
+html[data-theme="light"] .blocked-notice { color: #b91c1c; background: rgba(220, 38, 38, 0.1); }
+
+.add-student-button:disabled { opacity: 0.45; cursor: not-allowed; }

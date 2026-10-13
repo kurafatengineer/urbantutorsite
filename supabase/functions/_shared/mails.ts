@@ -157,15 +157,6 @@ export function parentResponseMail(d: {
         { label: "Search New Tuitions", page: "advertisement.html" });
 }
 
-/* a message from the office to one student (Students tab bell) */
-export function officeMessageMail(d: { name: string; studentId: string; message: string }): Built {
-  return make(
-    "A message from Urban Tutor Site", "Message from Urban Tutor Site", { text: "NOTIFICATION", tone: "blue" }, d.name,
-    d.message, [["Student ID", d.studentId]],
-    { label: "Open My Profile", page: "studentprofile.html" },
-  );
-}
-
 /* both accepted (student + tutor) - the tuition is confirmed */
 export function matchedMail(d: {
   forTutor: boolean; name: string; demoId: string; subject: string; otherName: string; otherId?: string;

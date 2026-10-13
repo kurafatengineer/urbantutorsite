@@ -50,6 +50,27 @@ async function chatIdByEmail(email: string): Promise<number | null> {
   return null;
 }
 
+// A blocked student, or one whose notifications the office switched off
+// (Students tab), is sent nothing - no email and no Telegram. Anything about
+// a student must pass through this check; the email alone can't tell
+// brothers / sisters (or the agency's shared email) apart.
+export async function studentQuiet(studentId?: string | null): Promise<boolean> {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key || !studentId) return false;
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/students?student_id=eq.${encodeURIComponent(studentId)}&select=blocked_at,notifications_off`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+    );
+    if (!res.ok) return false;
+    const row = (await res.json().catch(() => []))?.[0];
+    return !!row && (!!row.blocked_at || row.notifications_off === true);
+  } catch {
+    return false;
+  }
+}
+
 export async function notify(email: string | null | undefined, mail: Built, opts: { email?: boolean; telegram?: boolean } = {}) {
   if (!email) return;
   if (opts.email !== false) await sendMail(email, mail.subject, mail.html);
@@ -82,7 +103,7 @@ export async function notifyIfMatched(demoId: string, tutorId: string): Promise<
   const tutor = await get(`tutors?tutor_id=eq.${q(tutorId)}&select=tutor_id,full_name,email`);
   if (!tuition || !student || !tutor) return false;
   const subject = String(tuition.subject ?? "");
-  await notify(student.email, matchedMail({ forTutor: false, name: student.student_name, demoId, subject, otherName: tutor.full_name, otherId: tutor.tutor_id }));
+  if (!(await studentQuiet(tuition.student_id))) await notify(student.email, matchedMail({ forTutor: false, name: student.student_name, demoId, subject, otherName: tutor.full_name, otherId: tutor.tutor_id }));
   await notify(tutor.email, matchedMail({ forTutor: true, name: tutor.full_name, demoId, subject, otherName: student.student_name }));
   return true;
 }
