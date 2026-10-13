@@ -1,7 +1,7 @@
 -- Add a Student (Admin Panel): the same student added twice is refused.
--- Same mobile number + same email + same student name (ignoring case and
--- extra spaces) as a student already on file = a duplicate. A brother /
--- sister on the same number and email (a different name) is fine.
+-- Same email + mobile number + parents' name + student name (ignoring case
+-- and extra spaces) as a student already on file = a duplicate. A brother /
+-- sister (a different student name) is fine.
 
 create or replace function public.admin_register_student(p jsonb)
 returns jsonb
@@ -34,11 +34,13 @@ begin
   from public.students s
   where public._mobile(s.phone) = v_phone
     and lower(btrim(coalesce(s.email, ''))) = v_email
+    and lower(regexp_replace(btrim(coalesce(s.parents_name, '')), '\s+', ' ', 'g'))
+        = lower(regexp_replace(btrim(coalesce(p->>'parentsName', '')), '\s+', ' ', 'g'))
     and lower(regexp_replace(btrim(coalesce(s.student_name, '')), '\s+', ' ', 'g'))
         = lower(regexp_replace(btrim(coalesce(p->>'studentName', '')), '\s+', ' ', 'g'))
   limit 1;
   if v_dup is not null then
-    raise exception 'This student already exists (%) - same name, mobile number and email.', v_dup;
+    raise exception 'This student is already registered (%) - same email, mobile number, parents'' name and student name.', v_dup;
   end if;
 
   v_id := public.generate_student_id();

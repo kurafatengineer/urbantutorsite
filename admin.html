@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="css/header.css?v=20261003a">
   <link rel="stylesheet" href="css/photos.css?v=20261002a">
   <link rel="stylesheet" href="css/student-forms.css?v=20261003b">
-  <link rel="stylesheet" href="css/pages/admin.css?v=20261013e">
+  <link rel="stylesheet" href="css/pages/admin.css?v=20261013g">
 </head>
 
 <body data-page="admin">
@@ -724,10 +724,12 @@
           <input id="saParents" type="text" autocomplete="off" placeholder=" " maxlength="100">
           <span>Parents Name</span>
         </label>
-        <label class="float-field add-wide">
+        <label class="float-field add-wide" id="saStudentField">
           <input id="saStudent" type="text" autocomplete="off" placeholder=" " maxlength="80">
           <span>Student Name</span>
+          <i class="dup-flag hidden" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 21V4h11l-1.5 3.5L16 11H7v10z"/></svg></i>
         </label>
+        <p id="saDupNote" class="dup-note add-wide hidden" role="alert"></p>
         <div class="choice-row choice-2 add-wide" role="radiogroup" aria-label="Gender">
           <label><input type="radio" name="saGender" value="Male"><span>Male</span></label>
           <label><input type="radio" name="saGender" value="Female"><span>Female</span></label>
@@ -869,7 +871,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
 <script src="js/portal.js?v=20261001a"></script>
-<script src="js/pages/admin.js?v=20261013f" defer></script>
+<script src="js/pages/admin.js?v=20261013g" defer></script>
 
 <script src="js/autocaps.js?v=20261013a" defer></script>
 </body>
