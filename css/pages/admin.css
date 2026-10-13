@@ -589,11 +589,13 @@ button { cursor: pointer; }
 .stu-icons {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(2, 19px);
-  grid-auto-rows: 19px;
+  grid-template-columns: repeat(2, 28px);
+  grid-auto-rows: 28px;
   gap: 4px;
-  width: 42px;
-  margin-left: auto;
+  width: 60px;
+  /* taller than the card's content row (42px): the negative margin lets it
+     use the card's own top / bottom padding, so the card keeps its height */
+  margin: -9px 0 -9px auto;
   justify-content: end;
 }
 
@@ -610,12 +612,12 @@ button { cursor: pointer; }
 .stu-icon {
   --c: var(--muted);
   --c-dim: var(--surface-3);
-  width: 19px;
-  height: 19px;
+  width: 28px;
+  height: 28px;
   display: inline-grid;
   place-items: center;
   padding: 0;
-  border-radius: 6px;
+  border-radius: 9px;
   border: 1px solid color-mix(in srgb, var(--c) 35%, transparent);
   background: transparent;
   color: var(--c);
@@ -624,8 +626,8 @@ button { cursor: pointer; }
 }
 
 .stu-icon svg {
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
