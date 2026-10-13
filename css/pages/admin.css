@@ -3841,6 +3841,22 @@ html[data-theme="light"] .admin-notice { background: #fde8e8; color: #b42318; }
 .admin-search-wrap .sb-clear.hidden { display: none; }
 html[data-theme="light"] .admin-search-wrap .sb-clear { background: rgba(0, 0, 0, 0.06); }
 
+/* suggestions under a search box (pick one = a chip) */
+.admin-search-wrap > .search-suggest {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  max-height: 360px;
+  overflow-y: auto;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  cursor: default;
+}
+html[data-theme="light"] .admin-search-wrap > .search-suggest { box-shadow: 0 14px 30px rgba(0, 0, 0, 0.12); }
+.admin-suggest-item.is-active { background: rgba(255, 255, 255, 0.07); }
+html[data-theme="light"] .admin-suggest-item.is-active { background: rgba(0, 0, 0, 0.05); }
+
 /* Transaction dropdowns open as a suggestion-style list */
 .admin-float.has-pick { cursor: pointer; }
 .admin-float.has-pick select { pointer-events: none; }

@@ -4193,6 +4193,141 @@ function wireChipSearch(id, onChange) {
     onChange();
     input.focus();
   });
+
+  wireSearchSuggest(id, onChange);
+}
+
+/* Suggestions under a search box: as you type, the names, mobile /
+   WhatsApp numbers, IDs ... of that section that match show below (same
+   look as every other suggestion list); picking one adds it as a chip,
+   same as typing it and pressing Space. */
+
+// The records a section's search suggests from: { name, id, fields: [[tag, value]] }
+function searchSuggestRecords(searchId) {
+  const data = STATE.data || {};
+  const v = (r, k) => (r.values && r.values[k]) || "";
+  const studentRec = r => ({
+    name: v(r, "Student Name") || r.id, id: r.id,
+    fields: [["Name", v(r, "Student Name")], ["Parent", v(r, "Parents Name")], ["Mobile", v(r, "Phone")],
+             ["WhatsApp", v(r, "WhatsApp")], ["Student ID", r.id], ["City", v(r, "City")], ["Email", v(r, "Email")]]
+  });
+  const tutorRec = r => ({
+    name: v(r, "Full Name") || r.id, id: r.id,
+    fields: [["Name", v(r, "Full Name")], ["Mobile", v(r, "Mobile Number")], ["WhatsApp", v(r, "WhatsApp Number")],
+             ["Tutor ID", r.id], ["City", v(r, "City")], ["Email", v(r, "E-mail Address")]]
+  });
+
+  if (searchId === "studentSearch") return ((data.students && data.students.rows) || []).map(studentRec);
+  if (searchId === "tutorSearch") return ((data.tutors && data.tutors.rows) || []).map(tutorRec);
+  if (searchId === "tuitionSearch") {
+    return demoGroups().map(g => {
+      const student = STUDENT_BY_ID[g.first.studentId];
+      const own = student ? studentRec(student) : { name: g.first.studentId, fields: [["Student ID", g.first.studentId]] };
+      const row = activeRowFor(g);
+      const tutor = row && row.tutorId ? DIR_TUTOR_BY_ID[row.tutorId] : null;
+      return {
+        name: own.name, id: g.demoId,
+        fields: [["Demo ID", g.demoId], ["Subject", g.first.subject], ...own.fields,
+                 ["Tutor ID", row && row.tutorId], ["Tutor", tutor && tutor.name]]
+      };
+    });
+  }
+  // Payments / Subscriptions / Ledger: every student, tutor and Demo ID
+  const dir = STATE.directory || {};
+  return [
+    ...(dir.students || []).map(st => ({ name: st.name || st.id, id: st.id,
+      fields: [["Name", st.name], ["Parent", st.parentsName], ["Mobile", st.mobile], ["WhatsApp", st.whatsapp], ["Student ID", st.id]] })),
+    ...(dir.tutors || []).map(t => ({ name: t.name || t.id, id: t.id,
+      fields: [["Tutor", t.name], ["Mobile", t.mobile], ["Tutor ID", t.id]] })),
+    ...(dir.demos || []).map(d => ({ name: (DIR_STUDENT_BY_ID[d.studentId] || {}).name || d.studentId, id: d.demoId,
+      fields: [["Demo ID", d.demoId], ["Subject", d.subject]] })),
+  ];
+}
+
+function searchSuggestions(searchId, text) {
+  const q = lower(text.trim());
+  const digits = text.replace(/\D/g, "");
+  if (q.length < 2) return [];
+  const seen = new Set();
+  const out = [];
+  for (const rec of searchSuggestRecords(searchId)) {
+    for (const [tag, raw] of rec.fields) {
+      const value = String(raw || "").trim();
+      if (!value || value.includes("*")) continue;   // hidden numbers
+      const hit = lower(value).includes(q) ||
+        (digits.length >= 3 && digits.length === q.replace(/[\s+-]/g, "").length && value.replace(/\D/g, "").includes(digits));
+      if (!hit) continue;
+      // the same number as Mobile and WhatsApp: one row, both tags
+      const key = rec.id + "|" + lower(value);
+      if (seen.has(key)) {
+        const same = out.find(o => o.key === key);
+        if (same && !same.tag.includes(tag)) same.tag += " · " + tag;
+        continue;
+      }
+      seen.add(key);
+      out.push({ key, value, tag, sub: [rec.name !== value ? rec.name : "", rec.id !== value ? rec.id : ""] });
+      if (out.length >= 8) return out;
+    }
+  }
+  return out;
+}
+
+function wireSearchSuggest(id, onChange) {
+
+  const input = $(id);
+  const label = input.closest(".admin-search-wrap");
+  const panel = document.createElement("div");
+  panel.className = "admin-suggest search-suggest hidden";
+  label.appendChild(panel);
+  let active = -1;
+
+  const hide = () => { panel.classList.add("hidden"); active = -1; };
+  const items = () => [...panel.querySelectorAll("[data-pick-chip]")];
+  const mark = () => items().forEach((el, i) => el.classList.toggle("is-active", i === active));
+
+  const show = () => {
+    const list = searchSuggestions(id, input.value);
+    if (!list.length) { hide(); return; }
+    active = -1;
+    panel.innerHTML = list.map(item => suggestItem({
+      title: item.value, sub: item.sub, tag: item.tag, attrs: `data-pick-chip="${esc(item.value)}"`
+    })).join("");
+    panel.classList.remove("hidden");
+  };
+
+  const pick = (value) => {
+    SEARCH_CHIPS[id].push(value);
+    input.value = "";
+    hide();
+    renderSearchChips(id);
+    onChange();
+    input.focus();
+  };
+
+  input.addEventListener("input", show);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === " ") { hide(); return; }       // Space makes its own chip
+    if (panel.classList.contains("hidden")) return;
+    const list = items();
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      active = (active + (event.key === "ArrowDown" ? 1 : -1) + list.length) % list.length;
+      mark();
+    } else if (event.key === "Enter" && active >= 0) {
+      event.preventDefault();
+      pick(list[active].dataset.pickChip);
+    } else if (event.key === "Escape") hide();
+  });
+
+  panel.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const btn = event.target.closest("[data-pick-chip]");
+    if (btn) pick(btn.dataset.pickChip);
+  });
+
+  document.addEventListener("click", (event) => { if (!label.contains(event.target)) hide(); });
+
 }
 
 
