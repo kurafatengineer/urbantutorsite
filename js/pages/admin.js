@@ -6385,7 +6385,7 @@ function classPlanHtml(g, activeRow, editing) {
        agency takes a cut (% or Rs.) of the FIRST month's fee, from the tutor,
        once. The first month's fee goes to the tutor (who pays the cut) or to
        the agency (which keeps the cut and pays the rest on).
-     Per Class Margin: the parent pays the agency a price per class; the agency
+     Per Class Commission: the parent pays the agency a price per class; the agency
        keeps a margin (% or Rs.) and pays the tutor the rest, every month.
    Number of Classes = the dates picked on the calendar; Per Class / Per Hour
    and the monthly figures work themselves out. Parent / tutor can pay Weekly,
@@ -6464,52 +6464,52 @@ function dealPanelHtml(g, activeRow, editing, count) {
   return `
     <div class="class-bill deal" data-deal data-model="${d.model === "margin" ? "margin" : "commission"}">
       <div class="bill-seg" role="radiogroup" aria-label="How this class is billed">
-        <button type="button" class="bill-opt${d.model !== "margin" ? " is-on" : ""}" data-action="deal-model" data-model="commission"${editing ? "" : " disabled"}>Monthly Commission</button>
-        <button type="button" class="bill-opt${d.model === "margin" ? " is-on" : ""}" data-action="deal-model" data-model="margin"${editing ? "" : " disabled"}>Per Class Margin</button>
+        <button type="button" class="bill-opt${d.model !== "margin" ? " is-on" : ""}" data-action="deal-model" data-model="commission"${editing ? "" : " disabled"}>Monthly commission</button>
+        <button type="button" class="bill-opt${d.model === "margin" ? " is-on" : ""}" data-action="deal-model" data-model="margin"${editing ? "" : " disabled"}>Per class commission</button>
       </div>
 
       <div class="deal-grid">
-        ${inp("Duration (Minutes)", "minutes", d.minutes)}
-        ${inp("Class Time", "time", d.time, { type: "time" })}
-        ${out("Number of Classes", "classes", count)}
+        ${inp("Duration (minutes)", "minutes", d.minutes)}
+        ${inp("Class time", "time", d.time, { type: "time" })}
+        ${out("Number of classes", "classes", count)}
         ${out("Hours", "hours", Math.round(m.hours * 100) / 100)}
       </div>
 
       <div class="deal-grid" data-set="commission">
-        ${inp("Monthly Fee (₹)", "monthlyFee", d.monthlyFee)}
-        ${out("Per Class (₹)", "perClass", m.perClass || 0)}
-        ${out("Per Hour (₹)", "perHour", m.perHour || 0)}
+        ${inp("Monthly fee (₹)", "monthlyFee", d.monthlyFee)}
+        ${out("Per class (₹)", "perClass", m.perClass || 0)}
+        ${out("Per hour (₹)", "perHour", m.perHour || 0)}
         <div class="pay-to deal-wide">
-          <span class="pay-to-label">Payment To <em>(who gets the first month's fee)</em></span>
+          <span class="pay-to-label">Payment to <em>(who gets the first month's fee)</em></span>
           <div class="pay-to-opts">
             ${["Agency", "Tutor"].map(v => `<button type="button" class="pay-opt${(d.feeTo || "Tutor") === v ? " is-on" : ""}" data-action="deal-feeto" data-v="${v}"${editing ? "" : " disabled"}><i class="pay-check"></i>${v}</button>`).join("")}
           </div>
           <input type="hidden" data-d="feeTo" value="${esc(d.feeTo || "Tutor")}">
         </div>
-        <label class="admin-box deal-cut${editing ? " is-edit" : ""}">${kind("cutType", d.cutType)}<input type="number" min="0" data-d="cutValue" value="${esc(d.cutValue ?? "")}"${editing ? "" : " readonly"}><span>Agency Cut (First Month)</span></label>
-        ${out("Agency Cut (₹)", "cut", m.cut || 0)}
-        ${out("Tutor Gets, 1st Month (₹)", "tutorFirstMonth", m.tutorFirstMonth || 0)}
+        <label class="admin-box deal-cut${editing ? " is-edit" : ""}">${kind("cutType", d.cutType)}<input type="number" min="0" data-d="cutValue" value="${esc(d.cutValue ?? "")}"${editing ? "" : " readonly"}><span>Agency cut (first month)</span></label>
+        ${out("Agency cut (₹)", "cut", m.cut || 0)}
+        ${out("Tutor gets, 1st month (₹)", "tutorFirstMonth", m.tutorFirstMonth || 0)}
       </div>
 
       <div class="deal-grid" data-set="margin">
-        ${inp("Parent Pays per Class (₹)", "parentPerClass", d.parentPerClass)}
-        ${out("Parent per Hour (₹)", "parentPerHour", m.parentPerHour || 0)}
-        <label class="admin-box deal-cut${editing ? " is-edit" : ""}">${kind("marginType", d.marginType)}<input type="number" min="0" data-d="marginValue" value="${esc(d.marginValue ?? "")}"${editing ? "" : " readonly"}><span>Agency Margin per Class</span></label>
-        ${out("Agency per Class (₹)", "margin", m.margin || 0)}
-        ${out("Tutor per Class (₹)", "tutorPerClass", m.tutorPerClass || 0)}
-        ${out("Tutor per Hour (₹)", "tutorPerHour", m.tutorPerHour || 0)}
-        ${out("Parent per Month (₹)", "parentMonthly", m.parentMonthly || 0)}
-        ${out("Tutor per Month (₹)", "tutorMonthly", m.tutorMonthly || 0)}
-        ${out("Agency per Month (₹)", "agencyMonthly", m.agencyMonthly || 0)}
+        ${inp("Parent pays per class (₹)", "parentPerClass", d.parentPerClass)}
+        ${out("Parent per hour (₹)", "parentPerHour", m.parentPerHour || 0)}
+        <label class="admin-box deal-cut${editing ? " is-edit" : ""}">${kind("marginType", d.marginType)}<input type="number" min="0" data-d="marginValue" value="${esc(d.marginValue ?? "")}"${editing ? "" : " readonly"}><span>Agency commission per class</span></label>
+        ${out("Agency per class (₹)", "margin", m.margin || 0)}
+        ${out("Tutor per class (₹)", "tutorPerClass", m.tutorPerClass || 0)}
+        ${out("Tutor per hour (₹)", "tutorPerHour", m.tutorPerHour || 0)}
+        ${out("Parent per month (₹)", "parentMonthly", m.parentMonthly || 0)}
+        ${out("Tutor per month (₹)", "tutorMonthly", m.tutorMonthly || 0)}
+        ${out("Agency per month (₹)", "agencyMonthly", m.agencyMonthly || 0)}
       </div>
 
       <div class="deal-grid">
-        ${inp("Parent Pays", "parentFreq", d.parentFreq || "Monthly", { type: "text", options: Object.keys(DEAL_FREQ) })}
-        ${out("Each Parent Payment (₹)", "parentInstallment", m.parentInstallment || 0)}
-        ${out("Parent Pays On", "parentDate", fmtPayDate(pay.parent))}
-        ${out("Tutor Paid / Pays On", "tutorDate", fmtPayDate(pay.tutor))}
-        ${out("Each Tutor Payment (₹)", "tutorInstallment", (m.model === "commission" && m.feeTo === "Tutor" ? m.cutInstallment : m.tutorInstallment) || 0)}
-        <label class="admin-box"><input type="text" readonly value="Same as parent" data-out="tutorFreqText"><span>Tutor Frequency</span></label>
+        ${inp("Parent pays", "parentFreq", d.parentFreq || "Monthly", { type: "text", options: Object.keys(DEAL_FREQ) })}
+        ${out("Each parent payment (₹)", "parentInstallment", m.parentInstallment || 0)}
+        ${out("Parent pays on", "parentDate", fmtPayDate(pay.parent))}
+        ${out("Tutor paid / pays on", "tutorDate", fmtPayDate(pay.tutor))}
+        ${out("Each tutor payment (₹)", "tutorInstallment", (m.model === "commission" && m.feeTo === "Tutor" ? m.cutInstallment : m.tutorInstallment) || 0)}
+        <label class="admin-box"><input type="text" readonly value="Same as parent" data-out="tutorFreqText"><span>Tutor frequency</span></label>
       </div>
       <p class="deal-sched" data-sched>${schedText(activeRow.classStartDate, d.parentFreq || "Monthly")}</p>
 
