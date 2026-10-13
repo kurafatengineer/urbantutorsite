@@ -51,6 +51,21 @@ const db = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
+// Every row of a query. The API hands back at most 1000 rows per request,
+// so a long table (subscriptions, payments...) is read page by page -
+// otherwise the oldest rows silently drop off the end of the list.
+// `build` must give the same ordered query each time it is called.
+async function selectAll(build: () => Json): Promise<{ data: Json[]; error: Json | null }> {
+  const PAGE = 1000;
+  const all: Json[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await build().range(from, from + PAGE - 1);
+    if (error) return { data: all, error };
+    all.push(...(data ?? []));
+    if (!data || data.length < PAGE) return { data: all, error: null };
+  }
+}
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -535,12 +550,12 @@ async function handleBootstrap(caller: AuthedUser, body: Json): Promise<Json> {
 async function buildPaymentDirectory(): Promise<Json> {
 
   const [{ data: tuitions }, { data: applications }, { data: students }, { data: tutors }] = await Promise.all([
-    db.from("tuitions").select("demo_id, student_id, subject, terminated"),
-    db.from("applications").select(
+    selectAll(() => db.from("tuitions").select("demo_id, student_id, subject, terminated").order("demo_id")),
+    selectAll(() => db.from("applications").select(
       "demo_id, tutor_id, parent_accepted, tutor_accepted, parent_rejected, tutor_rejected, classes_completed, demo_date"
-    ),
-    db.from("students").select("student_id, student_name, parents_name, phone, whatsapp"),
-    db.from("tutors").select("tutor_id, full_name, mobile_number, whatsapp_number"),
+    ).order("id")),
+    selectAll(() => db.from("students").select("student_id, student_name, parents_name, phone, whatsapp").order("student_id")),
+    selectAll(() => db.from("tutors").select("tutor_id, full_name, mobile_number, whatsapp_number").order("tutor_id")),
   ]);
 
   const tuitionByDemo = new Map<string, Json>();
@@ -760,17 +775,18 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
         scope: "own", siteOff: !siteOn };
 
   if (canSeePayments(caller)) {
-    const { data: payments, error } = await db
+    const { data: payments, error } = await selectAll(() => db
       .from("payments")
       .select("*")
       .order("payment_date", { ascending: false })
-      .order("id", { ascending: false });
+      .order("id", { ascending: false }));
     withLinks.payments = error ? [] : payments;
 
-    const { data: subscriptions, error: subError } = await db
+    const { data: subscriptions, error: subError } = await selectAll(() => db
       .from("subscriptions")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false }));
     withLinks.subscriptions = subError ? [] : subscriptions;
 
     withLinks.directory = await buildPaymentDirectory();
