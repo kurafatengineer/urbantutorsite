@@ -254,6 +254,7 @@ const ACTION_PERMISSION: Record<string, string> = {
   adminUpdateTuition: "tuitions_edit",
   adminUpdateDemoRow: "tuitions_edit",
   adminFinalizeClass: "tuitions_edit",
+  adminSetClassDay: "tuitions_edit",
   adminSettleClass: "payments_add",
   adminAssignTutor: "tuitions_assign_tutor",
   adminSetTerminated: "tuitions_close",
@@ -1204,6 +1205,16 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
       return await rpc("admin_update_tuition", {
         p_demo_id: body.demoId,
         p_changes: body.changes ?? {},
+      });
+    }
+
+    // Correct one scheduled class day (taken / not taken, minutes, time).
+    case "adminSetClassDay": {
+      return await rpc("admin_set_class_day", {
+        p_demo_id: body.demoId,
+        p_tutor_id: body.tutorId,
+        p_date: body.date,
+        p_entry: body.entry ?? {},
       });
     }
 

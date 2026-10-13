@@ -3113,7 +3113,14 @@ async function onListClick(event) {
     case "cal-month":
     case "cal-day":
     case "deal-model":
+    case "deal-feeto":
+    case "day-status":
+    case "day-close":
       onClassPlanClick(actionEl);
+      break;
+
+    case "day-save":
+      await saveClassDay(box, actionEl);
       break;
 
     case "finalize-class":
@@ -3284,30 +3291,6 @@ async function onListClick(event) {
         actionEl.disabled = false;
         if (textEl) textEl.textContent = original;
       }
-      break;
-    }
-
-    case "toggle-class-day": {
-      // only in edit mode (the chips are locked otherwise); saved with the rest
-      if (!STATE.editing.has("class:" + box.dataset.demo)) break;
-      actionEl.classList.toggle("is-on");
-      toggleWeekdayDates(box, actionEl.dataset.day, actionEl.classList.contains("is-on"));
-      break;
-    }
-
-    case "increment-class-count": {
-      const rowNumber = Number(actionEl.dataset.row);
-      const demoId = box.dataset.demo;
-      const tutorId = actionEl.dataset.tutorId;
-      const row = (STATE.data.demos || []).find(r => r.rowNumber === rowNumber && r.demoId === demoId);
-      const next = (row ? Number(row.classCount) || 0 : 0) + 1;
-      await save({
-        action: "adminUpdateDemoRow",
-        rowNumber,
-        demoId,
-        tutorId,
-        changes: { "Class Count": next }
-      }, actionEl);
       break;
     }
 
@@ -3549,12 +3532,6 @@ async function saveClassDetails(box, button, finalize = false) {
     changes[input.dataset.cfield] = input.value.trim();
   });
 
-  // the class days ticked in edit mode
-  const dayBox = box.querySelector("[data-class-days]");
-  if (dayBox) {
-    changes["Class Days"] = [...dayBox.querySelectorAll(".admin-day-chip.is-on")].map(b => b.dataset.day);
-  }
-
   // the calendar's dates and the deal; the older fields get the deal's figures
   const plan = box.querySelector("[data-class-plan]");
   let deal = null;
@@ -3566,7 +3543,7 @@ async function saveClassDetails(box, button, finalize = false) {
     const g = demoGroups().find(x => x.demoId === demoId);
     const row = g ? (g.rows || []).find(r => r.tutorId === tutorId) || activeRowFor(g) : null;
     const before = (row && row.billingPlan && row.billingPlan.deal) || {};
-    deal = { ...before, ...deal };
+    deal = { ...before, ...deal, tutorFreq: deal.parentFreq };
     changes["Class Dates"] = dates;
     changes["Billing Mode"] = deal.model;
     changes["Billing Plan"] = { ...((row && row.billingPlan) || {}), deal };
@@ -3577,7 +3554,10 @@ async function saveClassDetails(box, button, finalize = false) {
     changes["Tutor Payment From"] = m.model === "commission" && m.feeTo === "Tutor" ? "Parents" : "Agency";
     changes["Tutor Agency Charge"] = m.model === "commission" ? m.cut : 0;
     changes["Student Payment Frequency"] = deal.parentFreq || "Monthly";
-    changes["Tutor Payment Frequency"] = deal.tutorFreq || "Monthly";
+    changes["Tutor Payment Frequency"] = deal.parentFreq || "Monthly";
+    const due = nextPayDates(changes["Class Start Date"] || box.querySelector('[data-cfield="Class Start Date"]')?.value, deal.parentFreq);
+    changes["Student Next Due Date"] = due.parent;
+    changes["Tutor Next Payment Date"] = due.tutor;
     if (finalize) {
       if (!dates.length) { toast("Pick the class dates on the calendar first.", true); return; }
       if (m.model === "commission" ? !(m.monthlyFee > 0) : !(m.parentPerClass > 0)) {
@@ -6277,7 +6257,50 @@ function isoToday() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function calendarHtml(monthKey, dates, editing) {
+const CAL_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function planLog(plan) {
+  try { return JSON.parse(plan.dataset.log || "{}"); } catch (e) { return {}; }
+}
+
+// "2026-10-14" -> "14 Oct 2026"
+function fmtPayDate(iso) {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${Number(m[3])} ${CAL_SHORT[Number(m[2]) - 1]} ${m[1]}` : "";
+}
+
+function isoPlusDays(iso, n) {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// the k-th payment date counted from the class start: weekly, every 15 days or monthly
+function payDateAt(startISO, freq, k) {
+  if (freq === "Weekly") return isoPlusDays(startISO, 7 * k);
+  if (freq === "15 Days") return isoPlusDays(startISO, 15 * k);
+  const [y, m, d] = startISO.split("-").map(Number);
+  const first = new Date(Date.UTC(y, m - 1 + k, 1));
+  const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  first.setUTCDate(Math.min(d, last));
+  return first.toISOString().slice(0, 10);
+}
+
+// the next `n` parent payment dates (today or later); the tutor is paid a day after each
+function payDates(start, freq, n = 4) {
+  const startISO = toDateInput(start) || isoToday();
+  const today = isoToday();
+  let k = 0;
+  while (k < 800 && payDateAt(startISO, freq, k) < today) k++;
+  return Array.from({ length: n }, (_, i) => payDateAt(startISO, freq, k + i));
+}
+
+function nextPayDates(start, freq) {
+  const parent = payDates(start, freq || "Monthly", 1)[0];
+  return { parent, tutor: isoPlusDays(parent, 1) };
+}
+
+function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime = "", sel = "") {
   const [y, m] = monthKey.split("-").map(Number);
   const first = new Date(y, m - 1, 1);
   const daysInMonth = new Date(y, m, 0).getDate();
@@ -6288,10 +6311,44 @@ function calendarHtml(monthKey, dates, editing) {
   for (let i = 0; i < lead; i++) cells += `<span class="cal-empty"></span>`;
   for (let day = 1; day <= daysInMonth; day++) {
     const iso = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    cells += `<button type="button" class="cal-day${picked.has(iso) ? " is-on" : ""}${iso === today ? " is-today" : ""}"
-      data-action="cal-day" data-date="${iso}"${editing ? "" : " disabled"}>${day}</button>`;
+    const on = picked.has(iso);
+    const e = log[iso] || {};
+    const mins = e.m || defMin;
+    const time = e.t || defTime;
+    const state = e.s === "done" ? " is-done" : e.s === "missed" ? " is-missed" : "";
+    const meta = on ? `
+      <small>${mins ? esc(mins) + "m" : "&nbsp;"}</small><small>${time ? esc(clock12(time)) : "&nbsp;"}</small>
+      <span class="cal-mark">${e.s === "done" ? "&#10003;" : e.s === "missed" ? "&#10005;" : ""}</span>` : "";
+    cells += `<button type="button" class="cal-day${on ? " is-on" : ""}${state}${iso === today ? " is-today" : ""}${iso === sel ? " is-sel" : ""}"
+      data-action="cal-day" data-date="${iso}"${editing || on ? "" : " disabled"}><b>${day}</b>${meta}</button>`;
   }
   const inMonth = dates.filter(d => d.startsWith(monthKey)).length;
+  const done = dates.filter(d => (log[d] || {}).s === "done").length;
+  const missed = dates.filter(d => (log[d] || {}).s === "missed").length;
+
+  let editor = "";
+  if (sel && picked.has(sel) && !editing) {
+    const e = log[sel] || {};
+    const wd = new Date(sel + "T00:00:00");
+    editor = `
+      <div class="cal-edit" data-day-edit data-date="${sel}" data-s="${esc(e.s || "")}">
+        <strong>${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][wd.getDay()]}, ${esc(fmtPayDate(sel))}</strong>
+        <div class="cal-edit-status">
+          <button type="button" class="day-opt${e.s === "done" ? " is-on" : ""}" data-action="day-status" data-s="done">&#10003; Taken</button>
+          <button type="button" class="day-opt is-bad${e.s === "missed" ? " is-on" : ""}" data-action="day-status" data-s="missed">&#10005; Not taken</button>
+          <button type="button" class="day-opt${!e.s ? " is-on" : ""}" data-action="day-status" data-s="">Pending</button>
+        </div>
+        <div class="cal-edit-fields">
+          <label class="admin-box is-edit"><input type="number" min="1" max="600" data-day-m value="${esc(e.m || defMin)}"><span>Duration (Minutes)</span></label>
+          <label class="admin-box is-edit"><input type="time" data-day-t value="${esc(e.t || defTime)}"><span>Class Time</span></label>
+        </div>
+        <div class="admin-pair">
+          <button class="admin-ghost" type="button" data-action="day-close">Close</button>
+          <button class="admin-primary" type="button" data-action="day-save">Save Day</button>
+        </div>
+      </div>`;
+  }
+
   return `
     <div class="cal-head">
       <button type="button" class="cal-nav" data-action="cal-month" data-step="-1" aria-label="Previous month">&#8249;</button>
@@ -6302,7 +6359,9 @@ function calendarHtml(monthKey, dates, editing) {
       ${CAL_WEEKDAYS.map(w => `<span class="cal-wd">${w}</span>`).join("")}
       ${cells}
     </div>
-    <p class="cal-note">${dates.length} day${dates.length === 1 ? "" : "s"} picked${inMonth !== dates.length ? ` · ${inMonth} this month` : ""}</p>`;
+    <p class="cal-note">${dates.length} class${dates.length === 1 ? "" : "es"} scheduled${inMonth !== dates.length ? ` · ${inMonth} this month` : ""}
+      · <span class="cal-ok">${done} taken</span> · <span class="cal-bad">${missed} not taken</span>${editing ? "" : " · tap a date to correct it"}</p>
+    ${editor}`;
 }
 
 function classPlanHtml(g, activeRow, editing) {
@@ -6314,8 +6373,8 @@ function classPlanHtml(g, activeRow, editing) {
   STATE.calMonth[g.demoId] = monthKey;
 
   return `
-    <div class="class-plan" data-class-plan data-month="${esc(monthKey)}" data-dates='${esc(JSON.stringify(dates))}'>
-      <div class="class-cal" data-cal>${calendarHtml(monthKey, dates, editing)}</div>
+    <div class="class-plan" data-class-plan data-month="${esc(monthKey)}" data-dates='${esc(JSON.stringify(dates))}' data-log='${esc(JSON.stringify(activeRow.classLog || {}))}'>
+      <div class="class-cal" data-cal>${calendarHtml(monthKey, dates, editing, activeRow.classLog || {}, dealOf(activeRow).minutes || "", dealOf(activeRow).time || "")}</div>
       ${dealPanelHtml(g, activeRow, editing, dates.length)}
     </div>`;
 }
@@ -6400,6 +6459,7 @@ function dealPanelHtml(g, activeRow, editing, count) {
   const finalized = d.finalizedAt;
   const settled = d.settled;
   const balance = tutorBalance(activeRow.tutorId);
+  const pay = nextPayDates(activeRow.classStartDate, d.parentFreq || "Monthly");
 
   return `
     <div class="class-bill deal" data-deal data-model="${d.model === "margin" ? "margin" : "commission"}">
@@ -6419,10 +6479,16 @@ function dealPanelHtml(g, activeRow, editing, count) {
         ${inp("Monthly Fee (₹)", "monthlyFee", d.monthlyFee)}
         ${out("Per Class (₹)", "perClass", m.perClass || 0)}
         ${out("Per Hour (₹)", "perHour", m.perHour || 0)}
-        ${inp("First Month's Fee To", "feeTo", d.feeTo || "Tutor", { type: "text", options: ["Tutor", "Agency"] })}
+        <div class="pay-to deal-wide">
+          <span class="pay-to-label">Payment To <em>(who gets the first month's fee)</em></span>
+          <div class="pay-to-opts">
+            ${["Agency", "Tutor"].map(v => `<button type="button" class="pay-opt${(d.feeTo || "Tutor") === v ? " is-on" : ""}" data-action="deal-feeto" data-v="${v}"${editing ? "" : " disabled"}><i class="pay-check"></i>${v}</button>`).join("")}
+          </div>
+          <input type="hidden" data-d="feeTo" value="${esc(d.feeTo || "Tutor")}">
+        </div>
         <label class="admin-box deal-cut${editing ? " is-edit" : ""}">${kind("cutType", d.cutType)}<input type="number" min="0" data-d="cutValue" value="${esc(d.cutValue ?? "")}"${editing ? "" : " readonly"}><span>Agency Cut (First Month)</span></label>
         ${out("Agency Cut (₹)", "cut", m.cut || 0)}
-        ${out("Tutor Gets, First Month (₹)", "tutorFirstMonth", m.tutorFirstMonth || 0)}
+        ${out("Tutor Gets, 1st Month (₹)", "tutorFirstMonth", m.tutorFirstMonth || 0)}
       </div>
 
       <div class="deal-grid" data-set="margin">
@@ -6440,9 +6506,12 @@ function dealPanelHtml(g, activeRow, editing, count) {
       <div class="deal-grid">
         ${inp("Parent Pays", "parentFreq", d.parentFreq || "Monthly", { type: "text", options: Object.keys(DEAL_FREQ) })}
         ${out("Each Parent Payment (₹)", "parentInstallment", m.parentInstallment || 0)}
-        ${inp("Tutor Paid / Pays", "tutorFreq", d.tutorFreq || "Monthly", { type: "text", options: Object.keys(DEAL_FREQ) })}
+        ${out("Parent Pays On", "parentDate", fmtPayDate(pay.parent))}
+        ${out("Tutor Paid / Pays On", "tutorDate", fmtPayDate(pay.tutor))}
         ${out("Each Tutor Payment (₹)", "tutorInstallment", (m.model === "commission" && m.feeTo === "Tutor" ? m.cutInstallment : m.tutorInstallment) || 0)}
+        <label class="admin-box"><input type="text" readonly value="Same as parent" data-out="tutorFreqText"><span>Tutor Frequency</span></label>
       </div>
+      <p class="deal-sched" data-sched>${schedText(activeRow.classStartDate, d.parentFreq || "Monthly")}</p>
 
       <p class="deal-note" data-deal-note>${esc(dealNoteText(m))}</p>
       ${balance ? `<p class="deal-balance">Tutor's balance: <strong>${rs(balance)}</strong>${balance > 0 ? " - used against this commission when the class is finalised" : ""}</p>` : ""}
@@ -6457,6 +6526,11 @@ function dealPanelHtml(g, activeRow, editing, count) {
         : (finalized && !settled ? `<button class="admin-ghost admin-wide deal-settle-btn" data-action="settle-class" type="button">Tutor Left / Fewer Classes - Settle</button>` : "")}
       <div class="deal-settle hidden" data-settle></div>
     </div>`;
+}
+
+function schedText(start, freq) {
+  const list = payDates(start, freq, 4);
+  return `Parent pays: ${list.map(fmtPayDate).join(" · ")}<br>Tutor: ${list.map(x => fmtPayDate(isoPlusDays(x, 1))).join(" · ")}`;
 }
 
 function fmtShortDate(iso) {
@@ -6477,6 +6551,7 @@ function dealNoteText(m) {
 function readDeal(panel) {
   const deal = { model: panel.dataset.model };
   panel.querySelectorAll("[data-d]").forEach(el => { deal[el.dataset.d] = el.value.trim(); });
+  deal.tutorFreq = deal.parentFreq;
   return deal;
 }
 
@@ -6492,26 +6567,26 @@ function recalcDeal(panel) {
   set("tutorInstallment", (m.model === "commission" && m.feeTo === "Tutor" ? m.cutInstallment : m.tutorInstallment) || 0);
   const note = panel.querySelector("[data-deal-note]");
   if (note) note.textContent = dealNoteText(m);
-}
 
-// Weekday chip (edit mode): ticks / unticks that weekday's dates in the month shown.
-function toggleWeekdayDates(box, day, on) {
-  const plan = box.querySelector("[data-class-plan]");
-  if (!plan) return;
-  const idx = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 }[lower(day)];
-  const wd = idx !== undefined ? idx : ["sun", "mon", "tue", "wed", "thu", "fri", "sat"].indexOf(lower(day).slice(0, 3));
-  if (wd < 0) return;
-  const [y, m] = plan.dataset.month.split("-").map(Number);
-  const dates = new Set(planDates(plan));
-  const last = new Date(y, m, 0).getDate();
-  for (let dd = 1; dd <= last; dd++) {
-    if (new Date(y, m - 1, dd).getDay() !== wd) continue;
-    const iso = `${y}-${String(m).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
-    if (on) dates.add(iso); else dates.delete(iso);
+  // payment dates follow the class start date and how often the parent pays
+  const card = panel.closest("[data-demo]");
+  const start = card && card.querySelector('[data-cfield="Class Start Date"]');
+  const deal = readDeal(panel);
+  const freq = deal.parentFreq || "Monthly";
+  const pay = nextPayDates(start ? start.value : "", freq);
+  set("parentDate", fmtPayDate(pay.parent));
+  set("tutorDate", fmtPayDate(pay.tutor));
+  const sched = panel.querySelector("[data-sched]");
+  if (sched) sched.innerHTML = schedText(start ? start.value : "", freq);
+  if (card) {
+    const viaTutor = m.model === "commission" && m.feeTo === "Tutor";
+    const sync = (k, v) => card.querySelectorAll(`[data-sync="${k}"]`).forEach(el => { el.textContent = v; });
+    sync("studentTo", m.model === "commission" ? m.feeTo : "Agency");
+    sync("tutorFrom", viaTutor ? "Parents" : "Agency");
+    sync("freq", freq);
+    sync("studentDate", fmtPayDate(pay.parent));
+    sync("tutorDate", fmtPayDate(pay.tutor));
   }
-  plan.dataset.dates = JSON.stringify([...dates].sort());
-  redrawCalendar(plan);
-  recalcDeal(plan.querySelector("[data-deal]"));
 }
 
 /* Tutor left / fewer classes than agreed:
@@ -6635,14 +6710,18 @@ function recalcClassPlan(plan, changedEl) {
 
 function redrawCalendar(plan) {
   const editing = !!plan.querySelector('[data-action="deal-model"]:not([disabled])');
-  plan.querySelector("[data-cal]").innerHTML = calendarHtml(plan.dataset.month, planDates(plan), editing);
+  const panel = plan.querySelector("[data-deal]");
+  const deal = panel ? readDeal(panel) : {};
+  plan.querySelector("[data-cal]").innerHTML = calendarHtml(plan.dataset.month, planDates(plan), editing,
+    planLog(plan), deal.minutes || "", deal.time || "", plan.dataset.sel || "");
 }
 
-// clicks on the plan (calendar days / months, billing option)
+// clicks on the plan (calendar days / months, billing option, day editor)
 function onClassPlanClick(actionEl) {
   const plan = actionEl.closest("[data-class-plan]");
   if (!plan) return;
   const action = actionEl.dataset.action;
+  const editing = !!plan.querySelector('[data-action="deal-model"]:not([disabled])');
   if (action === "cal-month") {
     const [y, m] = plan.dataset.month.split("-").map(Number);
     const d = new Date(y, m - 1 + Number(actionEl.dataset.step), 1);
@@ -6651,12 +6730,29 @@ function onClassPlanClick(actionEl) {
     if (card) { STATE.calMonth = STATE.calMonth || {}; STATE.calMonth[card.dataset.demo] = plan.dataset.month; }
     redrawCalendar(plan);
   } else if (action === "cal-day") {
-    const dates = new Set(planDates(plan));
     const iso = actionEl.dataset.date;
-    if (dates.has(iso)) dates.delete(iso); else dates.add(iso);
-    plan.dataset.dates = JSON.stringify([...dates].sort());
+    if (editing) {
+      const dates = new Set(planDates(plan));
+      if (dates.has(iso)) dates.delete(iso); else dates.add(iso);
+      plan.dataset.dates = JSON.stringify([...dates].sort());
+      redrawCalendar(plan);
+      recalcDeal(plan.querySelector("[data-deal]"));
+    } else {
+      plan.dataset.sel = plan.dataset.sel === iso ? "" : iso;
+      redrawCalendar(plan);
+    }
+  } else if (action === "day-status") {
+    const ed = actionEl.closest("[data-day-edit]");
+    ed.dataset.s = actionEl.dataset.s;
+    ed.querySelectorAll(".day-opt").forEach(b => b.classList.toggle("is-on", b === actionEl));
+  } else if (action === "day-close") {
+    plan.dataset.sel = "";
     redrawCalendar(plan);
-    recalcDeal(plan.querySelector("[data-deal]"));
+  } else if (action === "deal-feeto") {
+    const panel = plan.querySelector("[data-deal]");
+    panel.querySelector('[data-d="feeTo"]').value = actionEl.dataset.v;
+    panel.querySelectorAll(".pay-opt").forEach(b => b.classList.toggle("is-on", b === actionEl));
+    recalcDeal(panel);
   } else if (action === "deal-model") {
     const panel = plan.querySelector("[data-deal]");
     panel.dataset.model = actionEl.dataset.model;
@@ -6665,10 +6761,28 @@ function onClassPlanClick(actionEl) {
   }
 }
 
+// admin corrects one scheduled day (taken / not taken, minutes, time)
+async function saveClassDay(box, button) {
+  const ed = button.closest("[data-day-edit]");
+  const plan = box.querySelector("[data-class-plan]");
+  if (!ed || !plan) return;
+  const entry = { s: ed.dataset.s || "", m: ed.querySelector("[data-day-m]").value.trim(), t: ed.querySelector("[data-day-t]").value.trim() };
+  const ok = await save({ action: "adminSetClassDay", demoId: box.dataset.demo, tutorId: box.dataset.tutorId, date: ed.dataset.date, entry }, button);
+  if (ok) { plan.dataset.sel = ""; rerenderCurrent(); }
+}
+
 // typing / picking anything in the deal
 ["input", "change"].forEach(type => document.addEventListener(type, (event) => {
   const field = event.target.closest && event.target.closest("[data-deal] [data-d]");
-  if (field) recalcDeal(field.closest("[data-deal]"));
+  if (field) {
+    recalcDeal(field.closest("[data-deal]"));
+    if (field.dataset.d === "minutes" || field.dataset.d === "time") {
+      const plan = field.closest("[data-class-plan]");
+      if (plan) redrawCalendar(plan);
+    }
+  }
+  const start = event.target.closest && event.target.closest('[data-cfield="Class Start Date"]');
+  if (start) recalcDeal(start.closest("[data-demo]")?.querySelector("[data-deal]"));
 }));
 
 function classCard(g, activeRow) {
@@ -6676,13 +6790,6 @@ function classCard(g, activeRow) {
   const key = "class:" + g.demoId;
   const open = STATE.open.has(key);
   const editing = STATE.editing.has(key);
-  const days = new Set((activeRow.classDays && activeRow.classDays.length) ? activeRow.classDays : DEFAULT_CLASS_DAYS);
-
-  const dayChips = WEEKDAYS.map(d => `
-    <button type="button" class="admin-chip admin-day-chip${days.has(d) ? " is-on" : ""}"
-      data-action="toggle-class-day" data-day="${esc(d)}"${editing ? "" : " disabled"}>${esc(WEEKDAY_LABELS[d])}</button>
-  `).join("");
-
   const student = STUDENT_BY_ID[g.first.studentId];
   const tutor = TUTOR_BY_ID[activeRow.tutorId];
   const sv = field => (student && student.values[field]) || "";
@@ -6700,26 +6807,21 @@ function classCard(g, activeRow) {
     return `data-action="class-figure" data-kind="${kind}"${left !== undefined && !(left > 0) ? ' data-empty="1"' : ""}`;
   };
 
-  // Start Date defaults to today, End Date to a week out, and the two
-  // Next Due/Payment Dates a week (and a week + 1 day) out - all until
-  // the admin actually picks a date of their own, both in the edit form
-  // (so saving without touching it still records the default) and in
-  // the plain display.
-  const addDaysISO = (iso, n) => {
-    const d = new Date(iso + "T00:00:00Z");
-    d.setUTCDate(d.getUTCDate() + n);
-    return d.toISOString().slice(0, 10);
-  };
+  // Start Date defaults to today and End Date to a week out until the admin
+  // picks their own. The next payment dates are worked out from the start
+  // date and how often the parent pays (the tutor is paid a day later).
   const todayISO = new Date().toISOString().slice(0, 10);
   const todayDMY = todayISO.split("-").reverse().join("/");
-  const nextWeekISO = addDaysISO(todayISO, 7);
+  const nextWeekISO = isoPlusDays(todayISO, 7);
   const nextWeekDMY = nextWeekISO.split("-").reverse().join("/");
-  const nextWeekPlusOneISO = addDaysISO(todayISO, 8);
-  const nextWeekPlusOneDMY = nextWeekPlusOneISO.split("-").reverse().join("/");
   const startDateShown = editing ? (toDateInput(activeRow.classStartDate) || todayISO) : (activeRow.classStartDate || todayDMY);
   const endDateShown = editing ? (toDateInput(activeRow.classEndDate) || nextWeekISO) : (activeRow.classEndDate || nextWeekDMY);
-  const studentNextDueShown = editing ? (toDateInput(activeRow.studentNextDueDate) || nextWeekISO) : (activeRow.studentNextDueDate || nextWeekDMY);
-  const tutorNextPaymentShown = editing ? (toDateInput(activeRow.tutorNextPaymentDate) || nextWeekPlusOneISO) : (activeRow.tutorNextPaymentDate || nextWeekPlusOneDMY);
+  const deal0 = dealOf(activeRow);
+  const freq0 = deal0.parentFreq || "Monthly";
+  const pay0 = nextPayDates(startDateShown, freq0);
+  const dm0 = dealNumbers(deal0, (activeRow.classDates || []).length);
+  const studentTo0 = dm0.model === "commission" ? dm0.feeTo : "Agency";
+  const tutorFrom0 = dm0.model === "commission" && dm0.feeTo === "Tutor" ? "Parents" : "Agency";
 
   const tuitionTermsBoxes = `
     <div class="admin-boxes">
@@ -6741,49 +6843,56 @@ function classCard(g, activeRow) {
     tutorAgencyCharge, tutorAgencyReceived
   } = classMoney(g, activeRow);
 
-  // Student and Tutor sit side by side as two columns (stacking on
-  // narrow screens) - the full profile toggle is gone, just this
-  // party's own name/contact/payment terms for this class.
-  const studentSection = `
-    <div class="admin-class-party">
-      <h3 class="admin-section-title">Student</h3>
-      <div class="admin-boxes">
-        ${box("Name", sv("Student Name"))}
-        ${box("Payment To", activeRow.studentPaymentTo)}
-        ${box("Mobile Number", sv("Phone"))}
-        ${box("WhatsApp Number", sv("WhatsApp"))}
-        ${box("Payment Frequency", activeRow.studentPaymentFrequency)}
-        ${box("Next Due Date", studentNextDueShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Student Next Due Date") })}
-        ${box("Agency Charge (₹)", editing ? (activeRow.studentAgencyCharge || 0) : activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: editing ? cfield("Student Agency Charge") : jump("student-agency") })}
-        ${box("Agency Next Due Date", studentNextDueShown, { type: "text" })}
-        ${box("Advance Payment (₹)", studentAdvancePaid, { attr: editing ? "" : jump("student-advance") })}
-        ${box("Total Amount (₹)", studentTotalAmount, { attr: editing ? "" : jump("student-payment") })}
-        ${box("Total Payment (₹)", collected, { attr: editing ? "" : jump("student-payment") })}
-        ${box("Dues (₹)", studentDues)}
-      </div>
-    </div>`;
+  // Student and Tutor: two cards that follow the deal above (who is paid,
+  // how often, on which dates) and show this class's own money.
+  const stat = (label, value, kind, extra = "") => {
+    const attr = !editing && kind ? jump(kind) : "";
+    const tag = attr ? 'button type="button"' : "div";
+    return `<${tag} class="pc-stat${extra}" ${attr}><small>${esc(label)}</small><b>${esc(rupees(value))}</b></${attr ? "button" : "div"}>`;
+  };
+  const initial = n => esc(String(n || "?").trim().charAt(0).toUpperCase() || "?");
+  const bar = (paid, total) => `<div class="pc-bar"><i style="width:${total > 0 ? Math.min(100, Math.round(paid / total * 100)) : 0}%"></i></div>`;
+  const term = (label, inner) => `<div><small>${label}</small>${inner}</div>`;
+  const party = (cls, role, id, name, phone, wa, terms, body) => `
+    <section class="pc ${cls}">
+      <header class="pc-head">
+        <span class="pc-av">${initial(name)}</span>
+        <div><h3>${esc(name || "-")}</h3><small>${role}${id ? " · " + esc(id) : ""}</small></div>
+      </header>
+      <div class="pc-contact"><span><small>Mobile</small>${esc(phone || "-")}</span><span><small>WhatsApp</small>${esc(wa || "-")}</span></div>
+      <div class="pc-terms">${terms}</div>
+      ${body}
+    </section>`;
 
-  const tutorSection = `
-    <div class="admin-class-party">
-      <h3 class="admin-section-title">Tutor</h3>
-      <div class="admin-boxes">
-        ${box("Name", tv("Full Name"))}
-        ${box("Payment From", activeRow.tutorPaymentFrom)}
-        ${box("Mobile Number", tv("Mobile Number"))}
-        ${box("WhatsApp Number", tv("WhatsApp Number"))}
-        ${box("Payment Frequency", activeRow.tutorPaymentFrequency)}
-        ${box("Next Payment Date", tutorNextPaymentShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Tutor Next Payment Date") })}
-        ${box("Agency Charges (₹)", tutorAgencyCharge, { attr: editing ? "" : jump("tutor-agency") })}
-        ${box("Agency Next Due Date", tutorNextPaymentShown, { type: "text" })}
-        ${editing
-          ? box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: true, type: "number", attr: cfield("Tutor Advance Payment") })
-          : box("Advance Payment (₹)", tutorAdvance, { attr: jump("tutor-advance") })}
-        ${box("Total Amount (₹)", tutorTotalAmount, { attr: editing ? "" : jump("tutor-payment") })}
-        ${box("Total Payment (₹)", tutorTotalPayment, { attr: editing ? "" : jump("tutor-payment") })}
-        ${box("Dues (₹)", tutorDues)}
-        ${tutorBalance(activeRow.tutorId) ? box("Balance (₹)", tutorBalance(activeRow.tutorId)) : ""}
-      </div>
-    </div>`;
+  const studentSection = party("pc-student", "Student", g.first.studentId, sv("Student Name"), sv("Phone"), sv("WhatsApp"),
+    term("Pays To", `<b class="pc-chip" data-sync="studentTo">${esc(studentTo0)}</b>`) +
+    term("Frequency", `<b data-sync="freq">${esc(freq0)}</b>`) +
+    term("Next Due", `<b data-sync="studentDate">${esc(fmtPayDate(pay0.parent))}</b>`),
+    `<div class="pc-stats">
+       ${stat("Total Amount", studentTotalAmount, "student-payment")}
+       ${stat("Advance", studentAdvancePaid, "student-advance")}
+       ${stat("Paid", collected, "student-payment")}
+       ${stat("Dues", studentDues, "", studentDues > 0 ? " is-due" : "")}
+     </div>
+     ${bar(collected + studentAdvancePaid, studentTotalAmount)}
+     ${editing
+       ? box("Agency Charge (₹)", activeRow.studentAgencyCharge || 0, { editable: true, type: "number", attr: cfield("Student Agency Charge") })
+       : stat("Agency Charge (paid / total)", studentAgencyReceived, "student-agency").replace("</b>", ` / ${esc(rupees(studentAgencyCharge))}</b>`)}`);
+
+  const tutorSection = party("pc-tutor", "Tutor", activeRow.tutorId, tv("Full Name"), tv("Mobile Number"), tv("WhatsApp Number"),
+    term("Paid By", `<b class="pc-chip" data-sync="tutorFrom">${esc(tutorFrom0)}</b>`) +
+    term("Frequency", `<b data-sync="freq">${esc(freq0)}</b>`) +
+    term("Next Payment", `<b data-sync="tutorDate">${esc(fmtPayDate(pay0.tutor))}</b>`),
+    `<div class="pc-stats">
+       ${stat("Total Amount", tutorTotalAmount, "tutor-payment")}
+       ${stat("Advance", tutorAdvance, "tutor-advance")}
+       ${stat("Paid", tutorTotalPayment, "tutor-payment")}
+       ${stat("Dues", tutorDues, "", tutorDues > 0 ? " is-due" : "")}
+     </div>
+     ${bar(tutorTotalPayment, tutorTotalAmount)}
+     ${stat("Agency Charge (paid / total)", tutorAgencyReceived, "tutor-agency").replace("</b>", ` / ${esc(rupees(tutorAgencyCharge))}</b>`)}
+     ${editing ? box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: true, type: "number", attr: cfield("Tutor Advance Payment") }) : ""}
+     ${tutorBalance(activeRow.tutorId) ? stat("Balance", tutorBalance(activeRow.tutorId)) : ""}`);
 
   // Collapsed head: 4 fraction figures in one row - Student's own Total
   // Payment/Total Amount on the far left, Tutor's on the far right, and
@@ -6817,16 +6926,8 @@ function classCard(g, activeRow) {
 
         <h3 class="admin-section-title admin-section-title-center">Tuition ID: ${esc(g.demoId)}</h3>
 
-        <!-- class days: changed only in edit mode, saved with "Save changes" -->
-        <div class="admin-day-chips${editing ? "" : " is-locked"}" data-class-days>${dayChips}</div>
-
         ${classPlanHtml(g, activeRow, editing)}
         ${tuitionTermsBoxes}
-        <div class="admin-class-count">
-          <span>Number of Classes: <strong>${esc(activeRow.classCount || 0)}</strong></span>
-          <button class="admin-ghost" data-action="increment-class-count" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}" type="button">+1 Class</button>
-        </div>
-
         <div class="admin-class-parties">
           ${studentSection}
           ${tutorSection}

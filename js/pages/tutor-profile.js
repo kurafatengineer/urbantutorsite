@@ -344,6 +344,13 @@ function wireClassEvents() {
 
   $("classesList").addEventListener("click", (event) => {
 
+    const markBtn = event.target.closest("[data-mark]");
+
+    if (markBtn) {
+      if (!markBtn.disabled) markClassDay(markBtn);
+      return;
+    }
+
     const button = event.target.closest("[data-respond]");
 
     if (button) {
@@ -488,6 +495,42 @@ function statusMessage(item) {
 
 }
 
+function renderSchedule(item) {
+
+  const log = item.classLog || {};
+  const today = new Date();
+  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const dates = item.classDates.slice().sort();
+  const past = dates.filter(d => d <= todayIso).slice(-6);
+  const next = dates.filter(d => d > todayIso).slice(0, 3);
+
+  const clock = t => {
+    const m = String(t || "").match(/^(\d{1,2}):(\d{2})/);
+    return m ? `${Number(m[1]) % 12 || 12}:${m[2]} ${Number(m[1]) >= 12 ? "PM" : "AM"}` : "";
+  };
+
+  const rows = [...past, ...next].map(d => {
+    const e = log[d] || {};
+    const mins = e.m || item.classMinutes;
+    const time = clock(e.t || item.classTime);
+    const [y, mo, da] = d.split("-").map(Number);
+    const canMark = d <= todayIso && !(e.by === "admin" && e.s);
+    const mark = e.s === "done" ? "&#10003;" : e.s === "missed" ? "&#10005;" : "";
+    return `
+      <div class="sched-row${e.s ? " is-" + e.s : ""}">
+        <span class="sched-date">${da} ${months[mo - 1]} ${y}</span>
+        <span class="sched-meta">${[time, mins ? mins + " min" : ""].filter(Boolean).join(" · ")}</span>
+        <span class="sched-mark">${mark}</span>
+        ${canMark
+          ? `<button type="button" class="sched-btn" data-mark="${e.s === "done" ? "undo" : "done"}" data-demo="${escapeHTML(item.demoId)}" data-date="${d}">${e.s === "done" ? "Undo" : "Mark done"}</button>`
+          : `<span class="sched-btn-gap"></span>`}
+      </div>`;
+  }).join("");
+
+  return `<div class="class-schedule"><div class="sched-title">Class schedule</div>${rows}</div>`;
+}
+
 function renderClassCard(item) {
 
   const statusClass = "status-" + String(item.status || "")
@@ -538,6 +581,10 @@ function renderClassCard(item) {
 
   const message = statusMessage(item);
 
+  // Running class: the scheduled days, with Mark done / Undo for days up to today.
+  const scheduleRow = (classifyItem(item) === "running" && Array.isArray(item.classDates) && item.classDates.length)
+    ? renderSchedule(item) : "";
+
   const bottomRow = message.text ? `
     <div class="class-row-bottom class-row-message">
       <div class="class-status-message ${message.strong ? "strong" : ""}">
@@ -576,6 +623,8 @@ function renderClassCard(item) {
             ${locationRow}
           </div>
         ` : ""}
+
+        ${scheduleRow}
 
         ${bottomRow}
 
@@ -713,6 +762,42 @@ async function respondToTuition(button) {
     showToast("Unable to connect to the server. Please try again.", true);
     button.textContent = label;
     buttons.forEach(b => { b.disabled = false; });
+
+  }
+
+}
+
+
+async function markClassDay(button) {
+
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = "Saving...";
+
+  try {
+
+    const result = await window.sbCall("tutor_mark_class", {
+      p_demo_id: button.dataset.demo,
+      p_date: button.dataset.date,
+      p_done: button.dataset.mark === "done"
+    });
+
+    if (!result || !result.success) {
+      showToast((result && result.message) || "Could not save.", true);
+      button.disabled = false;
+      button.textContent = label;
+      return;
+    }
+
+    await loadProfile();
+    showToast(result.message || "Saved.");
+
+  } catch (error) {
+
+    console.error(error);
+    showToast("Unable to connect to the server. Please try again.", true);
+    button.disabled = false;
+    button.textContent = label;
 
   }
 
