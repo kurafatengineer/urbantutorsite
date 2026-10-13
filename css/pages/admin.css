@@ -579,6 +579,99 @@ button { cursor: pointer; }
 }
 
 
+/* ---------------- student card icons ----------------
+   Bell (blue) · Pencil (violet) · Bin (red) / Restore (green) · Check
+   (green) or Flag (orange). Outline while nothing is recorded; a soft
+   tint of the same colour once it is (notified, edited, in Trash). */
+
+.stu-icons {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 146px;
+  justify-content: flex-end;
+}
+
+.stu-icons-label {
+  justify-content: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stu-icon {
+  --c: var(--muted);
+  --c-dim: var(--surface-3);
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--c) 35%, transparent);
+  background: transparent;
+  color: var(--c);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.stu-icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stu-icon[data-tone="blue"]   { --c: var(--blue-hover); --c-dim: var(--blue-dim); }
+.stu-icon[data-tone="violet"] { --c: var(--violet);     --c-dim: var(--violet-dim); }
+.stu-icon[data-tone="red"]    { --c: var(--danger);     --c-dim: var(--danger-dim); }
+.stu-icon[data-tone="green"]  { --c: var(--success);    --c-dim: var(--success-dim); }
+.stu-icon[data-tone="orange"] { --c: var(--orange);     --c-dim: rgba(255, 140, 26, 0.14); }
+html[data-theme="light"] .stu-icon[data-tone="blue"] { --c: var(--blue); }
+
+.stu-icon[data-on] {
+  background: var(--c-dim);
+  border-color: transparent;
+}
+
+.stu-icon:hover:not(:disabled) {
+  background: var(--c-dim);
+  transform: translateY(-1px);
+}
+
+.stu-icon:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.admin-card.is-trashed {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.admin-confirm-input {
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+@media (max-width: 720px) {
+  .stu-icons { width: auto; gap: 4px; }
+  .stu-icon { width: 28px; height: 28px; }
+}
+
+
 /* ---------------- pages (50 cards each) ---------------- */
 
 .pg-hidden { display: none !important; }

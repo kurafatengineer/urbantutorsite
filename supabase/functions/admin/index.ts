@@ -26,7 +26,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { notify, sendTelegram, demoScheduledTelegram, demoResponseButtons } from "../_shared/telegram.ts";
 import type { Built } from "../_shared/mails.ts";
 import {
-  demoScheduledMail, paymentReceivedMail, agencyChargeMail, payoutMail, subscriptionMail, tuitionPostedMail, agreementMail,
+  demoScheduledMail, paymentReceivedMail, agencyChargeMail, payoutMail, subscriptionMail, tuitionPostedMail, agreementMail, officeMessageMail,
 } from "../_shared/mails.ts";
 import { dealNumbers, type Deal } from "../_shared/deal.ts";
 
@@ -177,6 +177,8 @@ const PERMISSION_GROUPS = [
     { key: "students_view", label: "View students" },
     { key: "students_edit", label: "Edit student details" },
     { key: "students_add", label: "Register students (Add a Student)" },
+    { key: "students_notify", label: "Send notifications to students" },
+    { key: "students_delete", label: "Delete / restore students (Trash)" },
   ] },
   { id: "payments", label: "Payments", items: [
     { key: "payments_view", label: "View Payments, Ledger & Graph" },
@@ -216,6 +218,7 @@ const PERMISSION_PARENT: Record<string, string> = {
   tuitions_edit: "tuitions_view", tuitions_assign_tutor: "tuitions_view", tuitions_close: "tuitions_view", tuitions_delete: "tuitions_view",
   tutors_edit: "tutors_view", tutors_verify: "tutors_view",
   students_edit: "students_view", students_add: "students_view", tuitions_add: "students_view",
+  students_notify: "students_view", students_delete: "students_view",
   payments_add: "payments_view", payments_edit: "payments_view", payments_delete: "payments_view",
   subscriptions_add: "payments_view", subscriptions_edit: "payments_view",
 };
@@ -224,7 +227,7 @@ const ROLE_PRESETS: Record<Role, string[]> = {
   super_admin: ALL_GRANTS,
   tuition_coordinator: [
     "tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_close",
-    "tutors_view", "tutors_edit", "students_view", "students_edit", "students_add", "tuitions_add",
+    "tutors_view", "tutors_edit", "students_view", "students_edit", "students_add", "tuitions_add", "students_notify",
   ],
   verification_staff: ["tutors_view", "tutors_verify"],
   accounts_finance: [
@@ -256,6 +259,8 @@ const ACTION_PERMISSION: Record<string, string> = {
   adminSetTerminated: "tuitions_close",
   adminDeleteTuition: "tuitions_delete",
   adminAddStudent: "students_add",
+  adminNotifyStudent: "students_notify",
+  adminDeleteStudent: "students_delete",
   adminAddTuition: "tuitions_add",
   adminAddPayment: "payments_add",
   adminUpdatePayment: "payments_edit",
@@ -763,6 +768,18 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
   if (!access.tuitions) withLinks.demos = [];
   if (!access.tutorsFull) withLinks.tutors = nameOnlyTable(withLinks.tutors, "Full Name");
   if (!access.studentsFull) withLinks.students = nameOnlyTable(withLinks.students, "Student Name");
+
+  // When each student was last edited / sent a notification / moved to
+  // the Trash - shown as icons on the Students tab and searchable there.
+  if (access.studentsFull && withLinks.students?.rows?.length) {
+    const { data: marks } = await selectAll(() => db.from("students")
+      .select("student_id, edited_at, notified_at, deleted_at").order("student_id"));
+    const byId = new Map((marks ?? []).map((m: Json) => [m.student_id, m]));
+    for (const r of withLinks.students.rows) {
+      const m: Json = byId.get(r.id) ?? {};
+      r.meta = { editedAt: m.edited_at ?? null, notifiedAt: m.notified_at ?? null, deletedAt: m.deleted_at ?? null };
+    }
+  }
 
   withLinks.me = {
     email: caller.email, fullName: caller.fullName, role: caller.role,
@@ -1315,6 +1332,35 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
     }
 
     // Add a Student - the same details as the student's own registration, with no OTP.
+    // A message from the office to one student: email + Telegram (when
+    // linked). Marks the student as notified.
+    case "adminNotifyStudent": {
+      const id = String(body.id ?? "").trim();
+      const message = String(body.message ?? "").trim();
+      if (!id) return { success: false, message: "Missing student." };
+      if (!message) return { success: false, message: "Write the message first." };
+      const { data: st } = await db.from("students").select("student_name, parents_name, email").eq("student_id", id).maybeSingle();
+      if (!st) return { success: false, message: "Student not found." };
+      if (!st.email) return { success: false, message: "This student has no email." };
+      await notify(st.email, officeMessageMail({ name: st.parents_name || st.student_name, studentId: id, message }), { email: callerMailsOn(caller) });
+      await db.from("students").update({ notified_at: new Date().toISOString() }).eq("student_id", id);
+      return { success: true, message: `Notification sent to ${st.student_name || id}.` };
+    }
+
+    // Delete only moves a student to the Trash (nothing is erased):
+    // hidden from the Students list, found again by searching "delete",
+    // and restored from there.
+    case "adminDeleteStudent": {
+      const id = String(body.id ?? "").trim();
+      if (!id) return { success: false, message: "Missing student." };
+      const restore = body.restore === true;
+      const { data: gone, error } = await db.from("students")
+        .update({ deleted_at: restore ? null : new Date().toISOString() }).eq("student_id", id).select("student_id");
+      if (error) return { success: false, message: error.message };
+      if (!gone?.length) return { success: false, message: "Student not found." };
+      return { success: true, message: restore ? `${id} restored.` : `${id} moved to Trash. Search "delete" to see or restore it.` };
+    }
+
     case "adminAddStudent": {
       const p = body.p ?? {};
       const result = await rpc("admin_register_student", { p });
