@@ -1858,21 +1858,39 @@ function closeFormModal(id) {
   if (!document.querySelector(".add-modal:not(.hidden)")) document.body.classList.remove("add-modal-open");
 }
 
-// Add a Student: a student already on file with the same name, mobile
-// number and email (a brother / sister on the same number is fine)
+// Add a Student: a student already on file with the same email, mobile
+// number and parents' name - and then the same student name too - is the
+// same child again (a brother / sister has a different name).
 function duplicateStudent() {
   const norm = t => lower(String(t || "").trim().replace(/\s+/g, " "));
   const phone = taDigits($("saPhone").value).slice(-10);
   const email = norm($("saEmail").value);
+  const parent = norm($("saParents").value);
   const name = norm($("saStudent").value);
-  if (phone.length !== 10 || !email || !name) return null;
+  if (phone.length !== 10 || !email || !parent || !name) return null;
   return taStudentRows().find(r =>
-    taDigits(taVal(r, "Phone")).slice(-10) === phone && norm(taVal(r, "Email")) === email &&
-    norm(taVal(r, "Student Name")) === name) || null;
+    norm(taVal(r, "Email")) === email && taDigits(taVal(r, "Phone")).slice(-10) === phone &&
+    norm(taVal(r, "Parents Name")) === parent && norm(taVal(r, "Student Name")) === name) || null;
 }
 
 function duplicateStudentText(row) {
-  return `This student already exists (${row.id}) - same name, mobile number and email. Change the student's name if it's a different child.`;
+  return `Already registered: ${row.id} has the same email, mobile number, parents' name and student name. Change the student's name if it's a different child.`;
+}
+
+// Red flag on Student Name and everything after it locked while it's a duplicate.
+function showDuplicateStudent(row) {
+  $("saStudentField").classList.toggle("is-dup", !!row);
+  $("saStudentField").querySelector(".dup-flag").classList.toggle("hidden", !row);
+  $("saDupNote").textContent = row ? duplicateStudentText(row) : "";
+  $("saDupNote").classList.toggle("hidden", !row);
+  const form = $("studentAddForm");
+  const after = [...form.querySelectorAll("input, select, textarea, button")]
+    .filter(el => $("saDupNote").compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+  after.forEach(el => {
+    if (row) { if (!el.disabled) { el.disabled = true; el.dataset.dupLocked = "1"; } }
+    else if (el.dataset.dupLocked) { el.disabled = false; delete el.dataset.dupLocked; }
+  });
+  form.classList.toggle("is-dup-locked", !!row);
 }
 
 function resetFormModal(prefix, formId, messageId) {
@@ -1940,6 +1958,7 @@ function wireStudentForms() {
 
   $("addStudentButton").addEventListener("click", () => {
     resetFormModal("sa", "studentAddForm", "studentAddMessage");
+    showDuplicateStudent(null);
     syncWhatsapp();
     syncTuition();
     openFormModal("studentAddModal");
@@ -1947,14 +1966,9 @@ function wireStudentForms() {
     $("saPhone").focus();
   });
 
-  // the same student again (same name, mobile and email) - said right away
-  ["saEmail", "saPhone", "saStudent"].forEach(id => $(id).addEventListener("input", () => {
-    const dup = duplicateStudent();
-    const msg = $("studentAddMessage");
-    if (dup) msg.textContent = duplicateStudentText(dup);
-    else if (msg.dataset.dup) msg.textContent = "";
-    msg.dataset.dup = dup ? "1" : "";
-  }));
+  // the same student again - flagged right away, the rest locked
+  ["saEmail", "saPhone", "saParents", "saStudent"].forEach(id =>
+    $(id).addEventListener("input", () => showDuplicateStudent(duplicateStudent())));
 
   $("studentAddForm").addEventListener("submit", async (event) => {
 
@@ -1993,7 +2007,7 @@ function wireStudentForms() {
 
     const dup = duplicateStudent();
     if (dup) {
-      $("studentAddMessage").textContent = duplicateStudentText(dup);
+      showDuplicateStudent(dup);
       $("saStudent").focus();
       return;
     }
