@@ -1556,7 +1556,7 @@ function wireIdleForms() {
   STATE.idleForms = {};   // form id -> { openedAt, dirty, isOpen }
   const idleForms = STATE.idleForms;
 
-  ["paymentForm", "subscriptionForm"].forEach(id => {
+  ["paymentForm", "subscriptionForm", "employeeForm"].forEach(id => {
     const form = $(id);
     idleForms[id] = { openedAt: 0, dirty: false };
 
@@ -1578,14 +1578,14 @@ function wireIdleForms() {
   });
 
   document.addEventListener("click", (event) => {
-    ["paymentForm", "subscriptionForm"].forEach(id => {
+    ["paymentForm", "subscriptionForm", "employeeForm"].forEach(id => {
       const form = $(id);
       const st = idleForms[id];
       if (form.classList.contains("hidden") || st.dirty) return;
       // the same click that opened it (button, card figure...) doesn't count
       if (performance.now() - st.openedAt < 400) return;
       if (form.contains(event.target)) return;
-      if (event.target.closest("#addPaymentButton, #addSubscriptionButton")) return;
+      if (event.target.closest("#addPaymentButton, #addSubscriptionButton, #addEmployeeButton")) return;
       form.classList.add("hidden");
     });
   });
@@ -2287,7 +2287,26 @@ function studentOrTutorSuggestions(query, isStudent, opts = {}) {
 
 // Renders a dropdown of {id/demoId, name, mobile} - "demo" items show
 // the linked student's name/mobile; everything else shows its own.
-function renderIdSuggestions(container, items, kind, query) {
+// Every detail of one suggestion, in order: [tag, value]
+function suggestionFields(item, kind) {
+  if (kind === "demo") {
+    const st = DIR_STUDENT_BY_ID[item.studentId] || {};
+    const tutors = (item.tutorIds || []).map(id => [id, DIR_TUTOR_BY_ID[id] || {}]);
+    return [["Demo ID", item.demoId], ["Student ID", item.studentId], ["Name", st.name], ["Parent", st.parentsName],
+      ["Mobile", st.mobile], ["WhatsApp", st.whatsapp], ["Subject", item.subject],
+      ...tutors.flatMap(([id, t]) => [["Tutor ID", id], ["Tutor", t.name], ["Tutor Mobile", t.mobile]])];
+  }
+  const isStudent = String(item.id || "").toUpperCase().startsWith("SID");
+  return [[isStudent ? "Student ID" : "Tutor ID", item.id], ["Name", item.name], ["Parent", item.parentsName],
+    ["Mobile", item.mobile], ["WhatsApp", item.whatsapp]];
+}
+
+// Renders a suggestion list. The bold line is whatever was typed - the
+// WhatsApp number when a WhatsApp number is typed, the parent's name for
+// a parent's name, the ID for an ID ... (prefer: the tag of the box being
+// typed in, tried first) - with its tag on the right and the rest of the
+// details underneath.
+function renderIdSuggestions(container, items, kind, query, prefer) {
   if (!container) return;
   if (query !== undefined && !String(query).trim()) { container.classList.add("hidden"); return; }
   if (!items.length) {
@@ -2295,13 +2314,18 @@ function renderIdSuggestions(container, items, kind, query) {
     container.classList.remove("hidden");
     return;
   }
+  const q = String(query || "").trim();
+  const hit = ([, value]) => value && q && lookupHit(q, [value], [value]) && !(String(value).includes("*"));
   container.innerHTML = items.map(item => {
     const id = kind === "demo" ? item.demoId : item.id;
-    const who = kind === "demo" ? (DIR_STUDENT_BY_ID[item.studentId] || {}) : item;
+    const fields = suggestionFields(item, kind).filter(([, v]) => v);
+    const preferred = prefer ? fields.filter(([tag]) => tag === prefer || (prefer === "ID" && / ID$/.test(tag) && tag !== "Demo ID")) : [];
+    const main = preferred.find(hit) || fields.find(hit) || preferred[0] || fields[0] || ["", id];
+    const rest = fields.filter(f => f !== main && f[1] !== main[1] && !/^Tutor (ID|Mobile)$/.test(f[0]));
     return suggestItem({
-      title: id,
-      sub: [kind === "demo" ? item.subject : "", who.name, kind === "tutor" ? "" : who.parentsName, who.mobile || "No mobile"],
-      tag: idTag(id),
+      title: main[1],
+      sub: rest.slice(0, 4).map(f => f[1]),
+      tag: main[0] === "Name" && kind === "demo" ? "Student" : main[0],
       attrs: `data-pick-id="${esc(id)}"`,
     });
   }).join("");
@@ -2328,7 +2352,7 @@ function wirePaymentIdSuggestions() {
     refreshAgencyChargeFromDemo();
     if (paymentPicking) return;
     const mode = $("paymentTransactionType").value;
-    renderIdSuggestions(demoSuggest, paymentDemoSuggestions(text, exactTutorId(), mode === "tutor-agency-charge"), "demo", text);
+    renderIdSuggestions(demoSuggest, paymentDemoSuggestions(text, exactTutorId(), mode === "tutor-agency-charge"), "demo", text, "Demo ID");
   });
 
   tutorInput.addEventListener("input", () => {
@@ -2337,7 +2361,7 @@ function wirePaymentIdSuggestions() {
     updateIdDetail(tutorDetail, exact || null);
     refreshAgencyChargeFromDemo();
     if (paymentPicking) return;
-    renderIdSuggestions(tutorSuggest, paymentTutorSuggestions(text, exactDemoId()), "tutor", text);
+    renderIdSuggestions(tutorSuggest, paymentTutorSuggestions(text, exactDemoId()), "tutor", text, "ID");
   });
 
   demoSuggest.addEventListener("click", (event) => {
@@ -2378,6 +2402,17 @@ function paymentLookupKind(id) {
   if (PAYMENT_TUTOR_BOXES.includes(id)) return mode === "payout" ? "tutor" : null;
   if (PAYMENT_STUDENT_BOXES.includes(id)) return isSub ? null : "demo";
   return null;
+}
+
+// the detail a Record a Payment box holds (its suggestions lead with it)
+function paymentBoxTag(id) {
+  const mode = $("paymentTransactionType").value;
+  if (id === "paymentSubName") return mode === "student-agency-charge" ? "Parent" : (mode === "tutor-agency-charge" ? "Tutor" : "Name");
+  if (id === "paymentSubId") return mode === "tutor-agency-charge" ? "Tutor ID" : "ID";
+  if (id === "paymentSubMobile") return mode === "tutor-agency-charge" ? "Tutor Mobile" : "Mobile";
+  if (mode === "payout" && (id === "paymentTutorName" || id === "paymentTutorMobile")) return id === "paymentTutorName" ? "Name" : "Mobile";
+  return { paymentStudentMobile: "Mobile", paymentStudentName: "Name", paymentStuId: "Student ID",
+           paymentStuWhatsapp: "WhatsApp", paymentParentName: "Parent", paymentTutorMobile: "Mobile", paymentTutorName: "Name" }[id] || "";
 }
 
 function setPaymentLookupEditable() {
@@ -2448,10 +2483,10 @@ function wirePaymentLookups() {
       if (kind === "demo") {
         const tutorFilter = mode === "payout" && DIR_TUTOR_BY_ID[$("paymentTutorId").value.trim()] ? $("paymentTutorId").value.trim() : "";
         const tutorSide = mode === "tutor-agency-charge" && PAYMENT_PARTY_BOXES.includes(id);
-        renderIdSuggestions(suggest, paymentDemoSuggestions(query, tutorFilter, tutorSide), "demo", query);
+        renderIdSuggestions(suggest, paymentDemoSuggestions(query, tutorFilter, tutorSide), "demo", query, paymentBoxTag(id));
       } else if (kind === "tutor") {
         const demoFilter = DIR_DEMO_BY_ID[$("paymentDemoId").value.trim()] ? $("paymentDemoId").value.trim() : "";
-        renderIdSuggestions(suggest, paymentTutorSuggestions(query, demoFilter), "tutor", query);
+        renderIdSuggestions(suggest, paymentTutorSuggestions(query, demoFilter), "tutor", query, paymentBoxTag(id));
       } else {
         const isStudent = kind === "student";
         // an exact Student / Tutor ID fills its subscription straight away
@@ -2461,7 +2496,7 @@ function wirePaymentLookups() {
           suggest.classList.add("hidden");
           return;
         }
-        renderIdSuggestions(suggest, studentOrTutorSuggestions(query, isStudent, { excludeFullyPaid: true }), "party", query);
+        renderIdSuggestions(suggest, studentOrTutorSuggestions(query, isStudent, { excludeFullyPaid: true }), "party", query, paymentBoxTag(id));
       }
     });
 
@@ -2517,7 +2552,8 @@ function wireSubscriptionIdSuggestion() {
         // a new name / number: the earlier pick no longer applies
         boxes.filter(other => other !== id).forEach(other => { $(other).value = ""; });
       }
-      renderIdSuggestions(suggest, studentOrTutorSuggestions(query, isStudent()), "party", query);
+      renderIdSuggestions(suggest, studentOrTutorSuggestions(query, isStudent()), "party", query,
+        { subscriptionPartyId: "ID", subscriptionPartyName: "Name", subscriptionPartyMobile: "Mobile" }[id]);
     });
 
     suggest.addEventListener("click", (event) => {
@@ -4098,7 +4134,8 @@ function updateSearchBar(searchId, shown) {
   const chip = searchFilterChip(searchId);
   const applied = !!searchQueryFor(searchId).trim() || !!(chip && chip.dataset.value !== "all");
   const count = wrap.querySelector(".sb-count");
-  count.textContent = `${shown} ${shown === 1 ? "match" : "matches"}`;
+  count.textContent = `${shown} ${shown === 1 ? "Match" : "Matches"}`;
+  count.classList.toggle("is-zero", shown === 0);
   count.classList.toggle("hidden", !applied);
   wrap.querySelector(".sb-clear").classList.toggle("hidden", !applied);
 }
@@ -5364,9 +5401,9 @@ function renderEmployees() {
 
   $("employeeHeader").innerHTML = rows.length ? `
     <p class="emp-legend">
-      <span><i class="emp-key" data-presence="online"></i>Logged in</span>
-      <span><i class="emp-key" data-presence="working"><i class="emp-ring"></i></i>Working now</span>
-      <span><i class="emp-key" data-presence="off"></i>Logged out</span>
+      <span><i class="emp-key" data-presence="online"></i>Logged In</span>
+      <span><i class="emp-key" data-presence="working"><i class="emp-ring"></i></i>Working Now</span>
+      <span><i class="emp-key" data-presence="off"></i>Logged Out</span>
     </p>` + employeeHeaderCard() : "";
 
 }
@@ -5478,7 +5515,7 @@ function employeeCard(e) {
   const locked = isMe;
   const permsBox = STATE.permInfo ? `
     <div class="perm-box">
-      <p class="perm-title">Permissions${locked ? " <small>- you can't change your own</small>" : e.role === "super_admin" ? " <small>- a Super Admin always has all (change the Role to pick individually)</small>" : ""}</p>
+      <p class="perm-title">Permissions:${locked ? " <small>- you can't change your own</small>" : e.role === "super_admin" ? " <small>- a Super Admin always has all (change the Role to pick individually)</small>" : ""}</p>
       <div class="perm-grid" data-perms${locked ? " data-locked" : ""}>${permChecklistHtml(new Set(e.permissions || []), !editing || locked || e.role === "super_admin")}</div>
     </div>` : "";
 
