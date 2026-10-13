@@ -12,3 +12,8 @@ alter table public.payments alter constraint payments_tutor_id_fkey deferrable i
 --   tutors:   TID20250001-0178, TID20260002-0367 (TID20260001 unchanged)
 -- Subscriptions were moved to the new IDs in the same transaction, and
 -- student_id_seq / tutor_id_seq were set to the highest 2026 serial.
+
+-- Later the same day every 2026 ID (old and imported) was renumbered once
+-- more, serial by registration time, earliest first:
+--   students SID20260001-0611 (last: the newest entry), tutors TID20260001-0367.
+-- 2025 IDs stayed as above. Sequences now continue from 611 / 367.

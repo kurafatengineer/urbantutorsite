@@ -579,6 +579,48 @@ button { cursor: pointer; }
 }
 
 
+/* ---------------- pages (50 cards each) ---------------- */
+
+.pg-hidden { display: none !important; }
+
+.admin-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0 4px;
+}
+
+.admin-pager-btn {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-pager-btn:hover:not(:disabled) {
+  color: var(--lime);
+  background: var(--lime-dim);
+  border-color: transparent;
+}
+
+.admin-pager-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.admin-pager-info {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+
 /* ---------------- toast ---------------- */
 
 .admin-toast {
