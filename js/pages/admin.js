@@ -6300,6 +6300,13 @@ function nextPayDates(start, freq) {
   return { parent, tutor: isoPlusDays(parent, 1) };
 }
 
+// calendar icon: plain = scheduled, green with a tick = taken, red with a cross = not taken
+function calIcon(status) {
+  const body = status === "done" ? '<path d="M8.5 15.2l2.4 2.4 4.6-4.9"/>'
+    : status === "missed" ? '<path d="M9.6 13.4l4.8 4.8M14.4 13.4l-4.8 4.8"/>' : "";
+  return `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect class="ci-bg" x="3" y="4.5" width="18" height="16.5" rx="3.5"/><path d="M8 2.5v4M16 2.5v4M3 10h18"/>${body}</svg>`;
+}
+
 function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime = "", sel = "") {
   const [y, m] = monthKey.split("-").map(Number);
   const first = new Date(y, m - 1, 1);
@@ -6318,7 +6325,7 @@ function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime =
     const state = e.s === "done" ? " is-done" : e.s === "missed" ? " is-missed" : "";
     const meta = on ? `
       <small>${mins ? esc(mins) + "m" : "&nbsp;"}</small><small>${time ? esc(clock12(time)) : "&nbsp;"}</small>
-      <span class="cal-mark">${e.s === "done" ? "&#10003;" : e.s === "missed" ? "&#10005;" : ""}</span>` : "";
+      <span class="cal-ico">${calIcon(e.s)}</span>` : "";
     cells += `<button type="button" class="cal-day${on ? " is-on" : ""}${state}${iso === today ? " is-today" : ""}${iso === sel ? " is-sel" : ""}"
       data-action="cal-day" data-date="${iso}"${editing || on ? "" : " disabled"}><b>${day}</b>${meta}</button>`;
   }
@@ -6335,12 +6342,12 @@ function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime =
         <strong>${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][wd.getDay()]}, ${esc(fmtPayDate(sel))}</strong>
         <div class="cal-edit-status">
           <button type="button" class="day-opt${e.s === "done" ? " is-on" : ""}" data-action="day-status" data-s="done">&#10003; Taken</button>
-          <button type="button" class="day-opt is-bad${e.s === "missed" ? " is-on" : ""}" data-action="day-status" data-s="missed">&#10005; Not taken</button>
+          <button type="button" class="day-opt is-bad${e.s === "missed" ? " is-on" : ""}" data-action="day-status" data-s="missed">&#10005; Not Taken</button>
           <button type="button" class="day-opt${!e.s ? " is-on" : ""}" data-action="day-status" data-s="">Pending</button>
         </div>
         <div class="cal-edit-fields">
-          <label class="admin-box is-edit"><input type="number" min="1" max="600" data-day-m value="${esc(e.m || defMin)}"><span>Duration (Minutes)</span></label>
-          <label class="admin-box is-edit"><input type="time" data-day-t value="${esc(e.t || defTime)}"><span>Class Time</span></label>
+          <label class="admin-box is-edit"><input type="number" min="1" max="600" data-day-m value="${esc(e.m || defMin)}"><span>Duration (minutes)</span></label>
+          <label class="admin-box is-edit"><input type="time" data-day-t value="${esc(e.t || defTime)}"><span>Class time</span></label>
         </div>
         <div class="admin-pair">
           <button class="admin-ghost" type="button" data-action="day-close">Close</button>
@@ -6359,12 +6366,16 @@ function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime =
       ${CAL_WEEKDAYS.map(w => `<span class="cal-wd">${w}</span>`).join("")}
       ${cells}
     </div>
-    <p class="cal-note">${dates.length} class${dates.length === 1 ? "" : "es"} scheduled${inMonth !== dates.length ? ` · ${inMonth} this month` : ""}
-      · <span class="cal-ok">${done} taken</span> · <span class="cal-bad">${missed} not taken</span>${editing ? "" : " · tap a date to correct it"}</p>
+    <p class="cal-note">
+      <span class="cal-chip">${dates.length} ${dates.length === 1 ? "Class" : "Classes"} Scheduled${inMonth !== dates.length ? ` (${inMonth} This Month)` : ""}</span>
+      <span class="cal-chip cal-ok">${done} Taken</span>
+      <span class="cal-chip cal-bad">${missed} Not Taken</span>
+    </p>
+    ${editing ? "" : '<p class="cal-hint">Tap a scheduled date to correct it</p>'}
     ${editor}`;
 }
 
-function classPlanHtml(g, activeRow, editing) {
+function classPlanHtml(g, activeRow, editing, extra = {}) {
 
   const dates = (activeRow.classDates || []).slice().sort();
   STATE.calMonth = STATE.calMonth || {};
@@ -6374,7 +6385,13 @@ function classPlanHtml(g, activeRow, editing) {
 
   return `
     <div class="class-plan" data-class-plan data-month="${esc(monthKey)}" data-dates='${esc(JSON.stringify(dates))}' data-log='${esc(JSON.stringify(activeRow.classLog || {}))}'>
-      <div class="class-cal" data-cal>${calendarHtml(monthKey, dates, editing, activeRow.classLog || {}, dealOf(activeRow).minutes || "", dealOf(activeRow).time || "")}</div>
+      <div class="class-top">
+        <div class="class-cal">
+          <div data-cal>${calendarHtml(monthKey, dates, editing, activeRow.classLog || {}, dealOf(activeRow).minutes || "", dealOf(activeRow).time || "")}</div>
+          ${extra.terms || ""}
+        </div>
+        <div class="admin-class-parties">${extra.parties || ""}</div>
+      </div>
       ${dealPanelHtml(g, activeRow, editing, dates.length)}
     </div>`;
 }
@@ -6734,7 +6751,13 @@ function onClassPlanClick(actionEl) {
     if (editing) {
       const dates = new Set(planDates(plan));
       if (dates.has(iso)) dates.delete(iso); else dates.add(iso);
-      plan.dataset.dates = JSON.stringify([...dates].sort());
+      const sorted = [...dates].sort();
+      plan.dataset.dates = JSON.stringify(sorted);
+      if (sorted.length) {
+        const st = plan.querySelector('[data-term="start"]'), en = plan.querySelector('[data-term="end"]');
+        if (st) st.value = sorted[0];
+        if (en) en.value = sorted[sorted.length - 1];
+      }
       redrawCalendar(plan);
       recalcDeal(plan.querySelector("[data-deal]"));
     } else {
@@ -6807,15 +6830,16 @@ function classCard(g, activeRow) {
     return `data-action="class-figure" data-kind="${kind}"${left !== undefined && !(left > 0) ? ' data-empty="1"' : ""}`;
   };
 
-  // Start Date defaults to today and End Date to a week out until the admin
-  // picks their own. The next payment dates are worked out from the start
-  // date and how often the parent pays (the tutor is paid a day later).
+  // Start Date is the first scheduled class and End Date the last one - they
+  // follow the calendar by themselves. The next payment dates are worked out
+  // from the start date and how often the parent pays (the tutor a day later).
   const todayISO = new Date().toISOString().slice(0, 10);
-  const todayDMY = todayISO.split("-").reverse().join("/");
-  const nextWeekISO = isoPlusDays(todayISO, 7);
-  const nextWeekDMY = nextWeekISO.split("-").reverse().join("/");
-  const startDateShown = editing ? (toDateInput(activeRow.classStartDate) || todayISO) : (activeRow.classStartDate || todayDMY);
-  const endDateShown = editing ? (toDateInput(activeRow.classEndDate) || nextWeekISO) : (activeRow.classEndDate || nextWeekDMY);
+  const sched = (activeRow.classDates || []).slice().sort();
+  const startISO = sched[0] || toDateInput(activeRow.classStartDate) || todayISO;
+  const endISO = sched[sched.length - 1] || toDateInput(activeRow.classEndDate) || startISO;
+  const dmy = iso => iso.split("-").reverse().join("/");
+  const startDateShown = editing ? startISO : dmy(startISO);
+  const endDateShown = editing ? endISO : dmy(endISO);
   const deal0 = dealOf(activeRow);
   const freq0 = deal0.parentFreq || "Monthly";
   const pay0 = nextPayDates(startDateShown, freq0);
@@ -6824,9 +6848,9 @@ function classCard(g, activeRow) {
   const tutorFrom0 = dm0.model === "commission" && dm0.feeTo === "Tutor" ? "Parents" : "Agency";
 
   const tuitionTermsBoxes = `
-    <div class="admin-boxes">
-      ${box("Start Date", startDateShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Class Start Date") })}
-      ${box("End Date", endDateShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Class End Date") })}
+    <div class="admin-boxes cal-terms">
+      ${box("Start Date (first class)", startDateShown, { type: editing ? "date" : "text", attr: cfield("Class Start Date") + ' data-term="start"' })}
+      ${box("End Date (last class)", endDateShown, { type: editing ? "date" : "text", attr: cfield("Class End Date") + ' data-term="end"' })}
     </div>`;
 
   // Student's Total Amount is never typed in - it's Class Duration x
@@ -6926,12 +6950,7 @@ function classCard(g, activeRow) {
 
         <h3 class="admin-section-title admin-section-title-center">Tuition ID: ${esc(g.demoId)}</h3>
 
-        ${classPlanHtml(g, activeRow, editing)}
-        ${tuitionTermsBoxes}
-        <div class="admin-class-parties">
-          ${studentSection}
-          ${tutorSection}
-        </div>
+        ${classPlanHtml(g, activeRow, editing, { terms: tuitionTermsBoxes, parties: studentSection + tutorSection })}
 
         ${editButtons(key, editing, "save-class-details", "Edit Class Details")}
 

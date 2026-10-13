@@ -4393,3 +4393,42 @@ button.pc-stat[data-empty] { cursor: default; }
 
 /* deal labels: only the first letter capital */
 .deal .admin-box > span, .cal-edit .admin-box > span { text-transform: none; letter-spacing: 0.02em; }
+
+
+/* =========================================================
+   CLASS CARD v3 - calendar | Student + Tutor on top, the deal below
+========================================================= */
+.class-plan { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.class-top { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.4fr); gap: 16px; align-items: start; }
+.class-top > .admin-class-parties { grid-template-columns: 1fr 1fr; gap: 12px; }
+.class-bill.deal { padding: 16px; }
+.deal-grid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+@media (max-width: 1000px) {
+  .class-top { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .class-top > .admin-class-parties { grid-template-columns: 1fr; }
+}
+
+.cal-terms { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.cal-terms .admin-box input { min-height: 46px; cursor: default; }
+
+/* calendar cell: date, minutes, time, then the calendar icon */
+.cal-ico { display: block; line-height: 0; margin-top: 3px; color: var(--muted); }
+.cal-ico svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.cal-ico .ci-bg { fill: transparent; }
+.cal-day.is-done { background: rgba(22, 163, 74, 0.34); }
+.cal-day.is-done .cal-ico { color: #16a34a; }
+.cal-day.is-done .cal-ico .ci-bg { fill: #16a34a; stroke: #16a34a; }
+.cal-day.is-done .cal-ico path { stroke: #fff; }
+.cal-day.is-missed { background: rgba(239, 68, 68, 0.16); }
+.cal-day.is-missed .cal-ico { color: #ef4444; }
+.cal-day.is-missed .cal-ico .ci-bg { fill: rgba(239, 68, 68, 0.15); }
+.cal-day.is-on:not(.is-done):not(.is-missed) .cal-ico { color: var(--lime); }
+.cal-mark { display: none; }
+
+.cal-note { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 12px 0 0; }
+.cal-chip { padding: 5px 12px; border-radius: 999px; background: var(--surface); font-size: 12px; font-weight: 800; color: var(--text); }
+.cal-chip.cal-ok { color: #16a34a; background: rgba(22, 163, 74, 0.14); }
+.cal-chip.cal-bad { color: #ef4444; background: rgba(239, 68, 68, 0.14); }
+.cal-hint { margin: 8px 0 0; text-align: center; font-size: 11.5px; color: var(--muted); }
