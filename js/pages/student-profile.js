@@ -667,8 +667,9 @@ function statusMessage(item) {
       }
       return { text: "The tutor has approved, waiting for your approval" };
 
+    // both sides have accepted each other
     case "running":
-      return { text: "This class is running" };
+      return { text: "You have both accepted. Our agency will contact you shortly - class and payment details will be shared with you.", strong: true };
 
     case "completed":
       return { text: "This class has been completed" };

@@ -8,7 +8,7 @@
 // the Emails On / Off switches; the Telegram message always goes.
 
 import { sendMail } from "./email.ts";
-import { type Built, fmtDate, fmtTime, modeText, SITE_URL } from "./mails.ts";
+import { type Built, fmtDate, fmtTime, matchedMail, modeText, SITE_URL } from "./mails.ts";
 
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 
@@ -60,6 +60,31 @@ export async function notify(email: string | null | undefined, mail: Built, opts
   } catch (e) {
     console.error("telegram notify failed", String(e));
   }
+}
+
+// After an accept: once the parent AND the tutor have both accepted, both
+// get "Tuition Confirmed" (the agency will contact them about classes and
+// payment). Returns true when that happened, so the caller can skip the
+// usual "please confirm" message to the other side.
+export async function notifyIfMatched(demoId: string, tutorId: string): Promise<boolean> {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key || !demoId || !tutorId) return false;
+  const get = async (path: string) => {
+    const res = await fetch(`${url}/rest/v1/${path}`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+    return res.ok ? ((await res.json().catch(() => []))?.[0] ?? null) : null;
+  };
+  const q = encodeURIComponent;
+  const app = await get(`applications?demo_id=eq.${q(demoId)}&tutor_id=eq.${q(tutorId)}&select=parent_accepted,tutor_accepted,parent_rejected,tutor_rejected`);
+  if (!app?.parent_accepted || !app?.tutor_accepted || app.parent_rejected || app.tutor_rejected) return false;
+  const tuition = await get(`tuitions?demo_id=eq.${q(demoId)}&select=subject,student_id`);
+  const student = tuition?.student_id ? await get(`students?student_id=eq.${q(tuition.student_id)}&select=student_name,email`) : null;
+  const tutor = await get(`tutors?tutor_id=eq.${q(tutorId)}&select=tutor_id,full_name,email`);
+  if (!tuition || !student || !tutor) return false;
+  const subject = String(tuition.subject ?? "");
+  await notify(student.email, matchedMail({ forTutor: false, name: student.student_name, demoId, subject, otherName: tutor.full_name, otherId: tutor.tutor_id }));
+  await notify(tutor.email, matchedMail({ forTutor: true, name: tutor.full_name, demoId, subject, otherName: student.student_name }));
+  return true;
 }
 
 // Accept / Reject under a "Demo Scheduled" message. The telegram function

@@ -157,6 +157,18 @@ export function parentResponseMail(d: {
         { label: "Search New Tuitions", page: "advertisement.html" });
 }
 
+/* both accepted (student + tutor) - the tuition is confirmed */
+export function matchedMail(d: {
+  forTutor: boolean; name: string; demoId: string; subject: string; otherName: string; otherId?: string;
+}): Built {
+  return make(
+    "Your tuition is confirmed", "Tuition Confirmed", { text: "BOTH ACCEPTED", tone: "green" }, d.name,
+    `You and ${d.otherName} have both accepted the ${d.subject} tuition. Our agency will contact you shortly - class and payment details will be shared with you.`,
+    [["Demo ID", d.demoId], [d.forTutor ? "Student" : "Tutor", d.otherName], ["Tutor ID", d.forTutor ? "" : (d.otherId ?? "")]],
+    { label: "Open My Profile", page: d.forTutor ? "tutorprofile.html" : "studentprofile.html" },
+  );
+}
+
 /* ---------- 6 · tuition payment received (student) ---------- */
 
 export function paymentReceivedMail(d: {

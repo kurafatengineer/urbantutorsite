@@ -78,6 +78,8 @@ interface Caller {
   role: Role;
   permissions: Set<string>;
   mailsEnabled: boolean;
+  workStart: string | null;
+  workEnd: string | null;
 }
 
 interface AuthedUser { id: string; email: string; }
@@ -110,7 +112,7 @@ async function loadCaller(authHeader: string | null): Promise<Caller | "no-sessi
 
   const { data: row } = await db
     .from("admin_users")
-    .select("id, email, full_name, role, active, permissions, mails_enabled")
+    .select("id, email, full_name, role, active, permissions, mails_enabled, work_start, work_end")
     .ilike("email", user.email)
     .maybeSingle();
 
@@ -119,6 +121,7 @@ async function loadCaller(authHeader: string | null): Promise<Caller | "no-sessi
       id: row.id, email: row.email, fullName: row.full_name, role: row.role as Role,
       permissions: new Set(effectivePermissions(row.role as Role, row.permissions)),
       mailsEnabled: row.mails_enabled !== false,
+      workStart: row.work_start ?? null, workEnd: row.work_end ?? null,
     };
   }
 
@@ -597,9 +600,67 @@ async function buildPaymentDirectory(): Promise<Json> {
 async function listEmployees(): Promise<Json[]> {
   const { data } = await db
     .from("admin_users")
-    .select("id, email, full_name, role, active, created_at, permissions")
+    .select("id, email, full_name, role, active, created_at, permissions, last_seen_at, last_active_at, logged_out_at, work_start, work_end")
     .order("created_at", { ascending: true });
-  return (data ?? []).map((e: Json) => ({ ...e, permissions: effectivePermissions(e.role as Role, e.permissions) }));
+  const now = Date.now();
+  const recent = (t: unknown) => !!t && now - new Date(String(t)).getTime() < PRESENCE_MS;
+  return (data ?? []).map((e: Json) => {
+    // logged in: the panel pinged lately and they haven't logged out since
+    const loggedIn = recent(e.last_seen_at) &&
+      (!e.logged_out_at || new Date(e.logged_out_at).getTime() < new Date(e.last_seen_at).getTime());
+    return {
+      ...e,
+      permissions: effectivePermissions(e.role as Role, e.permissions),
+      loggedIn,
+      working: loggedIn && recent(e.last_active_at),
+      workStart: hhmm(e.work_start), workEnd: hhmm(e.work_end),
+    };
+  });
+}
+
+/* PRESENCE + LOGIN HOURS
+   The Admin Panel pings every minute while it is open (adminPing, with
+   active = the mouse / keyboard was used since the last ping). An
+   employee counts as logged in while pings keep coming (and they haven't
+   logged out since), and as working while they were also active.
+   Login hours (India time) block every action outside them; a Super
+   Admin is never limited. */
+const PRESENCE_MS = 3 * 60 * 1000;
+
+const hhmm = (t: unknown) => (String(t ?? "").match(/^(\d{2}):(\d{2})/) ?? [""])[0];
+
+function minutesOf(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function fmtClock(t: string): string {
+  const [h, m] = t.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+}
+
+function withinHours(caller: Caller): boolean {
+  if (caller.role === "super_admin") return true;
+  const start = hhmm(caller.workStart), end = hhmm(caller.workEnd);
+  if (!start || !end || start === end) return true;
+  const ist = new Date(Date.now() + 330 * 60 * 1000);          // India time
+  const now = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+  const a = minutesOf(start), b = minutesOf(end);
+  return a < b ? now >= a && now < b : now >= a || now < b;    // also overnight shifts
+}
+
+async function touch(caller: Caller, active: boolean) {
+  const stamp = new Date().toISOString();
+  await db.from("admin_users").update(active ? { last_seen_at: stamp, last_active_at: stamp } : { last_seen_at: stamp })
+    .eq("id", caller.id);
+}
+
+// "HH:MM" -> stored time, "" -> no limit; anything else is refused
+function hoursChange(value: unknown): string | null | undefined | { error: string } {
+  if (value === undefined) return undefined;
+  const v = String(value ?? "").trim();
+  if (!v) return null;
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : { error: "Enter login hours like 09:00." };
 }
 
 /* ------------------------------------------------------------------
@@ -1003,6 +1064,34 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
     return { success: false, bootstrapNeeded: true, message: "No admin account exists yet." };
   }
 
+  // Log out: remembered so the Employees section shows them offline.
+  if (action === "adminSession") {
+    if (body.event === "logout") {
+      await db.from("admin_users").update({ logged_out_at: new Date().toISOString() }).eq("id", caller.id);
+    }
+    return { success: true };
+  }
+
+  // Outside their login hours an employee can't use the panel at all.
+  if (!withinHours(caller)) {
+    return {
+      success: false, notAdmin: true, outsideHours: true,
+      message: `Your login hours are ${fmtClock(hhmm(caller.workStart))} - ${fmtClock(hhmm(caller.workEnd))}. You can't use the Admin Panel outside them.`,
+    };
+  }
+
+  // Every call counts as "panel open"; anything but reading counts as working.
+  try { await touch(caller, action !== READ_ONLY_ACTION && action !== "adminPing"); } catch (e) { console.error("touch", e); }
+
+  if (action === "adminPing") {
+    if (body.active === true) {
+      await db.from("admin_users").update({ last_active_at: new Date().toISOString() }).eq("id", caller.id);
+    }
+    return caller.permissions.has("employees_manage")
+      ? { success: true, employees: await listEmployees() }
+      : { success: true };
+  }
+
   if (action === READ_ONLY_ACTION) return handleGetOverview(caller);
 
   // Emails On / Off: a Super Admin switches the whole site, anyone else
@@ -1234,8 +1323,13 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
 
       if (!userId) return { success: false, message: "Could not create the login for that email." };
 
+      const workStart = hoursChange(body.workStart), workEnd = hoursChange(body.workEnd);
+      for (const h of [workStart, workEnd]) if (h && typeof h === "object") return { success: false, message: h.error };
+
       const { error } = await db.from("admin_users").insert({
         id: userId, email: employeeEmail, full_name: fullName, role, active: true,
+        work_start: role === "super_admin" ? null : (workStart ?? null),
+        work_end: role === "super_admin" ? null : (workEnd ?? null),
         // A Super Admin always has everything; anyone else gets exactly the ticked list.
         permissions: role === "super_admin" ? null : normalizePermissions(body.permissions),
       });
@@ -1263,8 +1357,14 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
         if (body.id === caller.id) return { success: false, message: "You cannot change your own permissions." };
         changes.permissions = normalizePermissions(body.changes.permissions);
       }
-      // Whatever role they end up with, a Super Admin's list is never stored.
-      if (changes.role === "super_admin") changes.permissions = null;
+      for (const [key, column] of [["workStart", "work_start"], ["workEnd", "work_end"]]) {
+        const h = hoursChange(body.changes?.[key]);
+        if (h && typeof h === "object") return { success: false, message: h.error };
+        if (h !== undefined) changes[column] = h;
+      }
+      // Whatever role they end up with, a Super Admin's list is never stored
+      // and their hours are never limited.
+      if (changes.role === "super_admin") { changes.permissions = null; changes.work_start = null; changes.work_end = null; }
 
       const { error } = await db.from("admin_users").update(changes).eq("id", body.id);
       if (error) return { success: false, message: error.message };

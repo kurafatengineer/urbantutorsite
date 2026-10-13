@@ -19,7 +19,7 @@
 // =====================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { notify } from "../_shared/telegram.ts";
+import { notify, notifyIfMatched } from "../_shared/telegram.ts";
 import { tuitionPostedMail, tutorAppliedMail, parentResponseMail, tutorResponseMail } from "../_shared/mails.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -152,7 +152,9 @@ async function handleRespondToDemo(userClient: ReturnType<typeof callAsUser>, bo
   });
   if (error) return reply({ success: false, message: error.message }, 400);
 
-  if (data?.success) {
+  // both sides have now accepted -> "Tuition Confirmed" to both instead
+  const matched = data?.success && decision.toLowerCase() === "accept" && await notifyIfMatched(demoId, tutorId);
+  if (data?.success && !matched) {
     const tutor = await tutorById(tutorId);
     const { tuition, student } = await demoAndStudent(demoId);
     if (tutor?.email && student) {
@@ -175,8 +177,10 @@ async function handleRespondToDemoTutor(userClient: ReturnType<typeof callAsUser
   const { data, error } = await userClient.rpc("respond_to_demo_tutor", { p_demo_id: demoId, p_decision: decision });
   if (error) return reply({ success: false, message: error.message }, 400);
 
-  if (data?.success) {
-    const tutor = await tutorByEmail(await callerEmail(userClient));
+  const tutor = data?.success ? await tutorByEmail(await callerEmail(userClient)) : null;
+  // both sides have now accepted -> "Tuition Confirmed" to both instead
+  const matched = !!tutor && decision.toLowerCase() === "accept" && await notifyIfMatched(demoId, tutor.tutor_id);
+  if (data?.success && !matched) {
     const { tuition, student } = await demoAndStudent(demoId);
     if (tutor && student?.email) {
       const mail = tutorResponseMail({

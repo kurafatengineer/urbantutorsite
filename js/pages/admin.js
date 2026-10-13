@@ -85,6 +85,15 @@ function showPage(name) {
   ["login", "loading", "panel"].forEach(n =>
     $(n + "Page").classList.toggle("hidden", n !== name)
   );
+  if (name === "panel") showNotice("");
+}
+
+// The light red line under the header: why the person was logged out.
+function showNotice(text) {
+  const el = $("adminNotice");
+  if (!el) return;
+  el.textContent = text || "";
+  el.classList.toggle("hidden", !text);
 }
 
 function esc(value) {
@@ -181,8 +190,15 @@ async function adminCall(payload) {
   const result = await apiRequest(payload, 60000, token);
 
   if (result && result.notAdmin) {
+    const wasOpen = panelIsOpen();
     await window.sb.auth.signOut().catch(() => {});
-    showEmailStep(result.message);
+    STATE.me = null;
+    if (wasOpen || result.outsideHours) {
+      showEmailStep("");
+      showNotice(result.message);
+    } else {
+      showEmailStep(result.message);
+    }
     throw new Error("not-admin");
   }
 
@@ -377,10 +393,13 @@ function markActive(force) {
 }
 
 async function forceLogout(message) {
+  // so the Employees section shows them logged out straight away
+  try { await apiRequest({ action: "adminSession", event: "logout" }, 5000, await getAccessToken()); } catch (e) {}
   try { await window.sb.auth.signOut(); } catch (e) {}
   STATE.me = null;
   if (window.setAdminHeaderInitials) window.setAdminHeaderInitials("");
-  showEmailStep(message);
+  showEmailStep("");
+  showNotice(message);
 }
 
 function panelIsOpen() {
@@ -400,6 +419,26 @@ function startIdleWatch() {
   );
   document.addEventListener("visibilitychange", () => { if (!document.hidden) logoutIfIdle(); });
   setInterval(logoutIfIdle, 30000);
+  setInterval(presencePing, 60000);
+}
+
+/* PRESENCE - every minute while the panel is open: "I'm here" (+ "and
+   working" if the mouse / keyboard was used since the last ping). Also
+   refreshes the Employees section's online / working signs, and ends
+   the session once the employee's login hours are over. */
+var lastPingAt = 0;
+async function presencePing() {
+  if (!panelIsOpen() || document.hidden) return;
+  const active = lastActiveAt() > lastPingAt;
+  lastPingAt = Date.now();
+  try {
+    const result = await adminCall({ action: "adminPing", active });
+    if (result && result.employees) {
+      STATE.employees = result.employees;
+      const editingEmployee = [...STATE.editing].some(k => k.startsWith("employee:"));
+      if (STATE.tab === "employees" && !editingEmployee) renderEmployees();
+    }
+  } catch (e) { /* not-admin is handled inside adminCall */ }
 }
 
 let pendingEmail = "";
@@ -2053,6 +2092,27 @@ function wireStudentForms() {
 var taPicked = null;        // the chosen student row
 var taNumberIds = null;     // after picking a shared number: the IDs of the students using it
 
+/* One suggestion row (every suggestion list in the panel looks the same):
+   search icon | bold title + grey detail line ("a › b › c") | tag pill. */
+const SUGGEST_ICON = `<svg class="sg-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`;
+function idTag(id) {
+  const p = String(id || "").slice(0, 3).toUpperCase();
+  return p === "SID" ? "Student" : p === "TID" ? "Tutor" : p === "DID" ? "Demo" : "";
+}
+function suggestItem({ title, sub = "", tag = "", attrs = "", disabled = false, note = "" }) {
+  const subText = (Array.isArray(sub) ? sub.filter(Boolean).join(" › ") : sub) || "";
+  return `
+    <button type="button" class="admin-suggest-item" ${attrs}${disabled ? " disabled" : ""}>
+      ${SUGGEST_ICON}
+      <span class="sg-text">
+        <strong>${esc(title)}</strong>
+        ${subText ? `<small>${esc(subText)}</small>` : ""}
+        ${note ? `<em>${esc(note)}</em>` : ""}
+      </span>
+      ${tag ? `<i class="sg-tag">${esc(tag)}</i>` : ""}
+    </button>`;
+}
+
 function taStudentRows() { return (STATE.data && STATE.data.students && STATE.data.students.rows) || []; }
 function taVal(row, key) { return String((row.values && row.values[key]) || ""); }
 function taDigits(v) { return String(v || "").replace(/\D/g, ""); }
@@ -2082,10 +2142,12 @@ function taSuggestNumbers(text) {
     [...new Set(taNumbersOf(r))].forEach(n => { if (n.includes(digits)) count[n] = (count[n] || 0) + 1; });
   });
   const numbers = Object.keys(count).slice(0, 8);
-  taShow("mobile", numbers.map(n => `
-    <button type="button" class="admin-suggest-item" data-pick-number="${esc(n)}">
-      <strong>${esc(n)}</strong>${count[n] > 1 ? `<span>${count[n]} students</span>` : ""}
-    </button>`).join(""));
+  taShow("mobile", numbers.map(n => suggestItem({
+    title: n,
+    sub: count[n] > 1 ? `${count[n]} students` : taVal(taStudentRows().find(r => taNumbersOf(r).includes(n)) || {}, "Student Name"),
+    tag: "Mobile",
+    attrs: `data-pick-number="${esc(n)}"`,
+  })).join(""));
 }
 
 // Student IDs or names, from the pool. With a number already chosen an
@@ -2099,10 +2161,14 @@ function taSuggestStudents(kind, text) {
     const name = taVal(r, "Student Name");
     // a name that appears twice gets its ID beside it, so the two can be told apart
     const twin = kind === "name" && names.indexOf(names[i]) !== names.lastIndexOf(names[i]);
-    return `
-    <button type="button" class="admin-suggest-item" data-pick-id="${esc(r.id)}">
-      <strong>${esc(kind === "id" ? r.id : name)}</strong>${twin ? `<span>${esc(r.id)}</span>` : ""}
-    </button>`;
+    return suggestItem({
+      title: kind === "id" ? r.id : name,
+      sub: kind === "id"
+        ? [name, taVal(r, "Class") && `Class ${taVal(r, "Class")}`]
+        : [twin ? r.id : "", taVal(r, "Class") && `Class ${taVal(r, "Class")}`, taVal(r, "City")],
+      tag: "Student",
+      attrs: `data-pick-id="${esc(r.id)}"`,
+    });
   }).join(""));
 }
 
@@ -2263,11 +2329,12 @@ function renderIdSuggestions(container, items, kind) {
   container.innerHTML = items.map(item => {
     const id = kind === "demo" ? item.demoId : item.id;
     const who = kind === "demo" ? (DIR_STUDENT_BY_ID[item.studentId] || {}) : item;
-    return `
-      <button type="button" class="admin-suggest-item" data-pick-id="${esc(id)}">
-        <strong>${esc(id)}</strong>
-        <span>${esc(who.name || "")} · ${esc(who.mobile || "No mobile")}</span>
-      </button>`;
+    return suggestItem({
+      title: id,
+      sub: [kind === "demo" ? item.subject : "", who.name, who.mobile || "No mobile"],
+      tag: idTag(id),
+      attrs: `data-pick-id="${esc(id)}"`,
+    });
   }).join("");
   container.classList.remove("hidden");
 }
@@ -2438,7 +2505,7 @@ function wireEmployeeForm() {
     applyPermPreset(perms, $("employeeRole").value);
   };
 
-  $("employeeRole").addEventListener("change", () => applyPermPreset(perms, $("employeeRole").value));
+  $("employeeRole").addEventListener("change", () => { applyPermPreset(perms, $("employeeRole").value); syncHoursRow(); });
 
   $("addEmployeeButton").addEventListener("click", () => {
     const form = $("employeeForm");
@@ -2447,6 +2514,9 @@ function wireEmployeeForm() {
       $("employeeEmail").value = "";
       $("employeeName").value = "";
       $("employeeRole").value = "tuition_coordinator";
+      $("employeeWorkStart").value = "09:00";
+      $("employeeWorkEnd").value = "18:00";
+      syncHoursRow();
       refreshPerms();
       $("employeeEmail").focus();
     }
@@ -2467,7 +2537,8 @@ function wireEmployeeForm() {
     }
 
     const role = $("employeeRole").value;
-    const payload = { action: "adminAddEmployee", email, fullName, role };
+    const payload = { action: "adminAddEmployee", email, fullName, role,
+      workStart: $("employeeWorkStart").value, workEnd: $("employeeWorkEnd").value };
     if (role !== "super_admin") payload.permissions = permValues(perms);
 
     const button = $("employeeForm").querySelector("button[type=submit]");
@@ -3831,6 +3902,53 @@ function applyTextSearch(listId, searchId, noMatchText) {
     if (ok) shown++;
   });
   if (items.length && !shown) list.insertAdjacentHTML("beforeend", empty(noMatchText));
+  updateSearchBar(searchId, shown);
+}
+
+/* The search bar itself: just a search icon while nothing is applied;
+   once a search word or a filter (other than All) is on, the number of
+   matching cards and a cross (clears both) show on the right. */
+const SEARCH_ICON_SVG = `<svg class="sb-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`;
+const CLEAR_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>`;
+
+function searchFilterChip(searchId) {
+  const tools = $(searchId) && $(searchId).closest(".admin-tools");
+  return tools ? tools.querySelector(".admin-chips .admin-chip.active") : null;
+}
+
+function setupSearchBar(searchId) {
+  const input = $(searchId);
+  const wrap = input && input.closest(".admin-search-wrap");
+  if (!wrap || wrap.dataset.bar) return;
+  wrap.dataset.bar = "1";
+  wrap.classList.add("sb");
+  wrap.insertAdjacentHTML("afterbegin", SEARCH_ICON_SVG);
+  wrap.insertAdjacentHTML("beforeend",
+    `<span class="sb-count hidden" aria-live="polite"></span>
+     <button type="button" class="sb-clear hidden" aria-label="Clear search and filter">${CLEAR_ICON_SVG}</button>`);
+  wrap.querySelector(".sb-clear").addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    input.value = "";
+    clearSearchChips(searchId);
+    const chip = searchFilterChip(searchId);
+    const all = chip && chip.parentElement.querySelector('[data-value="all"]');
+    if (all && chip !== all) all.click();          // re-renders with All
+    else input.dispatchEvent(new Event("input"));   // re-renders the list
+    input.focus();
+  });
+}
+
+function updateSearchBar(searchId, shown) {
+  setupSearchBar(searchId);
+  const wrap = $(searchId).closest(".admin-search-wrap");
+  if (!wrap) return;
+  const chip = searchFilterChip(searchId);
+  const applied = !!searchQueryFor(searchId).trim() || !!(chip && chip.dataset.value !== "all");
+  const count = wrap.querySelector(".sb-count");
+  count.textContent = `${shown} ${shown === 1 ? "match" : "matches"}`;
+  count.classList.toggle("hidden", !applied);
+  wrap.querySelector(".sb-clear").classList.toggle("hidden", !applied);
 }
 
 function matchesAll(query, text) {
@@ -4930,7 +5048,12 @@ function renderEmployees() {
     ? rows.map(employeeCard).join("")
     : empty("No employees yet.");
 
-  $("employeeHeader").innerHTML = rows.length ? employeeHeaderCard() : "";
+  $("employeeHeader").innerHTML = rows.length ? employeeHeaderCard() + `
+    <p class="emp-legend">
+      <span><i class="emp-key emp-key-online"></i>Logged in</span>
+      <span><i class="emp-key emp-key-off"></i>Logged out</span>
+      <span><i class="emp-key emp-key-working"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></i>Working now</span>
+    </p>` : "";
 
 }
 
@@ -4946,6 +5069,34 @@ function employeeStatusButtonsHtml(active, isMe) {
       <button class="admin-vbtn v-approve" type="button" data-action="employee-status" data-value="true"${(active || isMe) ? " disabled" : ""}>Active</button>
     </div>
   `;
+}
+
+// "09:00" -> "9:00 AM"
+function clock12(t) {
+  const m = String(t || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return "";
+  const h = Number(m[1]);
+  return `${h % 12 || 12}:${m[2]} ${h >= 12 ? "PM" : "AM"}`;
+}
+
+function loginHoursText(e) {
+  if (e.role === "super_admin") return "24 × 7";
+  return e.workStart && e.workEnd ? `${clock12(e.workStart)} - ${clock12(e.workEnd)}` : "Any time";
+}
+
+// Two signs on the profile icon: the dot (bottom) = logged in or not,
+// the badge (top) = actually working right now.
+function employeeAvatarHtml(e, isMe) {
+  const online = !!e.loggedIn, working = !!e.working;
+  const tip = [isMe ? "This is you" : "", online ? "Logged in" : "Logged out", working ? "Working now" : (online ? "Idle" : "")]
+    .filter(Boolean).join(" · ");
+  return `
+    <div class="admin-avatar emp-avatar" data-online="${online ? "yes" : "no"}" data-working="${working ? "yes" : "no"}" title="${esc(tip)}">
+      ${esc(initials(e.full_name, "E"))}
+      <i class="emp-sign emp-online" aria-hidden="true"></i>
+      ${working ? `<i class="emp-sign emp-working" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></i>` : ""}
+      <span class="sr-only">${esc(tip)}</span>
+    </div>`;
 }
 
 function employeeCard(e) {
@@ -4965,6 +5116,10 @@ function employeeCard(e) {
         attr: editing && !isMe ? `data-efield="role"` : ""
       })}
       ${box("Active", e.active ? "Yes" : "No", { editable: editing && !isMe, options: ["Yes", "No"], attr: editing && !isMe ? `data-efield="active"` : "" })}
+      ${editing && e.role !== "super_admin" && !isMe
+        ? box("Login From", e.workStart || "", { editable: true, type: "time", attr: `data-efield="workStart"` }) +
+          box("Login Till", e.workEnd || "", { editable: true, type: "time", attr: `data-efield="workEnd"` })
+        : box("Login Hours", loginHoursText(e))}
     </div>`;
 
   // Their ticks: editable only in edit mode, never for yourself (you
@@ -4988,7 +5143,7 @@ function employeeCard(e) {
     <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="${e.active ? "verified" : "rejected"}" data-box data-id="${esc(e.id)}" data-key="${esc(key)}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
-        <div class="admin-avatar" title="${isMe ? "This is you" : ""}">${esc(initials(e.full_name, "E"))}</div>
+        ${employeeAvatarHtml(e, isMe)}
         <div class="eq-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr))">
           <span class="ledger-cell" title="${esc(e.full_name)}${isMe ? " (this is you)" : ""}">${esc(e.full_name)}</span>
           <span class="ledger-cell" title="${esc(e.email)}">${esc(e.email)}</span>
@@ -5760,12 +5915,14 @@ function onAssignInput(event) {
     const already = onThis.has(tutorKey(r));
     const verified = lower(r.values["Verification Status"]) === "verified";
     const why = already ? "Already on this tuition" : (verified ? "" : (r.values["Verification Status"] || "Not verified"));
-    return `
-      <button type="button" class="admin-suggest-item" data-pick="${esc(r.id)}"${already || !verified ? " disabled" : ""}>
-        <strong>${esc(r.id)}</strong>
-        <span>${esc(r.values["Full Name"] || "")} · ${esc(r.values["Mobile Number"] || "")}</span>
-        ${why ? `<em>${esc(why)}</em>` : ""}
-      </button>`;
+    return suggestItem({
+      title: r.id,
+      sub: [r.values["Full Name"], r.values["Mobile Number"]],
+      tag: "Tutor",
+      attrs: `data-pick="${esc(r.id)}"`,
+      disabled: already || !verified,
+      note: why,
+    });
   }).join("") : `<p class="admin-suggest-empty">No tutor matches “${esc(text)}”.</p>`;
 
   list.classList.remove("hidden");
@@ -5789,4 +5946,10 @@ function onSuggestPick(event) {
 
   return true;
 
+}
+
+// New Employee form: a Super Admin has no login hours (24 x 7)
+function syncHoursRow() {
+  const row = $("employeeHoursRow");
+  if (row) row.classList.toggle("hidden", $("employeeRole").value === "super_admin");
 }
