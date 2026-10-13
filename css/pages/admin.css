@@ -4390,3 +4390,6 @@ button.pc-stat[data-empty] { cursor: default; }
   .class-plan { grid-template-columns: 1fr; }
   .cal-day small { font-size: 8.5px; }
 }
+
+/* deal labels: only the first letter capital */
+.deal .admin-box > span, .cal-edit .admin-box > span { text-transform: none; letter-spacing: 0.02em; }
