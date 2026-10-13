@@ -6867,56 +6867,57 @@ function classCard(g, activeRow) {
     tutorAgencyCharge, tutorAgencyReceived
   } = classMoney(g, activeRow);
 
-  // Student and Tutor: two cards that follow the deal above (who is paid,
-  // how often, on which dates) and show this class's own money.
-  const stat = (label, value, kind, extra = "") => {
+  // Student and Tutor: two identical cards that follow the deal (who is paid,
+  // how often, on which date) and show this class's own money.
+  const stat = (label, value, kind, extra = "", text = "") => {
     const attr = !editing && kind ? jump(kind) : "";
     const tag = attr ? 'button type="button"' : "div";
-    return `<${tag} class="pc-stat${extra}" ${attr}><small>${esc(label)}</small><b>${esc(rupees(value))}</b></${attr ? "button" : "div"}>`;
+    return `<${tag} class="pc-stat${extra}" ${attr}><small>${esc(label)}</small><b>${text || esc(rupees(value))}</b></${attr ? "button" : "div"}>`;
   };
-  const initial = n => esc(String(n || "?").trim().charAt(0).toUpperCase() || "?");
-  const bar = (paid, total) => `<div class="pc-bar"><i style="width:${total > 0 ? Math.min(100, Math.round(paid / total * 100)) : 0}%"></i></div>`;
-  const term = (label, inner) => `<div><small>${label}</small>${inner}</div>`;
-  const party = (cls, role, id, name, phone, wa, terms, body) => `
+  const editStat = (label, value, field, wide) => box(label, value, { editable: true, wide, type: "number", attr: cfield(field) });
+  const phone = (n, wa) => n ? `<span class="pc-num${wa ? " is-wa" : ""}">${wa
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.5-1.2A9 9 0 1 0 12 3z"/><path d="M9 8.5c0 3.5 3 6.5 6.5 6.5l1-1.6-2-1-1 .8a4 4 0 0 1-2-2l.8-1-1-2z"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>'}${esc(n)}</span>` : "";
+  const party = (cls, avatar, name, id, mobile, whatsapp, payLabel, payValue, syncKey, dueSync, dueValue, stats) => `
     <section class="pc ${cls}">
       <header class="pc-head">
-        <span class="pc-av">${initial(name)}</span>
-        <div><h3>${esc(name || "-")}</h3><small>${role}${id ? " · " + esc(id) : ""}</small></div>
+        ${avatar}
+        <div class="pc-who"><h3>${esc(name || "-")}</h3><small>${esc(id || "")}</small></div>
+        <div class="pc-nums">${phone(mobile, false)}${phone(whatsapp, true)}</div>
       </header>
-      <div class="pc-contact"><span><small>Mobile</small>${esc(phone || "-")}</span><span><small>WhatsApp</small>${esc(wa || "-")}</span></div>
-      <div class="pc-terms">${terms}</div>
-      ${body}
+      <div class="pc-terms">
+        <div><small>${payLabel}</small><b class="pc-chip" data-sync="${syncKey}">${esc(payValue)}</b></div>
+        <div><small>Frequency</small><b data-sync="freq">${esc(freq0)}</b></div>
+        <div class="pc-due"><small>Next Due Date</small><b data-sync="${dueSync}">${esc(dueValue)}</b></div>
+      </div>
+      <div class="pc-stats">${stats}</div>
     </section>`;
 
-  const studentSection = party("pc-student", "Student", g.first.studentId, sv("Student Name"), sv("Phone"), sv("WhatsApp"),
-    term("Pays To", `<b class="pc-chip" data-sync="studentTo">${esc(studentTo0)}</b>`) +
-    term("Frequency", `<b data-sync="freq">${esc(freq0)}</b>`) +
-    term("Next Due", `<b data-sync="studentDate">${esc(fmtPayDate(pay0.parent))}</b>`),
-    `<div class="pc-stats">
-       ${stat("Total Amount", studentTotalAmount, "student-payment")}
-       ${stat("Advance", studentAdvancePaid, "student-advance")}
-       ${stat("Paid", collected, "student-payment")}
-       ${stat("Dues", studentDues, "", studentDues > 0 ? " is-due" : "")}
-     </div>
-     ${bar(collected + studentAdvancePaid, studentTotalAmount)}
+  const studentId = g.first.studentId;
+  const studentSection = party("pc-student",
+    profileAvatar("students", studentId, initials(sv("Student Name"), "S"), subscriptionPayBadge("student", studentId)),
+    sv("Student Name"), studentId, sv("Phone"), sv("WhatsApp"),
+    "Pays To", studentTo0, "studentTo", "studentDate", fmtPayDate(pay0.parent),
+    `${stat("Total Amount", studentTotalAmount, "student-payment")}
+     ${stat("Advance", studentAdvancePaid, "student-advance")}
+     ${stat("Paid", collected, "student-payment")}
+     ${stat("Dues", studentDues, "", studentDues > 0 ? " is-due" : "")}
      ${editing
-       ? box("Agency Charge (₹)", activeRow.studentAgencyCharge || 0, { editable: true, type: "number", attr: cfield("Student Agency Charge") })
-       : stat("Agency Charge (paid / total)", studentAgencyReceived, "student-agency").replace("</b>", ` / ${esc(rupees(studentAgencyCharge))}</b>`)}`);
+       ? editStat("Agency Charge (₹)", activeRow.studentAgencyCharge || 0, "Student Agency Charge", true)
+       : stat("Agency Charge", studentAgencyReceived, "student-agency", " pc-wide", `${esc(rupees(studentAgencyReceived))}<em> / ${esc(rupees(studentAgencyCharge))}</em>`)}`);
 
-  const tutorSection = party("pc-tutor", "Tutor", activeRow.tutorId, tv("Full Name"), tv("Mobile Number"), tv("WhatsApp Number"),
-    term("Paid By", `<b class="pc-chip" data-sync="tutorFrom">${esc(tutorFrom0)}</b>`) +
-    term("Frequency", `<b data-sync="freq">${esc(freq0)}</b>`) +
-    term("Next Payment", `<b data-sync="tutorDate">${esc(fmtPayDate(pay0.tutor))}</b>`),
-    `<div class="pc-stats">
-       ${stat("Total Amount", tutorTotalAmount, "tutor-payment")}
-       ${stat("Advance", tutorAdvance, "tutor-advance")}
-       ${stat("Paid", tutorTotalPayment, "tutor-payment")}
-       ${stat("Dues", tutorDues, "", tutorDues > 0 ? " is-due" : "")}
-     </div>
-     ${bar(tutorTotalPayment, tutorTotalAmount)}
-     ${stat("Agency Charge (paid / total)", tutorAgencyReceived, "tutor-agency").replace("</b>", ` / ${esc(rupees(tutorAgencyCharge))}</b>`)}
-     ${editing ? box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: true, type: "number", attr: cfield("Tutor Advance Payment") }) : ""}
-     ${tutorBalance(activeRow.tutorId) ? stat("Balance", tutorBalance(activeRow.tutorId)) : ""}`);
+  const tutorId = activeRow.tutorId;
+  const bal = tutorBalance(tutorId);
+  const tutorSection = party("pc-tutor",
+    profileAvatar("tutors", tutorId, initials(tv("Full Name"), "T"), subscriptionPayBadge("tutor", tutorId)),
+    tv("Full Name"), tutorId, tv("Mobile Number"), tv("WhatsApp Number"),
+    "Paid By", tutorFrom0, "tutorFrom", "tutorDate", fmtPayDate(pay0.tutor),
+    `${stat("Total Amount", tutorTotalAmount, "tutor-payment")}
+     ${editing ? editStat("Advance (₹)", activeRow.tutorAdvancePayment, "Tutor Advance Payment") : stat("Advance", tutorAdvance, "tutor-advance")}
+     ${stat("Paid", tutorTotalPayment, "tutor-payment")}
+     ${stat("Dues", tutorDues, "", tutorDues > 0 ? " is-due" : "")}
+     ${stat("Agency Charge", tutorAgencyReceived, "tutor-agency", " pc-wide", `${esc(rupees(tutorAgencyReceived))}<em> / ${esc(rupees(tutorAgencyCharge))}</em>`)}
+     ${bal ? stat("Balance", bal, "", " pc-wide") : ""}`);
 
   // Collapsed head: 4 fraction figures in one row - Student's own Total
   // Payment/Total Amount on the far left, Tutor's on the far right, and
