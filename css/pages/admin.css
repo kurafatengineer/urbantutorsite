@@ -1063,20 +1063,19 @@ html[data-theme="light"] .stu-icon[data-tone="blue"] { --c: var(--blue); }
   accent-color: var(--lime);
 }
 
+/* A student's tuitions: the title "Tuitions" on its own line, then one
+   tuition per line right under it. */
 .admin-mini-list {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 6px;
 }
 
 .admin-mini-title {
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted-2);
-  margin-right: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
 }
 
 /* A student's "Tuitions" pill is a real button - jumps straight to
@@ -1307,6 +1306,14 @@ html[data-theme="light"] .stu-icon[data-tone="blue"] { --c: var(--blue); }
 
 @media (max-width: 560px) {
   .admin-boxes.admin-boxes-student { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Student card box labels read as written: Timestamp, Student ID, Terms Accepted */
+.admin-boxes-student .admin-box > span {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 11.5px;
+  font-weight: 700;
 }
 
 .admin-box {
@@ -2684,6 +2691,13 @@ body[data-page="admin"] {
   text-overflow: ellipsis;
 }
 .ledger-cell + .ledger-cell { border-left: 1px dotted var(--border-light); }
+/* Student cards: the summary row is regular weight, full-strength colour -
+   easy to read, not bold. */
+#studentList .ledger-cell {
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--text);
+}
 /* Single-line card head row of N equal columns, cut with "..." - the
    Subscription, Payment, Student and Tutor cards (see equalRow()). The
    column count/widths come from the inline style equalRow() writes. */
