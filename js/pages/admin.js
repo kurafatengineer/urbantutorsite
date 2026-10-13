@@ -1089,6 +1089,7 @@ function wireEvents() {
   wirePaymentLookups();
   wireSubscriptionForm();
   wireSubscriptionIdSuggestion();
+  watchSuggestionLists();
   wirePickList("paymentTransactionType");
   wirePickList("subscriptionPartyType");
   wireEmployeeForm();
@@ -2654,6 +2655,8 @@ function wireEmployeeForm() {
   };
 
   $("employeeRole").addEventListener("change", () => { applyPermPreset(perms, $("employeeRole").value); syncHoursRow(); });
+  $("employeeHoursRow").addEventListener("input", onHoursInput);
+  $("employeeList").addEventListener("input", onHoursInput);
 
   $("addEmployeeButton").addEventListener("click", () => {
     const form = $("employeeForm");
@@ -2662,6 +2665,7 @@ function wireEmployeeForm() {
       $("employeeEmail").value = "";
       $("employeeName").value = "";
       $("employeeRole").value = "tuition_coordinator";
+      $("employeeWorkHours").value = "9";
       $("employeeWorkStart").value = "09:00";
       $("employeeWorkEnd").value = "18:00";
       syncHoursRow();
@@ -4276,9 +4280,14 @@ function wireSearchSuggest(id, onChange) {
 
   const input = $(id);
   const label = input.closest(".admin-search-wrap");
+  // box + list share one holder, so the list can wrap round the box
+  const holder = document.createElement("div");
+  holder.className = "search-holder";
+  label.before(holder);
+  holder.appendChild(label);
   const panel = document.createElement("div");
   panel.className = "admin-suggest search-suggest hidden";
-  label.appendChild(panel);
+  holder.appendChild(panel);
   let active = -1;
 
   const hide = () => { panel.classList.add("hidden"); active = -1; };
@@ -4326,8 +4335,30 @@ function wireSearchSuggest(id, onChange) {
     if (btn) pick(btn.dataset.pickChip);
   });
 
-  document.addEventListener("click", (event) => { if (!label.contains(event.target)) hide(); });
+  document.addEventListener("click", (event) => { if (!holder.contains(event.target)) hide(); });
 
+}
+
+/* Every suggestion list opens wrapped round its own box (like a browser's
+   address bar): the list's panel starts just above the box, the box sits
+   on top of it, and the matches follow underneath - one rounded panel.
+   Whenever a list opens, its panel learns how tall the box is. */
+function watchSuggestionLists() {
+  const fit = (panel) => {
+    const host = panel.parentElement;
+    const anchor = host && host.firstElementChild;
+    if (!anchor || anchor === panel) return;
+    // (only when missing: re-adding a class still counts as a change
+    // and would wake this observer again, forever)
+    if (!host.classList.contains("sg-host")) host.classList.add("sg-host");
+    if (!panel.classList.contains("sg-wrap")) panel.classList.add("sg-wrap");
+    panel.style.setProperty("--anchor-h", anchor.offsetHeight + "px");
+  };
+  new MutationObserver(list => list.forEach(m => {
+    const el = m.target;
+    if (el.classList && el.classList.contains("admin-suggest") && !el.classList.contains("admin-pick") &&
+        !el.classList.contains("hidden")) fit(el);
+  })).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class"] });
 }
 
 
@@ -5331,12 +5362,12 @@ function renderEmployees() {
     ? rows.map(employeeCard).join("")
     : empty("No employees yet.");
 
-  $("employeeHeader").innerHTML = rows.length ? employeeHeaderCard() + `
+  $("employeeHeader").innerHTML = rows.length ? `
     <p class="emp-legend">
-      <span><i class="emp-key emp-key-online"></i>Logged in</span>
-      <span><i class="emp-key emp-key-off"></i>Logged out</span>
-      <span><i class="emp-key emp-key-working"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></i>Working now</span>
-    </p>` : "";
+      <span><i class="emp-key" data-presence="online"></i>Logged in</span>
+      <span><i class="emp-key" data-presence="working"><i class="emp-ring"></i></i>Working now</span>
+      <span><i class="emp-key" data-presence="off"></i>Logged out</span>
+    </p>` + employeeHeaderCard() : "";
 
 }
 
@@ -5362,22 +5393,55 @@ function clock12(t) {
   return `${h % 12 || 12}:${m[2]} ${h >= 12 ? "PM" : "AM"}`;
 }
 
+// "09:00", "18:00" -> "9"; overnight shifts wrap past midnight
+function hoursBetween(start, end) {
+  const m = t => { const x = String(t || "").match(/^(\d{1,2}):(\d{2})/); return x ? Number(x[1]) * 60 + Number(x[2]) : null; };
+  const a = m(start), b = m(end);
+  if (a === null || b === null) return "";
+  const mins = ((b - a) + 1440) % 1440 || 1440;
+  return String(Math.round(mins / 30) / 2);
+}
+
+// "09:00" + 9 hours -> "18:00" (negative hours go back)
+function addHours(time, hours) {
+  const x = String(time || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!x || !hours) return "";
+  const mins = (((Number(x[1]) * 60 + Number(x[2]) + Math.round(hours * 60)) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+}
+
+// Duration | Login From | Login Till: set the Duration, then either time -
+// the other one follows. Works for the New Employee form and every card.
+function onHoursInput(event) {
+  const el = event.target;
+  const part = el.dataset && el.dataset.hoursPart;
+  const group = part && el.closest("[data-hours]");
+  if (!group) return;
+  const get = p => group.querySelector(`[data-hours-part="${p}"]`);
+  const hours = Number(get("duration").value);
+  if (part === "end") {
+    if (el.value && hours > 0) get("start").value = addHours(el.value, -hours);
+  } else if (get("start").value && hours > 0) {
+    get("end").value = addHours(get("start").value, hours);
+  }
+}
+
 function loginHoursText(e) {
   if (e.role === "super_admin") return "24 × 7";
   return e.workStart && e.workEnd ? `${clock12(e.workStart)} - ${clock12(e.workEnd)}` : "Any time";
 }
 
-// Two signs on the profile icon: the dot (bottom) = logged in or not,
-// the badge (top) = actually working right now.
+// A ring round the profile icon: grey = logged out, green = logged in,
+// green and spinning = working right now.
 function employeeAvatarHtml(e, isMe) {
   const online = !!e.loggedIn, working = !!e.working;
+  const state = working ? "working" : online ? "online" : "off";
   const tip = [isMe ? "This is you" : "", online ? "Logged in" : "Logged out", working ? "Working now" : (online ? "Idle" : "")]
     .filter(Boolean).join(" · ");
   return `
-    <div class="admin-avatar emp-avatar" data-online="${online ? "yes" : "no"}" data-working="${working ? "yes" : "no"}" title="${esc(tip)}">
+    <div class="admin-avatar emp-avatar" data-presence="${state}" title="${esc(tip)}">
+      <i class="emp-ring" aria-hidden="true"></i>
       ${esc(initials(e.full_name, "E"))}
-      <i class="emp-sign emp-online" aria-hidden="true"></i>
-      ${working ? `<i class="emp-sign emp-working" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></i>` : ""}
       <span class="sr-only">${esc(tip)}</span>
     </div>`;
 }
@@ -5400,8 +5464,11 @@ function employeeCard(e) {
       })}
       ${box("Active", e.active ? "Yes" : "No", { editable: editing && !isMe, options: ["Yes", "No"], attr: editing && !isMe ? `data-efield="active"` : "" })}
       ${editing && e.role !== "super_admin" && !isMe
-        ? box("Login From", e.workStart || "", { editable: true, type: "time", attr: `data-efield="workStart"` }) +
-          box("Login Till", e.workEnd || "", { editable: true, type: "time", attr: `data-efield="workEnd"` })
+        ? `<div class="admin-hours-boxes" data-hours>` +
+          box("Duration (Hours)", hoursBetween(e.workStart, e.workEnd) || "9", { editable: true, type: "number", attr: `data-hours-part="duration" min="0.5" max="24" step="0.5"` }) +
+          box("Login From", e.workStart || "", { editable: true, type: "time", attr: `data-efield="workStart" data-hours-part="start"` }) +
+          box("Login Till", e.workEnd || "", { editable: true, type: "time", attr: `data-efield="workEnd" data-hours-part="end"` }) +
+          `</div>`
         : box("Login Hours", loginHoursText(e))}
     </div>`;
 
