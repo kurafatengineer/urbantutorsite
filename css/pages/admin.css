@@ -3979,13 +3979,23 @@ html[data-theme="light"] .admin-suggest-item.is-active { background: rgba(0, 0, 
 #saStudentField .dup-flag svg { width: 14px; height: 14px; fill: var(--danger, #ef4444); }
 #saStudentField.is-dup input { border-color: var(--danger, #ef4444); padding-right: 52px; }
 #saStudentField.is-dup input + span { color: var(--danger, #ef4444); }
+/* under the "Add a Student" title: light red strip, no border */
 .add-modal .dup-note {
-  margin: -4px 0 0;
-  padding: 0 6px;
-  font-size: 12.5px;
+  margin: 8px 0 18px;
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(239, 68, 68, 0.14);
+  color: #fca5a5;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--danger, #ef4444);
+  line-height: 1.45;
+  text-align: center;
 }
+html[data-theme="light"] .add-modal .dup-note { background: #fde8e8; color: #b42318; }
+/* the pop-ups' close (×): no ring round it */
+.add-modal .add-modal-close,
+.add-modal .add-modal-close:hover { border: 0; }
 .add-modal .dup-note.hidden { display: none; }
 #studentAddForm.is-dup-locked :disabled:not([type="radio"]):not([type="checkbox"]) { opacity: 0.45; cursor: not-allowed; }
 #studentAddForm.is-dup-locked .pill-check:has(:disabled),

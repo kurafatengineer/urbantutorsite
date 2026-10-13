@@ -1885,7 +1885,8 @@ function showDuplicateStudent(row) {
   $("saDupNote").classList.toggle("hidden", !row);
   const form = $("studentAddForm");
   const after = [...form.querySelectorAll("input, select, textarea, button")]
-    .filter(el => $("saDupNote").compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+    .filter(el => !$("saStudentField").contains(el) &&
+      ($("saStudentField").compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING));
   after.forEach(el => {
     if (row) { if (!el.disabled) { el.disabled = true; el.dataset.dupLocked = "1"; } }
     else if (el.dataset.dupLocked) { el.disabled = false; delete el.dataset.dupLocked; }
