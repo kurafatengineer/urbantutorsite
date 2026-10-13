@@ -3792,9 +3792,11 @@ html[data-theme="light"] .admin-notice { background: #fde8e8; color: #b42318; }
    SEARCH / FILTER BAR - only a search icon until something is applied,
    then "N matches" and a cross on the right
 ========================================================= */
-.admin-search-wrap.sb { flex-wrap: nowrap; gap: 10px; padding: 9px 12px 9px 18px; }
+/* same box as before (chips wrap inside it), only the "Search" text is
+   swapped for the icon */
+.admin-search-wrap.sb { padding: 8px 12px 8px 16px; }
 .admin-search-wrap.sb > span:not(.admin-search-chips):not(.sb-count) { display: none; }  /* no "Search" label */
-.admin-search-wrap.sb .admin-search-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.admin-search-wrap.sb .sb-icon { margin-right: 4px; }
 .admin-search-wrap.sb input::-webkit-search-cancel-button { display: none; -webkit-appearance: none; }
 .admin-search-wrap .sb-icon {
   flex: 0 0 auto;
@@ -3838,6 +3840,20 @@ html[data-theme="light"] .admin-notice { background: #fde8e8; color: #b42318; }
 .admin-search-wrap .sb-count.hidden,
 .admin-search-wrap .sb-clear.hidden { display: none; }
 html[data-theme="light"] .admin-search-wrap .sb-clear { background: rgba(0, 0, 0, 0.06); }
+
+/* Transaction dropdowns open as a suggestion-style list */
+.admin-float.has-pick { cursor: pointer; }
+.admin-float.has-pick select { pointer-events: none; }
+.admin-float > .admin-pick {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 260px;
+}
+.admin-pick .admin-suggest-item[data-on] .sg-icon { stroke: var(--lime); stroke-width: 2.6; }
+.admin-pick .admin-suggest-item[data-on] strong { color: var(--lime); }
 
 /* =========================================================
    EMPLOYEES - presence signs on the profile icon

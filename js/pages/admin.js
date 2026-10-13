@@ -43,6 +43,12 @@ const LINK_FIELDS = ["Identity Proof", "Profile Image"];
 // stuck on the loading screen.
 const SEARCH_CHIPS = {}; // input id -> array of committed filter words
 
+// Record a Payment's typed-into lookup boxes (see wirePaymentLookups) -
+// also needed by wireEvents() during init, so declared up here.
+const PAYMENT_STUDENT_BOXES = ["paymentStudentMobile", "paymentStudentName", "paymentStuId", "paymentStuWhatsapp", "paymentParentName"];
+const PAYMENT_TUTOR_BOXES = ["paymentTutorMobile", "paymentTutorName"];
+const PAYMENT_PARTY_BOXES = ["paymentSubId", "paymentSubMobile", "paymentSubName"];
+
 const ROLE_LABELS = {
   super_admin: "Super Admin",
   tuition_coordinator: "Tuition Coordinator",
@@ -1080,9 +1086,11 @@ function wireEvents() {
   wirePaymentForm();
   wireIdleForms();
   wirePaymentIdSuggestions();
-  wirePaymentSubPartySuggestion();
+  wirePaymentLookups();
   wireSubscriptionForm();
   wireSubscriptionIdSuggestion();
+  wirePickList("paymentTransactionType");
+  wirePickList("subscriptionPartyType");
   wireEmployeeForm();
 
   wireStudentForms();
@@ -1232,7 +1240,7 @@ function applyPaymentTransactionType() {
   PAYMENT_AMOUNT_FIELD_IDS.forEach(id => $(id).classList.toggle("hidden", !isSub && !isGrouped));
   // For a Subscription the Student/Tutor ID is typed straight in (with
   // suggestions); for an Agency Charge it's filled in from the Demo ID.
-  $("paymentSubId").readOnly = !isSub;
+  setPaymentLookupEditable();
 
   if (isSub) {
     $("paymentSubIdLabel").textContent = mode === "student-subscription" ? "Student ID" : "Tutor ID";
@@ -1363,8 +1371,7 @@ function resetPaymentForm() {
   clearPaymentSubFields();
   updateIdDetail($("paymentDemoDetail"), null);
   updateIdDetail($("paymentTutorDetail"), null);
-  document.querySelectorAll('#paymentDemoIdField .admin-suggest, #paymentTutorIdField .admin-suggest, #paymentSubIdField .admin-suggest')
-    .forEach(el => el.classList.add("hidden"));
+  hidePaymentSuggestions();
   applyPaymentTransactionType();
 }
 
@@ -1696,48 +1703,6 @@ function wirePaymentForm() {
 
 }
 
-function wirePaymentSubPartySuggestion() {
-
-  const input = $("paymentSubId");
-  const suggest = document.querySelector('#paymentSubIdField [data-suggest="subparty"]');
-
-  const isStudent = () => $("paymentTransactionType").value === "student-subscription";
-
-  // Typing a different ID drops whatever subscription was filled in
-  // before; an exact Student/Tutor ID fills its subscription straight away.
-  input.addEventListener("input", () => {
-    if (input.readOnly) return;
-    const text = input.value.trim();
-    $("paymentSubscriptionId").value = "";
-    clearPaymentSubFields();
-    input.value = text;
-    const dir = isStudent() ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID;
-    if (dir[text] && subscriptionFor(isStudent() ? "student" : "tutor", text)) {
-      fillPaymentSubscriptionFields(isStudent() ? "student" : "tutor", text);
-      suggest.classList.add("hidden");
-      return;
-    }
-    renderIdSuggestions(suggest, studentOrTutorSuggestions(text, isStudent(), { excludeFullyPaid: true }), "party");
-  });
-
-  input.addEventListener("focus", () => {
-    if (input.readOnly) return;
-    renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent(), { excludeFullyPaid: true }), "party");
-  });
-
-  suggest.addEventListener("click", (event) => {
-    const pick = event.target.closest("[data-pick-id]");
-    if (!pick) return;
-    suggest.classList.add("hidden");
-    fillPaymentSubscriptionFields(isStudent() ? "student" : "tutor", pick.dataset.pickId);
-  });
-
-  document.addEventListener("click", (event) => {
-    if (!event.target.closest("#paymentSubIdField")) suggest.classList.add("hidden");
-  });
-
-}
-
 // Subscriptions are always one of two fixed yearly plans - Student (₹500)
 // or Tutor (₹1000) - though the amount can still be reduced or fully
 // exempted for a particular case, so the field stays editable.
@@ -1769,7 +1734,7 @@ function wireSubscriptionForm() {
     $("subscriptionPartyIdLabel").textContent = isStudent ? "Student ID" : "Tutor ID";
     $("subscriptionPartyId").value = "";
     fillSubscriptionParty(null);
-    document.querySelector('#subscriptionPartyIdField .admin-suggest').classList.add("hidden");
+    document.querySelectorAll('#subscriptionForm .admin-suggest').forEach(el => el.classList.add("hidden"));
     applySubscriptionDefaults();
   });
 
@@ -1783,7 +1748,7 @@ function wireSubscriptionForm() {
       $("subscriptionNotes").value = "";
       applySubscriptionDefaults();
       fillSubscriptionParty(null);
-      document.querySelector('#subscriptionPartyIdField .admin-suggest').classList.add("hidden");
+      document.querySelectorAll('#subscriptionForm .admin-suggest').forEach(el => el.classList.add("hidden"));
       $("subscriptionPartyId").focus();
     }
   });
@@ -2099,11 +2064,11 @@ function idTag(id) {
   const p = String(id || "").slice(0, 3).toUpperCase();
   return p === "SID" ? "Student" : p === "TID" ? "Tutor" : p === "DID" ? "Demo" : "";
 }
-function suggestItem({ title, sub = "", tag = "", attrs = "", disabled = false, note = "" }) {
+function suggestItem({ title, sub = "", tag = "", attrs = "", disabled = false, note = "", icon = SUGGEST_ICON }) {
   const subText = (Array.isArray(sub) ? sub.filter(Boolean).join(" › ") : sub) || "";
   return `
     <button type="button" class="admin-suggest-item" ${attrs}${disabled ? " disabled" : ""}>
-      ${SUGGEST_ICON}
+      ${icon}
       <span class="sg-text">
         <strong>${esc(title)}</strong>
         ${subText ? `<small>${esc(subText)}</small>` : ""}
@@ -2264,21 +2229,30 @@ function updateIdDetail(el, item) {
   el.classList.remove("hidden");
 }
 
-function paymentDemoSuggestions(query, tutorFilter) {
-  const q = lower(query);
+// True when the typed text is part of any of the names / IDs, or (3+
+// digits) of any of the numbers.
+function lookupHit(query, texts, numbers) {
+  const q = lower(String(query || "").trim());
   const digits = String(query || "").replace(/\D/g, "");
+  if (!q) return true;
+  return texts.some(t => lower(t || "").includes(q)) ||
+    (digits.length >= 3 && numbers.some(n => String(n || "").replace(/\D/g, "").includes(digits)));
+}
+
+function studentHit(query, student, extra = []) {
+  const st = student || {};
+  return lookupHit(query, [...extra, st.id, st.name, st.parentsName], [st.mobile, st.whatsapp]);
+}
+
+// tutorSide: also match the tutor(s) teaching it (a Tutor Agency Charge
+// is looked up by the tutor's own details)
+function paymentDemoSuggestions(query, tutorFilter, tutorSide = false) {
   // Payments are for classes actually running right now, not every
   // tuition ever posted.
   let list = (STATE.directory.demos || []).filter(d => d.running);
   if (tutorFilter) list = list.filter(d => d.tutorIds.includes(tutorFilter));
-  if (q) {
-    list = list.filter(d => {
-      const student = DIR_STUDENT_BY_ID[d.studentId] || {};
-      return lower(d.demoId).includes(q) ||
-        lower(student.name || "").includes(q) ||
-        (digits.length >= 3 && String(student.mobile || "").replace(/\D/g, "").includes(digits));
-    });
-  }
+  list = list.filter(d => studentHit(query, DIR_STUDENT_BY_ID[d.studentId], [d.demoId, d.studentId]) ||
+    (tutorSide && d.tutorIds.some(id => { const t = DIR_TUTOR_BY_ID[id] || {}; return lookupHit(query, [id, t.name], [t.mobile]); })));
   return list.slice(0, 8);
 }
 
@@ -2300,8 +2274,6 @@ function paymentTutorSuggestions(query, demoFilter) {
 }
 
 function studentOrTutorSuggestions(query, isStudent, opts = {}) {
-  const q = lower(query);
-  const digits = String(query || "").replace(/\D/g, "");
   let list = isStudent ? (STATE.directory.students || []) : (STATE.directory.tutors || []);
   if (opts.excludeFullyPaid) {
     list = list.filter(p => {
@@ -2309,18 +2281,14 @@ function studentOrTutorSuggestions(query, isStudent, opts = {}) {
       return !sub || subscriptionPaidAmount(sub.id) < Number(sub.amount || 0);
     });
   }
-  if (!q) return list.slice(0, 8);
-  return list.filter(p =>
-    lower(p.id).includes(q) ||
-    lower(p.name || "").includes(q) ||
-    (digits.length >= 3 && String(p.mobile || "").replace(/\D/g, "").includes(digits))
-  ).slice(0, 8);
+  return list.filter(p => studentHit(query, p)).slice(0, 8);
 }
 
 // Renders a dropdown of {id/demoId, name, mobile} - "demo" items show
 // the linked student's name/mobile; everything else shows its own.
-function renderIdSuggestions(container, items, kind) {
+function renderIdSuggestions(container, items, kind, query) {
   if (!container) return;
+  if (query !== undefined && !String(query).trim()) { container.classList.add("hidden"); return; }
   if (!items.length) {
     container.innerHTML = `<p class="admin-suggest-empty">No match found.</p>`;
     container.classList.remove("hidden");
@@ -2331,7 +2299,7 @@ function renderIdSuggestions(container, items, kind) {
     const who = kind === "demo" ? (DIR_STUDENT_BY_ID[item.studentId] || {}) : item;
     return suggestItem({
       title: id,
-      sub: [kind === "demo" ? item.subject : "", who.name, who.mobile || "No mobile"],
+      sub: [kind === "demo" ? item.subject : "", who.name, kind === "tutor" ? "" : who.parentsName, who.mobile || "No mobile"],
       tag: idTag(id),
       attrs: `data-pick-id="${esc(id)}"`,
     });
@@ -2351,16 +2319,15 @@ function wirePaymentIdSuggestions() {
   const exactTutorId = () => (DIR_TUTOR_BY_ID[tutorInput.value.trim()] ? tutorInput.value.trim() : "");
   const exactDemoId = () => (DIR_DEMO_BY_ID[demoInput.value.trim()] ? demoInput.value.trim() : "");
 
+  // (no list on a plain click - only once something is typed)
   demoInput.addEventListener("input", () => {
     const text = demoInput.value.trim();
     const exact = DIR_DEMO_BY_ID[text];
     updateIdDetail(demoDetail, exact ? DIR_STUDENT_BY_ID[exact.studentId] : null);
     refreshAgencyChargeFromDemo();
-    renderIdSuggestions(demoSuggest, paymentDemoSuggestions(text, exactTutorId()), "demo");
-  });
-
-  demoInput.addEventListener("focus", () => {
-    renderIdSuggestions(demoSuggest, paymentDemoSuggestions(demoInput.value.trim(), exactTutorId()), "demo");
+    if (paymentPicking) return;
+    const mode = $("paymentTransactionType").value;
+    renderIdSuggestions(demoSuggest, paymentDemoSuggestions(text, exactTutorId(), mode === "tutor-agency-charge"), "demo", text);
   });
 
   tutorInput.addEventListener("input", () => {
@@ -2368,38 +2335,155 @@ function wirePaymentIdSuggestions() {
     const exact = DIR_TUTOR_BY_ID[text];
     updateIdDetail(tutorDetail, exact || null);
     refreshAgencyChargeFromDemo();
-    renderIdSuggestions(tutorSuggest, paymentTutorSuggestions(text, exactDemoId()), "tutor");
-  });
-
-  tutorInput.addEventListener("focus", () => {
-    renderIdSuggestions(tutorSuggest, paymentTutorSuggestions(tutorInput.value.trim(), exactDemoId()), "tutor");
+    if (paymentPicking) return;
+    renderIdSuggestions(tutorSuggest, paymentTutorSuggestions(text, exactDemoId()), "tutor", text);
   });
 
   demoSuggest.addEventListener("click", (event) => {
     const pick = event.target.closest("[data-pick-id]");
-    if (!pick) return;
-    demoInput.value = pick.dataset.pickId;
-    demoInput.dispatchEvent(new Event("input", { bubbles: true }));
-    demoSuggest.classList.add("hidden");
-    if (!tutorInput.value.trim()) {
-      renderIdSuggestions(tutorSuggest, paymentTutorSuggestions("", pick.dataset.pickId), "tutor");
-    }
+    if (pick) pickPaymentDemo(pick.dataset.pickId);
   });
 
   tutorSuggest.addEventListener("click", (event) => {
     const pick = event.target.closest("[data-pick-id]");
-    if (!pick) return;
-    tutorInput.value = pick.dataset.pickId;
-    tutorInput.dispatchEvent(new Event("input", { bubbles: true }));
-    tutorSuggest.classList.add("hidden");
-    if (!demoInput.value.trim()) {
-      renderIdSuggestions(demoSuggest, paymentDemoSuggestions("", pick.dataset.pickId), "demo");
-    }
+    if (pick) pickPaymentTutor(pick.dataset.pickId);
   });
 
   document.addEventListener("click", (event) => {
     if (!event.target.closest("#paymentDemoIdField")) demoSuggest.classList.add("hidden");
     if (!event.target.closest("#paymentTutorIdField")) tutorSuggest.classList.add("hidden");
+  });
+
+}
+
+/* ---------------- Record a Payment: find by anything ----------------
+   Besides the Demo ID / Tutor ID boxes, the student's (or tutor's) own
+   boxes - Student ID, Name, Mobile, WhatsApp, Parent Name - can be typed
+   into too. Suggestions show once something is typed; picking one fills
+   in every other box. */
+
+var paymentPicking = false;   // a pick is filling the boxes (no new lists)
+
+// What a box looks up for the picked transaction: "demo" (a running
+// class), "tutor", "student" / "tutor-sub" (a Subscription's party) -
+// or null when it's only filled in, not typed into.
+function paymentLookupKind(id) {
+  const mode = $("paymentTransactionType").value;
+  const isSub = mode === "student-subscription" || mode === "tutor-subscription";
+  if (PAYMENT_PARTY_BOXES.includes(id)) {
+    if (isSub) return mode === "student-subscription" ? "student" : "tutor-sub";
+    return mode.endsWith("agency-charge") ? "demo" : null;
+  }
+  if (PAYMENT_TUTOR_BOXES.includes(id)) return mode === "payout" ? "tutor" : null;
+  if (PAYMENT_STUDENT_BOXES.includes(id)) return isSub ? null : "demo";
+  return null;
+}
+
+function setPaymentLookupEditable() {
+  [...PAYMENT_STUDENT_BOXES, ...PAYMENT_TUTOR_BOXES, ...PAYMENT_PARTY_BOXES]
+    .forEach(id => { $(id).readOnly = !paymentLookupKind(id); });
+  hidePaymentSuggestions();
+}
+
+function hidePaymentSuggestions() {
+  document.querySelectorAll("#paymentForm .admin-suggest").forEach(el => el.classList.add("hidden"));
+}
+
+function pickPaymentDemo(demoId) {
+  paymentPicking = true;
+  $("paymentDemoId").value = demoId;
+  $("paymentDemoId").dispatchEvent(new Event("input", { bubbles: true }));
+  paymentPicking = false;
+  hidePaymentSuggestions();
+}
+
+function pickPaymentTutor(tutorId) {
+  paymentPicking = true;
+  $("paymentTutorId").value = tutorId;
+  $("paymentTutorId").dispatchEvent(new Event("input", { bubbles: true }));
+  paymentPicking = false;
+  hidePaymentSuggestions();
+}
+
+function wirePaymentLookups() {
+
+  [...PAYMENT_STUDENT_BOXES, ...PAYMENT_TUTOR_BOXES, ...PAYMENT_PARTY_BOXES].forEach(id => {
+
+    const input = $(id);
+    const suggest = input.closest(".admin-id-row").querySelector(".admin-suggest");
+
+    input.addEventListener("input", () => {
+      const kind = paymentLookupKind(id);
+      if (input.readOnly || !kind) return;
+      const text = input.value;
+
+      // whatever an earlier pick filled in no longer applies
+      if (kind === "demo") {
+        if ($("paymentTransactionType").value === "payout") {
+          $("paymentDemoId").value = "";
+          updateIdDetail($("paymentDemoDetail"), null);
+          [...PAYMENT_STUDENT_BOXES, "paymentSubAmount", "paymentSubDues", "paymentPayingNow", "paymentRemaining"]
+            .forEach(box => { $(box).value = ""; });
+        } else if ($("paymentDemoId").value) {
+          $("paymentDemoId").value = "";
+          updateIdDetail($("paymentDemoDetail"), null);
+          refreshAgencyChargeFromDemo();
+        }
+      } else if (kind === "tutor") {
+        if ($("paymentTutorId").value) {
+          $("paymentTutorId").value = "";
+          updateIdDetail($("paymentTutorDetail"), null);
+          refreshAgencyChargeFromDemo();
+        }
+      } else {
+        $("paymentSubscriptionId").value = "";
+        clearPaymentSubFields();
+      }
+      input.value = text;
+      hidePaymentSuggestions();
+
+      const query = text.trim();
+      const mode = $("paymentTransactionType").value;
+      if (kind === "demo") {
+        const tutorFilter = mode === "payout" && DIR_TUTOR_BY_ID[$("paymentTutorId").value.trim()] ? $("paymentTutorId").value.trim() : "";
+        const tutorSide = mode === "tutor-agency-charge" && PAYMENT_PARTY_BOXES.includes(id);
+        renderIdSuggestions(suggest, paymentDemoSuggestions(query, tutorFilter, tutorSide), "demo", query);
+      } else if (kind === "tutor") {
+        const demoFilter = DIR_DEMO_BY_ID[$("paymentDemoId").value.trim()] ? $("paymentDemoId").value.trim() : "";
+        renderIdSuggestions(suggest, paymentTutorSuggestions(query, demoFilter), "tutor", query);
+      } else {
+        const isStudent = kind === "student";
+        // an exact Student / Tutor ID fills its subscription straight away
+        if (id === "paymentSubId" && (isStudent ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID)[query] &&
+            subscriptionFor(isStudent ? "student" : "tutor", query)) {
+          fillPaymentSubscriptionFields(isStudent ? "student" : "tutor", query);
+          suggest.classList.add("hidden");
+          return;
+        }
+        renderIdSuggestions(suggest, studentOrTutorSuggestions(query, isStudent, { excludeFullyPaid: true }), "party", query);
+      }
+    });
+
+    suggest.addEventListener("click", (event) => {
+      const pick = event.target.closest("[data-pick-id]");
+      if (!pick) return;
+      const kind = paymentLookupKind(id);
+      if (kind === "demo") pickPaymentDemo(pick.dataset.pickId);
+      else if (kind === "tutor") pickPaymentTutor(pick.dataset.pickId);
+      else {
+        hidePaymentSuggestions();
+        fillPaymentSubscriptionFields(kind === "student" ? "student" : "tutor", pick.dataset.pickId);
+      }
+    });
+
+  });
+
+  document.addEventListener("click", (event) => {
+    document.querySelectorAll("#paymentForm .admin-id-row").forEach(row => {
+      if (row.contains(event.target)) return;
+      const box = row.querySelector(".admin-suggest");
+      if (box) box.classList.add("hidden");
+    });
   });
 
 }
@@ -2410,37 +2494,101 @@ function fillSubscriptionParty(item) {
   $("subscriptionPartyMobile").value = (item && item.mobile) || "";
 }
 
+// New Subscription: Student / Tutor ID, Name or Mobile Number - type in
+// any one, pick from the suggestions, and the other two fill in.
 function wireSubscriptionIdSuggestion() {
 
-  const input = $("subscriptionPartyId");
-  const suggest = document.querySelector('#subscriptionPartyIdField [data-suggest="party"]');
-
   const isStudent = () => $("subscriptionPartyType").value === "student";
-  const currentParty = () => {
-    const dir = isStudent() ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID;
-    return dir[input.value.trim()] || null;
-  };
+  const dir = () => (isStudent() ? DIR_STUDENT_BY_ID : DIR_TUTOR_BY_ID);
+  const boxes = ["subscriptionPartyId", "subscriptionPartyName", "subscriptionPartyMobile"];
+  const hideAll = () => document.querySelectorAll("#subscriptionForm .admin-suggest").forEach(el => el.classList.add("hidden"));
 
-  input.addEventListener("input", () => {
-    fillSubscriptionParty(currentParty());
-    renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent()), "party");
-  });
+  boxes.forEach(id => {
+    const input = $(id);
+    const suggest = input.closest(".admin-id-row").querySelector(".admin-suggest");
 
-  input.addEventListener("focus", () => {
-    renderIdSuggestions(suggest, studentOrTutorSuggestions(input.value.trim(), isStudent()), "party");
-  });
+    input.addEventListener("input", () => {
+      const text = input.value;
+      const query = text.trim();
+      if (id === "subscriptionPartyId") {
+        fillSubscriptionParty(dir()[query] || null);
+      } else {
+        // a new name / number: the earlier pick no longer applies
+        boxes.filter(other => other !== id).forEach(other => { $(other).value = ""; });
+      }
+      renderIdSuggestions(suggest, studentOrTutorSuggestions(query, isStudent()), "party", query);
+    });
 
-  suggest.addEventListener("click", (event) => {
-    const pick = event.target.closest("[data-pick-id]");
-    if (!pick) return;
-    input.value = pick.dataset.pickId;
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    suggest.classList.add("hidden");
+    suggest.addEventListener("click", (event) => {
+      const pick = event.target.closest("[data-pick-id]");
+      if (!pick) return;
+      $("subscriptionPartyId").value = pick.dataset.pickId;
+      fillSubscriptionParty(dir()[pick.dataset.pickId] || null);
+      hideAll();
+    });
   });
 
   document.addEventListener("click", (event) => {
-    if (!event.target.closest("#subscriptionPartyIdField")) suggest.classList.add("hidden");
+    document.querySelectorAll("#subscriptionForm .admin-id-row").forEach(row => {
+      if (!row.contains(event.target)) row.querySelector(".admin-suggest").classList.add("hidden");
+    });
   });
+
+}
+
+/* A dropdown (Transaction: Student / Tutor Subscription ...) opens as the
+   same list as the suggestions - title, grey detail line, tag pill - with
+   the chosen one ticked. The <select> itself still holds the value. */
+function wirePickList(selectId) {
+
+  const select = $(selectId);
+  const label = select.closest(".admin-float");
+  const panel = document.createElement("div");
+  panel.className = "admin-suggest admin-pick hidden";
+  label.appendChild(panel);
+
+  const open = () => {
+    const tick = `<svg class="sg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>`;
+    const dot = `<svg class="sg-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg>`;
+    panel.innerHTML = [...select.options].map(o => suggestItem({
+      title: o.text.replace(/\s*\(.*\)$/, ""),
+      sub: o.dataset.sub || "",
+      tag: o.dataset.tag || "",
+      icon: o.value === select.value ? tick : dot,
+      attrs: `data-pick-value="${esc(o.value)}"${o.value === select.value ? ' data-on="1"' : ""}`,
+    })).join("");
+    panel.classList.remove("hidden");
+  };
+  const close = () => panel.classList.add("hidden");
+
+  // the select itself takes no taps (CSS), so no browser list - on
+  // phones too - just ours
+  label.classList.add("has-pick");
+  label.addEventListener("click", (event) => {
+    if (panel.contains(event.target)) return;
+    event.preventDefault();
+    select.focus();
+    panel.classList.contains("hidden") ? open() : close();
+  });
+  select.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " " || (event.altKey && event.key === "ArrowDown")) {
+      event.preventDefault();
+      open();
+    } else if (event.key === "Escape") close();
+  });
+
+  panel.addEventListener("click", (event) => {
+    event.preventDefault();
+    const pick = event.target.closest("[data-pick-value]");
+    if (!pick) return;
+    close();
+    if (select.value !== pick.dataset.pickValue) {
+      select.value = pick.dataset.pickValue;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+
+  document.addEventListener("click", (event) => { if (!label.contains(event.target)) close(); });
 
 }
 
