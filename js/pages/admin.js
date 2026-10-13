@@ -801,6 +801,7 @@ function applyActiveTab() {
     const sec = $("tab-" + n);
     if (sec) sec.classList.toggle("hidden", n !== STATE.tab);
   });
+  if (STATE.tab === "students" && typeof fitStudentColumns === "function") requestAnimationFrame(fitStudentColumns);
 }
 
 async function loadOverview(quiet) {
@@ -3839,6 +3840,11 @@ function box(label, value, opts = {}) {
 
 }
 
+const STUDENT_PICKS = {
+  "Gender": ["Male", "Female"],
+  "Board": ["CBSE", "ICSE", "IGCSE", "State Board"],
+};
+
 const STUDENT_FIELD_ORDER = ["Timestamp", "Student ID", "Terms Accepted", "Parents Name", "Student Name", "Gender",
   "Phone", "WhatsApp", "Email", "Class", "Board", "School", "City", "Address", "PIN Code"];
 
@@ -3872,6 +3878,19 @@ function fieldsBoxes(kind, record, editing) {
             editable: canEdit,
             options: STATE.data.verificationValues,
             attr: canEdit ? `data-field="${esc(h)}"` : ""
+          });
+        }
+
+        // Students: Gender and Board are pick-lists while editing. A value that
+        // isn't in the list (e.g. "IB") stays selectable so it is never lost.
+        const picks = kind === "students" && canEdit ? STUDENT_PICKS[h] : null;
+        if (picks) {
+          const options = [...(value ? [] : [""]), ...(value && !picks.includes(value) ? [value] : []), ...picks];
+          return box(h, value, {
+            editable: true,
+            options,
+            optionLabels: { "": "Select" },
+            attr: `data-field="${esc(h)}"`
           });
         }
 
@@ -4623,6 +4642,74 @@ function renderTutors() {
 
 /* ---------------- students ---------------- */
 
+// The row shown on a collapsed Student card (and so what every column's width
+// is measured from).
+function studentSummaryCells(r) {
+  return [
+    r.values["Student Name"] || r.id, r.values["Gender"], r.values["Class"], r.values["Board"],
+    r.values["Phone"], r.values["WhatsApp"], r.id,
+    fullAddress(r.values["Address"], r.values["City"], ""), r.values["PIN Code"]
+  ];
+}
+
+// Until the widths are measured the nine columns are equal.
+const STUDENT_COLUMNS = "var(--stu-cols, repeat(9, minmax(0, 1fr)))";
+const STUDENT_COLUMN_LABELS = ["Name", "Gender", "Class", "Board", "Mobile", "WhatsApp", "Student ID", "Address", "Pin Code"];
+
+/* Column widths of the Students list. Every student's value is measured, so
+   each column knows how wide its widest card needs it. The row's width is
+   then shared fairly: a column needing less than an equal share takes only
+   what it needs, and the space that frees up goes to the columns that need
+   more (Name, Address...). A column still too narrow is cut with "...". If
+   nobody needs more, what is left is shared equally. */
+let measureCtx = null;
+
+function fitStudentColumns() {
+  const list = $("studentList");
+  const first = list && list.querySelector(".eq-grid");
+  const rows = STATE.data && STATE.data.students && STATE.data.students.rows;
+  if (!first || !rows || !rows.length) return;
+  const width = first.getBoundingClientRect().width;
+  if (!(width > 0)) return;
+
+  const sample = first.querySelector(".ledger-cell");
+  const style = getComputedStyle(sample);
+  measureCtx = measureCtx || document.createElement("canvas").getContext("2d");
+  measureCtx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  const pad = 6 + 6 + 2;                                    // cell padding + divider + a hair
+
+  const n = STUDENT_COLUMN_LABELS.length;
+  const need = STUDENT_COLUMN_LABELS.map((label) => {       // the header label counts too
+    measureCtx.font = "800 11px " + style.fontFamily;
+    return measureCtx.measureText(label.toUpperCase()).width + label.length * 0.44 + pad;
+  });
+  measureCtx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  rows.forEach(r => studentSummaryCells(r).forEach((c, i) => {
+    const text = (c === undefined || c === null || c === "") ? "-" : String(c);
+    const w = measureCtx.measureText(text).width + pad;
+    if (w > need[i]) need[i] = w;
+  }));
+
+  // fair sharing: give every column min(need, equal share of what is left)
+  const give = new Array(n).fill(0);
+  let open = need.map((_, i) => i);
+  let left = width;
+  while (open.length && left > 0.5) {
+    const share = left / open.length;
+    const done = open.filter(i => need[i] - give[i] <= share);
+    if (!done.length) { open.forEach(i => { give[i] += share; }); left = 0; break; }
+    done.forEach(i => { left -= need[i] - give[i]; give[i] = need[i]; });
+    open = open.filter(i => !done.includes(i));
+  }
+  if (left > 0.5) give.forEach((_, i) => { give[i] += left / n; });   // nobody needs more: share equally
+
+  const template = give.map(g => `minmax(0, ${Math.max(g, 1).toFixed(1)}fr)`).join(" ");
+  $("tab-students").style.setProperty("--stu-cols", template);
+}
+
+let fitTimer = 0;
+window.addEventListener("resize", () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitStudentColumns, 120); });
+
 function renderStudents() {
 
   const groups = demoGroups();
@@ -4647,11 +4734,7 @@ function renderStudents() {
       // One line, 9 equal columns: Name | Gender | Class | Board |
       // Mobile | WhatsApp | Student ID | Address (no PIN) | PIN Code -
       // text too long for its column is cut with "..." (see equalRow).
-      titleHtml: equalRow([
-        r.values["Student Name"] || r.id, r.values["Gender"], r.values["Class"], r.values["Board"],
-        r.values["Phone"], r.values["WhatsApp"], r.id,
-        fullAddress(r.values["Address"], r.values["City"], ""), r.values["PIN Code"]
-      ]),
+      titleHtml: equalRow(studentSummaryCells(r), STUDENT_COLUMNS),
       tone: "neutral",
       extra
     });
@@ -4661,6 +4744,9 @@ function renderStudents() {
   $("studentHeader").innerHTML = rows.length ? studentHeaderCard() : "";
 
   applyTextSearch("studentList", "studentSearch", "No students match.");
+
+  fitStudentColumns();
+  requestAnimationFrame(fitStudentColumns);       // again once the tab is on screen
 
 }
 
@@ -5593,7 +5679,7 @@ async function blockStudent(id, button) {
 function studentHeaderCard() {
   return listHeaderCard(`
     <span class="list-header-spacer list-header-avatar-label">Profile</span>
-    ${equalRow(["Name", "Gender", "Class", "Board", "Mobile", "WhatsApp", "Student ID", "Address", "Pin Code"])}
+    ${equalRow(STUDENT_COLUMN_LABELS, STUDENT_COLUMNS)}
     <span class="stu-icons stu-icons-label">Actions</span>
   `);
 }
