@@ -72,6 +72,7 @@ function myPerms() {
     tuitions: has("tuitions_view"),
     tutorsView: has("tutors_view"), tutorsEdit: has("tutors_edit"), tutorsVerify: has("tutors_verify"),
     students: has("students_view"), studentsEdit: has("students_edit"),
+    studentsNotify: has("students_notify"), studentsDelete: has("students_delete"),
     payments: has("payments_view"), paymentsAdd: has("payments_add"),
     paymentsEdit: has("payments_edit"), paymentsDelete: has("payments_delete"),
     subscriptionsAdd: has("subscriptions_add"), subscriptionsEdit: has("subscriptions_edit"),
@@ -715,16 +716,26 @@ function renderMailToggle() {
 
 // The "are you sure?" box: title, justified text, Cancel (left) / OK (right).
 // Resolves true for OK; Cancel, Esc or a tap outside the box give false.
-function askConfirm({ title, lines }) {
+// input: { value, placeholder } adds a message box - the promise then
+// gives the typed text (or false on Cancel). okText renames the OK button.
+function askConfirm({ title, lines, input, okText }) {
   const box = $("adminConfirm");
   $("adminConfirmTitle").textContent = title;
-  $("adminConfirmText").innerHTML = lines.map(l => `<p>${esc(l)}</p>`).join("");
+  $("adminConfirmText").innerHTML = lines.map(l => `<p>${esc(l)}</p>`).join("") +
+    (input ? `<textarea class="admin-confirm-input" rows="5" placeholder="${esc(input.placeholder || "")}">${esc(input.value || "")}</textarea>` : "");
+  const okButton = box.querySelector('[data-confirm="ok"]');
+  okButton.textContent = okText || "OK";
   box.classList.remove("hidden");
   box.setAttribute("aria-hidden", "false");
   const cancelButton = box.querySelector('[data-confirm="cancel"].admin-ghost');
-  cancelButton.focus();
+  const field = input ? box.querySelector(".admin-confirm-input") : null;
+  (field || cancelButton).focus();
   return new Promise(resolve => {
     const finish = (answer) => {
+      if (answer && field) {
+        if (!field.value.trim()) { field.focus(); return; }
+        answer = field.value.trim();
+      }
       box.classList.add("hidden");
       box.setAttribute("aria-hidden", "true");
       box.removeEventListener("click", onClick);
@@ -3156,6 +3167,26 @@ async function onListClick(event) {
       rerenderCurrent();
       break;
 
+    case "student-edit":
+      STATE.open.add(actionEl.dataset.key);
+      STATE.editing.add(actionEl.dataset.key);
+      rerenderCurrent();
+      break;
+
+    case "student-status":
+      STATE.open.add(actionEl.dataset.key);
+      rerenderCurrent();
+      break;
+
+    case "student-notify":
+      await notifyStudent(actionEl.dataset.id, actionEl);
+      break;
+
+    case "student-delete":
+    case "student-restore":
+      await trashStudent(actionEl.dataset.id, action === "student-restore", actionEl);
+      break;
+
     case "cancel":
       STATE.editing.delete(actionEl.dataset.key);
       rerenderCurrent();
@@ -4105,8 +4136,8 @@ function recordCard(kind, record, opts) {
   const editing = STATE.editing.has(key);
 
   return `
-    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}" data-tone="${opts.tone || ""}"
-      data-box data-kind="${kind}" data-row="${record.rowNumber}" data-id="${esc(record.id)}" data-key="${esc(key)}">
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}${kind === "students" && studentTags(record).includes("deleted") ? " is-trashed" : ""}" data-tone="${opts.tone || ""}"
+      data-box data-kind="${kind}" data-row="${record.rowNumber}" data-id="${esc(record.id)}" data-key="${esc(key)}"${kind === "students" ? ` data-tags="${studentTags(record).join(" ")}"` : ""}>
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
         ${kind === "tutors"
@@ -4115,7 +4146,7 @@ function recordCard(kind, record, opts) {
         <div class="admin-card-title">
           ${opts.titleHtml || `<strong>${esc(opts.name || record.id)}</strong><small>${esc(opts.sub)}</small>`}
         </div>
-        <span class="admin-caret" aria-hidden="true"></span>
+        ${kind === "students" ? studentIconsHtml(record, key) : `<span class="admin-caret" aria-hidden="true"></span>`}
         ${opts.verifyStatus ? verifyButtonsHtml(opts.verifyStatus) : ""}
         ${opts.pill ? `<span class="admin-status-rail admin-rail-sub" data-tone="${opts.tone}" tabindex="-1">${esc(opts.pill)}</span>` : ""}
       </div>
@@ -4171,7 +4202,7 @@ function applyTextSearch(listId, searchId, noMatchText) {
   const items = [...list.children].filter(c => !c.classList.contains("admin-empty"));
   let shown = 0;
   items.forEach(c => {
-    const ok = matchesAll(query, cardSearchText(c));
+    const ok = cardMatches(query, c);
     c.classList.toggle("hidden", !ok);
     if (ok) shown++;
   });
@@ -5428,11 +5459,124 @@ function listHeaderCard(innerHtml) {
   return `<div class="admin-card list-header" aria-hidden="true"><div class="admin-card-head">${innerHtml}</div></div>`;
 }
 
+/* ---------------- student card icons ----------------
+   Right of the PIN Code on every Student card: Notification (bell),
+   Edit (pencil), Delete (bin - only moves the student to the Trash) and
+   a status mark - a green check when every detail is filled, an orange
+   flag when something is missing. What they record is searchable:
+   "notification", "edit", "delete", "check" / "approved", "flag". */
+const STUDENT_REQUIRED = ["Parents Name", "Student Name", "Phone", "WhatsApp", "Email", "Gender",
+  "Class", "Board", "School", "Address", "City", "PIN Code"];
+
+function studentMissing(r) {
+  return STUDENT_REQUIRED.filter(f => !String((r.values || {})[f] || "").trim());
+}
+
+function studentTags(r) {
+  const m = r.meta || {};
+  const tags = [studentMissing(r).length ? "flagged" : "approved"];
+  if (m.editedAt) tags.push("edited");
+  if (m.notifiedAt) tags.push("notified");
+  if (m.deletedAt) tags.push("deleted");
+  return tags;
+}
+
+// Search words that look at what a card's icons recorded instead of its text.
+const STATUS_WORDS = {
+  approved: "approved", approve: "approved", check: "approved", checked: "approved", complete: "approved",
+  flag: "flagged", flagged: "flagged", incomplete: "flagged",
+  edit: "edited", edited: "edited",
+  notification: "notified", notifications: "notified", notify: "notified", notified: "notified",
+  delete: "deleted", deleted: "deleted", trash: "deleted",
+};
+
+function cardMatches(query, el) {
+  const tags = el.dataset.tags;
+  if (tags === undefined) return matchesAll(query, cardSearchText(el));
+  const have = tags.split(" ");
+  const words = lower(query).split(/\s+/).filter(Boolean);
+  // a student in the Trash shows only when the search asks for it
+  if (have.includes("deleted") && !words.some(w => STATUS_WORDS[w] === "deleted")) return false;
+  const textWords = words.filter(w => !STATUS_WORDS[w]);
+  return words.every(w => !STATUS_WORDS[w] || have.includes(STATUS_WORDS[w])) &&
+    matchesAll(textWords.join(" "), cardSearchText(el));
+}
+
+const STU_SVG = {
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  bin: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/>',
+  restore: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  check: '<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/>',
+  flag: '<path d="M4 22V4"/><path d="M4 4h12l-2 4 2 4H4"/>',
+};
+
+function stuIcon(name) {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${STU_SVG[name]}</svg>`;
+}
+
+function fmtWhen(iso) {
+  const d = iso ? new Date(iso) : null;
+  return d && !isNaN(d) ? d.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+}
+
+function studentIconsHtml(r, key) {
+  const perms = myPerms();
+  const m = r.meta || {};
+  const missing = studentMissing(r);
+  const trashed = !!m.deletedAt;
+  const btn = (action, icon, tone, label, allowed, on) =>
+    `<button type="button" class="stu-icon" data-tone="${tone}"${on ? ' data-on="1"' : ""} data-action="${action}" data-id="${esc(r.id)}" data-key="${esc(key)}"
+      title="${esc(label)}" aria-label="${esc(label)}"${allowed ? "" : " disabled"}>${stuIcon(icon)}</button>`;
+  return `<span class="stu-icons">
+    ${btn("student-notify", "bell", "blue", m.notifiedAt ? `Send a notification (last sent ${fmtWhen(m.notifiedAt)})` : "Send a notification", perms.studentsNotify && !trashed, !!m.notifiedAt)}
+    ${btn("student-edit", "edit", "violet", m.editedAt ? `Edit details (last edited ${fmtWhen(m.editedAt)})` : "Edit details", perms.studentsEdit && !trashed, !!m.editedAt)}
+    ${trashed
+      ? btn("student-restore", "restore", "green", `In Trash since ${fmtWhen(m.deletedAt)} - restore`, perms.studentsDelete, true)
+      : btn("student-delete", "bin", "red", "Delete (move to Trash)", perms.studentsDelete, false)}
+    ${missing.length
+      ? btn("student-status", "flag", "orange", `Needs check - missing: ${missing.join(", ")}`, true, true)
+      : btn("student-status", "check", "green", "All details filled - approved", true, true)}
+  </span>`;
+}
+
+async function notifyStudent(id, button) {
+  const r = STUDENT_BY_ID[id];
+  if (!r) return;
+  const name = r.values["Student Name"] || id;
+  const missing = studentMissing(r).filter(f => f !== "Email");
+  const message = await askConfirm({
+    title: `Notify ${name}`,
+    lines: ["Goes to the student's email, and to Telegram if they have linked it."],
+    input: {
+      value: missing.length ? `Please complete your details on Urban Tutor Site - missing: ${missing.join(", ")}.` : "",
+      placeholder: "Write the message...",
+    },
+    okText: "Send",
+  });
+  if (!message) return;
+  button.disabled = true;
+  await save({ action: "adminNotifyStudent", id, message });
+  if (document.body.contains(button)) button.disabled = false;
+}
+
+async function trashStudent(id, restore, button) {
+  const r = STUDENT_BY_ID[id];
+  const name = (r && r.values["Student Name"]) || id;
+  const ok = await askConfirm(restore
+    ? { title: `Restore ${name}?`, lines: [`${id} comes back to the Students list.`], okText: "Restore" }
+    : { title: `Delete ${name}?`, lines: [`${id} moves to the Trash and leaves the Students list. Nothing is erased - search "delete" to see it or restore it.`], okText: "Delete" });
+  if (!ok) return;
+  button.disabled = true;
+  await save({ action: "adminDeleteStudent", id, restore });
+  if (document.body.contains(button)) button.disabled = false;
+}
+
 function studentHeaderCard() {
   return listHeaderCard(`
     <span class="list-header-spacer list-header-avatar-label">Profile</span>
     ${equalRow(["Name", "Gender", "Class", "Board", "Mobile", "WhatsApp", "Student ID", "Address", "Pin Code"])}
-    <span class="admin-caret" aria-hidden="true"></span>
+    <span class="stu-icons stu-icons-label">Actions</span>
   `);
 }
 
