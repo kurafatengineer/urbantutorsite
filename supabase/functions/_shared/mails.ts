@@ -234,3 +234,66 @@ export function subscriptionMail(d: {
     { label: "Open My Profile", page: d.forTutor ? "tutorprofile.html" : "studentprofile.html" },
   );
 }
+
+/* ---------- tuition agreement (parent / tutor) - sent when a class is finalised ---------- */
+// The parent's copy never shows the agency's cut; the tutor's copy spells it out.
+
+export function agreementMail(d: {
+  forTutor: boolean; name: string; demoId: string; subject: string; studentName: string;
+  tutorName: string; tutorId: string; mode?: string; startDate?: string; days?: string; time?: string;
+  // numbers from dealNumbers() (deal.ts)
+  m: Record<string, unknown>; parentFreq: string; tutorFreq: string;
+}): Built {
+  const m = d.m as Record<string, number & string>;
+  const freq = (f: string) => f === "15 Days" ? "Every 15 Days" : (f || "Monthly");
+  const common: Row[] = [
+    ["Demo ID", d.demoId], ["Subject", d.subject], ["Student", d.studentName],
+    ["Tutor", `${d.tutorName}${d.tutorId ? ` (${d.tutorId})` : ""}`], ["Mode", d.mode ? modeText(d.mode) : ""],
+    ["Classes Start", d.startDate ? fmtDate(d.startDate) : ""], ["Class Days", d.days ?? ""],
+    ["Class Time", d.time ? fmtTime(d.time) : ""], ["Duration", m.minutes ? `${m.minutes} minutes per class` : ""],
+    ["Classes per Month", m.classes ? String(m.classes) : ""],
+    ["Hours per Month", m.hours ? `${Math.round(Number(m.hours) * 100) / 100} hours` : ""],
+  ];
+  let rows: Row[];
+  let intro: string;
+
+  if (m.model === "margin") {
+    rows = d.forTutor
+      ? [...common,
+         ["Parent Pays per Class", inr(m.parentPerClass)], ["Agency Share per Class", inr(m.margin)],
+         ["You Receive per Class", inr(m.tutorPerClass)], ["You Receive per Hour", inr(m.tutorPerHour)],
+         ["You Receive per Month", inr(m.tutorMonthly)],
+         ["Paid to You by", "Urban Tutor Site (agency)"],
+         ["Payment Schedule", `${freq(d.tutorFreq)} - ${inr(m.tutorInstallment)} each`]]
+      : [...common,
+         ["Fee per Class", inr(m.parentPerClass)], ["Fee per Hour", inr(m.parentPerHour)],
+         ["Fee per Month", inr(m.parentMonthly)], ["Pay to", "Urban Tutor Site (agency)"],
+         ["Payment Schedule", `${freq(d.parentFreq)} - ${inr(m.parentInstallment)} each`]];
+    intro = d.forTutor
+      ? "Your class is confirmed. These are the agreed class details and your earnings. The agency collects the fee from the parent and pays you as per the schedule below. You are paid only for classes actually taken."
+      : "Your class is confirmed. These are the agreed class details and fees. Fees are paid to the agency as per the schedule below. If the tutor leaves, any fee paid for classes not taken is refunded to you.";
+  } else {
+    const viaAgency = m.feeTo === "Agency";
+    rows = d.forTutor
+      ? [...common,
+         ["Monthly Fee", inr(m.monthlyFee)], ["Fee per Class", inr(m.perClass)], ["Fee per Hour", inr(m.perHour)],
+         ["Agency Commission", `${inr(m.cut)}${m.cutPercent ? ` (${m.cutPercent}% of the first month's fee)` : ""} - one time only`],
+         ...(viaAgency
+           ? [["First Month's Fee Paid to", "Agency"], ["You Receive (First Month)", `${inr(m.tutorFirstMonth)} - ${freq(d.tutorFreq)}, ${inr(m.tutorInstallment)} each`],
+              ["From the Second Month", "The parent pays you directly"]] as Row[]
+           : [["Fee Paid to", "You, directly by the parent"],
+              ["Commission Payment", `${freq(d.tutorFreq)} - ${inr(m.cutInstallment)} each, to the agency`]] as Row[])]
+      : [...common,
+         ["Monthly Fee", inr(m.monthlyFee)], ["Fee per Class", inr(m.perClass)], ["Fee per Hour", inr(m.perHour)],
+         ["Pay to", viaAgency ? "Urban Tutor Site (agency) for the first month, then the tutor directly" : "The tutor directly"],
+         ["Payment Schedule", `${freq(d.parentFreq)} - ${inr(m.parentInstallment)} each`]];
+    intro = d.forTutor
+      ? "Your class is confirmed. These are the agreed class details. The agency's commission is taken once, from the first month's fee only. If fewer classes take place than agreed, the extra commission is kept as a balance in your account and adjusted against your next tuition."
+      : "Your class is confirmed. These are the agreed class details and fees. If the tutor leaves, any fee paid for classes not taken is refunded to you.";
+  }
+
+  return make(
+    `Tuition Agreement - ${d.subject} (${d.demoId})`, "Tuition Agreement", { text: "CONFIRMED", tone: "green" }, d.name,
+    intro, rows, { label: "Open My Profile", page: d.forTutor ? "tutorprofile.html" : "studentprofile.html" },
+  );
+}

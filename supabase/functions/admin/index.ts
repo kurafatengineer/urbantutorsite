@@ -26,8 +26,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { notify, sendTelegram, demoScheduledTelegram, demoResponseButtons } from "../_shared/telegram.ts";
 import type { Built } from "../_shared/mails.ts";
 import {
-  demoScheduledMail, paymentReceivedMail, agencyChargeMail, payoutMail, subscriptionMail, tuitionPostedMail,
+  demoScheduledMail, paymentReceivedMail, agencyChargeMail, payoutMail, subscriptionMail, tuitionPostedMail, agreementMail,
 } from "../_shared/mails.ts";
+import { dealNumbers, type Deal } from "../_shared/deal.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -234,6 +235,8 @@ function effectivePermissions(role: Role, stored: unknown): string[] {
 const ACTION_PERMISSION: Record<string, string> = {
   adminUpdateTuition: "tuitions_edit",
   adminUpdateDemoRow: "tuitions_edit",
+  adminFinalizeClass: "tuitions_edit",
+  adminSettleClass: "payments_add",
   adminAssignTutor: "tuitions_assign_tutor",
   adminSetTerminated: "tuitions_close",
   adminDeleteTuition: "tuitions_delete",
@@ -374,7 +377,7 @@ async function linkDocuments(overview: Json): Promise<Json> {
 
 const PAYMENT_TYPES = ["advance", "regular", "final", "agency"];
 const COLLECTED_BY = ["agency", "tutor"];
-const TRANSACTION_TYPES = ["collection", "payout", "agency_charge"];
+const TRANSACTION_TYPES = ["collection", "payout", "agency_charge", "refund", "tutor_credit", "credit_used"];
 
 function paymentChangesFromBody(body: Json, partial: boolean): Json | { error: string } {
   const changes: Json = {};
@@ -910,6 +913,28 @@ async function sendDemoScheduled(demoId: string, tutorId: string, date: string, 
 }
 
 // Payment recorded: pick the right email for what the payment was.
+// Tuition Agreement to the parent (no agency cut shown) and the tutor (cut shown).
+async function sendAgreements(demoId: string, tutorId: string, deal: Deal, dates: string[], startDate: string | null, mails: boolean) {
+  const { data: t } = await db.from("tuitions").select("subject, student_id, medium").eq("demo_id", demoId).maybeSingle();
+  if (!t) return;
+  const [{ data: st }, { data: tu }] = await Promise.all([
+    db.from("students").select("student_name, parents_name, email").eq("student_id", t.student_id).maybeSingle(),
+    db.from("tutors").select("full_name, email").eq("tutor_id", tutorId).maybeSingle(),
+  ]);
+  const m = dealNumbers(deal, dates.length);
+  const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const weekdays = [...new Set(dates.map(d => new Date(d + "T00:00:00Z").getUTCDay()))].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
+  const days = weekdays.map(w => DAY[w]).join(", ");
+  const base = {
+    demoId, subject: String(t.subject ?? ""), studentName: String(st?.student_name ?? ""),
+    tutorName: String(tu?.full_name ?? ""), tutorId, mode: String(t.medium ?? ""),
+    startDate: String(startDate || dates[0] || ""), days, time: String(deal.time ?? ""),
+    m: m as Record<string, unknown>, parentFreq: String(deal.parentFreq ?? ""), tutorFreq: String(deal.tutorFreq ?? ""),
+  };
+  if (st?.email) await notify(st.email, agreementMail({ ...base, forTutor: false, name: String(st.parents_name || st.student_name || "") }), { email: mails });
+  if (tu?.email) await notify(tu.email, agreementMail({ ...base, forTutor: true, name: String(tu.full_name ?? "") }), { email: mails });
+}
+
 async function sendPaymentMail(pay: Json, mails = true) {
   const common = { receipt: pay.id, amount: num(pay.amount), mode: pay.payment_mode ?? "", paymentDate: pay.payment_date, createdAt: pay.created_at };
 
@@ -1138,6 +1163,84 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
         p_demo_id: body.demoId,
         p_changes: body.changes ?? {},
       });
+    }
+
+    // Save the class's deal and send the Tuition Agreement (parent copy without
+    // the agency's cut, tutor copy with it) by email + Telegram. Any balance the
+    // tutor has from an earlier tuition is used against this one's commission.
+    case "adminFinalizeClass": {
+      const demoId = String(body.demoId ?? ""), tutorId = String(body.tutorId ?? "");
+      const deal = (body.deal ?? {}) as Deal;
+      if (!demoId || !tutorId) return { success: false, message: "Please refresh the page and try again." };
+      if (deal.model !== "commission" && deal.model !== "margin") return { success: false, message: "Pick how this class is billed." };
+      const { data: app } = await db.from("applications").select("billing_plan, class_dates, class_start_date")
+        .eq("demo_id", demoId).eq("tutor_id", tutorId).maybeSingle();
+      if (!app) return { success: false, message: "That tutor row was not found. Refresh and try again." };
+      const dates: string[] = (app.class_dates ?? []).map(String).sort();
+      if (!dates.length) return { success: false, message: "Pick the class dates on the calendar first." };
+      const m = dealNumbers(deal, dates.length);
+      if (m.model === "commission" ? !(Number(m.monthlyFee) > 0) : !(Number(m.parentPerClass) > 0)) {
+        return { success: false, message: m.model === "commission" ? "Enter the Monthly Fee." : "Enter the Parent Pays per Class." };
+      }
+      if ((m.model === "commission" ? Number(m.tutorFirstMonth) : Number(m.tutorPerClass)) < 0) {
+        return { success: false, message: "The agency's share can't be more than the fee." };
+      }
+      const now = new Date().toISOString();
+      const saved = { ...(deal as Json), finalizedAt: (app.billing_plan?.deal?.finalizedAt) || now, agreementSentAt: now };
+      const { error } = await db.from("applications").update({ billing_plan: { ...(app.billing_plan ?? {}), deal: saved } })
+        .eq("demo_id", demoId).eq("tutor_id", tutorId);
+      if (error) return { success: false, message: error.message };
+
+      // a commission the tutor pays: use their balance first
+      let creditUsed = 0;
+      if (m.model === "commission" && m.feeTo === "Tutor" && Number(m.cut) > 0) {
+        const { data: moves } = await db.from("payments").select("transaction_type, amount, demo_id")
+          .eq("tutor_id", tutorId).in("transaction_type", ["tutor_credit", "credit_used", "agency_charge"]);
+        const sum = (t: string, own = false) => (moves ?? []).filter((p: Json) => p.transaction_type === t && (!own || p.demo_id === demoId))
+          .reduce((s: number, p: Json) => s + Number(p.amount || 0), 0);
+        const balance = sum("tutor_credit") - sum("credit_used");
+        const due = Number(m.cut) - sum("agency_charge", true) - sum("credit_used", true);
+        creditUsed = Math.max(Math.min(balance, due), 0);
+        if (creditUsed > 0) {
+          await db.from("payments").insert({
+            transaction_type: "credit_used", demo_id: demoId, tutor_id: tutorId, amount: creditUsed, payment_type: "agency",
+            payment_mode: "Balance", payment_date: now.slice(0, 10), notes: "Balance from an earlier tuition", recorded_by: caller.id,
+          });
+        }
+      }
+
+      try { await sendAgreements(demoId, tutorId, saved, dates, app.class_start_date, callerMailsOn(caller)); } catch (e) { console.error("agreement mail", e); }
+      return { success: true, message: creditUsed > 0 ? `Class finalised, agreement sent. Rs. ${creditUsed} of the tutor's balance used.` : "Class finalised and agreement sent." };
+    }
+
+    // The tutor left (or fewer classes took place): the parent gets back what
+    // they paid for classes not taken (a refund), and a tutor who paid the
+    // agency more commission than the classes taken justify keeps the extra
+    // as a balance for their next tuition.
+    case "adminSettleClass": {
+      const demoId = String(body.demoId ?? ""), tutorId = String(body.tutorId ?? "");
+      const refund = Math.max(Number(body.parentRefund) || 0, 0);
+      const credit = Math.max(Number(body.tutorCredit) || 0, 0);
+      const done = Math.max(Math.floor(Number(body.classesDone) || 0), 0);
+      const mode = String(body.paymentMode ?? "").trim() || "Online";
+      if (!demoId || !tutorId) return { success: false, message: "Please refresh the page and try again." };
+      const today = new Date().toISOString().slice(0, 10);
+      const rows: Json[] = [];
+      if (refund > 0) rows.push({ transaction_type: "refund", demo_id: demoId, amount: refund, payment_type: "regular", payment_mode: mode,
+        payment_date: today, notes: `Refund - ${done} class(es) taken`, recorded_by: caller.id });
+      if (credit > 0) rows.push({ transaction_type: "tutor_credit", demo_id: demoId, tutor_id: tutorId, amount: credit, payment_type: "agency",
+        payment_mode: "Balance", payment_date: today, notes: `Extra commission kept as balance - ${done} class(es) taken`, recorded_by: caller.id });
+      if (rows.length) {
+        const { error } = await db.from("payments").insert(rows);
+        if (error) return { success: false, message: error.message };
+      }
+      const { data: app } = await db.from("applications").select("billing_plan").eq("demo_id", demoId).eq("tutor_id", tutorId).maybeSingle();
+      const plan = app?.billing_plan ?? {};
+      await db.from("applications").update({
+        class_count: done, classes_completed: true,
+        billing_plan: { ...plan, deal: { ...(plan.deal ?? {}), settled: { at: new Date().toISOString(), classesDone: done, refund, credit } } },
+      }).eq("demo_id", demoId).eq("tutor_id", tutorId);
+      return { success: true, message: [refund > 0 ? `Refund of Rs. ${refund} recorded` : "", credit > 0 ? `Rs. ${credit} added to the tutor's balance` : ""].filter(Boolean).join(" · ") || "Class settled." };
     }
 
     case "adminUpdateDemoRow": {

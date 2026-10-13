@@ -4000,3 +4000,62 @@ html[data-theme="light"] .add-modal .dup-note { background: #fde8e8; color: #b42
 #studentAddForm.is-dup-locked :disabled:not([type="radio"]):not([type="checkbox"]) { opacity: 0.45; cursor: not-allowed; }
 #studentAddForm.is-dup-locked .pill-check:has(:disabled),
 #studentAddForm.is-dup-locked .choice-row:has(:disabled) { opacity: 0.45; pointer-events: none; }
+
+/* =========================================================
+   PAYMENTS CARD - THE DEAL (right of the calendar)
+   Monthly Commission | Per Class Margin, then the boxes for that
+   way of billing; outputs are worked out, inputs typed in edit mode.
+========================================================= */
+.class-bill.deal { display: grid; gap: 12px; align-content: start; }
+.deal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 10px; padding-top: 6px; }
+.deal-grid > .admin-box { width: 100%; min-width: 0; }
+.deal[data-model="commission"] .deal-grid[data-set="margin"],
+.deal[data-model="margin"] .deal-grid[data-set="commission"] { display: none; }
+.deal-grid > .admin-box > span { background: linear-gradient(to bottom, var(--surface-2) 50%, var(--surface-2) 50%); }
+.deal [data-out] { color: var(--lime); font-weight: 700; }
+
+/* % / Rs. picker in front of the cut / margin value */
+.admin-box.deal-cut { display: flex; align-items: stretch; }
+.admin-box.deal-cut select.deal-kind {
+  flex: 0 0 58px;
+  width: 58px;
+  border-radius: 999px 0 0 999px;
+  border-right: 0;
+  padding: 0 0 0 16px;
+  font-weight: 700;
+}
+.admin-box.deal-cut input { flex: 1 1 auto; min-width: 0; }
+.admin-box.deal-cut select.deal-kind + input { border-radius: 0 999px 999px 0; }
+.admin-box.deal-cut .deal-kind-text {
+  position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+  font-weight: 700; color: var(--muted); pointer-events: none;
+}
+
+.deal-note { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); text-align: center; }
+.deal-balance, .deal-final {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  text-align: center;
+  background: var(--lime-dim);
+  color: var(--lime);
+}
+.deal-balance { background: rgba(245, 158, 11, 0.14); color: #fbbf24; }
+.deal-final.is-settled { background: rgba(239, 68, 68, 0.14); color: #fca5a5; }
+html[data-theme="light"] .deal-balance { background: #fef3c7; color: #92400e; }
+html[data-theme="light"] .deal-final.is-settled { background: #fde8e8; color: #b42318; }
+.deal-actions { margin-top: 2px; }
+.deal-settle-btn { margin-top: 2px; }
+
+/* Tutor left / fewer classes */
+.deal-settle {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+}
+.deal-settle.hidden { display: none; }
+.deal-settle h4 { margin: 0; font-size: 14px; text-align: center; }
