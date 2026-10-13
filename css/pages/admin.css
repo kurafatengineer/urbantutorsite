@@ -1295,6 +1295,20 @@ html[data-theme="light"] .stu-icon[data-tone="blue"] { --c: var(--blue); }
   scrollbar-width: none;
 }
 
+/* Student card: rows of three (see fieldsBoxes) */
+.admin-boxes.admin-boxes-student { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.admin-boxes-student .admin-box textarea {
+  height: 46px;
+  min-height: 46px;
+  resize: none;
+  font-family: inherit;
+  scrollbar-width: none;
+}
+
+@media (max-width: 560px) {
+  .admin-boxes.admin-boxes-student { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 .admin-box {
   position: relative;
   display: block;

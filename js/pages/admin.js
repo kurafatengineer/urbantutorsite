@@ -3839,18 +3839,33 @@ function box(label, value, opts = {}) {
 
 }
 
+const STUDENT_FIELD_ORDER = ["Timestamp", "Student ID", "Terms Accepted", "Parents Name", "Student Name", "Gender",
+  "Phone", "WhatsApp", "Email", "Class", "Board", "School", "City", "Address", "PIN Code"];
+
 function fieldsBoxes(kind, record, editing) {
 
   const data = STATE.data[kind];
   const readOnly = (data.readOnly || []).map(lower);
 
+  // A Student card shows its details in fixed rows of three:
+  //   Timestamp | Student ID | Terms Accepted
+  //   Parents Name | Student Name | Gender
+  //   Phone | WhatsApp | Email
+  //   Class | Board | School
+  //   City | Address | PIN Code
+  const headers = kind === "students"
+    ? [...STUDENT_FIELD_ORDER.filter(h => data.headers.includes(h)), ...data.headers.filter(h => !STUDENT_FIELD_ORDER.includes(h))]
+    : data.headers;
+
   return `
-    <div class="admin-boxes">
-      ${data.headers.map(h => {
+    <div class="admin-boxes${kind === "students" ? " admin-boxes-student" : ""}">
+      ${headers.map(h => {
 
         const value = record.values[h] || "";
         const canEdit = editing && !readOnly.includes(lower(h));
-        const long = value.length > 48 || /address|subject you teach|classes you teach|boards you teach|languages|special/i.test(h);
+        const long = kind === "students"
+          ? /^address$/i.test(h)
+          : value.length > 48 || /address|subject you teach|classes you teach|boards you teach|languages|special/i.test(h);
 
         if (lower(h) === "verification status") {
           return box(h, value || "Pending for Verification", {
@@ -3862,7 +3877,7 @@ function fieldsBoxes(kind, record, editing) {
 
         return box(h, value, {
           editable: canEdit,
-          wide: long,
+          wide: long && kind !== "students",
           multiline: long,
           link: LINK_FIELDS.includes(h),
           attr: canEdit ? `data-field="${esc(h)}"` : ""
