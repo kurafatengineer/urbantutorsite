@@ -3106,8 +3106,24 @@ async function onListClick(event) {
 
     case "cal-month":
     case "cal-day":
-    case "bill-mode":
+    case "deal-model":
       onClassPlanClick(actionEl);
+      break;
+
+    case "finalize-class":
+      await saveClassDetails(box, actionEl, true);
+      break;
+
+    case "settle-class":
+      openSettlePanel(box);
+      break;
+
+    case "settle-cancel":
+      box.querySelector("[data-settle]").classList.add("hidden");
+      break;
+
+    case "settle-confirm":
+      await confirmSettle(box, actionEl);
       break;
 
     case "tutor-stats":
@@ -3250,6 +3266,7 @@ async function onListClick(event) {
       // only in edit mode (the chips are locked otherwise); saved with the rest
       if (!STATE.editing.has("class:" + box.dataset.demo)) break;
       actionEl.classList.toggle("is-on");
+      toggleWeekdayDates(box, actionEl.dataset.day, actionEl.classList.contains("is-on"));
       break;
     }
 
@@ -3496,7 +3513,7 @@ async function saveTuition(box, button) {
 
 }
 
-async function saveClassDetails(box, button) {
+async function saveClassDetails(box, button, finalize = false) {
 
   const rowNumber = Number(box.dataset.row);
   const demoId = box.dataset.demo;
@@ -3513,22 +3530,40 @@ async function saveClassDetails(box, button) {
     changes["Class Days"] = [...dayBox.querySelectorAll(".admin-day-chip.is-on")].map(b => b.dataset.day);
   }
 
-  // the calendar's dates and how the class is billed
+  // the calendar's dates and the deal; the older fields get the deal's figures
   const plan = box.querySelector("[data-class-plan]");
+  let deal = null;
   if (plan) {
-    recalcClassPlan(plan);
-    const mode = plan.dataset.mode;
-    const both = { classes: billSetValues(plan, "classes"), hourly: billSetValues(plan, "hourly") };
-    changes["Class Dates"] = planDates(plan);
-    changes["Billing Mode"] = mode;
-    changes["Billing Plan"] = both;
-    // the chosen option's boxes are the ones the totals use
-    changes["Class Duration"] = both[mode].minutes;
-    changes["Class Charges"] = both[mode].price;
-    changes["Class Total Amount"] = both[mode].amount;
+    const panel = plan.querySelector("[data-deal]");
+    deal = readDeal(panel);
+    const dates = planDates(plan);
+    const m = dealNumbers(deal, dates.length);
+    const g = demoGroups().find(x => x.demoId === demoId);
+    const row = g ? (g.rows || []).find(r => r.tutorId === tutorId) || activeRowFor(g) : null;
+    const before = (row && row.billingPlan && row.billingPlan.deal) || {};
+    deal = { ...before, ...deal };
+    changes["Class Dates"] = dates;
+    changes["Billing Mode"] = deal.model;
+    changes["Billing Plan"] = { ...((row && row.billingPlan) || {}), deal };
+    changes["Class Duration"] = deal.minutes;
+    changes["Class Charges"] = m.model === "margin" ? m.parentPerClass : m.perClass;
+    changes["Class Total Amount"] = m.model === "margin" ? m.parentMonthly : m.monthlyFee;
+    changes["Student Payment To"] = m.model === "commission" ? m.feeTo : "Agency";
+    changes["Tutor Payment From"] = m.model === "commission" && m.feeTo === "Tutor" ? "Parents" : "Agency";
+    changes["Tutor Agency Charge"] = m.model === "commission" ? m.cut : 0;
+    changes["Student Payment Frequency"] = deal.parentFreq || "Monthly";
+    changes["Tutor Payment Frequency"] = deal.tutorFreq || "Monthly";
+    if (finalize) {
+      if (!dates.length) { toast("Pick the class dates on the calendar first.", true); return; }
+      if (m.model === "commission" ? !(m.monthlyFee > 0) : !(m.parentPerClass > 0)) {
+        toast(m.model === "commission" ? "Enter the Monthly Fee." : "Enter the Parent Pays per Class.", true); return;
+      }
+      if ((m.model === "commission" ? m.tutorFirstMonth : m.tutorPerClass) < 0) { toast("The agency's share can't be more than the fee.", true); return; }
+    }
   }
 
-  const ok = await save({ action: "adminUpdateDemoRow", rowNumber, demoId, tutorId, changes }, button);
+  let ok = await save({ action: "adminUpdateDemoRow", rowNumber, demoId, tutorId, changes }, button);
+  if (ok && finalize && deal) ok = await save({ action: "adminFinalizeClass", demoId, tutorId, deal }, button);
 
   if (ok) {
     STATE.editing.delete("class:" + demoId);
@@ -4640,6 +4675,17 @@ function paymentSummary(p) {
     studentId = g ? g.first.studentId : "";
     tutorId = p.tutor_id || (activeRow ? activeRow.tutorId : "");
 
+  } else if (["refund", "tutor_credit", "credit_used"].includes(p.transaction_type)) {
+    // refund to the parent / a tutor's balance added or used (see adminSettleClass)
+    const g = groupFor(p.demo_id);
+    const isRefund = p.transaction_type === "refund";
+    kind = isRefund ? "Student" : "Tutor";
+    partyId = isRefund ? (g ? g.first.studentId : ((DIR_DEMO_BY_ID[p.demo_id] || {}).studentId || "")) : (p.tutor_id || "");
+    purpose = isRefund ? "Refund" : (p.transaction_type === "tutor_credit" ? "Balance Added" : "Balance Used");
+    if (p.demo_id) target = { action: "go-to-tuition", demo: p.demo_id, part: isRefund ? "student-payment" : "tutor-agency" };
+    studentId = g ? g.first.studentId : "";
+    tutorId = p.tutor_id || "";
+
   } else if (p.transaction_type === "payout") {
     kind = "Tutor";
     partyId = p.tutor_id || "";
@@ -4736,7 +4782,7 @@ function paymentCard(p, ctx) {
   const tutorId = p.tutor_id || (t ? t.activeRow.tutorId : "");
   const tutor = DIR_TUTOR_BY_ID[tutorId] || {};
   const paying = num(p.amount);
-  const remaining = t ? Math.max(t.duesBefore - paying, 0) : null;
+  const remaining = t && !["refund", "tutor_credit", "credit_used"].includes(p.transaction_type) ? Math.max(t.duesBefore - paying, 0) : null;
 
   const topRow =
     box("Transaction", isPayout ? "Payout (Tutor)" : "Collection (Parent)") +
@@ -5112,7 +5158,7 @@ function ledgerCard(e) {
       <div class="admin-card-head" ${attrs} title="Open what this is for">
         <span class="admin-status-rail ledger-status-rail" data-tone="${status.tone}" tabindex="-1">${esc(status.label)}</span>
         <span class="admin-status-rail ledger-purpose-rail" data-tone="black" tabindex="-1">${esc(e.purpose)}</span>
-        ${ledgerFlow(e.purpose === "Payments Out")}
+        ${ledgerFlow(e.purpose === "Payments Out" || e.purpose === "Refund")}
         ${ledgerRow(cells)}
         ${record}
       </div>
@@ -5189,8 +5235,9 @@ function renderGraph() {
   const cutoff = days ? new Date(Date.now() - days * 86400000).toISOString().slice(0, 10) : "";
 
   const all = ledgerEntries().filter(e => purposeFilter === "all" || e.purpose === purposeFilter);
-  const isOut = e => e.purpose === "Payments Out";
-  const paid = all.filter(e => e.status === "paid" && (!cutoff || !e.date || e.date >= cutoff));
+  // a refund is money out; a tutor's balance moving is not money at all
+  const isOut = e => e.purpose === "Payments Out" || e.purpose === "Refund";
+  const paid = all.filter(e => e.status === "paid" && !/^Balance /.test(e.purpose) && (!cutoff || !e.date || e.date >= cutoff));
   const due = all.filter(e => e.status !== "paid");
 
   const totalIn = paid.filter(e => !isOut(e)).reduce((s, e) => s + e.amount, 0);
@@ -5791,6 +5838,9 @@ function tuitionStack(g) {
 // disagree about what's owed.
 function classMoney(g, activeRow) {
 
+  const saved = activeRow.billingPlan && activeRow.billingPlan.deal;
+  if (saved && saved.model) return dealMoney(g, activeRow, saved);
+
   // With a billing plan (calendar + Number of Classes / Hourly) the Amount
   // worked out there is the Tuition Fee; older cards keep the old formula.
   const studentTotalAmount = activeRow.billingMode
@@ -5848,6 +5898,46 @@ function classMoney(g, activeRow) {
     tutorAgencyReceived, tutorAgencyDue
   };
 
+}
+
+// classMoney() for a class billed by a deal (see dealPanelHtml). Same shape
+// as before, so the card's figures and the payment form keep working:
+//   commission, fee to Agency: parent pays the agency the Monthly Fee, the
+//     tutor is paid the fee less the cut (the cut is kept back - shown as paid)
+//   commission, fee to Tutor:  no parent money via the agency; the tutor pays
+//     the cut in (agency charge payments + balance used)
+//   margin: parent pays the agency the month's classes, the tutor is paid
+//     theirs; the margin stays with the agency
+function dealMoney(g, activeRow, deal) {
+  const m = dealNumbers(deal, (activeRow.classDates || []).length);
+  const pays = (STATE.payments || []).filter(p => p.demo_id === g.demoId);
+  const sum = (list) => list.reduce((s, p) => s + num(p.amount), 0);
+  const studentAdvancePaid = sum(pays.filter(p => p.transaction_type === "collection" && p.payment_type === "advance"));
+  const collected = sum(pays.filter(p => p.transaction_type === "collection" && p.payment_type !== "advance"))
+    - sum(pays.filter(p => p.transaction_type === "refund"));
+  const tutorPaid = (STATE.payments || []).filter(p => p.tutor_id === activeRow.tutorId && p.transaction_type === "payout" && (!p.demo_id || p.demo_id === g.demoId));
+  const tutorAdvance = num(activeRow.tutorAdvancePayment) + sum(tutorPaid.filter(p => p.payment_type === "advance"));
+  const tutorPayouts = sum(tutorPaid.filter(p => p.payment_type !== "advance"));
+  const tutorTotalPayment = tutorAdvance + tutorPayouts;
+
+  const viaAgency = m.model === "margin" || m.feeTo === "Agency";
+  const studentTotalAmount = m.model === "margin" ? m.parentMonthly : (viaAgency ? m.monthlyFee : 0);
+  const tutorTotalAmount = m.model === "margin" ? m.tutorMonthly : (viaAgency ? m.tutorFirstMonth : 0);
+  const tutorAgencyCharge = m.model === "commission" ? m.cut : 0;
+  const tutorAgencyReceived = m.model !== "commission" ? 0
+    : (m.feeTo === "Agency" ? m.cut
+      : sum(pays.filter(p => (p.transaction_type === "agency_charge" || p.transaction_type === "credit_used") && p.tutor_id === activeRow.tutorId)));
+  const studentAgencyCharge = num(activeRow.studentAgencyCharge);
+  const studentAgencyReceived = sum(pays.filter(p => p.transaction_type === "agency_charge" && !p.tutor_id));
+
+  return {
+    studentTotalAmount, studentAdvancePaid, collected,
+    studentDues: Math.max(studentTotalAmount - studentAdvancePaid - collected, 0),
+    tutorTotalAmount, tutorAgencyCharge, tutorAdvance, tutorPayouts, tutorTotalPayment,
+    tutorDues: Math.max(tutorTotalAmount - tutorTotalPayment, 0),
+    studentAgencyCharge, studentAgencyReceived, studentAgencyDue: Math.max(studentAgencyCharge - studentAgencyReceived, 0),
+    tutorAgencyReceived, tutorAgencyDue: Math.max(tutorAgencyCharge - tutorAgencyReceived, 0),
+  };
 }
 
 /* =====================================================================
@@ -5910,47 +6000,294 @@ function calendarHtml(monthKey, dates, editing) {
 function classPlanHtml(g, activeRow, editing) {
 
   const dates = (activeRow.classDates || []).slice().sort();
-  const mode = activeRow.billingMode === "hourly" ? "hourly" : "classes";
   STATE.calMonth = STATE.calMonth || {};
   const monthKey = STATE.calMonth[g.demoId]
     || (dates[0] || toDateInput(activeRow.classStartDate) || isoToday()).slice(0, 7);
   STATE.calMonth[g.demoId] = monthKey;
 
-  // each option keeps its own boxes; the old single values fill the chosen one
-  const saved = activeRow.billingPlan || {};
-  const values = set => saved[set] || (set === mode
-    ? { minutes: activeRow.classDuration || "", price: activeRow.classCharges || "", amount: activeRow.classTotalAmount || "" }
-    : {});
-  const count = dates.length;
-  const num0 = { editable: editing, type: "number" };
-
-  const setHtml = (set, priceLabel) => {
-    const v = values(set);
-    return `
-      <div class="bill-set" data-set="${set}">
-        ${box("Duration (Minutes)", v.minutes || "", { ...num0, attr: 'data-bill="minutes" min="0"' })}
-        ${box("Number of Classes", count, { attr: 'data-bill="count"' })}
-        ${box(priceLabel, v.price || "", { ...num0, attr: 'data-bill="price" min="0"' })}
-        ${box("Amount (₹)", v.amount || "", { ...num0, attr: 'data-bill="amount" min="0"' })}
-        <p class="bill-note" data-bill-note>${esc(planNoteText(set === "hourly", count, num(v.minutes)))}</p>
-      </div>`;
-  };
-
   return `
-    <div class="class-plan" data-class-plan data-mode="${mode}" data-month="${esc(monthKey)}" data-dates='${esc(JSON.stringify(dates))}'>
+    <div class="class-plan" data-class-plan data-month="${esc(monthKey)}" data-dates='${esc(JSON.stringify(dates))}'>
       <div class="class-cal" data-cal>${calendarHtml(monthKey, dates, editing)}</div>
-      <div class="class-bill">
-        <div class="bill-seg" role="radiogroup" aria-label="Billing">
-          <button type="button" class="bill-opt${mode === "classes" ? " is-on" : ""}" data-action="bill-mode" data-mode="classes"${editing ? "" : " disabled"}>Number of Classes</button>
-          <button type="button" class="bill-opt${mode === "hourly" ? " is-on" : ""}" data-action="bill-mode" data-mode="hourly"${editing ? "" : " disabled"}>Hourly</button>
-        </div>
-        ${setHtml("classes", "Price per Class (₹)")}
-        ${setHtml("hourly", "Price per Hour (₹)")}
-        ${editing ? `<button class="admin-primary bill-save" data-action="save-class-details" type="button">Save</button>` : ""}
-      </div>
+      ${dealPanelHtml(g, activeRow, editing, dates.length)}
     </div>`;
 }
 
+/* =====================================================================
+   THE DEAL (how a running class is billed) - right of the calendar
+     Monthly Commission: a monthly deal (classes a month, Monthly Fee); the
+       agency takes a cut (% or Rs.) of the FIRST month's fee, from the tutor,
+       once. The first month's fee goes to the tutor (who pays the cut) or to
+       the agency (which keeps the cut and pays the rest on).
+     Per Class Margin: the parent pays the agency a price per class; the agency
+       keeps a margin (% or Rs.) and pays the tutor the rest, every month.
+   Number of Classes = the dates picked on the calendar; Per Class / Per Hour
+   and the monthly figures work themselves out. Parent / tutor can pay Weekly,
+   every 15 Days or Monthly. "Save & Send Agreement" finalises the class and
+   emails / Telegrams the agreement (parent copy without the agency's cut).
+   Same maths as supabase/functions/_shared/deal.ts.
+   ===================================================================== */
+
+const DEAL_FREQ = { "Weekly": 4, "15 Days": 2, "Monthly": 1 };
+
+function dealNumbers(deal, classes) {
+  const n = v => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
+  const r = Math.round;
+  const minutes = n(deal.minutes);
+  const hours = classes * minutes / 60;
+  const pK = DEAL_FREQ[deal.parentFreq] || 1;
+  const tK = DEAL_FREQ[deal.tutorFreq] || 1;
+  if (deal.model === "margin") {
+    const P = n(deal.parentPerClass);
+    const margin = deal.marginType === "percent" ? P * n(deal.marginValue) / 100 : n(deal.marginValue);
+    const T = P - margin;
+    return {
+      model: "margin", classes, minutes, hours,
+      parentPerClass: r(P), parentPerHour: minutes ? r(P * 60 / minutes) : 0,
+      margin: r(margin), tutorPerClass: r(T), tutorPerHour: minutes ? r(T * 60 / minutes) : 0,
+      parentMonthly: r(classes * P), tutorMonthly: r(classes * T), agencyMonthly: r(classes * margin),
+      parentInstallment: r(classes * P / pK), tutorInstallment: r(classes * T / tK),
+    };
+  }
+  const fee = n(deal.monthlyFee);
+  const cut = deal.cutType === "percent" ? fee * n(deal.cutValue) / 100 : n(deal.cutValue);
+  return {
+    model: "commission", classes, minutes, hours,
+    monthlyFee: r(fee), perClass: classes ? r(fee / classes) : 0, perHour: hours ? r(fee / hours) : 0,
+    cut: r(cut), cutPercent: fee ? Math.round(cut / fee * 1000) / 10 : 0,
+    feeTo: deal.feeTo === "Agency" ? "Agency" : "Tutor",
+    tutorFirstMonth: r(fee - cut),
+    parentInstallment: r(fee / pK), cutInstallment: r(cut / tK), tutorInstallment: r((fee - cut) / tK),
+  };
+}
+
+// the saved deal, or one made from an older card's own numbers
+function dealOf(activeRow) {
+  const saved = (activeRow.billingPlan && activeRow.billingPlan.deal) || null;
+  if (saved && saved.model) return saved;
+  return {
+    model: "commission", minutes: activeRow.classDuration || "", time: "",
+    monthlyFee: activeRow.classTotalAmount || "", feeTo: activeRow.studentPaymentTo === "Agency" ? "Agency" : "Tutor",
+    cutType: "percent", cutValue: "", parentPerClass: activeRow.classCharges || "", marginType: "amount", marginValue: "",
+    parentFreq: activeRow.studentPaymentFrequency || "Monthly", tutorFreq: activeRow.tutorPaymentFrequency || "Monthly",
+  };
+}
+
+// a tutor's balance: extra commission kept for them, less what's been used
+function tutorBalance(tutorId) {
+  const sum = t => (STATE.payments || []).filter(p => p.tutor_id === tutorId && p.transaction_type === t)
+    .reduce((s, p) => s + num(p.amount), 0);
+  return sum("tutor_credit") - sum("credit_used");
+}
+
+function dealPanelHtml(g, activeRow, editing, count) {
+  const d = dealOf(activeRow);
+  const m = dealNumbers(d, count);
+  const inp = (label, key, value, opts = {}) => box(label, value ?? "", { editable: editing, type: opts.type || "number",
+    options: opts.options, attr: `data-d="${key}"${opts.type ? "" : ' min="0"'}` });
+  const out = (label, key, value) => box(label, value, { attr: `data-out="${key}"` });
+  const rs = v => "₹" + Number(v || 0).toLocaleString("en-IN");
+  const kind = (key, value) => editing
+    ? `<select class="deal-kind" data-d="${key}"><option value="percent"${value === "percent" ? " selected" : ""}>%</option><option value="amount"${value !== "percent" ? " selected" : ""}>₹</option></select>`
+    : `<span class="deal-kind-text">${value === "percent" ? "%" : "₹"}</span>`;
+  const finalized = d.finalizedAt;
+  const settled = d.settled;
+  const balance = tutorBalance(activeRow.tutorId);
+
+  return `
+    <div class="class-bill deal" data-deal data-model="${d.model === "margin" ? "margin" : "commission"}">
+      <div class="bill-seg" role="radiogroup" aria-label="How this class is billed">
+        <button type="button" class="bill-opt${d.model !== "margin" ? " is-on" : ""}" data-action="deal-model" data-model="commission"${editing ? "" : " disabled"}>Monthly Commission</button>
+        <button type="button" class="bill-opt${d.model === "margin" ? " is-on" : ""}" data-action="deal-model" data-model="margin"${editing ? "" : " disabled"}>Per Class Margin</button>
+      </div>
+
+      <div class="deal-grid">
+        ${inp("Duration (Minutes)", "minutes", d.minutes)}
+        ${inp("Class Time", "time", d.time, { type: "time" })}
+        ${out("Number of Classes", "classes", count)}
+        ${out("Hours", "hours", Math.round(m.hours * 100) / 100)}
+      </div>
+
+      <div class="deal-grid" data-set="commission">
+        ${inp("Monthly Fee (₹)", "monthlyFee", d.monthlyFee)}
+        ${out("Per Class (₹)", "perClass", m.perClass || 0)}
+        ${out("Per Hour (₹)", "perHour", m.perHour || 0)}
+        ${inp("First Month's Fee To", "feeTo", d.feeTo || "Tutor", { type: "text", options: ["Tutor", "Agency"] })}
+        <label class="admin-box deal-cut${editing ? " is-edit" : ""}">${kind("cutType", d.cutType)}<input type="number" min="0" data-d="cutValue" value="${esc(d.cutValue ?? "")}"${editing ? "" : " readonly"}><span>Agency Cut (First Month)</span></label>
+        ${out("Agency Cut (₹)", "cut", m.cut || 0)}
+        ${out("Tutor Gets, First Month (₹)", "tutorFirstMonth", m.tutorFirstMonth || 0)}
+      </div>
+
+      <div class="deal-grid" data-set="margin">
+        ${inp("Parent Pays per Class (₹)", "parentPerClass", d.parentPerClass)}
+        ${out("Parent per Hour (₹)", "parentPerHour", m.parentPerHour || 0)}
+        <label class="admin-box deal-cut${editing ? " is-edit" : ""}">${kind("marginType", d.marginType)}<input type="number" min="0" data-d="marginValue" value="${esc(d.marginValue ?? "")}"${editing ? "" : " readonly"}><span>Agency Margin per Class</span></label>
+        ${out("Agency per Class (₹)", "margin", m.margin || 0)}
+        ${out("Tutor per Class (₹)", "tutorPerClass", m.tutorPerClass || 0)}
+        ${out("Tutor per Hour (₹)", "tutorPerHour", m.tutorPerHour || 0)}
+        ${out("Parent per Month (₹)", "parentMonthly", m.parentMonthly || 0)}
+        ${out("Tutor per Month (₹)", "tutorMonthly", m.tutorMonthly || 0)}
+        ${out("Agency per Month (₹)", "agencyMonthly", m.agencyMonthly || 0)}
+      </div>
+
+      <div class="deal-grid">
+        ${inp("Parent Pays", "parentFreq", d.parentFreq || "Monthly", { type: "text", options: Object.keys(DEAL_FREQ) })}
+        ${out("Each Parent Payment (₹)", "parentInstallment", m.parentInstallment || 0)}
+        ${inp("Tutor Paid / Pays", "tutorFreq", d.tutorFreq || "Monthly", { type: "text", options: Object.keys(DEAL_FREQ) })}
+        ${out("Each Tutor Payment (₹)", "tutorInstallment", (m.model === "commission" && m.feeTo === "Tutor" ? m.cutInstallment : m.tutorInstallment) || 0)}
+      </div>
+
+      <p class="deal-note" data-deal-note>${esc(dealNoteText(m))}</p>
+      ${balance ? `<p class="deal-balance">Tutor's balance: <strong>${rs(balance)}</strong>${balance > 0 ? " - used against this commission when the class is finalised" : ""}</p>` : ""}
+      ${finalized ? `<p class="deal-final">Finalised ${esc(fmtShortDate(finalized))}${d.agreementSentAt ? ` · Agreement sent ${esc(fmtShortDate(d.agreementSentAt))}` : ""}</p>` : ""}
+      ${settled ? `<p class="deal-final is-settled">Settled ${esc(fmtShortDate(settled.at))} · ${esc(settled.classesDone)} class(es) taken${settled.refund ? ` · Refund ${rs(settled.refund)}` : ""}${settled.credit ? ` · Tutor balance ${rs(settled.credit)}` : ""}</p>` : ""}
+
+      ${editing
+        ? `<div class="admin-pair deal-actions">
+             <button class="admin-ghost bill-save" data-action="save-class-details" type="button">Save</button>
+             <button class="admin-primary" data-action="finalize-class" type="button">${finalized ? "Save & Resend Agreement" : "Save & Send Agreement"}</button>
+           </div>`
+        : (finalized && !settled ? `<button class="admin-ghost admin-wide deal-settle-btn" data-action="settle-class" type="button">Tutor Left / Fewer Classes - Settle</button>` : "")}
+      <div class="deal-settle hidden" data-settle></div>
+    </div>`;
+}
+
+function fmtShortDate(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? "" : `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+function dealNoteText(m) {
+  if (m.model === "margin") {
+    return `Parent pays ₹${m.parentPerClass} a class → agency keeps ₹${m.margin}, tutor gets ₹${m.tutorPerClass}. ` +
+      `${m.classes} classes a month: parent ₹${m.parentMonthly}, tutor ₹${m.tutorMonthly}, agency ₹${m.agencyMonthly}.`;
+  }
+  return `${m.classes} classes a month for ₹${m.monthlyFee}. Agency takes ₹${m.cut}${m.cutPercent ? ` (${m.cutPercent}%)` : ""} once, from the first month. ` +
+    (m.feeTo === "Agency" ? `First month's fee comes to the agency; tutor gets ₹${m.tutorFirstMonth}.` : `Fee goes to the tutor; tutor pays the agency ₹${m.cut}.`);
+}
+
+// what the deal panel holds right now
+function readDeal(panel) {
+  const deal = { model: panel.dataset.model };
+  panel.querySelectorAll("[data-d]").forEach(el => { deal[el.dataset.d] = el.value.trim(); });
+  return deal;
+}
+
+function recalcDeal(panel) {
+  if (!panel) return;
+  const plan = panel.closest("[data-class-plan]");
+  const count = plan ? planDates(plan).length : 0;
+  const m = dealNumbers(readDeal(panel), count);
+  const set = (k, v) => panel.querySelectorAll(`[data-out="${k}"]`).forEach(el => { el.value = v; });
+  set("classes", count);
+  set("hours", Math.round(m.hours * 100) / 100);
+  Object.keys(m).forEach(k => { if (typeof m[k] === "number") set(k, m[k]); });
+  set("tutorInstallment", (m.model === "commission" && m.feeTo === "Tutor" ? m.cutInstallment : m.tutorInstallment) || 0);
+  const note = panel.querySelector("[data-deal-note]");
+  if (note) note.textContent = dealNoteText(m);
+}
+
+// Weekday chip (edit mode): ticks / unticks that weekday's dates in the month shown.
+function toggleWeekdayDates(box, day, on) {
+  const plan = box.querySelector("[data-class-plan]");
+  if (!plan) return;
+  const idx = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 }[lower(day)];
+  const wd = idx !== undefined ? idx : ["sun", "mon", "tue", "wed", "thu", "fri", "sat"].indexOf(lower(day).slice(0, 3));
+  if (wd < 0) return;
+  const [y, m] = plan.dataset.month.split("-").map(Number);
+  const dates = new Set(planDates(plan));
+  const last = new Date(y, m, 0).getDate();
+  for (let dd = 1; dd <= last; dd++) {
+    if (new Date(y, m - 1, dd).getDay() !== wd) continue;
+    const iso = `${y}-${String(m).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+    if (on) dates.add(iso); else dates.delete(iso);
+  }
+  plan.dataset.dates = JSON.stringify([...dates].sort());
+  redrawCalendar(plan);
+  recalcDeal(plan.querySelector("[data-deal]"));
+}
+
+/* Tutor left / fewer classes than agreed:
+     parent  - paid (collections less refunds) vs what the classes taken cost
+               -> the difference is refunded to the parent
+     tutor   - commission paid in (agency charge + balance used) vs the cut for
+               the classes taken (cut x taken / agreed) -> the extra becomes the
+               tutor's balance for their next tuition */
+function settleNumbers(g, activeRow, done) {
+  const d = dealOf(activeRow);
+  const agreed = (activeRow.classDates || []).length;
+  const m = dealNumbers(d, agreed);
+  const pays = (STATE.payments || []).filter(p => p.demo_id === g.demoId);
+  const total = (t, tutor) => pays.filter(p => p.transaction_type === t && (tutor === undefined || (tutor ? p.tutor_id === activeRow.tutorId : !p.tutor_id)))
+    .reduce((s, p) => s + num(p.amount), 0);
+  const parentPaid = total("collection") - total("refund");
+  const parentCost = m.model === "margin" ? done * m.parentPerClass
+    : (m.feeTo === "Agency" ? (agreed ? Math.round(m.monthlyFee * done / agreed) : 0) : 0);
+  const commissionPaid = total("agency_charge", true) + total("credit_used", true);
+  const commissionDue = m.model === "commission" && m.feeTo === "Tutor" && agreed ? Math.round(m.cut * done / agreed) : 0;
+  return {
+    agreed, parentPaid, parentCost, refund: Math.max(parentPaid - parentCost, 0),
+    commissionPaid, commissionDue, model: m.model,
+    // only a commission the tutor paid in can be too much (margin: the agency pays the tutor)
+    credit: m.model === "commission" && m.feeTo === "Tutor" ? Math.max(commissionPaid - commissionDue, 0) : 0,
+  };
+}
+
+function settleHtml(g, activeRow, done) {
+  const x = settleNumbers(g, activeRow, done);
+  const rs = v => "₹" + Number(v || 0).toLocaleString("en-IN");
+  return `
+    <h4>Tutor Left / Fewer Classes</h4>
+    <div class="deal-grid">
+      ${box("Classes Agreed", x.agreed)}
+      <label class="admin-box is-edit"><input type="number" min="0" data-settle-done value="${esc(done)}"><span>Classes Taken</span></label>
+      ${box("Parent Paid (₹)", x.parentPaid)}
+      ${box("Classes Taken Cost (₹)", x.parentCost)}
+      <label class="admin-box is-edit"><input type="number" min="0" data-settle-refund value="${esc(x.refund)}"><span>Refund to Parent (₹)</span></label>
+      ${x.model === "commission" ? box("Commission Paid by Tutor (₹)", x.commissionPaid) + box("Commission for Classes Taken (₹)", x.commissionDue) : ""}
+      <label class="admin-box is-edit"><input type="number" min="0" data-settle-credit value="${esc(x.credit)}"><span>Add to Tutor's Balance (₹)</span></label>
+      ${box("Refund Mode", "Online", { editable: true, options: ["Online", "Offline"], attr: "data-settle-mode" })}
+    </div>
+    <p class="deal-note">The parent gets ${rs(x.refund)} back. ${x.credit ? `${rs(x.credit)} stays as the tutor's balance and is used against their next tuition's commission.` : "Nothing is added to the tutor's balance."} This class is then marked completed.</p>
+    <div class="admin-pair">
+      <button class="admin-primary" data-action="settle-confirm" type="button">Settle</button>
+      <button class="admin-ghost" data-action="settle-cancel" type="button">Cancel</button>
+    </div>`;
+}
+
+function openSettlePanel(box) {
+  const g = demoGroups().find(x => x.demoId === box.dataset.demo);
+  const activeRow = g ? activeRowFor(g) : null;
+  const panel = box.querySelector("[data-settle]");
+  if (!activeRow || !panel) return;
+  panel.innerHTML = settleHtml(g, activeRow, Number(activeRow.classCount) || 0);
+  panel.classList.remove("hidden");
+  openSettlePanelRewire(panel, g, activeRow);
+}
+// changing Classes Taken redoes the numbers
+function openSettlePanelRewire(panel, g, activeRow) {
+  panel.querySelector("[data-settle-done]").addEventListener("change", (e) => {
+    panel.innerHTML = settleHtml(g, activeRow, Math.max(Number(e.target.value) || 0, 0));
+    openSettlePanelRewire(panel, g, activeRow);
+  });
+}
+
+async function confirmSettle(box, button) {
+  const panel = box.querySelector("[data-settle]");
+  const v = sel => panel.querySelector(sel).value;
+  const ok = await askConfirm({
+    title: `Settle ${box.dataset.demo}?`,
+    lines: [`Refund to parent: ₹${num(v("[data-settle-refund]"))} · Tutor's balance: ₹${num(v("[data-settle-credit]"))}`,
+            "These are recorded and the class is marked completed."],
+  });
+  if (!ok) return;
+  await save({
+    action: "adminSettleClass", demoId: box.dataset.demo, tutorId: box.dataset.tutorId,
+    classesDone: v("[data-settle-done]"), parentRefund: v("[data-settle-refund]"), tutorCredit: v("[data-settle-credit]"),
+    paymentMode: v("[data-settle-mode]"),
+  }, button);
+}
+
+// The older Number of Classes / Hourly helpers stay for cards saved before the deal.
 function planNoteText(hourly, n, minutes) {
   const hrs = Math.round(n * minutes / 60 * 100) / 100;
   return hourly
@@ -5989,7 +6326,7 @@ function recalcClassPlan(plan, changedEl) {
 }
 
 function redrawCalendar(plan) {
-  const editing = !!plan.querySelector('[data-action="bill-mode"]:not([disabled])');
+  const editing = !!plan.querySelector('[data-action="deal-model"]:not([disabled])');
   plan.querySelector("[data-cal]").innerHTML = calendarHtml(plan.dataset.month, planDates(plan), editing);
 }
 
@@ -6011,19 +6348,20 @@ function onClassPlanClick(actionEl) {
     if (dates.has(iso)) dates.delete(iso); else dates.add(iso);
     plan.dataset.dates = JSON.stringify([...dates].sort());
     redrawCalendar(plan);
-    recalcClassPlan(plan);
-  } else if (action === "bill-mode") {
-    plan.dataset.mode = actionEl.dataset.mode;
-    plan.querySelectorAll(".bill-opt").forEach(b => b.classList.toggle("is-on", b === actionEl));
+    recalcDeal(plan.querySelector("[data-deal]"));
+  } else if (action === "deal-model") {
+    const panel = plan.querySelector("[data-deal]");
+    panel.dataset.model = actionEl.dataset.model;
+    panel.querySelectorAll(".bill-opt").forEach(b => b.classList.toggle("is-on", b === actionEl));
+    recalcDeal(panel);
   }
 }
 
-// typing in Minutes / Price / Amount
-document.addEventListener("input", (event) => {
-  const field = event.target.closest && event.target.closest("[data-class-plan] [data-bill]");
-  if (!field) return;
-  recalcClassPlan(field.closest("[data-class-plan]"), field);
-});
+// typing / picking anything in the deal
+["input", "change"].forEach(type => document.addEventListener(type, (event) => {
+  const field = event.target.closest && event.target.closest("[data-deal] [data-d]");
+  if (field) recalcDeal(field.closest("[data-deal]"));
+}));
 
 function classCard(g, activeRow) {
 
@@ -6103,10 +6441,10 @@ function classCard(g, activeRow) {
       <h3 class="admin-section-title">Student</h3>
       <div class="admin-boxes">
         ${box("Name", sv("Student Name"))}
-        ${box("Payment To", editing ? (activeRow.studentPaymentTo || "Agency") : activeRow.studentPaymentTo, { editable: editing, options: ["Agency", "Tutor"], attr: cfield("Student Payment To") })}
+        ${box("Payment To", activeRow.studentPaymentTo)}
         ${box("Mobile Number", sv("Phone"))}
         ${box("WhatsApp Number", sv("WhatsApp"))}
-        ${box("Payment Frequency", editing ? (activeRow.studentPaymentFrequency || "Weekly") : activeRow.studentPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Student Payment Frequency") })}
+        ${box("Payment Frequency", activeRow.studentPaymentFrequency)}
         ${box("Next Due Date", studentNextDueShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Student Next Due Date") })}
         ${box("Agency Charge (₹)", editing ? (activeRow.studentAgencyCharge || 0) : activeRow.studentAgencyCharge, { editable: editing, type: "number", attr: editing ? cfield("Student Agency Charge") : jump("student-agency") })}
         ${box("Agency Next Due Date", studentNextDueShown, { type: "text" })}
@@ -6122,12 +6460,12 @@ function classCard(g, activeRow) {
       <h3 class="admin-section-title">Tutor</h3>
       <div class="admin-boxes">
         ${box("Name", tv("Full Name"))}
-        ${box("Payment From", editing ? (activeRow.tutorPaymentFrom || "Agency") : activeRow.tutorPaymentFrom, { editable: editing, options: ["Agency", "Parents"], attr: cfield("Tutor Payment From") })}
+        ${box("Payment From", activeRow.tutorPaymentFrom)}
         ${box("Mobile Number", tv("Mobile Number"))}
         ${box("WhatsApp Number", tv("WhatsApp Number"))}
-        ${box("Payment Frequency", editing ? (activeRow.tutorPaymentFrequency || "Weekly") : activeRow.tutorPaymentFrequency, { editable: editing, options: ["Weekly", "Monthly"], attr: cfield("Tutor Payment Frequency") })}
+        ${box("Payment Frequency", activeRow.tutorPaymentFrequency)}
         ${box("Next Payment Date", tutorNextPaymentShown, { editable: editing, type: editing ? "date" : "text", attr: cfield("Tutor Next Payment Date") })}
-        ${box("Agency Charges (₹)", editing ? (activeRow.tutorAgencyCharge || 0) : activeRow.tutorAgencyCharge, { editable: editing, type: "number", attr: editing ? cfield("Tutor Agency Charge") : jump("tutor-agency") })}
+        ${box("Agency Charges (₹)", tutorAgencyCharge, { attr: editing ? "" : jump("tutor-agency") })}
         ${box("Agency Next Due Date", tutorNextPaymentShown, { type: "text" })}
         ${editing
           ? box("Advance Payment (₹)", activeRow.tutorAdvancePayment, { editable: true, type: "number", attr: cfield("Tutor Advance Payment") })
@@ -6135,6 +6473,7 @@ function classCard(g, activeRow) {
         ${box("Total Amount (₹)", tutorTotalAmount, { attr: editing ? "" : jump("tutor-payment") })}
         ${box("Total Payment (₹)", tutorTotalPayment, { attr: editing ? "" : jump("tutor-payment") })}
         ${box("Dues (₹)", tutorDues)}
+        ${tutorBalance(activeRow.tutorId) ? box("Balance (₹)", tutorBalance(activeRow.tutorId)) : ""}
       </div>
     </div>`;
 
