@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="css/header.css?v=20261003a">
   <link rel="stylesheet" href="css/photos.css?v=20261002a">
   <link rel="stylesheet" href="css/student-forms.css?v=20261003b">
-  <link rel="stylesheet" href="css/pages/admin.css?v=20261013c">
+  <link rel="stylesheet" href="css/pages/admin.css?v=20261013d">
 </head>
 
 <body data-page="admin">
@@ -591,16 +591,21 @@
             </label>
           </div>
           <!-- when this employee may use the Admin Panel (India time); a Super Admin: 24 x 7 -->
-          <div id="employeeHoursRow" class="admin-form-row admin-form-row-3">
+          <!-- Duration first, then Login From or Login Till - the other one fills in -->
+          <div id="employeeHoursRow" class="admin-form-row admin-form-row-3" data-hours>
             <label class="admin-float">
-              <input id="employeeWorkStart" type="time" value="09:00" placeholder=" ">
+              <input id="employeeWorkHours" type="number" min="0.5" max="24" step="0.5" value="9" placeholder=" " data-hours-part="duration">
+              <span>Duration (Hours)</span>
+            </label>
+            <label class="admin-float">
+              <input id="employeeWorkStart" type="time" value="09:00" placeholder=" " data-hours-part="start">
               <span>Login From</span>
             </label>
             <label class="admin-float">
-              <input id="employeeWorkEnd" type="time" value="18:00" placeholder=" ">
+              <input id="employeeWorkEnd" type="time" value="18:00" placeholder=" " data-hours-part="end">
               <span>Login Till</span>
             </label>
-            <p class="admin-hours-note">Outside these hours they can't log in or work. Leave both empty for any time.</p>
+            <p class="admin-hours-note">Outside these hours they can't log in or work. Leave Login From and Login Till empty for any time.</p>
           </div>
           <div class="perm-box">
             <p class="perm-title">Permissions <small>- tick only what this employee should be able to do (picking a Role fills in its usual set)</small></p>
@@ -865,7 +870,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
 <script src="js/portal.js?v=20261001a"></script>
-<script src="js/pages/admin.js?v=20261013c" defer></script>
+<script src="js/pages/admin.js?v=20261013d" defer></script>
 
 <script src="js/autocaps.js?v=20261013a" defer></script>
 </body>
