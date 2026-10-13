@@ -589,16 +589,17 @@ button { cursor: pointer; }
 .stu-icons {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(2, 32px);
-  grid-auto-rows: 32px;
-  gap: 6px;
-  width: 70px;
+  grid-template-columns: repeat(2, 19px);
+  grid-auto-rows: 19px;
+  gap: 4px;
+  width: 42px;
   margin-left: auto;
   justify-content: end;
 }
 
 .stu-icons-label {
   display: block;
+  white-space: nowrap;
   line-height: 1.2;
   text-align: center;
   color: var(--muted);
@@ -609,12 +610,12 @@ button { cursor: pointer; }
 .stu-icon {
   --c: var(--muted);
   --c-dim: var(--surface-3);
-  width: 32px;
-  height: 32px;
+  width: 19px;
+  height: 19px;
   display: inline-grid;
   place-items: center;
   padding: 0;
-  border-radius: 10px;
+  border-radius: 6px;
   border: 1px solid color-mix(in srgb, var(--c) 35%, transparent);
   background: transparent;
   color: var(--c);
@@ -623,8 +624,8 @@ button { cursor: pointer; }
 }
 
 .stu-icon svg {
-  width: 17px;
-  height: 17px;
+  width: 12px;
+  height: 12px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -660,10 +661,7 @@ html[data-theme="light"] .stu-icon[data-tone="blue"] { --c: var(--blue); }
   box-shadow: inset 3px 0 0 var(--danger);
 }
 
-@media (max-width: 720px) {
-  .stu-icons { grid-template-columns: repeat(2, 28px); grid-auto-rows: 28px; gap: 4px; width: 60px; }
-  .stu-icon { width: 28px; height: 28px; }
-}
+
 
 
 /* ---------------- pages (50 cards each) ---------------- */
