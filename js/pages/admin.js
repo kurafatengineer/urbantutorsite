@@ -2894,6 +2894,7 @@ function goToTuition(demoId, highlight) {
       : null;
     const target = part ? classCardEl : document.querySelector(`#tab-tuitions .tuition-card[data-demo="${demo}"]`);
     if (!target) return;
+    revealOnPage(target);
     if (highlight) waveHighlight(target);
     if (part) waveHighlight(part);
     target.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -2923,6 +2924,7 @@ function goToCard(tab, key) {
   requestAnimationFrame(() => {
     const card = document.querySelector(`#tab-${tab} article[data-key="${CSS.escape(key)}"]`);
     if (!card) return;
+    revealOnPage(card);
     waveHighlight(card);
     card.scrollIntoView({ behavior: "smooth", block: "center" });
   });
@@ -4175,6 +4177,63 @@ function applyTextSearch(listId, searchId, noMatchText) {
   });
   if (items.length && !shown) list.insertAdjacentHTML("beforeend", empty(noMatchText));
   updateSearchBar(searchId, shown);
+  paginateList(listId, query);
+}
+
+/* ---------------- pages (50 cards each) ----------------
+   Every list shows 50 cards at a time, with Previous / Next under it.
+   It pages whatever the search left showing, so the count and pages
+   always follow the search; a new search (or filter) starts again on
+   page 1, while a plain re-render after an edit stays on the same page. */
+const PAGE_SIZE = 50;
+const PAGES = {};   // listId -> { page, sig }
+
+function pagedItems(list) {
+  return [...list.children].filter(c => !c.classList.contains("admin-empty") && !c.classList.contains("hidden"));
+}
+
+function paginateList(listId, sig = "") {
+  const list = $(listId);
+  if (!list) return;
+  list.dataset.paged = "1";
+  const items = pagedItems(list);
+  const fullSig = `${sig}|${items.length}`;
+  const state = PAGES[listId] || (PAGES[listId] = { page: 1, sig: fullSig });
+  if (state.sig !== fullSig) { state.page = 1; state.sig = fullSig; }
+  const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  state.page = Math.min(Math.max(state.page, 1), pages);
+  const from = (state.page - 1) * PAGE_SIZE;
+  items.forEach((c, i) => c.classList.toggle("pg-hidden", i < from || i >= from + PAGE_SIZE));
+
+  let pager = $(listId + "Pager");
+  if (!pager) {
+    list.insertAdjacentHTML("afterend", `<nav class="admin-pager" id="${listId}Pager" aria-label="Pages"></nav>`);
+    pager = $(listId + "Pager");
+    pager.addEventListener("click", (event) => {
+      const btn = event.target.closest("button[data-page]");
+      if (!btn || btn.disabled) return;
+      PAGES[listId].page += Number(btn.dataset.page);
+      paginateList(listId, PAGES[listId].sig.replace(/\|\d+$/, ""));
+      list.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+  pager.classList.toggle("hidden", items.length <= PAGE_SIZE);
+  pager.innerHTML = items.length <= PAGE_SIZE ? "" : `
+    <button type="button" class="admin-pager-btn" data-page="-1"${state.page === 1 ? " disabled" : ""}>‹ Previous</button>
+    <span class="admin-pager-info">${from + 1}–${Math.min(from + PAGE_SIZE, items.length)} of ${items.length} · Page ${state.page} of ${pages}</span>
+    <button type="button" class="admin-pager-btn" data-page="1"${state.page === pages ? " disabled" : ""}>Next ›</button>`;
+}
+
+// Before jumping to a card (goToCard / goToTuition): turn its list to the
+// page the card is on.
+function revealOnPage(el) {
+  const list = el && el.closest("[data-paged]");
+  if (!list || !PAGES[list.id]) return;
+  const top = [...list.children].find(c => c === el || c.contains(el));
+  const index = pagedItems(list).indexOf(top);
+  if (index < 0) return;
+  PAGES[list.id].page = Math.floor(index / PAGE_SIZE) + 1;
+  paginateList(list.id, PAGES[list.id].sig.replace(/\|\d+$/, ""));
 }
 
 /* The search bar itself: just a search icon while nothing is applied;
@@ -5494,6 +5553,7 @@ function renderEmployees() {
   $("employeeList").innerHTML = rows.length
     ? rows.map(employeeCard).join("")
     : empty("No employees yet.");
+  paginateList("employeeList");
 
   $("employeeHeader").innerHTML = rows.length ? `
     <p class="emp-legend">
