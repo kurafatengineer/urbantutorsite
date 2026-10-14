@@ -6473,6 +6473,15 @@ function dealPanelHtml(g, activeRow, editing, count) {
 
   return `
     <div class="class-bill deal" data-deal data-model="${d.model === "margin" ? "margin" : "commission"}">
+      <div class="deal-flow" data-flow>${flowInner(m, d.parentFreq || "Monthly")}</div>
+      <div class="deal-sched" data-sched>${schedText(activeRow.classStartDate, d.parentFreq || "Monthly")}</div>
+      ${balance ? `<p class="deal-balance">Tutor's balance: <strong>${rs(balance)}</strong>${balance > 0 ? " - used against this commission when the class is finalised" : ""}</p>` : ""}
+      ${finalized ? `<p class="deal-final">Finalised ${esc(fmtShortDate(finalized))}${d.agreementSentAt ? ` · Agreement sent ${esc(fmtShortDate(d.agreementSentAt))}` : ""}</p>` : ""}
+      ${settled ? `<p class="deal-final is-settled">Settled ${esc(fmtShortDate(settled.at))} · ${esc(settled.classesDone)} class(es) taken${settled.refund ? ` · Refund ${rs(settled.refund)}` : ""}${settled.credit ? ` · Tutor balance ${rs(settled.credit)}` : ""}</p>` : ""}
+
+      ${!editing && finalized && !settled ? `<button class="admin-ghost admin-wide deal-settle-btn" data-action="settle-class" type="button">Tutor Left / Fewer Classes - Settle</button>` : ""}
+      <div class="deal-settle hidden" data-settle></div>
+
       <div class="bill-seg" role="radiogroup" aria-label="How this class is billed">
         <button type="button" class="bill-opt${d.model !== "margin" ? " is-on" : ""}" data-action="deal-model" data-model="commission"${editing ? "" : " disabled"}>Monthly commission</button>
         <button type="button" class="bill-opt${d.model === "margin" ? " is-on" : ""}" data-action="deal-model" data-model="margin"${editing ? "" : " disabled"}>Per class commission</button>
@@ -6489,20 +6498,6 @@ function dealPanelHtml(g, activeRow, editing, count) {
         <div class="deal-slot" data-set="commission">${inp("Payment to", "feeTo", d.feeTo || "Tutor", { type: "text", options: ["Agency", "Tutor"] })}</div>
         <label class="admin-box" data-set="margin"><input type="text" readonly value="Agency" data-out="margPayTo"><span>Payment to</span></label>
       </div>
-
-      <div class="deal-flow" data-flow>${flowInner(m, d.parentFreq || "Monthly")}</div>
-      <div class="deal-sched" data-sched>${schedText(activeRow.classStartDate, d.parentFreq || "Monthly")}</div>
-      ${balance ? `<p class="deal-balance">Tutor's balance: <strong>${rs(balance)}</strong>${balance > 0 ? " - used against this commission when the class is finalised" : ""}</p>` : ""}
-      ${finalized ? `<p class="deal-final">Finalised ${esc(fmtShortDate(finalized))}${d.agreementSentAt ? ` · Agreement sent ${esc(fmtShortDate(d.agreementSentAt))}` : ""}</p>` : ""}
-      ${settled ? `<p class="deal-final is-settled">Settled ${esc(fmtShortDate(settled.at))} · ${esc(settled.classesDone)} class(es) taken${settled.refund ? ` · Refund ${rs(settled.refund)}` : ""}${settled.credit ? ` · Tutor balance ${rs(settled.credit)}` : ""}</p>` : ""}
-
-      ${editing
-        ? `<div class="admin-pair deal-actions">
-             <button class="admin-ghost bill-save" data-action="save-class-details" type="button">Save</button>
-             <button class="admin-primary" data-action="finalize-class" type="button">${finalized ? "Save & Resend Agreement" : "Save & Send Agreement"}</button>
-           </div>`
-        : (finalized && !settled ? `<button class="admin-ghost admin-wide deal-settle-btn" data-action="settle-class" type="button">Tutor Left / Fewer Classes - Settle</button>` : "")}
-      <div class="deal-settle hidden" data-settle></div>
     </div>`;
 }
 
@@ -6997,7 +6992,13 @@ function classCard(g, activeRow) {
 
         ${classPlanHtml(g, activeRow, editing, { terms: tuitionTermsBoxes, parties: studentSection + tutorSection })}
 
-        ${editButtons(key, editing, "save-class-details", "Edit Class Details")}
+        ${editing
+          ? `<div class="class-actions">
+               <button class="admin-primary" data-action="save-class-details" type="button">Save Changes</button>
+               <button class="admin-primary class-send" data-action="finalize-class" type="button">${deal0.finalizedAt ? "Save & Resend Agreement" : "Save & Send Agreement"}</button>
+               <button class="admin-ghost" data-action="cancel" data-key="${esc(key)}" type="button">Cancel</button>
+             </div>`
+          : editButtons(key, editing, "save-class-details", "Edit Class Details")}
 
       </div>
 
