@@ -295,3 +295,38 @@ export function agreementMail(d: {
     intro, rows, { label: "Open My Profile", page: d.forTutor ? "tutorprofile.html" : "studentprofile.html" },
   );
 }
+
+// The office's own number (the same one shown on the website footer).
+export const AGENCY_PHONE = "+91 90018 00307";
+
+// 15 minutes before a class: sent to the tutor AND the student.
+export function classReminderMail(d: { forTutor: boolean; name: string; otherName: string; demoId: string; subject: string; time: string; minutes?: number | null; date: string }) {
+  return make(
+    "You have class today", "Class Today", { text: "CLASS TODAY", tone: "purple" }, d.name,
+    `You have class today at ${fmtTime(d.time)}. If you have any issues, please contact the agency at ${AGENCY_PHONE}.`,
+    [["Demo ID", d.demoId], ["Subject", d.subject], [d.forTutor ? "Student" : "Tutor", d.otherName],
+     ["Date", fmtDate(d.date)], ["Time", fmtTime(d.time)], ["Duration", d.minutes ? `${d.minutes} minutes` : ""]],
+    { label: "Open My Profile", page: d.forTutor ? "tutorprofile.html" : "studentprofile.html" },
+  );
+}
+
+// After the class should have ended: asks the tutor to confirm it (the Telegram message carries the Yes button).
+export function classConfirmMail(d: { name: string; otherName: string; demoId: string; subject: string; time: string; minutes?: number | null; date: string }) {
+  return make(
+    "Did you take today's class?", "Class Taken?", { text: "PLEASE CONFIRM", tone: "orange" }, d.name,
+    `Have you taken your class today${d.minutes ? ` (${d.minutes} minutes)` : ""}? Please mark it as taken in your profile. If you have any issues, please contact the agency at ${AGENCY_PHONE}.`,
+    [["Demo ID", d.demoId], ["Subject", d.subject], ["Student", d.otherName], ["Date", fmtDate(d.date)], ["Time", fmtTime(d.time)]],
+    { label: "Open My Profile", page: "tutorprofile.html" },
+  );
+}
+
+// The tutor confirmed: the parent is told the class took place.
+export function classDoneMail(d: { name: string; tutorName: string; demoId: string; subject: string; time?: string | null; minutes?: number | null; date: string }) {
+  return make(
+    "Today's class was taken", "Class Completed", { text: "CLASS TAKEN", tone: "green" }, d.name,
+    `${d.tutorName} has confirmed that today's ${d.subject} class took place${d.minutes ? ` (${d.minutes} minutes)` : ""}.`,
+    [["Demo ID", d.demoId], ["Subject", d.subject], ["Tutor", d.tutorName], ["Date", fmtDate(d.date)],
+     ["Time", d.time ? fmtTime(d.time) : ""], ["Duration", d.minutes ? `${d.minutes} minutes` : ""]],
+    { label: "Open My Profile", page: "studentprofile.html" },
+  );
+}
