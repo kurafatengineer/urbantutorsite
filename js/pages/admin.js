@@ -6478,24 +6478,20 @@ function dealPanelHtml(g, activeRow, editing, count) {
         <button type="button" class="bill-opt${d.model === "margin" ? " is-on" : ""}" data-action="deal-model" data-model="margin"${editing ? "" : " disabled"}>Per class commission</button>
       </div>
 
-      <div class="deal-grid deal-row4">
+      <div class="deal-grid deal-row6">
         <div class="deal-slot" data-set="commission">${inp("Monthly fee (₹)", "monthlyFee", d.monthlyFee)}</div>
         <div class="deal-slot" data-set="margin">${inp("Parent pays per class (₹)", "parentPerClass", d.parentPerClass)}</div>
-        <label class="admin-box deal-cut${editing ? " is-edit" : ""}" data-set="commission">${kind("cutType", d.cutType)}<input type="number" min="0" data-d="cutValue" value="${esc(d.cutValue ?? "")}"${editing ? "" : " readonly"}><span>Agency cut (first month)</span></label>
+        <label class="admin-box deal-cut${editing ? " is-edit" : ""}" data-set="commission">${kind("cutType", d.cutType)}<input type="number" min="0" data-d="cutValue" value="${esc(d.cutValue ?? "")}"${editing ? "" : " readonly"}><span>Agency cut</span></label>
         <label class="admin-box deal-cut${editing ? " is-edit" : ""}" data-set="margin">${kind("marginType", d.marginType)}<input type="number" min="0" data-d="marginValue" value="${esc(d.marginValue ?? "")}"${editing ? "" : " readonly"}><span>Agency commission per class</span></label>
         <div class="deal-slot">${inp("Duration (minutes)", "minutes", d.minutes)}</div>
         <div class="deal-slot">${inp("Class time", "time", d.time, { type: "time" })}</div>
-      </div>
-
-      <div class="deal-grid deal-row2">
         ${inp("Parent pays", "parentFreq", d.parentFreq || "Monthly", { type: "text", options: Object.keys(DEAL_FREQ) })}
         <div class="deal-slot" data-set="commission">${inp("Payment to", "feeTo", d.feeTo || "Tutor", { type: "text", options: ["Agency", "Tutor"] })}</div>
         <label class="admin-box" data-set="margin"><input type="text" readonly value="Agency" data-out="margPayTo"><span>Payment to</span></label>
       </div>
 
-      <p class="deal-sched" data-sched>${schedText(activeRow.classStartDate, d.parentFreq || "Monthly")}</p>
-
-      <p class="deal-note" data-deal-note>${esc(dealNoteText(m))}</p>
+      <div class="deal-flow" data-flow>${flowInner(m, d.parentFreq || "Monthly")}</div>
+      <div class="deal-sched" data-sched>${schedText(activeRow.classStartDate, d.parentFreq || "Monthly")}</div>
       ${balance ? `<p class="deal-balance">Tutor's balance: <strong>${rs(balance)}</strong>${balance > 0 ? " - used against this commission when the class is finalised" : ""}</p>` : ""}
       ${finalized ? `<p class="deal-final">Finalised ${esc(fmtShortDate(finalized))}${d.agreementSentAt ? ` · Agreement sent ${esc(fmtShortDate(d.agreementSentAt))}` : ""}</p>` : ""}
       ${settled ? `<p class="deal-final is-settled">Settled ${esc(fmtShortDate(settled.at))} · ${esc(settled.classesDone)} class(es) taken${settled.refund ? ` · Refund ${rs(settled.refund)}` : ""}${settled.credit ? ` · Tutor balance ${rs(settled.credit)}` : ""}</p>` : ""}
@@ -6512,7 +6508,31 @@ function dealPanelHtml(g, activeRow, editing, count) {
 
 function schedText(start, freq) {
   const list = payDates(start, freq, 4);
-  return `Parent pays: ${list.map(fmtPayDate).join(" · ")}<br>Tutor: ${list.map(x => fmtPayDate(isoPlusDays(x, 1))).join(" · ")}`;
+  const row = (label, dates) => `<div class="sched-line"><b>${label}</b><span>${dates.map(d => `<i>${esc(fmtPayDate(d))}</i>`).join("")}</span></div>`;
+  return row("Parent pays", list) + row("Tutor paid", list.map(x => isoPlusDays(x, 1)));
+}
+
+// who pays whom: Parent -> Agency -> Tutor (or Parent -> Tutor -> Agency)
+function flowInner(m, freq) {
+  const R = v => "₹" + Number(v || 0).toLocaleString("en-IN");
+  const every = { "Weekly": "every week", "15 Days": "every 15 days", "Monthly": "every month" }[freq] || "every month";
+  const node = (cls, letter, name, sub) => `<div class="flow-node ${cls}"><i>${letter}</i><b>${name}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+  const arrow = (amount, note) => `<div class="flow-arrow"><span>${amount}</span><svg viewBox="0 0 64 12" aria-hidden="true"><path d="M0 6h60M53 1l7 5-7 5"/></svg><em>${note}</em></div>`;
+  let nodes, cap;
+  if (m.model === "margin") {
+    nodes = node("is-parent", "P", "Parent") + arrow(R(m.parentInstallment), every) +
+      node("is-agency", "A", "Agency", `keeps ${R(m.agencyMonthly)} / month`) + arrow(R(m.tutorInstallment), every) + node("is-tutor", "T", "Tutor");
+    cap = `${m.classes} ${m.classes === 1 ? "class" : "classes"} a month · parent ${R(m.parentPerClass)} a class · tutor gets ${R(m.tutorPerClass)} a class`;
+  } else if (m.feeTo === "Agency") {
+    nodes = node("is-parent", "P", "Parent") + arrow(R(m.parentInstallment), every) +
+      node("is-agency", "A", "Agency", `keeps ${R(m.cut)} (first month, once)`) + arrow(R(m.tutorInstallment), "first month") + node("is-tutor", "T", "Tutor");
+    cap = `${m.classes} ${m.classes === 1 ? "class" : "classes"} a month for ${R(m.monthlyFee)} · from the second month the parent pays the tutor directly`;
+  } else {
+    nodes = node("is-parent", "P", "Parent") + arrow(R(m.parentInstallment), every) +
+      node("is-tutor", "T", "Tutor") + arrow(R(m.cutInstallment), "commission, first month") + node("is-agency", "A", "Agency", `gets ${R(m.cut)} (once)`);
+    cap = `${m.classes} ${m.classes === 1 ? "class" : "classes"} a month for ${R(m.monthlyFee)} · the tutor pays the agency its commission from the first month's fee`;
+  }
+  return `<div class="flow-row">${nodes}</div><p class="flow-cap">${esc(cap)}</p>`;
 }
 
 function fmtShortDate(iso) {
@@ -6523,9 +6543,9 @@ function fmtShortDate(iso) {
 function dealNoteText(m) {
   if (m.model === "margin") {
     return `Parent pays ₹${m.parentPerClass} a class → agency keeps ₹${m.margin}, tutor gets ₹${m.tutorPerClass}. ` +
-      `${m.classes} classes a month: parent ₹${m.parentMonthly}, tutor ₹${m.tutorMonthly}, agency ₹${m.agencyMonthly}.`;
+      `${m.classes} ${m.classes === 1 ? "class" : "classes"} a month: parent ₹${m.parentMonthly}, tutor ₹${m.tutorMonthly}, agency ₹${m.agencyMonthly}.`;
   }
-  return `${m.classes} classes a month for ₹${m.monthlyFee}. Agency takes ₹${m.cut}${m.cutPercent ? ` (${m.cutPercent}%)` : ""} once, from the first month. ` +
+  return `${m.classes} ${m.classes === 1 ? "class" : "classes"} a month for ₹${m.monthlyFee}. Agency takes ₹${m.cut}${m.cutPercent ? ` (${m.cutPercent}%)` : ""} once, from the first month. ` +
     (m.feeTo === "Agency" ? `First month's fee comes to the agency; tutor gets ₹${m.tutorFirstMonth}.` : `Fee goes to the tutor; tutor pays the agency ₹${m.cut}.`);
 }
 
@@ -6549,6 +6569,8 @@ function recalcDeal(panel) {
   set("tutorInstallment", (m.model === "commission" && m.feeTo === "Tutor" ? m.cutInstallment : m.tutorInstallment) || 0);
   const note = panel.querySelector("[data-deal-note]");
   if (note) note.textContent = dealNoteText(m);
+  const flowEl = panel.querySelector("[data-flow]");
+  if (flowEl) flowEl.innerHTML = flowInner(m, readDeal(panel).parentFreq || "Monthly");
 
   // payment dates follow the class start date and how often the parent pays
   const card = panel.closest("[data-demo]");
