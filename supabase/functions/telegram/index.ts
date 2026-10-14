@@ -251,7 +251,9 @@ async function onDemoButton(cb: Json) {
    free text / shared contact while a registration is open are answers to the current question. */
 
 async function sendOut(chatId: number, out: Out) {
-  const message: Json = { chat_id: chatId, text: out.text, disable_web_page_preview: true };
+  // the flow writes WhatsApp-style *bold*; Telegram gets the same text as HTML
+  const html = escapeHtml(out.text).replace(/\*([^*\n]+)\*/g, "<b>$1</b>");
+  const message: Json = { chat_id: chatId, text: html, parse_mode: "HTML", disable_web_page_preview: true };
   if (out.askPhone) {
     message.reply_markup = { keyboard: [[{ text: "📱 Share my number", request_contact: true }]], resize_keyboard: true, one_time_keyboard: true };
   } else if (out.choices?.length) {
@@ -316,17 +318,21 @@ async function menuContent(chatId: number, role: "s" | "t"): Promise<{ text: str
     const n = life.filter((l) => l.cat === cat).length;
     if (n) rows.push([{ text: leftPad(`${catLabel(role, cat)} (${n})`), callback_data: `m:c:${role}:${cat}` }]);
   }
+  rows.push(role === "s"
+    ? [{ text: leftPad("📝 Apply for New Tuition"), web_app: { url: `${SITE_URL}/studentprofile.html` } }]
+    : [{ text: leftPad("🔎 Find New Tuitions"), web_app: { url: `${SITE_URL}/advertisement.html` } }]);
   if (both) rows.push([{ text: leftPad(role === "s" ? "🔁 Switch to Tutor" : "🔁 Switch to Student"), callback_data: `m:h:${role === "s" ? "t" : "s"}` }]);
-  rows.push([{ text: leftPad(off ? "🔕 Notifications OFF - Tap to turn ON" : "🔔 Notifications ON - Tap to turn OFF"), callback_data: `m:n:${role}` }]);
+  rows.push([{ text: leftPad(off ? "🔕 Notifications are OFF - Tap to turn it ON" : "🔔 Notifications are ON - Tap to turn it OFF"), callback_data: `m:n:${role}` }]);
   rows.push([{ text: leftPad("👤 Open My Profile"), web_app: profileRow(role)[0].web_app }]);
 
+  const profileUrl = `${SITE_URL}/${role === "s" ? "studentprofile" : "tutorprofile"}.html`;
   const text =
-    `👋 Hi ${escapeHtml(name || "there")}!\n` +
-    `<b>${role === "s" ? "🎓 Student" : "👨‍🏫 Tutor"} menu</b>\n\n` +
+    `Hi,\n<b>${escapeHtml(name || "there")}</b> (${role === "s" ? "Student" : "Tutor"}).\n\n` +
     (life.length
       ? `${role === "s" ? "Your tuitions" : "Tuitions you applied for"} - tap one to see its details.`
       : role === "s" ? "You have no live tuitions right now." : "You have not applied for any tuition yet.") +
-    `\n\n${off ? "🔕 Notifications are OFF (no email, no Telegram)." : "🔔 Notifications are ON."}`;
+    `\n\nYour notifications are <b>${off ? "OFF" : "ON"}</b>.` +
+    `\n\n<a href="${profileUrl}">Urban Tutor Site</a>`;
   return { text, rows };
 }
 
@@ -443,7 +449,7 @@ async function onMenuButton(cb: Json) {
       method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ notifications_off: turnOff }),
     });
     await showMenu(chatId, role, messageId);
-    await answer(turnOff ? "Notifications are OFF - no email, no Telegram." : "Notifications are ON again.");
+    await answer(turnOff ? "Your notifications are OFF now." : "Your notifications are ON again.");
   } else {
     await answer();
   }
