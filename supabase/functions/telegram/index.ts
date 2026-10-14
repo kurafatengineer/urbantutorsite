@@ -500,7 +500,7 @@ async function sendQueued(r: Json) {
         `📅 <b>Class check</b>\n\nHi ${escapeHtml(String(tutor.full_name ?? "there"))}, have you taken today's class?\n\n` +
         `🆔 ${escapeHtml(base.demoId)}\n📚 ${escapeHtml(base.subject)}\n` +
         (r.minutes ? `⏱ ${r.minutes} minutes\n` : "") + (base.time ? `⏰ ${fmtTime(base.time)}\n` : "") +
-        `\nTap <b>Yes</b> to confirm. If you have any issues, please contact the agency at ${escapeHtml(AGENCY_PHONE)}.`,
+        `\nTap <b>Yes</b> to confirm. If you have any issues, please contact the student's parents or your agency at ${escapeHtml(AGENCY_PHONE)}.`,
       reply_markup: { inline_keyboard: [
         [{ text: "✅ Yes, I took the class", callback_data: `cl:y:${r.demo_id}:${r.class_date}` }],
         profileRow("t"),
