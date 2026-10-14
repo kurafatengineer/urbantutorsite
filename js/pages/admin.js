@@ -6524,8 +6524,8 @@ function flowInner(m, freq) {
   const seg2 = viaAgency ? (margin ? [m.tutorInstallment, m.tutorMonthly] : [m.tutorInstallment, m.tutorFirstMonth]) : [m.cutInstallment, m.cut];
   const keep = margin ? [m.parentInstallment - m.tutorInstallment, m.agencyMonthly] : [m.cutInstallment, m.cut];
   const note = margin ? "" : (viaAgency ? "first month, once" : "first month, once");
-  const W = 760, cy = 78, nr = 28, ar = 22;
-  const x1 = 70, x2 = 380, x3 = 690;                       // left, middle, right
+  const W = 760, cy = 70, nr = 28, ar = 12;
+  const x1 = 30, x2 = 380, x3 = 730;                       // left, middle, right
   const nodes = viaAgency
     ? [[x1, "P", "is-parent", nr], [x2, "A", "is-agency", ar], [x3, "T", "is-tutor", nr]]
     : [[x1, "P", "is-parent", nr], [x2, "T", "is-tutor", nr], [x3, "A", "is-agency", ar]];
@@ -6545,18 +6545,15 @@ function flowInner(m, freq) {
       labels += `<text class="fl-amt ${cls}" x="${(nodes[i][0] + nodes[j][0]) / 2}" y="${ly}" text-anchor="middle">${R(amt[k])} / ${unit}</text>`;
     });
     const ag = nodes.find(n => n[1] === "A");
-    const ay = above ? cy - ar - 10 : cy + ar + 20;
-    labels += `<text class="fl-keeps ${cls}" x="${ag[0]}" y="${ay - (above && both ? 0 : 0)}" text-anchor="middle">${R(keep[k])} / ${unit}</text>`;
+    labels += `<text class="fl-keeps ${cls}" x="${ag[0]}" y="${ly}" text-anchor="middle">${R(keep[k])} / ${unit}</text>`;
   });
-  const ag = nodes.find(n => n[1] === "A");
-  labels += `<text class="fl-sub" x="${ag[0]}" y="${cy + ar + (both ? 36 : 36)}" text-anchor="middle">${viaAgency ? "agency keeps" : "agency gets"}${note ? " · " + note : ""}</text>`;
-  const circ = ([x, letter, cls, r]) => `<g class="fl-node ${cls}"><circle cx="${x}" cy="${cy}" r="${r}"/><text x="${x}" y="${cy + r * 0.34}" text-anchor="middle" style="font-size:${Math.round(r * 0.85)}px">${letter}</text></g>`;
+  const circ = ([x, letter, cls, r]) => `<g class="fl-node ${cls}"><circle cx="${x}" cy="${cy}" r="${r}"/><text x="${x}" y="${cy}" dominant-baseline="central" text-anchor="middle" style="font-size:${Math.round(r * (r < 20 ? 1.1 : 0.85))}px">${letter}</text></g>`;
   svg += labels + nodes.map(circ).join("");
   const c = m.classes, noun = c === 1 ? "Class" : "Classes";
   const perClassParent = margin ? m.parentPerClass : m.perClass;
   const perClassTutor = margin ? m.tutorPerClass : (c ? Math.round(m.tutorFirstMonth / c) : 0);
   const cap = `${c} ${noun} / Month · Parent ${R(perClassParent)} / Class · Tutor Gets ${R(perClassTutor)} / Class`;
-  return `<svg class="flow-svg" viewBox="0 0 ${W} ${cy + ar + 48}" role="img" aria-label="How the money moves">${svg}</svg><p class="flow-cap">${esc(cap)}</p>`;
+  return `<svg class="flow-svg" viewBox="0 0 ${W} ${cy + nr + 14}" role="img" aria-label="How the money moves">${svg}</svg><p class="flow-cap">${esc(cap)}</p>`;
 }
 
 function fmtShortDate(iso) {
