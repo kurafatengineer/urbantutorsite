@@ -1,8 +1,10 @@
 // WhatsApp Cloud API bot (test phase): the same student / tutor menu that the Telegram bot has.
 // Secrets (Supabase > Edge Functions > Secrets): WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_VERIFY_TOKEN,
 // and optionally WHATSAPP_APP_SECRET (when set, every incoming call must carry a valid Meta signature).
-import { fmtDate, fmtTime } from "../_shared/mails.ts";
+import { SITE_URL } from "../_shared/constants.ts";
+import { fmtDate, fmtTime } from "../_shared/format.ts";
 import { handleInput, startRegistration, type Out } from "../_shared/regflow.ts";
+import { accountsByPhone, inList, last10, loadLife, q, rest } from "../_shared/botdata.ts";
 
 type Json = Record<string, any>;
 
@@ -10,27 +12,15 @@ const TOKEN = Deno.env.get("WHATSAPP_TOKEN") ?? "";
 const PHONE_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
 const VERIFY = Deno.env.get("WHATSAPP_VERIFY_TOKEN") ?? "";
 const APP_SECRET = Deno.env.get("WHATSAPP_APP_SECRET") ?? "";
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const SITE_URL = "https://kurafatengineer.github.io/urbantutorsite";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-async function db(path: string): Promise<Json[]> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } });
-  return res.ok ? ((await res.json().catch(() => [])) ?? []) : [];
-}
-const q = encodeURIComponent;
-const inList = (ids: string[]) => `in.(${ids.map((x) => q(`"${x}"`)).join(",")})`;
+// a failed call counts as "nothing found"
+const db = async (path: string): Promise<Json[]> => (await rest(path)) ?? [];
 
-async function patch(path: string, body: Json) {
-  await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    method: "PATCH",
-    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
-    body: JSON.stringify(body),
-  });
-}
+const patch = (path: string, body: Json) =>
+  rest(path, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
 
 async function send(to: string, message: Json) {
   const res = await fetch(`https://graph.facebook.com/v21.0/${PHONE_ID}/messages`, {
@@ -71,65 +61,12 @@ async function validSignature(raw: string, header: string | null) {
 }
 
 // ---- who is this number? (WhatsApp has already verified it belongs to the sender) ----
-const last10 = (v: unknown) => String(v ?? "").replace(/\D/g, "").slice(-10);
 
-async function accountsFor(from: string) {
-  const tail = last10(from);
-  if (tail.length < 10) return { students: [] as Json[], tutors: [] as Json[] };
-  const like = `*${tail.split("").join("*")}*`.replace(/\*+/g, "*");
-  const [s1, s2, t1, t2] = await Promise.all([
-    db(`students?whatsapp=ilike.${q(like)}&select=student_id,student_name,whatsapp,phone,blocked_at,notifications_off`),
-    db(`students?phone=ilike.${q(like)}&select=student_id,student_name,whatsapp,phone,blocked_at,notifications_off`),
-    db(`tutors?whatsapp_number=ilike.${q(like)}&select=tutor_id,full_name,whatsapp_number,mobile_number,blocked_at,notifications_off`),
-    db(`tutors?mobile_number=ilike.${q(like)}&select=tutor_id,full_name,whatsapp_number,mobile_number,blocked_at,notifications_off`),
-  ]);
-  const uniq = (rows: Json[], key: string) => [...new Map(rows.map((r) => [r[key], r])).values()];
-  const students = uniq([...s1, ...s2], "student_id").filter((r) => last10(r.whatsapp) === tail || last10(r.phone) === tail);
-  const tutors = uniq([...t1, ...t2], "tutor_id").filter((r) => last10(r.whatsapp_number) === tail || last10(r.mobile_number) === tail);
-  return { students, tutors };
-}
-
-// ---- tuition lifecycle (same rules as the Telegram bot) ----
-const declined = (a: Json) => !!(a.parent_rejected || a.tutor_rejected);
-function appState(a: Json) {
-  if (a.classes_completed) return "completed";
-  if (a.parent_accepted && a.tutor_accepted && a.demo_date) return "running";
-  if (a.demo_date) return "scheduled";
-  return "applied";
-}
-const RANK = ["running", "scheduled", "applied", "completed"];
+// ---- menu labels (the tuition lifecycle itself is in _shared/botdata.ts) ----
 const CAT_ORDER = ["running", "scheduled", "new", "completed"];
 const catLabel = (role: string, cat: string) =>
   cat === "running" ? "Running" : cat === "scheduled" ? "Demo Scheduled" : cat === "completed" ? "Completed"
   : role === "s" ? "Finding Tutor" : "Applied";
-
-type Life = { demo: string; subject: string; cat: string; app: Json | null; apps: Json[]; student: Json | null };
-const COLS = "demo_id,tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date,demo_time,class_duration,billing_plan";
-
-async function loadLife(role: string, ids: string[]): Promise<Life[]> {
-  const out: Life[] = [];
-  if (role === "s") {
-    const tuitions = await db(`tuitions?student_id=${inList(ids)}&terminated=eq.false&select=demo_id,subject,student_id&order=posted_at.desc`);
-    const apps = tuitions.length ? await db(`applications?demo_id=${inList(tuitions.map((t) => t.demo_id))}&select=${COLS}`) : [];
-    for (const t of tuitions) {
-      const mine = apps.filter((a) => a.demo_id === t.demo_id && !declined(a));
-      const best = RANK.find((r) => mine.some((a) => appState(a) === r));
-      const app = mine.find((a) => appState(a) === best) ?? null;
-      out.push({ demo: t.demo_id, subject: String(t.subject ?? ""), cat: !best || best === "applied" ? "new" : best, app, apps: mine, student: null });
-    }
-  } else {
-    const apps = (await db(`applications?tutor_id=${inList(ids)}&select=${COLS}`)).filter((a) => !declined(a));
-    const tuitions = apps.length ? await db(`tuitions?demo_id=${inList(apps.map((a) => a.demo_id))}&terminated=eq.false&select=demo_id,subject,student_id`) : [];
-    const studs = tuitions.length ? await db(`students?student_id=${inList([...new Set(tuitions.map((t) => String(t.student_id)))])}&select=student_id,student_name,class_name,board,city,pin_code`) : [];
-    for (const a of apps) {
-      const t = tuitions.find((x) => x.demo_id === a.demo_id);
-      if (!t) continue;
-      const st = appState(a);
-      out.push({ demo: t.demo_id, subject: String(t.subject ?? ""), cat: st === "applied" ? "new" : st, app: a, apps: [a], student: studs.find((x) => x.student_id === t.student_id) ?? null });
-    }
-  }
-  return out;
-}
 
 const minutesText = (a: Json | null) => { const m = Number(a?.billing_plan?.deal?.minutes ?? a?.class_duration ?? 0); return m > 0 ? `${m} min` : "-"; };
 const timeText = (a: Json | null) => { const t = String(a?.billing_plan?.deal?.time ?? "").trim(); return t ? fmtTime(t) : "-"; };
@@ -202,7 +139,7 @@ async function onMessage(m: Json) {
   const inFlow = await handleInput(reg, { text: m.type === "text" ? String(m.text?.body ?? "") : "", choice: regChoice });
   if (inFlow) { await sendAll(from, inFlow); return; }
 
-  const accounts = await accountsFor(from);
+  const accounts = await accountsByPhone(from);
   if (!accounts.students.length && !accounts.tutors.length) {
     await send(from, {
       type: "interactive",

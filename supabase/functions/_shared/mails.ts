@@ -1,4 +1,5 @@
-// The ten notification emails the site sends (everything else is silent):
+// The notification emails the site sends (everything else is silent; the list below is the original ten,
+// later added: both accepted, tuition agreement, class reminder, class check, class taken):
 //   1 tuition request posted        (student)
 //   2 a tutor applied               (student)
 //   3 demo scheduled                (student + tutor)
@@ -12,8 +13,12 @@
 // plus tg / cta: the same message for Telegram (see telegram.ts notify).
 
 import { emailTemplate, detailRow } from "./email.ts";
+import { AGENCY_PHONE, SITE_URL } from "./constants.ts";
+import { fmtDate, fmtTime } from "./format.ts";
 
-export const SITE_URL = "https://kurafatengineer.github.io/urbantutorsite";
+// kept importable from here, so older imports of these names keep working
+export { AGENCY_PHONE, SITE_URL, fmtDate, fmtTime };
+
 
 type Row = [string, string];
 // tg: the same message for Telegram (HTML), cta: its button
@@ -47,20 +52,6 @@ const make = (
 /* ---------- formatting ---------- */
 
 export const inr = (n: unknown) => "₹" + Number(n || 0).toLocaleString("en-IN");
-
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-export function fmtDate(iso?: string | null): string {
-  const m = String(iso ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[3]} ${MONTHS[Number(m[2]) - 1]} ${m[1]}` : "";
-}
-
-export function fmtTime(hhmm?: string | null): string {
-  const m = String(hhmm ?? "").match(/^(\d{1,2}):(\d{2})/);
-  if (!m) return "";
-  const h = Number(m[1]);
-  return `${h % 12 || 12}:${m[2]} ${h >= 12 ? "PM" : "AM"}`;
-}
 
 // The Payment Date chosen by the admin, plus the time the payment was recorded (IST).
 export function fmtPaidOn(paymentDate?: string | null, createdAt?: string | null): string {
@@ -298,8 +289,6 @@ export function agreementMail(d: {
   );
 }
 
-// The office's own number (the same one shown on the website footer).
-export const AGENCY_PHONE = "+91 90018 00307";
 
 // "If you have any queries..." line shown at the bottom of the class messages; numbers go in brackets.
 export function contactLine(forTutor: boolean, otherPhone?: string | null) {

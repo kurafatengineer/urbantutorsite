@@ -38,13 +38,14 @@
 
 import { notify, notifyIfMatched, demoResponseButtons, studentQuiet, tutorQuiet } from "../_shared/telegram.ts";
 import { handleInput, startRegistration, type Out } from "../_shared/regflow.ts";
+import { inList, loadLife, q, rest as db } from "../_shared/botdata.ts";
+import { SITE_URL } from "../_shared/constants.ts";
 import { parentResponseMail, tutorResponseMail, fmtDate, fmtTime, modeText, classReminderMail, classConfirmMail, classDoneMail, contactLine } from "../_shared/mails.ts";
 
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-const SITE_URL = "https://kurafatengineer.github.io/urbantutorsite";
 const STUDENT_URL = `${SITE_URL}/studentregistration.html`;
 const TUTOR_URL = `${SITE_URL}/tutorregistration.html`;
 const HOME_URL = `${SITE_URL}/index.html`;
@@ -73,17 +74,6 @@ function json(body: Json, status = 200): Response {
 }
 
 /* ---- the one message per chat (table telegram_chats) ---- */
-
-async function db(path: string, init: RequestInit = {}): Promise<Json> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    ...init,
-    headers: {
-      apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`,
-      "Content-Type": "application/json", ...(init.headers ?? {}),
-    },
-  });
-  return res.ok ? await res.json().catch(() => null) : null;
-}
 
 async function lastMessageId(chatId: number): Promise<number | null> {
   const rows = await db(`telegram_chats?chat_id=eq.${chatId}&select=last_message_id`);
@@ -151,7 +141,6 @@ async function rpcCall(fn: string, args: Json): Promise<Json> {
 }
 
 const one = async (path: string) => (await db(path))?.[0] ?? null;
-const q = (v: string) => encodeURIComponent(v);
 
 function profileRow(side: string) {
   return [{ text: "Open My Profile", web_app: { url: `${SITE_URL}/${side === "t" ? "tutorprofile" : "studentprofile"}.html` } }];
@@ -294,7 +283,6 @@ async function onRegButton(cb: Json) {
   if (outs) await sendAll(chatId, outs);
 }
 
-const inList = (ids: string[]) => `in.(${ids.map((x) => encodeURIComponent(`"${x}"`)).join(",")})`;
 
 async function linked(chatId: number): Promise<{ students: Json[]; tutors: Json[] }> {
   const students = await db(`students?telegram_chat_id=eq.${chatId}&select=student_id,student_name,notifications_off,blocked_at`) ?? [];
@@ -303,18 +291,6 @@ async function linked(chatId: number): Promise<{ students: Json[]; tutors: Json[
 }
 
 // where one tutor's application stands (rejected / declined ones are left out by the callers)
-function applicationState(a: Json): "running" | "completed" | "scheduled" | "applied" {
-  if (a.classes_completed) return "completed";
-  if (a.parent_accepted && a.tutor_accepted && a.demo_date) return "running";
-  if (a.demo_date) return "scheduled";
-  return "applied";
-}
-const declined = (a: Json) => !!(a.parent_rejected || a.tutor_rejected);
-const STATE_TEXT: Record<string, string> = {
-  running: "✅ Running", completed: "🏁 Completed", scheduled: "📅 Demo scheduled", applied: "📨 Applied",
-};
-const RANK = ["running", "scheduled", "applied", "completed"];
-
 function nicePlace(parts: Json[]): string {
   return parts.map((x) => String(x ?? "").trim()).filter(Boolean).join(" - ");
 }
@@ -325,35 +301,6 @@ const leftPad = (t: string, width = 34) => t + "\u2800".repeat(Math.max(0, width
 const CATS: Record<string, string> = { running: "✅ Running", scheduled: "📅 Demo Scheduled", new: "", completed: "🏁 Completed" };
 const CAT_ORDER = ["running", "scheduled", "new", "completed"];
 const catLabel = (role: "s" | "t", cat: string) => cat === "new" ? (role === "s" ? "🔎 Finding Tutor" : "📨 Applied") : CATS[cat];
-
-type Life = { demo: string; subject: string; cat: string; app: Json | null; tutorIds: string[]; apps: Json[]; student: Json | null };
-
-// every live tuition of this chat's students / tutors, with the category it falls in
-async function loadLife(role: "s" | "t", ids: string[]): Promise<Life[]> {
-  const cols = "demo_id,tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date,demo_time,class_duration,billing_plan";
-  const out: Life[] = [];
-  if (role === "s") {
-    const tuitions = await db(`tuitions?student_id=${inList(ids)}&terminated=eq.false&select=demo_id,subject,student_id&order=posted_at.desc`) ?? [];
-    const apps = tuitions.length ? await db(`applications?demo_id=${inList(tuitions.map((t: Json) => t.demo_id))}&select=${cols}`) ?? [] : [];
-    for (const t of tuitions) {
-      const mine = apps.filter((a: Json) => a.demo_id === t.demo_id && !declined(a));
-      const best = RANK.find((r) => mine.some((a: Json) => applicationState(a) === r));
-      const app = mine.find((a: Json) => applicationState(a) === best) ?? null;
-      out.push({ demo: t.demo_id, subject: String(t.subject ?? ""), cat: !best || best === "applied" ? "new" : best, app, tutorIds: mine.map((a: Json) => String(a.tutor_id)), apps: mine, student: null });
-    }
-  } else {
-    const apps = (await db(`applications?tutor_id=${inList(ids)}&select=${cols}`) ?? []).filter((a: Json) => !declined(a));
-    const tuitions = apps.length ? await db(`tuitions?demo_id=${inList(apps.map((a: Json) => a.demo_id))}&terminated=eq.false&select=demo_id,subject,student_id`) ?? [] : [];
-    const studs = tuitions.length ? await db(`students?student_id=${inList([...new Set(tuitions.map((t: Json) => String(t.student_id)))] as string[])}&select=student_id,student_name,class_name,board,city,pin_code`) ?? [] : [];
-    for (const a of apps) {
-      const t = tuitions.find((x: Json) => x.demo_id === a.demo_id);
-      if (!t) continue;
-      const st = applicationState(a);
-      out.push({ demo: t.demo_id, subject: String(t.subject ?? ""), cat: st === "applied" ? "new" : st, app: a, tutorIds: [String(a.tutor_id)], apps: [a], student: studs.find((x: Json) => x.student_id === t.student_id) ?? null });
-    }
-  }
-  return out;
-}
 
 async function menuContent(chatId: number, role: "s" | "t"): Promise<{ text: string; rows: Json[][] } | null> {
   const { students, tutors } = await linked(chatId);
@@ -426,7 +373,6 @@ const timeText = (a: Json): string => {
   const t = String(a?.billing_plan?.deal?.time ?? "").trim();
   return t ? fmtTime(t) : "-";
 };
-const yearsText = (v: unknown) => v == null || v === "" ? "" : `${Number(v)} yr${Number(v) === 1 ? "" : "s"}`;
 
 // the list a category button opens: a few basic lines per tuition
 async function showCategory(chatId: number, messageId: number, role: "s" | "t", cat: string) {
@@ -643,7 +589,7 @@ async function loginEmail(token: string): Promise<string> {
 
 // saves the chat on every student / tutor record with this exact email
 async function saveChat(table: "students" | "tutors", idColumn: string, email: string, chatId: number): Promise<number> {
-  const rows = await db(`${table}?email=ilike.${encodeURIComponent(email)}&select=${idColumn},email`) ?? [];
+  const rows = await db(`${table}?email_lc=eq.${encodeURIComponent(email)}&select=${idColumn},email`) ?? [];
   const ids = rows.filter((r: Json) => String(r.email ?? "").trim().toLowerCase() === email).map((r: Json) => r[idColumn]);
   if (!ids.length) return 0;
   await db(`${table}?${idColumn}=in.(${ids.map((x: string) => encodeURIComponent(`"${x}"`)).join(",")})`, {

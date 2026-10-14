@@ -3,6 +3,8 @@
 // Email is always verified with a 6-digit code mailed to it; the mobile number is already verified by the
 // channel itself (WhatsApp: the sender's number; Telegram: the contact the user shares).
 import { emailTemplate, sendMail } from "./email.ts";
+import { AGENCY_PHONE, SITE_URL } from "./constants.ts";
+import { last10, q, rest, studentEmailTaken as studentWithEmail, studentPhoneTaken as studentWithPhone } from "./botdata.ts";
 
 type Json = Record<string, any>;
 
@@ -13,8 +15,6 @@ export type Ctx = { channel: "wa" | "tg"; key: string; verifiedPhone?: string; t
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const SITE_URL = "https://kurafatengineer.github.io/urbantutorsite";
-export const AGENCY_PHONE = "+91 90018 00307";
 
 const SESSION_HOURS = 3;
 const OTP_MINUTES = 10;
@@ -22,18 +22,8 @@ const OTP_MAX_TRIES = 5;
 const OTP_MAX_SENDS = 3;
 const OTP_GAP_SECONDS = 30;
 
-const q = encodeURIComponent;
-const last10 = (v: unknown) => String(v ?? "").replace(/\D/g, "").slice(-10);
 const clean = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim();
 const titleCase = (v: string) => clean(v).toLowerCase().replace(/(^|[\s.'-])([a-z])/g, (_m, a, b) => a + b.toUpperCase());
-
-async function rest(path: string, init: RequestInit = {}) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    ...init,
-    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
-  });
-  return res.ok ? await res.json().catch(() => null) : null;
-}
 
 async function load(ctx: Ctx): Promise<{ step: string; data: Json } | null> {
   const rows = await rest(`bot_sessions?channel=eq.${ctx.channel}&chat_key=eq.${q(ctx.key)}&select=step,data,updated_at`);
@@ -57,12 +47,6 @@ async function clear(ctx: Ctx) {
   await rest(`bot_sessions?channel=eq.${ctx.channel}&chat_key=eq.${q(ctx.key)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
 }
 
-export async function hasSession(ctx: Ctx) {
-  const s = await load(ctx);
-  if (!s) return false;
-  return true;
-}
-
 async function sha(text: string) {
   const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
   return [...hash].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -71,20 +55,6 @@ function newCode() {
   const n = new Uint32Array(1);
   crypto.getRandomValues(n);
   return String(100000 + (n[0] % 900000));
-}
-
-async function studentWithEmail(email: string) {
-  const rows = await rest(`students?email=ilike.${q(email)}&select=student_id,email`) ?? [];
-  return rows.some((r: Json) => String(r.email ?? "").trim().toLowerCase() === email);
-}
-async function studentWithPhone(phone: string) {
-  const tail = phone.split("").join("*");
-  const like = q(`*${tail}*`);
-  const [a, b] = await Promise.all([
-    rest(`students?phone=ilike.${like}&select=phone,whatsapp`),
-    rest(`students?whatsapp=ilike.${like}&select=phone,whatsapp`),
-  ]);
-  return [...(a ?? []), ...(b ?? [])].some((r: Json) => last10(r.phone) === phone || last10(r.whatsapp) === phone);
 }
 
 // ---- the steps, in order ----
