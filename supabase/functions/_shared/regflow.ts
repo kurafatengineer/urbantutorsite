@@ -62,24 +62,31 @@ const ORDER = ["parents", "student", "phone", "email", "otp", "gender", "class",
 
 const CANCEL: Choice = { id: "cancel", title: "Cancel" };
 
+// The two buttons under every "type the code" message.
+const OTP_CHOICES: Choice[] = [{ id: "otp:resend", title: "Resend Code" }, { id: "otp:change", title: "Change Email" }];
+
+// Texts use WhatsApp's *bold*; the Telegram bot turns *...* into bold too.
 function prompt(step: string, d: Json): Out {
   switch (step) {
-    case "parents": return { text: "Let's register you as a student. You can type *cancel* any time.\n\nWhat is the parent's name?" };
-    case "student": return { text: "What is the student's name?" };
-    case "phone": return { text: "Please share your mobile number with the button below, so we know it is really yours.", askPhone: true };
-    case "email": return { text: "What is your email address? We will send a 6-digit code to it to check it is yours." };
-    case "otp": return { text: `We sent a 6-digit code to ${d.email}. Type it here (valid for ${OTP_MINUTES} minutes). Check the spam folder if you can't see it.`, choices: [{ id: "otp:resend", title: "Resend code" }, { id: "otp:change", title: "Change email" }] };
-    case "gender": return { text: "The student's gender?", choices: [{ id: "gender:Male", title: "Male" }, { id: "gender:Female", title: "Female" }] };
-    case "class": return { text: "Which class is the student in? (for example 10th, 12th Science, B.Com)" };
-    case "school": return { text: "School / college name?" };
-    case "board": return { text: "Board / university? (for example CBSE, ICSE, State Board)" };
-    case "city": return { text: "Which city do you live in?" };
-    case "pin": return { text: "PIN code (6 digits)?" };
-    case "address": return { text: "Your address (house no., area, landmark)?" };
-    case "terms": return { text: "I confirm that the information provided by me is accurate and I agree to the Terms & Conditions and privacy requirements of Urbantutorsite.", choices: [{ id: "terms:yes", title: "I agree" }, CANCEL] };
+    case "parents": return { text: "Let's register you as a *student*.\nYou can type *Cancel* any time.\n\nWhat is the *parent's name*?" };
+    case "student": return { text: "What is the *student's name*?" };
+    case "phone": return { text: "Please share your *mobile number* with the button below, so we know it is really yours.", askPhone: true };
+    case "email": return { text: "Enter your *email address*.\nWe will send a 6-digit code for verification." };
+    case "otp": return {
+      text: `We sent a 6-digit code to -\n*${d.email}*\n\nType it here (valid for ${OTP_MINUTES} minutes).\nCheck the spam folder if you can't see it.`,
+      choices: OTP_CHOICES,
+    };
+    case "gender": return { text: "The student's *gender*?", choices: [{ id: "gender:Male", title: "Male" }, { id: "gender:Female", title: "Female" }] };
+    case "class": return { text: "Which *class* is the student in?\n\nFor example -\n10th\n12th\nB.Com" };
+    case "school": return { text: "*School / College* name?" };
+    case "board": return { text: "*Board / University*?\n\nFor example -\nCBSE\nICSE\nState Board\nDelhi University" };
+    case "city": return { text: "Which *city* do you live in?" };
+    case "pin": return { text: "*PIN code* (6 digits)?" };
+    case "address": return { text: "Your *address*?" };
+    case "terms": return { text: "I confirm that the information provided by me is accurate and I agree to the *Terms & Conditions* and privacy requirements of Urbantutorsite.", choices: [{ id: "terms:yes", title: "I Agree" }, CANCEL] };
     case "confirm": return {
-      text: "Please check your details:\n\n" +
-        `Parent: ${d.parentsName}\nStudent: ${d.studentName}\nGender: ${d.gender}\nClass: ${d.className}\nSchool: ${d.school}\nBoard: ${d.board}\n` +
+      text: "*Please check your details:*\n\n" +
+        `Parent: *${d.parentsName}*\nStudent: *${d.studentName}*\nGender: ${d.gender}\nClass: ${d.className}\nSchool: ${d.school}\nBoard: ${d.board}\n` +
         `Mobile: ${d.phone}\nEmail: ${d.email}\nCity: ${d.city} - ${d.pinCode}\nAddress: ${d.address}`,
       choices: [{ id: "confirm:yes", title: "Submit" }, CANCEL],
     };
@@ -98,7 +105,7 @@ export async function startRegistration(ctx: Ctx): Promise<Out[]> {
   const d: Json = {};
   if (ctx.verifiedPhone) d.phone = last10(ctx.verifiedPhone);
   if (d.phone && (await studentWithPhone(d.phone))) {
-    return [{ text: `This mobile number is already registered with a student account. Please log in with your email at ${SITE_URL}/studentprofile.html\n\nNeed help? Call ${AGENCY_PHONE}.` }];
+    return [{ text: `This mobile number is *already registered* with a student account.\nPlease log in with your email at ${SITE_URL}/studentprofile.html\n\nNeed help? Call ${AGENCY_PHONE}.` }];
   }
   await save(ctx, "parents", d);
   return [prompt("parents", d)];
@@ -138,7 +145,7 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
 
   if (choice === "cancel" || /^cancel$/i.test(text)) {
     await clear(ctx);
-    return [{ text: "Registration cancelled. Send *hi* to start again." }];
+    return [{ text: "Registration cancelled.\nSend *Hi* to start again." }];
   }
 
   const again = (msg: string): Out[] => [{ text: msg }, prompt(s.step, d)];
@@ -161,10 +168,10 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
 
     case "phone": {
       const phone = last10(input.contactPhone);
-      if (phone.length !== 10) return [{ text: "Please tap the button to share your number (typing it is not accepted).", askPhone: true }];
+      if (phone.length !== 10) return [{ text: "Please tap the button below to share your number.\n(Typing it is not accepted.)", askPhone: true }];
       if (await studentWithPhone(phone)) {
         await clear(ctx);
-        return [{ text: `This mobile number is already registered with a student account. Please log in with your email at ${SITE_URL}/studentprofile.html\n\nNeed help? Call ${AGENCY_PHONE}.` }];
+        return [{ text: `This mobile number is *already registered* with a student account.\nPlease log in with your email at ${SITE_URL}/studentprofile.html\n\nNeed help? Call ${AGENCY_PHONE}.` }];
       }
       d.phone = phone;
       return go("phone");
@@ -172,9 +179,9 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
 
     case "email": {
       const email = text.toLowerCase();
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 120) return again("That doesn't look like an email address. Please type it again.");
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 120) return again("That doesn't look like an email address.\nPlease type it again.");
       if (await studentWithEmail(email)) {
-        return [{ text: `This email is already registered. To add another student, please log in at ${SITE_URL}/studentprofile.html\n\nOr type a different email address here.` }];
+        return [{ text: `This email is *already registered*.\nTo add another student, please log in at ${SITE_URL}/studentprofile.html\n\nOr type a different email address here.` }];
       }
       d.email = email;
       const err = await sendOtp(ctx, d);
@@ -194,22 +201,22 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
         await save(ctx, "otp", d);
         return [{ text: err ?? `A new code was sent to ${d.email}.` }];
       }
-      if (!/^\d{6}$/.test(text)) return [{ text: "Please type the 6-digit code from your email.", choices: prompt("otp", d).choices }];
-      if (!d.otpHash || Date.now() > Number(d.otpExp ?? 0)) return [{ text: "That code has expired. Tap Resend code.", choices: prompt("otp", d).choices }];
-      if (Number(d.otpTries ?? 0) >= OTP_MAX_TRIES) return [{ text: "Too many wrong tries. Tap Resend code.", choices: prompt("otp", d).choices }];
+      if (!/^\d{6}$/.test(text)) return [{ text: "Enter the *6-digit code* for your email verification.", choices: OTP_CHOICES }];
+      if (!d.otpHash || Date.now() > Number(d.otpExp ?? 0)) return [{ text: "That code has *expired*.\nTap *Resend Code*.", choices: OTP_CHOICES }];
+      if (Number(d.otpTries ?? 0) >= OTP_MAX_TRIES) return [{ text: "Too many wrong tries.\nTap *Resend Code*.", choices: OTP_CHOICES }];
       if (await sha(`${ctx.channel}:${ctx.key}:${d.email}:${text}`) !== d.otpHash) {
         d.otpTries = Number(d.otpTries ?? 0) + 1;
         await save(ctx, "otp", d);
-        return [{ text: "That code is not correct. Please try again.", choices: prompt("otp", d).choices }];
+        return [{ text: "That code is *not correct*.\nPlease try again.", choices: OTP_CHOICES }];
       }
       delete d.otpHash;
       d.emailVerified = true;
-      return [{ text: "Email verified." }, ...(await go("otp"))];
+      return [{ text: "*Email verified.*" }, ...(await go("otp"))];
     }
 
     case "gender": {
       const g = choice.replace(/^gender:/, "");
-      if (g !== "Male" && g !== "Female") return again("Please tap Male or Female.");
+      if (g !== "Male" && g !== "Female") return again("Please tap *Male* or *Female*.");
       d.gender = g;
       return go("gender");
     }
@@ -245,17 +252,17 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
       return go("address");
 
     case "terms":
-      if (choice !== "terms:yes") return again("Please tap I agree to continue, or Cancel.");
+      if (choice !== "terms:yes") return again("Please tap *I Agree* to continue, or *Cancel*.");
       d.terms = true;
       return go("terms");
 
     case "confirm": {
       if (choice !== "confirm:yes") return [prompt("confirm", d)];
-      if (!d.emailVerified || !d.phone) { await clear(ctx); return [{ text: "Something went wrong. Please send *hi* and try again." }]; }
+      if (!d.emailVerified || !d.phone) { await clear(ctx); return [{ text: "Something went wrong.\nPlease send *Hi* and try again." }]; }
       // checked again right before saving, in case it was taken in the meantime
       if (await studentWithEmail(d.email) || await studentWithPhone(d.phone)) {
         await clear(ctx);
-        return [{ text: `This email or mobile number is already registered. Please log in at ${SITE_URL}/studentprofile.html` }];
+        return [{ text: `This email or mobile number is *already registered*.\nPlease log in at ${SITE_URL}/studentprofile.html` }];
       }
       const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_register_student`, {
         method: "POST",
@@ -271,7 +278,7 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
         console.error("bot register failed", res.status, JSON.stringify(out));
         const why = String(out?.message ?? "").replace(/^.*?:\s*/, "");
         await clear(ctx);
-        return [{ text: `We could not complete the registration${why ? ` (${why})` : ""}. Please send *hi* to try again, or register on the website.` }];
+        return [{ text: `We could not complete the registration${why ? ` (${why})` : ""}.\nPlease send *Hi* to try again, or register on the website.` }];
       }
       if (ctx.channel === "tg" && ctx.telegramChatId) {
         await rest(`students?student_id=eq.${q(String(out.studentId))}`, {
@@ -280,17 +287,17 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
       }
       await save(ctx, "tuition", { studentId: out.studentId });
       return [{
-        text: `You are registered! Your Student ID is ${out.studentId}.\n\nDo you want to post a new tuition request now?`,
-        choices: [{ id: "tuition:yes", title: "Yes, post tuition" }, { id: "tuition:no", title: "Not now" }],
+        text: `*You are registered!*\nYour Student ID is *${out.studentId}*.\n\nDo you want to post a new tuition request now?`,
+        choices: [{ id: "tuition:yes", title: "Yes, Post Now" }, { id: "tuition:no", title: "Not Now" }],
       }];
     }
 
     case "tuition": {
       await clear(ctx);
       if (choice === "tuition:yes") {
-        return [{ text: `Great! Open your profile to post the tuition request:\n${SITE_URL}/studentprofile.html\n\nLog in with your email (a code will be sent to it). Send *hi* any time for the menu.` }];
+        return [{ text: `Great! Open your profile to post the tuition request:\n${SITE_URL}/studentprofile.html\n\nLog in with your email (a code will be sent to it).\nSend *Hi* any time for the menu.` }];
       }
-      return [{ text: "All set. Send *hi* any time for the menu." }];
+      return [{ text: "All set.\nSend *Hi* any time for the menu." }];
     }
   }
   return null;

@@ -77,27 +77,30 @@ async function showMenu(to: string, role: string, accounts: { students: Json[]; 
   const mine = role === "s" ? accounts.students : accounts.tutors;
   const name = String(role === "s" ? mine[0].student_name : mine[0].full_name ?? "");
   const life = await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])));
+  const off = mine.every((r) => r.notifications_off === true || r.blocked_at);
   const rows: Json[] = [];
   for (const cat of CAT_ORDER) {
     const n = life.filter((l) => l.cat === cat).length;
     if (n) rows.push({ id: `c:${role}:${cat}`, title: `${catLabel(role, cat)} (${n})`.slice(0, 24) });
   }
+  rows.push(role === "s"
+    ? { id: "a:s", title: "Apply for New Tuition", description: "Post a new tuition request" }
+    : { id: "a:t", title: "Find New Tuitions", description: "See the tuitions you can apply for" });
   if (accounts.students.length && accounts.tutors.length) {
     rows.push({ id: `h:${role === "s" ? "t" : "s"}`, title: role === "s" ? "Switch to Tutor" : "Switch to Student" });
   }
-  const off = mine.every((r) => r.notifications_off === true || r.blocked_at);
-  rows.push({ id: `n:${role}`, title: off ? "Notifications OFF" : "Notifications ON", description: off ? "Tap to turn ON" : "Tap to turn OFF" });
-  const body = `Hi ${name || "there"}!\n${role === "s" ? "Student" : "Tutor"} menu\n\n` +
+  rows.push({ id: `n:${role}`, title: off ? "Notifications are OFF" : "Notifications are ON", description: off ? "Tap to turn it ON" : "Tap to turn it OFF" });
+  const body = `Hi,\n*${name || "there"}* (${role === "s" ? "Student" : "Tutor"}).\n\n` +
     (life.length
-      ? `${role === "s" ? "Your tuitions" : "Tuitions you applied for"} - pick one below to see its details.`
+      ? `${role === "s" ? "Your tuitions" : "Tuitions you applied for"} - open the *Menu* to see their details.`
       : role === "s" ? "You have no live tuitions right now." : "You have not applied for any tuition yet.") +
-    `\n\n${off ? "Notifications are OFF (no email, no WhatsApp, no Telegram)." : "Notifications are ON."}` +
-    `\n\nProfile: ${SITE_URL}/${role === "s" ? "studentprofile" : "tutorprofile"}.html`;
+    `\n\nYour notifications are *${off ? "OFF" : "ON"}*.` +
+    `\n\n*Urban Tutor Site*\n${SITE_URL}/${role === "s" ? "studentprofile" : "tutorprofile"}.html`;
   await send(to, {
     type: "interactive",
     interactive: {
       type: "list", body: { text: body.slice(0, 1024) }, footer: { text: "Urban Tutor Site" },
-      action: { button: "Open menu", sections: [{ title: "Tuitions", rows: rows.slice(0, 10) }] },
+      action: { button: "Menu", sections: [{ title: "Menu", rows: rows.slice(0, 10) }] },
     },
   });
 }
@@ -105,7 +108,7 @@ async function showMenu(to: string, role: string, accounts: { students: Json[]; 
 async function showCategory(to: string, role: string, cat: string, accounts: { students: Json[]; tutors: Json[] }) {
   const mine = role === "s" ? accounts.students : accounts.tutors;
   const life = (await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])))).filter((l) => l.cat === cat);
-  if (!life.length) { await sendText(to, "Nothing here right now. Send *hi* for the menu."); return; }
+  if (!life.length) { await sendText(to, "Nothing here right now.\nSend *Hi* any time for the menu."); return; }
   const tutorIds = [...new Set(life.flatMap((l) => l.apps.map((a) => String(a.tutor_id))))];
   const info = role === "s" && tutorIds.length ? await db(`tutors?tutor_id=${inList(tutorIds)}&select=tutor_id,full_name,gender`) : [];
   const tutorOf = (id: unknown) => info.find((x) => x.tutor_id === id) ?? {};
@@ -124,7 +127,7 @@ async function showCategory(to: string, role: string, cat: string, accounts: { s
     if (cat === "scheduled") return `${head}\n${place}\nDemo: ${dateLine(l.app)}`;
     return `${head}\n${place}\n${[st.city, st.pin_code].filter(Boolean).join(" - ")}`;
   });
-  await sendText(to, `*${catLabel(role, cat)}*\n\n${blocks.join("\n\n")}\n\nSend *hi* for the menu.`);
+  await sendText(to, `*${catLabel(role, cat)}*\n\n${blocks.join("\n\n")}\n\nSend *Hi* any time for the menu.`);
 }
 
 async function onMessage(m: Json) {
@@ -145,7 +148,7 @@ async function onMessage(m: Json) {
       type: "interactive",
       interactive: {
         type: "button",
-        body: { text: "Hi! Welcome to Urban Tutor Site.\n\nThis number is not registered yet. Parents / students can register right here in the chat - it takes about 2 minutes." },
+        body: { text: "Hi,\nWelcome to *Urban Tutor Site*.\n\nThis number is not registered yet.\nParents / students can register right here in the chat - it takes about 2 minutes." },
         action: { buttons: [{ type: "reply", reply: { id: "reg|start", title: "Register as Student" } }] },
       },
     });
@@ -160,7 +163,13 @@ async function onMessage(m: Json) {
     const table = role === "s" ? "students" : "tutors";
     const col = role === "s" ? "student_id" : "tutor_id";
     await patch(`${table}?${col}=${inList(mine.map((r) => String(r[col])))}`, { notifications_off: turnOff });
-    await sendText(from, turnOff ? "Notifications are OFF - no email, no WhatsApp, no Telegram.\n\nSend *hi* for the menu." : "Notifications are ON again.\n\nSend *hi* for the menu.");
+    await sendText(from, turnOff ? "Your notifications are *OFF* now.\n(No email, WhatsApp or Telegram messages.)\n\nSend *Hi* any time for the menu." : "Your notifications are *ON* again.\n\nSend *Hi* any time for the menu.");
+    return;
+  }
+  if (action === "a") {
+    await sendText(from, role === "s"
+      ? `*Apply for New Tuition*\nOpen your profile and tap *Apply For New Tuition*:\n${SITE_URL}/studentprofile.html\n\nSend *Hi* any time for the menu.`
+      : `*Find New Tuitions*\nSee the tuitions you can apply for:\n${SITE_URL}/advertisement.html\n\nSend *Hi* any time for the menu.`);
     return;
   }
   if (action === "c" && cat) { await showCategory(from, role, cat, accounts); return; }
