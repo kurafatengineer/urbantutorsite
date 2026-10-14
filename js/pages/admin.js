@@ -2989,6 +2989,8 @@ function goToTuition(demoId, highlight) {
     if (!target) return;
     revealOnPage(target);
     if (highlight) waveHighlight(target);
+    // a plain "show me this tuition": its Payments and tutor cards wave too (all stay collapsed)
+    if (highlight === true) document.querySelectorAll(`#tab-tuitions [data-demo="${demo}"]`).forEach(el => { if (el !== target && el.matches("[data-box]")) waveHighlight(el); });
     if (part) waveHighlight(part);
     target.scrollIntoView({ behavior: "smooth", block: "center" });
   });
