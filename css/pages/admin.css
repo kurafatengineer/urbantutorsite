@@ -4740,3 +4740,7 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 .sched-line { grid-template-columns: 110px repeat(4, minmax(0, 1fr)); gap: 8px; padding: 6px; }
 .sched-line b { padding-left: 8px; }
 .sched-line i { text-align: center; padding: 8px 4px; border-radius: 10px; background: var(--surface-2); }
+
+/* v18: caption bar as wide as the schedule rows below */
+.deal-flow { margin: 0; padding: 10px 0 0; }
+.flow-cap { margin: 8px 0 0; }

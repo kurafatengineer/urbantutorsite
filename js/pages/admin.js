@@ -6523,7 +6523,9 @@ function flowInner(m, freq) {
   const x1 = nr + 3, x2 = W / 2, x3 = W - nr - 3;                       // left, middle, right
   const nodes = viaAgency
     ? [[x1, "P", "is-parent", nr], [x2, "A", "is-agency", ar], [x3, "T", "is-tutor", nr]]
-    : [[x1, "P", "is-parent", nr], [x2, "T", "is-tutor", nr], [x3, "A", "is-agency", ar]];
+    : [[x1, "P", "is-parent", nr], [x2, "T", "is-tutor", ar], [x3, "A", "is-agency", nr]];
+  // what the middle party holds back: the agency's share, or (tutor collecting the fee) the tutor's share
+  const mid = viaAgency ? keep : [m.tutorInstallment, m.tutorFirstMonth];
   const rows = both ? [[cy - 9, "is-inst", 0, per], [cy + 9, "is-month", 1, "Month"]] : [[cy, "is-month", 1, "Month"]];
   const seg = (xa, ra, xb, rb, y) => {                      // line between two circles at height y
     const dy = y - cy;
@@ -6540,8 +6542,7 @@ function flowInner(m, freq) {
       svg += `<g class="fl ${cls}"><path class="fl-base" d="${d}"/><path class="fl-run" d="${d}"/></g>`;
       pills.push([(nodes[i][0] + nodes[j][0]) / 2, ly, `${R(amt[k])} / ${unit}`, cls]);
     });
-    const ag = nodes.find(n => n[1] === "A");
-    pills.push([ag[0], ly, `${R(keep[k])} / ${unit}`, cls]);
+    pills.push([nodes[1][0], ly, `${R(mid[k])} / ${unit}`, cls]);
   });
   const pw = Math.max(...pills.map(x => x[2].length)) * 8.4 + 24, ph = 24;      // every pill as wide as the longest
   const labels = pills.map(([x, y, t, cls]) => `<g class="fl-pill ${cls}"><rect x="${x - pw / 2}" y="${y - ph / 2}" width="${pw}" height="${ph}" rx="${ph / 2}"/><text x="${x}" y="${y}" dominant-baseline="central" text-anchor="middle">${t}</text></g>`).join("");
