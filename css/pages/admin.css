@@ -4840,3 +4840,6 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 }
 #tutorList .admin-card-head .eq-grid .ledger-cell:nth-child(6)::-webkit-scrollbar,
 #tutorList .admin-card-head .eq-grid .ledger-cell:nth-child(7)::-webkit-scrollbar { display: none; }
+
+/* v31: two rows of five stat cards */
+.admin-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }

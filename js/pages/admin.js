@@ -3926,13 +3926,16 @@ function renderStats() {
   const stats = [
     ["Finding Tutors", count("new"), "lime", "tuitions", "new"],
     ["Demo to Schedule", count("schedule"), "violet", "tuitions", "schedule"],
+    ["Today's Demo", todaysDemos, "violet", "tuitions", "today"],
     ["Running Classes", count("running"), "green", "tuitions", "running"],
-    ["Tutor Verification Pending", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "pending").length, "amber", "tutors", "pending"],
     ["Classes Completed", count("completed"), "grey", "tuitions", "completed"],
     ["Closed", count("terminated"), "red", "tuitions", "terminated"],
-    ["Today's Demo", todaysDemos, "violet", "tuitions", "today"],
-    ["Verified Tutors", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "verified").length, "green", "tutors", "verified"]
+    ["Tutor Verification Pending", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "pending").length, "amber", "tutors", "pending"],
+    ["Total Verified Tutors", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "verified").length, "green", "tutors", "verified"],
+    ["Total Students", (STATE.data.students.rows || []).length, "lime", "students", "all"],
+    ["Total Tuitions", groups.length, "violet", "tuitions", "all"]
   ];
+
 
   $("adminStats").innerHTML = stats.map(([label, value, tone, tab, filter]) => `
     <button class="admin-stat" type="button" data-tone="${tone}" data-go="${tab}" data-filter="${filter}">
