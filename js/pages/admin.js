@@ -6512,49 +6512,48 @@ function schedText(start, freq) {
   return row("Parent pays", list) + row("Tutor paid", list.map(x => isoPlusDays(x, 1)));
 }
 
-// who pays whom: P(arent), T(utor) on top, A(gency) below. Animated money lines per instalment and per month.
+// who pays whom: P(arent) -> A(gency) -> T(utor), as dotted lines running per instalment and per month
+// (Parent -> Tutor -> Agency when the tutor collects the fee and pays the commission)
 function flowInner(m, freq) {
   const R = v => "₹" + Number(v || 0).toLocaleString("en-IN");
   const per = { "Weekly": "week", "15 Days": "15 days", "Monthly": "month" }[freq] || "month";
   const both = per !== "month";
   const margin = m.model === "margin";
   const viaAgency = margin || m.feeTo === "Agency";
-  // amounts: [per instalment, per month]
   const left = margin ? [m.parentInstallment, m.parentMonthly] : [m.parentInstallment, m.monthlyFee];
-  const right = margin ? [m.tutorInstallment, m.tutorMonthly] : viaAgency ? [m.tutorInstallment, m.tutorFirstMonth] : null;
+  const right = margin ? [m.tutorInstallment, m.tutorMonthly] : [m.tutorInstallment, m.tutorFirstMonth];
   const keep = margin ? [m.parentInstallment - m.tutorInstallment, m.agencyMonthly] : [m.cutInstallment, m.cut];
   const note = margin ? "" : (viaAgency ? "first month, once" : "tutor pays, first month");
-  const W = 760, px = 70, tx = 690, bx = viaAgency ? 380 : 600, ay = 196, nr = 28, ar = 19;
-  const y1 = both ? 46 : 64, y2 = 82, ny = 64;
-  const rails = both ? [[y1, "is-inst", 0], [y2, "is-month", 1]] : [[64, "is-month", 1]];
-  const dxs = both ? [-12, 12] : [0];
-  let svg = "";
-  rails.forEach(([y, cls, k], i) => {
-    const bxi = bx + dxs[i];
-    const l = `M${px + 24} ${y} H${bxi}`, r = `M${bxi} ${y} H${tx - 24}`, d = `M${bxi} ${y} V${ay - 24}`;
-    const unit = k === 0 ? per : "month";
-    const ly = k === 0 ? y - 9 : y + 21;
-    const lAmt = `${R(left[k])} / ${unit}`;
-    svg += `<g class="fl ${cls}">
-      <path class="fl-base" d="${l}"/><path class="fl-run" d="${l}"/>
-      ${right ? `<path class="fl-base" d="${r}"/><path class="fl-run" d="${r}"/>` : `<path class="fl-base" d="${r}"/><path class="fl-run" d="${r}"/>`}
-      <path class="fl-base" d="${d}"/><path class="fl-run" d="${d}"/>
-      <circle class="fl-dot" r="4.5"><animateMotion dur="2.2s" repeatCount="indefinite" path="${l}"/></circle>
-      <circle class="fl-dot" r="4.5"><animateMotion dur="2.7s" repeatCount="indefinite" path="${r}"/></circle>
-      <circle class="fl-dot" r="4"><animateMotion dur="1.6s" repeatCount="indefinite" path="${d}"/></circle>
-      <text class="fl-amt" x="${(px + 24 + bxi) / 2}" y="${ly}" text-anchor="middle">${lAmt}</text>
-      ${right ? `<text class="fl-amt" x="${(bxi + tx - 24) / 2}" y="${ly}" text-anchor="middle">${R(right[k])} / ${unit}</text>` : ""}
-      <text class="fl-amt fl-keep" x="${bxi + (dxs[i] < 0 ? -8 : 8)}" y="${both ? y2 + 58 : y + 76}" text-anchor="${dxs[i] < 0 ? "end" : "start"}">${viaAgency ? "keeps " : "gets "}${R(keep[k])} / ${unit}</text>
-    </g>`;
+  const px = 52, tx = 508, ax = viaAgency ? 280 : 508, ay = 150, nr = 20, ar = 15, ny = 40;
+  const lines = both ? [[34, "is-inst", 0, 212, 140], [46, "is-month", 1, 196, 152]] : [[40, "is-month", 1, 204, 146]];
+  const unitOf = k => (k === 0 ? per : "month");
+  let svg = "", labels = "";
+  lines.forEach(([y, cls, k, e, ya], i) => {
+    const mir = 560 - e;                                  // mirrored elbow on the tutor side
+    let paths;
+    if (viaAgency) {
+      paths = [`M${px + 22} ${y} H${e} V${ya} H${ax - 18}`, `M${ax + 18} ${ya} H${mir} V${y} H${tx - 22}`];
+    } else {
+      const bxl = tx - 8 + i * 16;
+      paths = [`M${px + 22} ${y} H${tx - 22}`, `M${bxl} ${ny + nr - 2} V${ay - ar - 2}`];
+    }
+    svg += `<g class="fl ${cls}">${paths.map(d => `<path class="fl-base" d="${d}"/><path class="fl-run" d="${d}"/>`).join("")}</g>`;
+    const above = k === 0, ty = above ? y - 7 : y + 15, u = unitOf(k);
+    labels += `<text class="fl-amt ${cls}" x="${(px + e) / 2 + 6}" y="${ty}" text-anchor="middle">${R(left[k])} / ${u}</text>`;
+    if (viaAgency) labels += `<text class="fl-amt ${cls}" x="${(560 - e + tx) / 2 - 6}" y="${ty}" text-anchor="middle">${R(right[k])} / ${u}</text>`;
+    else labels += `<text class="fl-amt ${cls}" x="${tx - 20 + (i ? 20 : 0) * 0}" y="${ay - 22 - (both ? (1 - i) * 14 : 0)}" text-anchor="end">${R(keep[k])} / ${u}</text>`;
   });
-  svg += note ? `<text class="fl-sub" x="${bx}" y="${ay + 40}" text-anchor="middle">${note}</text>` : "";
+  const ky = ay + ar + 15;
+  const keepText = both ? `${viaAgency ? "keeps" : "gets"} ${R(keep[0])} / ${per} · ${R(keep[1])} / month` : `${viaAgency ? "keeps" : "gets"} ${R(keep[1])} / month`;
+  labels += `<text class="fl-keeps" x="${ax}" y="${ky}" text-anchor="middle">${keepText}</text>`;
+  if (note) labels += `<text class="fl-sub" x="${ax}" y="${ky + 14}" text-anchor="middle">${note}</text>`;
   const circ = (x, y, r, letter, cls, size) => `<g class="fl-node ${cls}"><circle cx="${x}" cy="${y}" r="${r}"/><text x="${x}" y="${y + size * 0.36}" text-anchor="middle" style="font-size:${size}px">${letter}</text></g>`;
-  svg += circ(px, ny, nr, "P", "is-parent", 24) + circ(tx, ny, nr, "T", "is-tutor", 24) + circ(bx, ay, ar, "A", "is-agency", 17);
+  svg += labels + circ(px, ny, nr, "P", "is-parent", 16) + circ(tx, ny, nr, "T", "is-tutor", 16) + circ(ax, ay, ar, "A", "is-agency", 13);
   const c = m.classes, noun = c === 1 ? "Class" : "Classes";
   const perClassParent = margin ? m.parentPerClass : m.perClass;
   const perClassTutor = margin ? m.tutorPerClass : (c ? Math.round(m.tutorFirstMonth / c) : 0);
   const cap = `${c} ${noun} / Month · Parent ${R(perClassParent)} / Class · Tutor Gets ${R(perClassTutor)} / Class`;
-  return `<svg class="flow-svg" viewBox="0 0 ${W} ${ay + 52}" role="img" aria-label="How the money moves">${svg}</svg><p class="flow-cap">${esc(cap)}</p>`;
+  return `<svg class="flow-svg" viewBox="0 0 560 ${ky + (note ? 24 : 12)}" role="img" aria-label="How the money moves">${svg}</svg><p class="flow-cap">${esc(cap)}</p>`;
 }
 
 function fmtShortDate(iso) {
