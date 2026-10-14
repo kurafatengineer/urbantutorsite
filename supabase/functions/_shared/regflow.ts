@@ -1,0 +1,326 @@
+// "Register as a student" chat flow, shared by the Telegram and WhatsApp bots.
+// The channel adapters pass in what the user typed / tapped / shared and send back the replies.
+// Email is always verified with a 6-digit code mailed to it; the mobile number is already verified by the
+// channel itself (WhatsApp: the sender's number; Telegram: the contact the user shares).
+import { emailTemplate, sendMail } from "./email.ts";
+
+type Json = Record<string, any>;
+
+export type Choice = { id: string; title: string };
+export type Out = { text: string; choices?: Choice[]; askPhone?: boolean };
+export type Input = { text?: string; choice?: string; contactPhone?: string };
+export type Ctx = { channel: "wa" | "tg"; key: string; verifiedPhone?: string; telegramChatId?: number };
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SITE_URL = "https://kurafatengineer.github.io/urbantutorsite";
+export const AGENCY_PHONE = "+91 90018 00307";
+
+const SESSION_HOURS = 3;
+const OTP_MINUTES = 10;
+const OTP_MAX_TRIES = 5;
+const OTP_MAX_SENDS = 3;
+const OTP_GAP_SECONDS = 30;
+
+const q = encodeURIComponent;
+const last10 = (v: unknown) => String(v ?? "").replace(/\D/g, "").slice(-10);
+const clean = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim();
+const titleCase = (v: string) => clean(v).toLowerCase().replace(/(^|[\s.'-])([a-z])/g, (_m, a, b) => a + b.toUpperCase());
+
+async function rest(path: string, init: RequestInit = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...init,
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
+  });
+  return res.ok ? await res.json().catch(() => null) : null;
+}
+
+async function load(ctx: Ctx): Promise<{ step: string; data: Json } | null> {
+  const rows = await rest(`bot_sessions?channel=eq.${ctx.channel}&chat_key=eq.${q(ctx.key)}&select=step,data,updated_at`);
+  const row = rows?.[0];
+  if (!row) return null;
+  // a half-finished registration is forgotten after a few hours, so a later "hi" starts fresh
+  if (Date.now() - new Date(row.updated_at).getTime() > SESSION_HOURS * 3_600_000) {
+    await clear(ctx);
+    return null;
+  }
+  return row;
+}
+async function save(ctx: Ctx, step: string, data: Json) {
+  await rest("bot_sessions?on_conflict=channel,chat_key", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ channel: ctx.channel, chat_key: ctx.key, step, data, updated_at: new Date().toISOString() }),
+  });
+}
+async function clear(ctx: Ctx) {
+  await rest(`bot_sessions?channel=eq.${ctx.channel}&chat_key=eq.${q(ctx.key)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+}
+
+export async function hasSession(ctx: Ctx) {
+  const s = await load(ctx);
+  if (!s) return false;
+  return true;
+}
+
+async function sha(text: string) {
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
+  return [...hash].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function newCode() {
+  const n = new Uint32Array(1);
+  crypto.getRandomValues(n);
+  return String(100000 + (n[0] % 900000));
+}
+
+async function studentWithEmail(email: string) {
+  const rows = await rest(`students?email=ilike.${q(email)}&select=student_id,email`) ?? [];
+  return rows.some((r: Json) => String(r.email ?? "").trim().toLowerCase() === email);
+}
+async function studentWithPhone(phone: string) {
+  const tail = phone.split("").join("*");
+  const like = q(`*${tail}*`);
+  const [a, b] = await Promise.all([
+    rest(`students?phone=ilike.${like}&select=phone,whatsapp`),
+    rest(`students?whatsapp=ilike.${like}&select=phone,whatsapp`),
+  ]);
+  return [...(a ?? []), ...(b ?? [])].some((r: Json) => last10(r.phone) === phone || last10(r.whatsapp) === phone);
+}
+
+// ---- the steps, in order ----
+const ORDER = ["parents", "student", "phone", "email", "otp", "gender", "class", "school", "board", "city", "pin", "address", "terms", "confirm"];
+
+const CANCEL: Choice = { id: "cancel", title: "Cancel" };
+
+function prompt(step: string, d: Json): Out {
+  switch (step) {
+    case "parents": return { text: "Let's register you as a student. You can type *cancel* any time.\n\nWhat is the parent's name?" };
+    case "student": return { text: "What is the student's name?" };
+    case "phone": return { text: "Please share your mobile number with the button below, so we know it is really yours.", askPhone: true };
+    case "email": return { text: "What is your email address? We will send a 6-digit code to it to check it is yours." };
+    case "otp": return { text: `We sent a 6-digit code to ${d.email}. Type it here (valid for ${OTP_MINUTES} minutes). Check the spam folder if you can't see it.`, choices: [{ id: "otp:resend", title: "Resend code" }, { id: "otp:change", title: "Change email" }] };
+    case "gender": return { text: "The student's gender?", choices: [{ id: "gender:Male", title: "Male" }, { id: "gender:Female", title: "Female" }] };
+    case "class": return { text: "Which class is the student in? (for example 10th, 12th Science, B.Com)" };
+    case "school": return { text: "School / college name?" };
+    case "board": return { text: "Board / university? (for example CBSE, ICSE, State Board)" };
+    case "city": return { text: "Which city do you live in?" };
+    case "pin": return { text: "PIN code (6 digits)?" };
+    case "address": return { text: "Your address (house no., area, landmark)?" };
+    case "terms": return { text: "I confirm that the information provided by me is accurate and I agree to the Terms & Conditions and privacy requirements of Urbantutorsite.", choices: [{ id: "terms:yes", title: "I agree" }, CANCEL] };
+    case "confirm": return {
+      text: "Please check your details:\n\n" +
+        `Parent: ${d.parentsName}\nStudent: ${d.studentName}\nGender: ${d.gender}\nClass: ${d.className}\nSchool: ${d.school}\nBoard: ${d.board}\n` +
+        `Mobile: ${d.phone}\nEmail: ${d.email}\nCity: ${d.city} - ${d.pinCode}\nAddress: ${d.address}`,
+      choices: [{ id: "confirm:yes", title: "Submit" }, CANCEL],
+    };
+    default: return { text: "" };
+  }
+}
+
+function nextStep(step: string, d: Json) {
+  let i = ORDER.indexOf(step) + 1;
+  // the mobile step is skipped when the channel already knows the number (WhatsApp)
+  if (ORDER[i] === "phone" && d.phone) i++;
+  return ORDER[i] ?? "confirm";
+}
+
+export async function startRegistration(ctx: Ctx): Promise<Out[]> {
+  const d: Json = {};
+  if (ctx.verifiedPhone) d.phone = last10(ctx.verifiedPhone);
+  if (d.phone && (await studentWithPhone(d.phone))) {
+    return [{ text: `This mobile number is already registered with a student account. Please log in with your email at ${SITE_URL}/studentprofile.html\n\nNeed help? Call ${AGENCY_PHONE}.` }];
+  }
+  await save(ctx, "parents", d);
+  return [prompt("parents", d)];
+}
+
+async function sendOtp(ctx: Ctx, d: Json): Promise<string | null> {
+  const sends = Number(d.otpSends ?? 0);
+  if (sends >= OTP_MAX_SENDS) return "Too many codes were requested. Please try again later or register on the website.";
+  const wait = OTP_GAP_SECONDS * 1000 - (Date.now() - Number(d.otpSentAt ?? 0));
+  if (wait > 0) return `Please wait ${Math.ceil(wait / 1000)} seconds before asking for another code.`;
+  const code = newCode();
+  d.otpHash = await sha(`${ctx.channel}:${ctx.key}:${d.email}:${code}`);
+  d.otpExp = Date.now() + OTP_MINUTES * 60_000;
+  d.otpTries = 0;
+  d.otpSends = sends + 1;
+  d.otpSentAt = Date.now();
+  await sendMail(
+    d.email,
+    "Your Urban Tutor Site verification code",
+    emailTemplate({
+      heading: "Verify your email",
+      greeting: "Hi,",
+      intro: `Your verification code is ${code}. It is valid for ${OTP_MINUTES} minutes. If you did not ask for it, ignore this email.`,
+      badge: { text: "VERIFY EMAIL", tone: "blue" },
+    }),
+  );
+  return null;
+}
+
+export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null> {
+  const s = await load(ctx);
+  if (!s) return null;
+  const d = s.data;
+  const text = clean(input.text);
+  const choice = input.choice ?? "";
+
+  if (choice === "cancel" || /^cancel$/i.test(text)) {
+    await clear(ctx);
+    return [{ text: "Registration cancelled. Send *hi* to start again." }];
+  }
+
+  const again = (msg: string): Out[] => [{ text: msg }, prompt(s.step, d)];
+  const go = async (from: string): Promise<Out[]> => {
+    const next = nextStep(from, d);
+    await save(ctx, next, d);
+    return [prompt(next, d)];
+  };
+
+  switch (s.step) {
+    case "parents":
+      if (text.length < 2 || text.length > 80) return again("Please type the parent's name.");
+      d.parentsName = titleCase(text);
+      return go("parents");
+
+    case "student":
+      if (text.length < 2 || text.length > 80) return again("Please type the student's name.");
+      d.studentName = titleCase(text);
+      return go("student");
+
+    case "phone": {
+      const phone = last10(input.contactPhone);
+      if (phone.length !== 10) return [{ text: "Please tap the button to share your number (typing it is not accepted).", askPhone: true }];
+      if (await studentWithPhone(phone)) {
+        await clear(ctx);
+        return [{ text: `This mobile number is already registered with a student account. Please log in with your email at ${SITE_URL}/studentprofile.html\n\nNeed help? Call ${AGENCY_PHONE}.` }];
+      }
+      d.phone = phone;
+      return go("phone");
+    }
+
+    case "email": {
+      const email = text.toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 120) return again("That doesn't look like an email address. Please type it again.");
+      if (await studentWithEmail(email)) {
+        return [{ text: `This email is already registered. To add another student, please log in at ${SITE_URL}/studentprofile.html\n\nOr type a different email address here.` }];
+      }
+      d.email = email;
+      const err = await sendOtp(ctx, d);
+      if (err) return [{ text: err }];
+      await save(ctx, "otp", d);
+      return [prompt("otp", d)];
+    }
+
+    case "otp": {
+      if (choice === "otp:change") {
+        delete d.otpHash;
+        await save(ctx, "email", d);
+        return [prompt("email", d)];
+      }
+      if (choice === "otp:resend") {
+        const err = await sendOtp(ctx, d);
+        await save(ctx, "otp", d);
+        return [{ text: err ?? `A new code was sent to ${d.email}.` }];
+      }
+      if (!/^\d{6}$/.test(text)) return [{ text: "Please type the 6-digit code from your email.", choices: prompt("otp", d).choices }];
+      if (!d.otpHash || Date.now() > Number(d.otpExp ?? 0)) return [{ text: "That code has expired. Tap Resend code.", choices: prompt("otp", d).choices }];
+      if (Number(d.otpTries ?? 0) >= OTP_MAX_TRIES) return [{ text: "Too many wrong tries. Tap Resend code.", choices: prompt("otp", d).choices }];
+      if (await sha(`${ctx.channel}:${ctx.key}:${d.email}:${text}`) !== d.otpHash) {
+        d.otpTries = Number(d.otpTries ?? 0) + 1;
+        await save(ctx, "otp", d);
+        return [{ text: "That code is not correct. Please try again.", choices: prompt("otp", d).choices }];
+      }
+      delete d.otpHash;
+      d.emailVerified = true;
+      return [{ text: "Email verified." }, ...(await go("otp"))];
+    }
+
+    case "gender": {
+      const g = choice.replace(/^gender:/, "");
+      if (g !== "Male" && g !== "Female") return again("Please tap Male or Female.");
+      d.gender = g;
+      return go("gender");
+    }
+
+    case "class":
+      if (text.length < 1 || text.length > 80) return again("Please type the class.");
+      d.className = text;
+      return go("class");
+
+    case "school":
+      if (text.length < 2 || text.length > 150) return again("Please type the school / college name.");
+      d.school = titleCase(text);
+      return go("school");
+
+    case "board":
+      if (text.length < 2 || text.length > 150) return again("Please type the board / university.");
+      d.board = text;
+      return go("board");
+
+    case "city":
+      if (text.length < 2 || text.length > 80) return again("Please type your city.");
+      d.city = titleCase(text);
+      return go("city");
+
+    case "pin":
+      if (!/^\d{6}$/.test(text)) return again("The PIN code must be 6 digits.");
+      d.pinCode = text;
+      return go("pin");
+
+    case "address":
+      if (text.length < 5 || text.length > 250) return again("Please type your address (at least a few words).");
+      d.address = text;
+      return go("address");
+
+    case "terms":
+      if (choice !== "terms:yes") return again("Please tap I agree to continue, or Cancel.");
+      d.terms = true;
+      return go("terms");
+
+    case "confirm": {
+      if (choice !== "confirm:yes") return [prompt("confirm", d)];
+      if (!d.emailVerified || !d.phone) { await clear(ctx); return [{ text: "Something went wrong. Please send *hi* and try again." }]; }
+      // checked again right before saving, in case it was taken in the meantime
+      if (await studentWithEmail(d.email) || await studentWithPhone(d.phone)) {
+        await clear(ctx);
+        return [{ text: `This email or mobile number is already registered. Please log in at ${SITE_URL}/studentprofile.html` }];
+      }
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_register_student`, {
+        method: "POST",
+        headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ p: {
+          email: d.email, parentsName: d.parentsName, studentName: d.studentName, phone: d.phone, whatsapp: d.phone,
+          gender: d.gender, className: d.className, school: d.school, board: d.board, city: d.city, pinCode: d.pinCode,
+          address: d.address, termsAccepted: true,
+        } }),
+      });
+      const out = await res.json().catch(() => null);
+      if (!res.ok || !out?.success) {
+        console.error("bot register failed", res.status, JSON.stringify(out));
+        const why = String(out?.message ?? "").replace(/^.*?:\s*/, "");
+        await clear(ctx);
+        return [{ text: `We could not complete the registration${why ? ` (${why})` : ""}. Please send *hi* to try again, or register on the website.` }];
+      }
+      if (ctx.channel === "tg" && ctx.telegramChatId) {
+        await rest(`students?student_id=eq.${q(String(out.studentId))}`, {
+          method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ telegram_chat_id: ctx.telegramChatId }),
+        });
+      }
+      await save(ctx, "tuition", { studentId: out.studentId });
+      return [{
+        text: `You are registered! Your Student ID is ${out.studentId}.\n\nDo you want to post a new tuition request now?`,
+        choices: [{ id: "tuition:yes", title: "Yes, post tuition" }, { id: "tuition:no", title: "Not now" }],
+      }];
+    }
+
+    case "tuition": {
+      await clear(ctx);
+      if (choice === "tuition:yes") {
+        return [{ text: `Great! Open your profile to post the tuition request:\n${SITE_URL}/studentprofile.html\n\nLog in with your email (a code will be sent to it). Send *hi* any time for the menu.` }];
+      }
+      return [{ text: "All set. Send *hi* any time for the menu." }];
+    }
+  }
+  return null;
+}
