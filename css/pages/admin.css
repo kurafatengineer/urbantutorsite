@@ -4798,3 +4798,9 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 .pc-refund-form.hidden { display: none; }
 .pc-refund-row em .is-plus { color: var(--success, #1a7f45); font-weight: 800; }
 .pc-refund-row em .is-minus { color: var(--danger); font-weight: 800; }
+
+/* v24: calendar card - first-month bar inset like the cells, term tiles pinned to the bottom */
+.class-cal { display: flex; flex-direction: column; }
+.class-cal > [data-cal] { flex: 0 0 auto; }
+.class-cal > .cal-terms { margin-top: auto; padding-top: 14px; }
+.cal-cycle { margin: 8px 0 0; }
