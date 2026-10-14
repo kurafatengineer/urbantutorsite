@@ -6366,7 +6366,6 @@ function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime =
       <span class="cal-chip cal-ok">${done} Taken</span>
       <span class="cal-chip cal-bad">${missed} Not Taken</span>
     </p>
-    ${editing ? "" : '<p class="cal-hint">Tap a scheduled date to correct it</p>'}
     ${startISO ? `<p class="cal-cycle">First Month: ${esc(fmtPayDate(startISO))} to ${esc(fmtPayDate(isoPlusDays(cycleEnd, -1)))}</p>` : ""}
     ${editor}`;
 }
