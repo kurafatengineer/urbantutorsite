@@ -4804,3 +4804,8 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 .class-cal > [data-cal] { flex: 0 0 auto; }
 .class-cal > .cal-terms { margin-top: auto; padding-top: 14px; }
 .cal-cycle { margin: 8px 0 0; }
+
+/* v25: whole refund box is the button */
+.pc-refund-row { display: block; width: 100%; text-align: left; border: 0; border-radius: 14px; color: inherit; font: inherit; cursor: pointer; }
+.pc-refund-row:hover:not(:disabled) { filter: brightness(1.15); }
+.pc-refund-row:disabled { opacity: 0.5; cursor: not-allowed; }

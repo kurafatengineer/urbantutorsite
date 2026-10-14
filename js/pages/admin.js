@@ -7183,10 +7183,9 @@ function classCard(g, activeRow) {
   const signed = n => (n > 0 ? "+" : n < 0 ? "−" : "") + R(Math.abs(n));
   const refundBlock = (side, excess, refunded, note) => `
     <div class="pc-refund" data-refund="${side}">
-      <div class="pc-refund-row">
-        <div><small>${note}</small><b>${esc(R(refunded))}</b><em>Extra Balance <span class="${excess > 0 ? "is-plus" : excess < 0 ? "is-minus" : ""}">${esc(signed(excess))}</span></em></div>
-        <button type="button" class="pc-refund-btn" data-action="class-figure" data-kind="${side}-refund"${myPerms().paymentsAdd ? "" : " disabled"}>Refund</button>
-      </div>
+      <button type="button" class="pc-refund-row" data-action="class-figure" data-kind="${side}-refund"${myPerms().paymentsAdd ? "" : " disabled"}>
+        <small>${note}</small><b>${esc(R(refunded))}</b><em>Extra Balance <span class="${excess > 0 ? "is-plus" : ""}">${esc(signed(excess))}</span></em>
+      </button>
     </div>`;
   const party = (cls, avatar, name, id, mobile, whatsapp, payLabel, payValue, syncKey, dueSync, dueValue, tiles, stats, refund) => `
     <section class="pc ${cls}">
