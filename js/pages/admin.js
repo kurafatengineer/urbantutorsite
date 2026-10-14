@@ -1150,6 +1150,7 @@ const ROW_PARTY = ["agencySlotParty", ["paymentSubIdField", "paymentSubMobileFie
 const ROW_AMOUNT = ["agencySlotAmount", ["paymentSubAmountField", "paymentSubDuesField", "paymentPayingNowField"]];
 // Remaining always sits in the last column, right under Paying Now.
 const ROW_NOTES = ["agencySlotNotes", ["paymentNotesField", "paymentNextDateField", "paymentRemainingField"]];
+const ROW_NOTES_R = ["agencySlotNotes", ["paymentNotesField", "paymentRemainingField"]];
 const ROW_SUB_PLAN = ["slotSubPlan", ["paymentSubPlanField", "paymentSubCycleField", "paymentSubStatusField"]];
 const ROW_SUB_DATES = ["slotSubDates", ["paymentSubStartDateField", "paymentSubNextDueField", "paymentRemainingField"]];
 const ROW_SUB_NOTES = ["slotSubNotes", ["paymentNotesField"]];
@@ -1163,8 +1164,11 @@ const PAYMENT_LAYOUT = {
   "student-agency-charge": AGENCY_ROWS,
   "tutor-agency-charge": AGENCY_ROWS,
   "collection": [ROW_TOP, ROW_DEMO, ROW_STUDENT, ROW_TUTOR, ROW_AMOUNT, ROW_NOTES],
-  "payout": [ROW_TOP, ROW_TUTOR, ROW_DEMO, ROW_STUDENT, ROW_AMOUNT, ROW_NOTES]
+  "payout": [ROW_TOP, ROW_TUTOR, ROW_DEMO, ROW_STUDENT, ROW_AMOUNT, ROW_NOTES],
+  "refund-parent": [ROW_TOP, ROW_DEMO, ROW_STUDENT, ROW_TUTOR, ROW_AMOUNT, ROW_NOTES_R],
+  "refund-tutor": [ROW_TOP, ROW_DEMO, ROW_STUDENT, ROW_TUTOR, ROW_AMOUNT, ROW_NOTES_R]
 };
+const isRefundMode = (mode) => mode === "refund-parent" || mode === "refund-tutor";
 const PAYMENT_ROW_IDS = [ROW_TOP, ROW_DEMO, ROW_STUDENT, ROW_TUTOR, ROW_PARTY, ROW_AMOUNT, ROW_NOTES, ROW_SUB_PLAN, ROW_SUB_DATES, ROW_SUB_NOTES]
   .map(([id]) => id);
 
@@ -1222,9 +1226,16 @@ function applyPaymentTransactionType() {
   const isCollection = mode === "collection";
   // Collection and Payout are laid out like an Agency Charge: fixed rows,
   // with Amount/Dues/Paying Now/Remaining worked out from the Tuition.
-  const isGrouped = isAgencyCharge || isCollection || isPayout;
+  const isRefund = isRefundMode(mode);
+  const isGrouped = isAgencyCharge || isCollection || isPayout || isRefund;
 
   layoutGroupedFields(mode);
+  $("paymentNextDateField").classList.toggle("hidden", isRefund);
+  const lbl = (id, text) => { const sp = $(id).querySelector("span"); if (sp) { sp.dataset.def = sp.dataset.def || sp.textContent; sp.textContent = text || sp.dataset.def; } };
+  lbl("paymentSubAmountField", isRefund ? "Paid So Far (₹)" : "");
+  lbl("paymentSubDuesField", isRefund ? "Extra Balance (₹)" : "");
+  lbl("paymentPayingNowField", isRefund ? "Refund Amount (₹)" : "");
+  lbl("paymentRemainingField", isRefund ? "Balance After (₹)" : "");
 
   ["paymentTypeField", "collectedByField", "ourCutField", "paymentAmountField"]
     .forEach(id => $(id).classList.add("hidden"));
@@ -1235,7 +1246,7 @@ function applyPaymentTransactionType() {
   $("paymentTutorIdField").classList.toggle("hidden", isSub || isAgencyCharge);
   // The tutor on a Collection is whoever is taking that Tuition - filled
   // in from the Demo ID, not typed.
-  $("paymentTutorId").readOnly = isCollection;
+  $("paymentTutorId").readOnly = isCollection || isRefund;
 
   // Received By is still sent (it's pre-filled with the admin's name),
   // just no longer shown.
@@ -1267,6 +1278,13 @@ function clearPaymentSubFields() {
 }
 
 function updatePaymentRemaining() {
+  if (isRefundMode($("paymentTransactionType").value)) {
+    const raw = String($("paymentSubDues").value);
+    const extra = (raw.includes("−") ? -1 : 1) * (Number(raw.replace(/[^\d.]/g, "")) || 0);
+    const left = extra - (Number($("paymentPayingNow").value) || 0);
+    $("paymentRemaining").value = (left < 0 ? "−₹" : left > 0 ? "+₹" : "₹") + Math.abs(left).toLocaleString("en-IN");
+    return;
+  }
   const dues = Number(String($("paymentSubDues").value).replace(/[^\d.-]/g, "")) || 0;
   let payingNow = Number($("paymentPayingNow").value) || 0;
   if (payingNow > dues && $("paymentType").value !== "advance") {
@@ -1445,7 +1463,7 @@ function openPaymentFormForSubscription(sub) {
 // needs it.
 function refreshAgencyChargeFromDemo() {
   const mode = $("paymentTransactionType").value;
-  if (mode === "collection" || mode === "payout") return refreshTuitionPaymentFields(mode);
+  if (mode === "collection" || mode === "payout" || isRefundMode(mode)) return refreshTuitionPaymentFields(mode);
   if (mode !== "student-agency-charge" && mode !== "tutor-agency-charge") return;
   const g = demoGroups().find(x => x.demoId === $("paymentDemoId").value.trim());
   const activeRow = g ? activeRowFor(g) : null;
@@ -1501,6 +1519,16 @@ function refreshTuitionPaymentFields(mode) {
     return;
   }
   const m = classMoney(g, activeRow);
+  if (isRefundMode(mode)) {
+    const tutorSide = mode === "refund-tutor";
+    const extra = tutorSide ? m.tutorExcess : m.studentExcess;
+    const paid = tutorSide ? m.tutorAgencyReceived : m.studentAdvancePaid + m.collected;
+    $("paymentSubAmount").value = "₹" + paid.toLocaleString("en-IN");
+    $("paymentSubDues").value = (extra < 0 ? "−₹" : "₹") + Math.abs(extra).toLocaleString("en-IN");
+    $("paymentPayingNow").value = Math.max(extra, 0) || "";
+    updatePaymentRemaining();
+    return;
+  }
   const total = isPayout ? m.tutorTotalAmount : m.studentTotalAmount;
   const dues = isPayout ? m.tutorDues : m.studentDues;
   $("paymentSubAmount").value = "₹" + total.toLocaleString("en-IN");
@@ -1702,6 +1730,21 @@ function wirePaymentForm() {
 
     if (!isPayout && !isSub && !isAgencyCharge && !demoId) {
       toast("Enter the Demo ID.", true);
+      return;
+    }
+
+    if (isRefundMode(mode)) {
+      const amount = Number($("paymentPayingNow").value);
+      if (!(amount > 0)) { toast("Enter the refund amount.", true); return; }
+      if (mode === "refund-tutor" && !tutorId) { toast("This Demo ID has no tutor to refund.", true); return; }
+      const rbtn = $("paymentForm").querySelector("button[type=submit]");
+      const done = await save({
+        action: "adminAddPayment", transactionType: "refund", demoId,
+        tutorId: mode === "refund-tutor" ? tutorId : "", amount, paymentType: "regular",
+        collectedBy: "agency", paymentMode: paymentModeValue(), paymentDate: $("paymentDate").value,
+        notes: $("paymentNotes").value.trim() || (mode === "refund-tutor" ? "Refund to the tutor" : "Refund to the parent")
+      }, rbtn);
+      if (done) $("paymentForm").classList.add("hidden");
       return;
     }
 
@@ -6408,7 +6451,7 @@ function dealMoney(g, activeRow, deal) {
   const collected = sum(pays.filter(p => p.transaction_type === "collection" && p.payment_type !== "advance")) - parentRefunded;
   const tutorPaid = (STATE.payments || []).filter(p => p.tutor_id === activeRow.tutorId && p.transaction_type === "payout" && (!p.demo_id || p.demo_id === g.demoId));
   const tutorAdvance = num(activeRow.tutorAdvancePayment) + sum(tutorPaid.filter(p => p.payment_type === "advance"));
-  const tutorPayouts = sum(tutorPaid.filter(p => p.payment_type !== "advance")) - tutorRefunded;
+  const tutorPayouts = sum(tutorPaid.filter(p => p.payment_type !== "advance"));
   const tutorTotalPayment = tutorAdvance + tutorPayouts;
 
   const viaAgency = m.model === "margin" || m.feeTo === "Agency";
@@ -6428,7 +6471,8 @@ function dealMoney(g, activeRow, deal) {
   // paid beyond the classes actually taken (marked done): what may have to go back
   const doneCount = Object.values(activeRow.classLog || {}).filter(e => e && e.s === "done").length;
   const studentExcess = model ? Math.round(studentAdvancePaid + collected - doneCount * model.studentRate) : 0;
-  const tutorExcess = model ? Math.round(tutorTotalPayment - doneCount * model.tutorRate) : 0;
+  const scheduled = (activeRow.classDates || []).length;
+  const tutorExcess = scheduled ? Math.round(tutorAgencyReceived - tutorRefunded - tutorAgencyCharge * Math.min(doneCount, scheduled) / scheduled) : 0;
   return {
     studentExcess, tutorExcess, doneCount, parentRefunded, tutorRefunded,
     studentTotalAmount, studentAdvancePaid, collected,
