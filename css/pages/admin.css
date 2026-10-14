@@ -4744,3 +4744,14 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 /* v18: caption bar as wide as the schedule rows below */
 .deal-flow { margin: 0; padding: 10px 0 0; }
 .flow-cap { margin: 8px 0 0; }
+
+/* v19: ID bar as wide as the content, steady calendar height, first-month dotted markers, equal buttons, matching box labels */
+.class-card .admin-section-title-center { margin: 0; }
+.cal-empty { aspect-ratio: 1; }
+.class-card .class-cal, .class-card .class-bill, .class-card .pc, .class-card .cal-edit { --card-bg: var(--surface-2); }
+.cal-day.is-cycle::before {
+  content: ""; position: absolute; left: -4px; top: 3px; bottom: 3px;
+  border-left: 2px dotted #94a3b8; pointer-events: none;
+}
+.cal-cycle { margin: 8px 0 0; text-align: center; font-size: 11.5px; color: var(--muted); }
+.class-actions { grid-template-columns: 1fr 1fr 1fr; }

@@ -6300,13 +6300,14 @@ function nextPayDates(start, freq) {
   return { parent, tutor: isoPlusDays(parent, 1) };
 }
 
-function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime = "", sel = "") {
+function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime = "", sel = "", startISO = "") {
   const [y, m] = monthKey.split("-").map(Number);
   const first = new Date(y, m - 1, 1);
   const daysInMonth = new Date(y, m, 0).getDate();
   const lead = (first.getDay() + 6) % 7;          // Monday first
   const picked = new Set(dates);
   const today = isoToday();
+  const cycleEnd = startISO ? payDateAt(startISO, "Monthly", 1) : "";   // the day the next month begins
   let cells = "";
   for (let i = 0; i < lead; i++) cells += `<span class="cal-empty"></span>`;
   for (let day = 1; day <= daysInMonth; day++) {
@@ -6318,9 +6319,10 @@ function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime =
     const state = e.s === "done" ? " is-done" : e.s === "missed" ? " is-missed" : "";
     const meta = on ? `
       <small>${mins ? esc(mins) + "m" : "&nbsp;"}</small><small>${time ? esc(clock12(time)) : "&nbsp;"}</small>` : "";
-    cells += `<button type="button" class="cal-day${on ? " is-on" : ""}${state}${iso === today ? " is-today" : ""}${iso === sel ? " is-sel" : ""}"
+    cells += `<button type="button" class="cal-day${on ? " is-on" : ""}${state}${iso === today ? " is-today" : ""}${iso === sel ? " is-sel" : ""}${iso === startISO ? " is-cycle" : ""}${iso === cycleEnd ? " is-cycle" : ""}"
       data-action="cal-day" data-date="${iso}"${editing || on ? "" : " disabled"}><b>${day}</b>${meta}</button>`;
   }
+  for (let i = lead + daysInMonth; i < 42; i++) cells += `<span class="cal-empty"></span>`;   // always 6 rows: nothing jumps when the month changes
   const inMonth = dates.filter(d => d.startsWith(monthKey)).length;
   const done = dates.filter(d => (log[d] || {}).s === "done").length;
   const missed = dates.filter(d => (log[d] || {}).s === "missed").length;
@@ -6365,6 +6367,7 @@ function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime =
       <span class="cal-chip cal-bad">${missed} Not Taken</span>
     </p>
     ${editing ? "" : '<p class="cal-hint">Tap a scheduled date to correct it</p>'}
+    ${startISO ? `<p class="cal-cycle">┆ First month: ${esc(fmtPayDate(startISO))} to ${esc(fmtPayDate(isoPlusDays(cycleEnd, -1)))}</p>` : ""}
     ${editor}`;
 }
 
@@ -6380,7 +6383,7 @@ function classPlanHtml(g, activeRow, editing, extra = {}) {
     <div class="class-plan" data-class-plan data-model="${dealOf(activeRow).model === "margin" ? "margin" : "commission"}" data-month="${esc(monthKey)}" data-dates='${esc(JSON.stringify(dates))}' data-log='${esc(JSON.stringify(activeRow.classLog || {}))}'>
       <div class="class-top">
         <div class="class-cal">
-          <div data-cal>${calendarHtml(monthKey, dates, editing, activeRow.classLog || {}, dealOf(activeRow).minutes || "", dealOf(activeRow).time || "")}</div>
+          <div data-cal>${calendarHtml(monthKey, dates, editing, activeRow.classLog || {}, dealOf(activeRow).minutes || "", dealOf(activeRow).time || "", "", dates[0] || toDateInput(activeRow.classStartDate) || "")}</div>
           ${extra.terms || ""}
         </div>
         <div class="admin-class-parties">${extra.parties || ""}</div>
@@ -6745,7 +6748,8 @@ function redrawCalendar(plan) {
   const panel = plan.querySelector("[data-deal]");
   const deal = panel ? readDeal(panel) : {};
   plan.querySelector("[data-cal]").innerHTML = calendarHtml(plan.dataset.month, planDates(plan), editing,
-    planLog(plan), deal.minutes || "", deal.time || "", plan.dataset.sel || "");
+    planLog(plan), deal.minutes || "", deal.time || "", plan.dataset.sel || "",
+    (plan.querySelector('[data-term="start"]') || {}).value || "");
 }
 
 // clicks on the plan (calendar days / months, billing option, day editor)
@@ -6765,7 +6769,13 @@ function onClassPlanClick(actionEl) {
     const iso = actionEl.dataset.date;
     if (editing) {
       const dates = new Set(planDates(plan));
-      if (dates.has(iso)) dates.delete(iso); else dates.add(iso);
+      if (dates.has(iso)) {
+        dates.delete(iso);
+      } else {
+        // the same weekday is picked for the whole month that follows (the user can untick any of them)
+        const stop = payDateAt(iso, "Monthly", 1);
+        for (let d = iso; d < stop; d = isoPlusDays(d, 7)) dates.add(d);
+      }
       const sorted = [...dates].sort();
       plan.dataset.dates = JSON.stringify(sorted);
       if (sorted.length) {
@@ -6995,9 +7005,9 @@ function classCard(g, activeRow) {
 
         ${editing
           ? `<div class="class-actions">
-               <button class="admin-primary" data-action="save-class-details" type="button">Save Changes</button>
-               <button class="admin-primary class-send" data-action="finalize-class" type="button">${deal0.finalizedAt ? "Save & Resend Agreement" : "Save & Send Agreement"}</button>
                <button class="admin-ghost" data-action="cancel" data-key="${esc(key)}" type="button">Cancel</button>
+               <button class="admin-primary class-send" data-action="finalize-class" type="button">${deal0.finalizedAt ? "Save & Resend Agreement" : "Save & Send Agreement"}</button>
+               <button class="admin-primary" data-action="save-class-details" type="button">Save Changes</button>
              </div>`
           : editButtons(key, editing, "save-class-details", "Edit Class Details")}
 
