@@ -274,6 +274,7 @@ const ACTION_PERMISSION: Record<string, string> = {
   adminListEmployees: "employees_manage",
   adminAddEmployee: "employees_manage",
   adminUpdateEmployee: "employees_manage",
+  adminMuteEmployee: "employees_manage",
 };
 
 function canRunAction(caller: Caller, action: string): boolean {
@@ -626,7 +627,7 @@ async function buildPaymentDirectory(): Promise<Json> {
 async function listEmployees(): Promise<Json[]> {
   const { data } = await db
     .from("admin_users")
-    .select("id, email, full_name, role, active, created_at, permissions, last_seen_at, last_active_at, logged_out_at, work_start, work_end")
+    .select("id, email, full_name, role, active, created_at, permissions, last_seen_at, last_active_at, logged_out_at, work_start, work_end, notifications_off")
     .order("created_at", { ascending: true });
   const now = Date.now();
   const recent = (t: unknown) => !!t && now - new Date(String(t)).getTime() < PRESENCE_MS;
@@ -1386,6 +1387,16 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
     // Block / unblock. Nothing is erased. A blocked student can open their
     // page only: no new tuitions, no replies to tutors, no tuition of theirs
     // shown to tutors, no notifications, no edits - until unblocked.
+    case "adminMuteEmployee": {
+      const id = String(body.id ?? "").trim();
+      if (!id) return { success: false, message: "Missing employee." };
+      const off = body.off === true;
+      const { data: done, error } = await db.from("admin_users").update({ notifications_off: off }).eq("id", id).select("full_name, email");
+      if (error) return { success: false, message: error.message };
+      if (!done?.length) return { success: false, message: "Employee not found." };
+      const who = done[0].full_name || done[0].email || "this employee";
+      return { success: true, message: off ? `Notifications are OFF for ${who}.` : `Notifications are ON again for ${who}.` };
+    }
     case "adminMuteTutor": {
       const id = String(body.id ?? "").trim();
       if (!id) return { success: false, message: "Missing tutor." };
