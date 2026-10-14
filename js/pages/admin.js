@@ -3230,25 +3230,17 @@ async function onListClick(event) {
       await blockStudent(actionEl.dataset.id, actionEl);
       break;
 
-    case "class-refund":
-    case "class-refund-cancel": {
-      const form = box.querySelector(`[data-refund-form="${actionEl.dataset.side}"]`);
-      if (form) form.classList.toggle("hidden", actionEl.dataset.action === "class-refund-cancel" ? true : !form.classList.contains("hidden"));
-      break;
-    }
-
-    case "class-refund-save": {
+    case "class-refund": {
       const side = actionEl.dataset.side;
-      const form = box.querySelector(`[data-refund-form="${side}"]`);
-      const amount = Number(form.querySelector("[data-refund-amount]").value);
-      const mode = form.querySelector("[data-refund-mode]").value.trim();
+      const asked = window.prompt(side === "tutor" ? "Refund to tutor - amount (₹)" : "Refund to parent - amount (₹)", actionEl.dataset.excess || "");
+      if (asked === null) break;
+      const amount = Number(asked);
       if (!(amount > 0)) { toast("Enter the refund amount.", true); break; }
-      if (!mode) { toast("Enter how the refund was made (cash, UPI, bank transfer, ...).", true); break; }
       const ok = await save({
         action: "adminAddPayment", transactionType: "refund", demoId: box.dataset.demo,
         tutorId: side === "tutor" ? box.dataset.tutorId : "", amount, paymentType: "regular", collectedBy: "agency",
-        paymentMode: mode, paymentDate: isoToday(),
-        notes: side === "tutor" ? "Refund received back from the tutor" : "Refund given to the parent"
+        paymentMode: "Online", paymentDate: isoToday(),
+        notes: side === "tutor" ? "Refund to the tutor" : "Refund to the parent"
       }, actionEl);
       if (ok) rerenderCurrent();
       break;
@@ -4691,11 +4683,11 @@ function renderTutors() {
       ]),
       // Only the Accept/Reject buttons say the status; the read-only
       // rail is just a fallback for roles that can't verify.
-      pill: myPerms().tutorsVerify ? "" : status,
+      pill: "",
       tone: statusGroup(status),
       // Accept/Reject while Pending, Accept/Suspend once Verified,
       // Accept/Reject again if Rejected - always on the right of the tab.
-      verifyStatus: myPerms().tutorsVerify ? status : ""
+      verifyStatus: ""
     });
   }).join("") : empty("No tutors match.");
 
@@ -4927,10 +4919,10 @@ function paymentSummary(p) {
     // refund to the parent / a tutor's balance added or used (see adminSettleClass)
     const g = groupFor(p.demo_id);
     const isRefund = p.transaction_type === "refund";
-    kind = isRefund ? "Student" : "Tutor";
-    partyId = isRefund ? (g ? g.first.studentId : ((DIR_DEMO_BY_ID[p.demo_id] || {}).studentId || "")) : (p.tutor_id || "");
-    purpose = isRefund ? "Refund" : (p.transaction_type === "tutor_credit" ? "Balance Added" : "Balance Used");
-    if (p.demo_id) target = { action: "go-to-tuition", demo: p.demo_id, part: isRefund ? "student-payment" : "tutor-agency" };
+    kind = isRefund && !p.tutor_id ? "Student" : "Tutor";
+    partyId = isRefund && !p.tutor_id ? (g ? g.first.studentId : ((DIR_DEMO_BY_ID[p.demo_id] || {}).studentId || "")) : (p.tutor_id || "");
+    purpose = isRefund ? (p.tutor_id ? "Refund To Tutor" : "Refund To Parent") : (p.transaction_type === "tutor_credit" ? "Balance Added" : "Balance Used");
+    if (p.demo_id) target = { action: "go-to-tuition", demo: p.demo_id, part: isRefund && !p.tutor_id ? "student-payment" : "tutor-agency" };
     studentId = g ? g.first.studentId : "";
     tutorId = p.tutor_id || "";
 
@@ -5406,7 +5398,7 @@ function ledgerCard(e) {
       <div class="admin-card-head" ${attrs} title="Open what this is for">
         <span class="admin-status-rail ledger-status-rail" data-tone="${status.tone}" tabindex="-1">${esc(status.label)}</span>
         <span class="admin-status-rail ledger-purpose-rail" data-tone="black" tabindex="-1">${esc(e.purpose)}</span>
-        ${ledgerFlow(e.purpose === "Payments Out" || e.purpose === "Refund")}
+        ${ledgerFlow(e.purpose === "Payments Out" || /^Refund/.test(e.purpose))}
         ${ledgerRow(cells)}
         ${record}
       </div>
@@ -5484,7 +5476,7 @@ function renderGraph() {
 
   const all = ledgerEntries().filter(e => purposeFilter === "all" || e.purpose === purposeFilter);
   // a refund is money out; a tutor's balance moving is not money at all
-  const isOut = e => e.purpose === "Payments Out" || e.purpose === "Refund";
+  const isOut = e => e.purpose === "Payments Out" || /^Refund/.test(e.purpose);
   const paid = all.filter(e => e.status === "paid" && !/^Balance /.test(e.purpose) && (!cutoff || !e.date || e.date >= cutoff));
   const due = all.filter(e => e.status !== "paid");
 
@@ -5775,10 +5767,9 @@ async function reviewTutor(id, button) {
   const group = statusGroup(r.values["Verification Status"]);
   const name = r.values["Full Name"] || id;
   if (group === "verified") { toast(`${name} is approved (verified).`); return; }
-  if (group === "rejected") { toast(`${name}'s approval was rejected. Use Accept to approve.`); return; }
-  if (!myPerms().tutorsVerify) { toast("Approval is pending. You do not have permission to verify tutors.", true); return; }
+    if (!myPerms().tutorsVerify) { toast("Approval is pending. You do not have permission to verify tutors.", true); return; }
   const ok = await askConfirm({ title: `Approve ${name}?`, okText: "Approve",
-    lines: ["The profile will be marked Verified. To reject instead, use the Reject button on the card."] });
+    lines: ["The profile will be marked Verified and will be visible everywhere."] });
   if (!ok) return;
   button.disabled = true;
   await save({ action: "adminUpdateRecord", kind: "tutors", rowNumber: r.rowNumber, id, changes: { "Verification Status": "Verified" } });
@@ -6436,8 +6427,8 @@ function dealMoney(g, activeRow, deal) {
   const tutorDueNow = model ? dueToDate(model, model.tutorRate, today, 1) : tutorTotalAmount;
   // paid beyond the classes actually taken (marked done): what may have to go back
   const doneCount = Object.values(activeRow.classLog || {}).filter(e => e && e.s === "done").length;
-  const studentExcess = model ? Math.max(Math.round(studentAdvancePaid + collected - doneCount * model.studentRate), 0) : 0;
-  const tutorExcess = model ? Math.max(Math.round(tutorTotalPayment - doneCount * model.tutorRate), 0) : 0;
+  const studentExcess = model ? Math.round(studentAdvancePaid + collected - doneCount * model.studentRate) : 0;
+  const tutorExcess = model ? Math.round(tutorTotalPayment - doneCount * model.tutorRate) : 0;
   return {
     studentExcess, tutorExcess, doneCount, parentRefunded, tutorRefunded,
     studentTotalAmount, studentAdvancePaid, collected,
@@ -7141,19 +7132,12 @@ function classCard(g, activeRow) {
     ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.47-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.08-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35m-5.42 7.4h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.89 9.88m8.41-18.3A11.8 11.8 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.41z"/></svg>'
     : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>'}</i>${esc(n)}</span>` : "";
   const pcFrac = (paid, total) => `<span class="pc-frac"><i>${esc(rupees(paid))}</i><i>${esc(rupees(total))}</i></span>`;
+  const signed = n => (n > 0 ? "+" : n < 0 ? "−" : "") + R(Math.abs(n));
   const refundBlock = (side, excess, refunded, note) => `
     <div class="pc-refund" data-refund="${side}">
       <div class="pc-refund-row">
-        <div><small>${note}</small><b>${esc(R(excess))}</b>${refunded ? `<em>Paid beyond classes taken · refunded ${esc(R(refunded))}</em>` : `<em>Paid beyond classes taken</em>`}</div>
-        <button type="button" class="pc-refund-btn" data-action="class-refund" data-side="${side}"${myPerms().paymentsAdd ? "" : " disabled"}>Refund</button>
-      </div>
-      <div class="pc-refund-form hidden" data-refund-form="${side}">
-        <label class="admin-box is-edit"><input type="number" min="1" step="1" data-refund-amount value="${excess || ""}"><span>Amount (₹)</span></label>
-        <label class="admin-box is-edit"><input type="text" data-refund-mode value="Online"><span>Mode</span></label>
-        <div class="admin-pair">
-          <button class="admin-ghost" type="button" data-action="class-refund-cancel" data-side="${side}">Cancel</button>
-          <button class="admin-primary" type="button" data-action="class-refund-save" data-side="${side}">Save Refund</button>
-        </div>
+        <div><small>${note}</small><b>${esc(R(refunded))}</b><em>Extra Balance <span class="${excess > 0 ? "is-plus" : excess < 0 ? "is-minus" : ""}">${esc(signed(excess))}</span></em></div>
+        <button type="button" class="pc-refund-btn" data-action="class-refund" data-side="${side}" data-excess="${Math.max(excess, 0)}"${myPerms().paymentsAdd ? "" : " disabled"}>Refund</button>
       </div>
     </div>`;
   const party = (cls, avatar, name, id, mobile, whatsapp, payLabel, payValue, syncKey, dueSync, dueValue, tiles, stats, refund) => `
@@ -7212,7 +7196,7 @@ function classCard(g, activeRow) {
      ${stat("Dues", tutorDues, "", tutorDues > 0 ? " is-due" : "")}
      ${stat("Agency<br>Charges", 0, "tutor-agency", " pc-wide", pcFrac(tutorAgencyReceived, tutorAgencyCharge))}
      ${bal ? stat("Balance", bal, "", " pc-wide") : ""}`,
-    refundBlock("tutor", tutorExcess, tutorRefunded, "Refund From Tutor"));
+    refundBlock("tutor", tutorExcess, tutorRefunded, "Refund To Tutor"));
 
   // Collapsed head: 4 fraction figures in one row - Student's own Total
   // Payment/Total Amount on the far left, Tutor's on the far right, and
