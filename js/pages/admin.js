@@ -3977,6 +3977,24 @@ const STUDENT_PICKS = {
   "Board": ["CBSE", "ICSE", "IGCSE", "State Board"],
 };
 
+// A Tutor card shows its details in fixed rows of three (null = an empty slot).
+const TUTOR_FIELD_ROWS = [
+  ["Registered At", "Tutor ID", "Terms Accepted"],
+  ["Mobile Number", "WhatsApp Number", "E-mail Address"],
+  ["Full Name", "Gender", "Birth Date"],
+  ["Languages Known", "Identity Proof", "Profile Image"],
+  ["Class 12th - Stream", "Class 12th - Passing Year", "Class 12th Percentage"],
+  ["Class 12th - Board", "Class 12th CGPA", null],
+  ["Graduation - Course", "Graduation - Subject", "Graduation - College/University"],
+  ["Graduation - Passing Year", "Graduation - Percentage", "Graduation - CGPA"],
+  ["Post Graduation Subject", "Post Graduation College/University", "Post Graduation Passing Year"],
+  ["Post Graduation Percentage", "Special Courses", "Special Child Disability"],
+  ["Experience (In Years)", "Classes You Teach", "Subject You Teach"],
+  ["Boards You Teach", "Register As", null],
+  ["Teaching Location", "City", "Present Address"],
+  ["Pin Code", "Email Verified", "Verification Status"]
+];
+
 const STUDENT_FIELD_ORDER = ["Timestamp", "Student ID", "Terms Accepted", "Parents Name", "Student Name", "Gender",
   "Phone", "WhatsApp", "Email", "Class", "Board", "School", "City", "Address", "PIN Code"];
 
@@ -3995,9 +4013,15 @@ function fieldsBoxes(kind, record, editing) {
     ? [...STUDENT_FIELD_ORDER.filter(h => data.headers.includes(h)), ...data.headers.filter(h => !STUDENT_FIELD_ORDER.includes(h))]
     : data.headers;
 
-  return `
-    <div class="admin-boxes${kind === "students" ? " admin-boxes-student" : ""}">
-      ${headers.map(h => {
+  const gridKind = kind === "students" || kind === "tutors";
+  let slots = headers;
+  if (kind === "tutors") {
+    const placed = new Set(TUTOR_FIELD_ROWS.flat().filter(Boolean));
+    slots = [...TUTOR_FIELD_ROWS.flat().filter(h => h === null || data.headers.includes(h)),
+      ...data.headers.filter(h => !placed.has(h))];
+  }
+
+  const one = h => {
 
         const value = record.values[h] || "";
         const canEdit = editing && !readOnly.includes(lower(h));
@@ -4028,13 +4052,17 @@ function fieldsBoxes(kind, record, editing) {
 
         return box(h, value, {
           editable: canEdit,
-          wide: long && kind !== "students",
+          wide: long && !gridKind,
           multiline: long,
           link: LINK_FIELDS.includes(h),
           attr: canEdit ? `data-field="${esc(h)}"` : ""
         });
 
-      }).join("")}
+      };
+
+  return `
+    <div class="admin-boxes${gridKind ? " admin-boxes-student" : ""}">
+      ${slots.map(h => h === null ? `<div class="admin-box-gap" aria-hidden="true"></div>` : one(h)).join("")}
     </div>
   `;
 

@@ -4827,3 +4827,7 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
   box-sizing: content-box; width: calc(var(--pill-ch) * 0.62em); min-width: 0; max-width: 100%;
   text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+
+/* v29: tutor card head never shows "..." - long text wraps instead; the open card uses fixed rows of three */
+#tutorList .admin-card-head .ledger-cell { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.25; }
+.admin-box-gap { min-height: 1px; }
