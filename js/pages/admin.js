@@ -6612,6 +6612,7 @@ function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime =
       </div></div>`;
   }
 
+  const planDays = new Set(dates.map(d => (new Date(d + "T00:00:00").getDay() + 6) % 7));
   return `
     <div class="cal-head">
       <button type="button" class="cal-nav" data-action="cal-month" data-step="-1" aria-label="Previous month"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M15 5l-7 7 7 7"/></svg></button>
@@ -6619,7 +6620,7 @@ function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime =
       <button type="button" class="cal-nav" data-action="cal-month" data-step="1" aria-label="Next month"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 5l7 7-7 7"/></svg></button>
     </div>
     <div class="cal-grid">
-      ${CAL_WEEKDAYS.map(w => `<span class="cal-wd">${w}</span>`).join("")}
+      ${CAL_WEEKDAYS.map((w, i) => `<span class="cal-wd${planDays.has(i) ? " is-plan" : ""}">${w}</span>`).join("")}
       ${cells}
     </div>
     <p class="cal-note">
