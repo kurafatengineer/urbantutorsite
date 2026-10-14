@@ -37,7 +37,7 @@
 // derived from it, so no second secret is needed.
 
 import { notify, notifyIfMatched, demoResponseButtons, studentQuiet, tutorQuiet } from "../_shared/telegram.ts";
-import { parentResponseMail, tutorResponseMail, fmtDate, fmtTime, modeText, classReminderMail, classConfirmMail, classDoneMail, AGENCY_PHONE } from "../_shared/mails.ts";
+import { parentResponseMail, tutorResponseMail, fmtDate, fmtTime, modeText, classReminderMail, classConfirmMail, classDoneMail, contactLine } from "../_shared/mails.ts";
 
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -475,24 +475,24 @@ async function onMenuButton(cb: Json) {
 async function sendQueued(r: Json) {
   const tuition = await one(`tuitions?demo_id=eq.${q(r.demo_id)}&select=subject,student_id`);
   const student = tuition?.student_id
-    ? await one(`students?student_id=eq.${q(tuition.student_id)}&select=student_id,student_name,parents_name,email`)
+    ? await one(`students?student_id=eq.${q(tuition.student_id)}&select=student_id,student_name,parents_name,email,phone,whatsapp`)
     : null;
-  const tutor = await one(`tutors?tutor_id=eq.${q(r.tutor_id)}&select=tutor_id,full_name,email,telegram_chat_id`);
+  const tutor = await one(`tutors?tutor_id=eq.${q(r.tutor_id)}&select=tutor_id,full_name,email,telegram_chat_id,mobile_number,whatsapp_number`);
   if (!tuition || !student || !tutor) return;
   const base = { demoId: String(r.demo_id), subject: String(tuition.subject ?? ""), time: String(r.class_time ?? ""), minutes: r.minutes, date: String(r.class_date) };
 
   if (r.kind === "reminder") {
     if (r.audience === "tutor") {
-      await notify(tutor.email, classReminderMail({ ...base, forTutor: true, name: tutor.full_name, otherName: student.student_name }));
+      await notify(tutor.email, classReminderMail({ ...base, forTutor: true, name: tutor.full_name, otherName: student.student_name, otherPhone: student.phone || student.whatsapp }));
     } else if (!(await studentQuiet(student.student_id))) {
-      await notify(student.email, classReminderMail({ ...base, forTutor: false, name: student.parents_name || student.student_name, otherName: tutor.full_name }));
+      await notify(student.email, classReminderMail({ ...base, forTutor: false, name: student.parents_name || student.student_name, otherName: tutor.full_name, otherPhone: tutor.mobile_number || tutor.whatsapp_number }));
     }
     return;
   }
 
   // confirm: the tutor only
   if (await tutorQuiet(tutor.email)) return;
-  await notify(tutor.email, classConfirmMail({ ...base, name: tutor.full_name, otherName: student.student_name }), { telegram: false });
+  await notify(tutor.email, classConfirmMail({ ...base, name: tutor.full_name, otherName: student.student_name, otherPhone: student.phone || student.whatsapp }), { telegram: false });
   if (tutor.telegram_chat_id) {
     await telegram("sendMessage", {
       chat_id: Number(tutor.telegram_chat_id), parse_mode: "HTML", disable_web_page_preview: true,
@@ -500,7 +500,7 @@ async function sendQueued(r: Json) {
         `📅 <b>Class check</b>\n\nHi ${escapeHtml(String(tutor.full_name ?? "there"))}, have you taken today's class?\n\n` +
         `🆔 ${escapeHtml(base.demoId)}\n📚 ${escapeHtml(base.subject)}\n` +
         (r.minutes ? `⏱ ${r.minutes} minutes\n` : "") + (base.time ? `⏰ ${fmtTime(base.time)}\n` : "") +
-        `\nTap <b>Yes</b> to confirm. If you have any issues, please contact the student's parents or your agency at ${escapeHtml(AGENCY_PHONE)}.`,
+        `\nTap <b>Yes</b> to confirm.\n${escapeHtml(contactLine(true, student.phone || student.whatsapp))}`,
       reply_markup: { inline_keyboard: [
         [{ text: "✅ Yes, I took the class", callback_data: `cl:y:${r.demo_id}:${r.class_date}` }],
         profileRow("t"),
@@ -533,9 +533,10 @@ async function onClassButton(cb: Json) {
 
   const tutors = await db(`tutors?telegram_chat_id=eq.${fromId}&select=tutor_id,email,full_name`) ?? [];
   let result: Json = { success: false, message: "This button is not for your account. Please use the website." };
+  let who: Json | null = null;
   for (const t of tutors) {
     const res = await rpcCall("bot_mark_class", { p_email: t.email, p_demo_id: demoId, p_date: date });
-    if (res?.success) { result = res; break; }
+    if (res?.success) { result = res; who = t; break; }
     if (!/not on your account/i.test(String(res?.message ?? ""))) result = res;
   }
   if (!result?.success) { await answer(String(result?.message ?? "Could not save."), true); return; }
@@ -549,9 +550,10 @@ async function onClassButton(cb: Json) {
     const student = result.studentId
       ? await one(`students?student_id=eq.${q(String(result.studentId))}&select=student_id,student_name,parents_name,email`)
       : null;
+    const tp = who?.tutor_id ? await one(`tutors?tutor_id=eq.${q(String(who.tutor_id))}&select=mobile_number,whatsapp_number`) : null;
     if (student?.email && !(await studentQuiet(student.student_id))) {
       await notify(student.email, classDoneMail({
-        name: student.parents_name || student.student_name, tutorName: String(result.tutorName ?? ""), demoId,
+        tutorPhone: tp?.mobile_number || tp?.whatsapp_number, name: student.parents_name || student.student_name, tutorName: String(result.tutorName ?? ""), demoId,
         subject: String(result.subject ?? ""), time: result.time, minutes: result.minutes, date,
       }));
     }
