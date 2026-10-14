@@ -4696,3 +4696,14 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
   background: #cfd3d8; color: #111; font-size: 12px; font-weight: 400; border-radius: 0;
 }
 @media (prefers-reduced-motion: reduce) { .fl-run { animation: none; } }
+
+/* v12: smaller, dotted, no moving circles */
+.flow-svg { max-width: 560px; margin: 0 auto; }
+.fl-base { stroke-width: 1.4; opacity: 0.35; stroke-dasharray: 1 6; stroke-linecap: round; }
+.fl-run { stroke-width: 2.6; stroke-dasharray: 1 7; stroke-linecap: round; animation: flowrun 0.8s linear infinite; }
+@keyframes flowrun { to { stroke-dashoffset: -8; } }
+.fl-dot { display: none; }
+.fl-amt { font-size: 11.5px; }
+.fl-keeps { font-size: 11.5px; font-weight: 800; fill: var(--text); }
+.fl-sub { font-size: 10.5px; }
+.deal-flow { padding-top: 10px; }
