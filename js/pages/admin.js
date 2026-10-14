@@ -6503,8 +6503,8 @@ function dealPanelHtml(g, activeRow, editing, count) {
 
 function schedText(start, freq) {
   const list = payDates(start, freq, 4);
-  const row = (label, dates) => `<div class="sched-line"><b>${label}</b><span>${dates.map(d => `<i>${esc(fmtPayDate(d))}</i>`).join("")}</span></div>`;
-  return row("Parent pays", list) + row("Tutor paid", list.map(x => isoPlusDays(x, 1)));
+  const row = (label, dates) => `<div class="sched-line"><b>${label}</b>${dates.map(d => `<i>${esc(fmtPayDate(d))}</i>`).join("")}</div>`;
+  return row("Parent Pays", list) + row("Tutor Paid", list.map(x => isoPlusDays(x, 1)));
 }
 
 // who pays whom, all on one straight line: P(arent) - A(gency) - T(utor)
