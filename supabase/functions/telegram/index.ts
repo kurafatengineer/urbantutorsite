@@ -37,7 +37,7 @@
 // derived from it, so no second secret is needed.
 
 import { notify, notifyIfMatched, demoResponseButtons, studentQuiet } from "../_shared/telegram.ts";
-import { parentResponseMail, tutorResponseMail } from "../_shared/mails.ts";
+import { parentResponseMail, tutorResponseMail, fmtDate, fmtTime, modeText } from "../_shared/mails.ts";
 
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -247,6 +247,202 @@ async function onDemoButton(cb: Json) {
   }
 }
 
+
+/* ---- the menu a linked student / tutor gets when they say "hi" ----
+   Linked as a student only -> the student menu; as a tutor only -> the tutor menu; as both -> they first
+   pick which one to act as. The menu lists their live tuitions (running, applied, demo scheduled ...);
+   tapping one shows its details (for a student: which tutors applied). One button switches ALL their
+   notifications (email + Telegram) off / on. callback_data "m:<action>:<s|t>[:<demoId>]":
+   h = home, r = choose role, t = a tuition, n = toggle notifications */
+
+const inList = (ids: string[]) => `in.(${ids.map((x) => encodeURIComponent(`"${x}"`)).join(",")})`;
+
+async function linked(chatId: number): Promise<{ students: Json[]; tutors: Json[] }> {
+  const students = await db(`students?telegram_chat_id=eq.${chatId}&select=student_id,student_name,notifications_off,blocked_at`) ?? [];
+  const tutors = await db(`tutors?telegram_chat_id=eq.${chatId}&select=tutor_id,full_name,notifications_off,blocked_at`) ?? [];
+  return { students, tutors };
+}
+
+// where one tutor's application stands (rejected / declined ones are left out by the callers)
+function applicationState(a: Json): "running" | "completed" | "scheduled" | "applied" {
+  if (a.classes_completed) return "completed";
+  if (a.parent_accepted && a.tutor_accepted && a.demo_date) return "running";
+  if (a.demo_date) return "scheduled";
+  return "applied";
+}
+const declined = (a: Json) => !!(a.parent_rejected || a.tutor_rejected);
+const STATE_TEXT: Record<string, string> = {
+  running: "✅ Running", completed: "🏁 Completed", scheduled: "📅 Demo scheduled", applied: "📨 Applied",
+};
+const RANK = ["running", "scheduled", "applied", "completed"];
+
+function nicePlace(parts: Json[]): string {
+  return parts.map((x) => String(x ?? "").trim()).filter(Boolean).join(" - ");
+}
+
+function homeRows(role: "s" | "t", both: boolean, off: boolean, tuitions: { demo: string; label: string }[]): Json[][] {
+  const rows: Json[][] = tuitions.map((t) => [{ text: t.label, callback_data: `m:t:${role}:${t.demo}` }]);
+  rows.push([{ text: off ? "🔕 Notifications OFF - tap to turn ON" : "🔔 Notifications ON - tap to turn OFF", callback_data: `m:n:${role}` }]);
+  rows.push(profileRow(role));
+  if (both) rows.push([{ text: role === "s" ? "🔁 Switch to Tutor" : "🔁 Switch to Student", callback_data: `m:h:${role === "s" ? "t" : "s"}` }]);
+  return rows;
+}
+
+async function menuContent(chatId: number, role: "s" | "t"): Promise<{ text: string; rows: Json[][] } | null> {
+  const { students, tutors } = await linked(chatId);
+  const mine = role === "s" ? students : tutors;
+  if (!mine.length) return null;
+  const both = !!(students.length && tutors.length);
+  const off = mine.every((r) => r.notifications_off === true || r.blocked_at);
+  const name = String(role === "s" ? mine[0].student_name : mine[0].full_name ?? "");
+  const idCol = role === "s" ? "student_id" : "tutor_id";
+  const ids = mine.map((r) => String(r[idCol]));
+  const items: { demo: string; label: string; rank: number }[] = [];
+
+  if (role === "s") {
+    const tuitions = await db(`tuitions?student_id=${inList(ids)}&terminated=eq.false&select=demo_id,subject&order=posted_at.desc`) ?? [];
+    const apps = tuitions.length
+      ? await db(`applications?demo_id=${inList(tuitions.map((t: Json) => t.demo_id))}&select=demo_id,tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date`) ?? []
+      : [];
+    for (const t of tuitions) {
+      const live = apps.filter((a: Json) => a.demo_id === t.demo_id && !declined(a)).map(applicationState);
+      const best = RANK.find((r) => live.includes(r as never));
+      const status = best ? (best === "applied" ? `📨 ${live.length} tutor${live.length === 1 ? "" : "s"} applied` : STATE_TEXT[best]) : "🔎 Finding tutor";
+      items.push({ demo: t.demo_id, label: `${t.subject} · ${status}`, rank: best ? RANK.indexOf(best) : 2 });
+    }
+  } else {
+    const apps = await db(`applications?tutor_id=${inList(ids)}&select=demo_id,tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date`) ?? [];
+    const live = apps.filter((a: Json) => !declined(a));
+    const tuitions = live.length ? await db(`tuitions?demo_id=${inList(live.map((a: Json) => a.demo_id))}&terminated=eq.false&select=demo_id,subject`) ?? [] : [];
+    for (const a of live) {
+      const t = tuitions.find((x: Json) => x.demo_id === a.demo_id);
+      if (!t) continue;
+      const st = applicationState(a);
+      items.push({ demo: t.demo_id, label: `${t.subject} · ${STATE_TEXT[st]}`, rank: RANK.indexOf(st) });
+    }
+  }
+  items.sort((a, b) => a.rank - b.rank);
+
+  const text =
+    `👋 Hi ${escapeHtml(name || "there")}! <b>${role === "s" ? "🎓 Student" : "👨‍🏫 Tutor"}</b> menu\n\n` +
+    (items.length
+      ? `${role === "s" ? "Your tuitions" : "Tuitions you applied for"} - tap one to see its details:`
+      : role === "s" ? "You have no live tuitions right now." : "You have not applied for any tuition yet.") +
+    `\n\n${off ? "🔕 Notifications are OFF (no email, no Telegram)." : "🔔 Notifications are ON."}`;
+  return { text, rows: homeRows(role, both, off, items.slice(0, 20)) };
+}
+
+async function showText(chatId: number, messageId: number | null, text: string, rows: Json[][]) {
+  const message = { parse_mode: "HTML", text, reply_markup: { inline_keyboard: rows }, disable_web_page_preview: true };
+  if (messageId) {
+    const done = await telegram("editMessageText", { chat_id: chatId, message_id: messageId, ...message });
+    if (done?.ok || /not modified/i.test(String(done?.description ?? ""))) return;
+  }
+  await sendReplacing(chatId, message);
+}
+
+async function showMenu(chatId: number, role: "s" | "t", messageId: number | null) {
+  const menu = await menuContent(chatId, role);
+  if (!menu) return false;
+  await showText(chatId, messageId, menu.text, menu.rows);
+  return true;
+}
+
+// "hi" (or any text) from someone: menu if linked, otherwise the register / login buttons
+async function home(chatId: number, firstName: string, want: "s" | "t" | null = null) {
+  const { students, tutors } = await linked(chatId);
+  if (want === "s" && students.length && await showMenu(chatId, "s", null)) return;
+  if (want === "t" && tutors.length && await showMenu(chatId, "t", null)) return;
+  if (students.length && tutors.length) {
+    await sendReplacing(chatId, {
+      parse_mode: "HTML",
+      text: `👋 Hi${firstName ? ` ${escapeHtml(firstName)}` : ""}! You are registered as both a student and a tutor.\n\nWhich one do you want to use now?`,
+      reply_markup: { inline_keyboard: [
+        [{ text: "🎓 Act as Student", callback_data: "m:h:s" }],
+        [{ text: "👨‍🏫 Act as Tutor", callback_data: "m:h:t" }],
+      ] },
+    });
+    return;
+  }
+  if (students.length) { await showMenu(chatId, "s", null); return; }
+  if (tutors.length) { await showMenu(chatId, "t", null); return; }
+  await greet(chatId, firstName);
+}
+
+async function showTuition(chatId: number, messageId: number, role: "s" | "t", demoId: string) {
+  const back = [{ text: "⬅️ Back", callback_data: `m:h:${role}` }];
+  const { students, tutors } = await linked(chatId);
+  const tuition = await one(`tuitions?demo_id=eq.${q(demoId)}&select=demo_id,subject,student_id,medium,preferred_timing`);
+  const mineIds = (role === "s" ? students.map((r) => r.student_id) : tutors.map((r) => r.tutor_id)).map(String);
+  const apps = await db(`applications?demo_id=eq.${q(demoId)}&select=tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date,demo_time`) ?? [];
+  const allowed = role === "s" ? mineIds.includes(String(tuition?.student_id)) : apps.some((a: Json) => mineIds.includes(String(a.tutor_id)));
+  if (!tuition || !allowed) {
+    await showText(chatId, messageId, "This tuition is not available any more.", [back]);
+    return;
+  }
+  const student = await one(`students?student_id=eq.${q(tuition.student_id)}&select=class_name,board,city,pin_code`);
+  const head =
+    `📚 <b>${escapeHtml(String(tuition.subject ?? ""))}</b>\n` +
+    `🆔 ${escapeHtml(demoId)}\n` +
+    (student ? `🏫 ${escapeHtml([student.class_name, student.board].filter(Boolean).join(" · "))}\n` : "") +
+    `🏠 ${escapeHtml(modeText(tuition.medium))}\n` +
+    (student && role === "t" ? `📍 ${escapeHtml(nicePlace([student.city, student.pin_code]))}\n` : "");
+
+  const dateLine = (a: Json) => a.demo_date ? ` - ${fmtDate(a.demo_date)}${a.demo_time ? ", " + fmtTime(a.demo_time) : ""}` : "";
+
+  if (role === "t") {
+    const mine = apps.filter((a: Json) => mineIds.includes(String(a.tutor_id)));
+    const a = mine.find((x: Json) => !declined(x)) ?? mine[0];
+    const st = a ? (declined(a) ? "❌ Declined" : STATE_TEXT[applicationState(a)]) : "-";
+    await showText(chatId, messageId, `${head}\nStatus: <b>${st}</b>${a ? escapeHtml(dateLine(a)) : ""}`, [back, profileRow("t")[0]]);
+    return;
+  }
+
+  const ids = [...new Set(apps.map((a: Json) => String(a.tutor_id)))];
+  const info = ids.length ? await db(`tutors?tutor_id=${inList(ids)}&select=tutor_id,full_name,gender,experience_years,city`) ?? [] : [];
+  const lines = apps.map((a: Json) => {
+    const t = info.find((x: Json) => x.tutor_id === a.tutor_id) ?? {};
+    const st = declined(a) ? "❌ Declined" : STATE_TEXT[applicationState(a)];
+    const exp = t.experience_years != null ? `${Number(t.experience_years)} yr${Number(t.experience_years) === 1 ? "" : "s"}` : "";
+    const meta = [t.gender, exp, t.city].filter(Boolean).join(" · ");
+    return `• <b>${escapeHtml(String(t.full_name ?? a.tutor_id))}</b> (${escapeHtml(String(a.tutor_id))})\n   ${escapeHtml(meta)}\n   ${st}${escapeHtml(dateLine(a))}`;
+  });
+  const body = lines.length ? `\n<b>Tutors who applied (${lines.length})</b>\n${lines.join("\n")}` : "\nNo tutor has applied yet - we will tell you as soon as one does.";
+  await showText(chatId, messageId, head + body, [back, profileRow("s")[0]]);
+}
+
+async function onMenuButton(cb: Json) {
+  const chatId = Number(cb.message?.chat?.id ?? 0);
+  const messageId = Number(cb.message?.message_id ?? 0);
+  const fromId = Number(cb.from?.id ?? 0);
+  const [, action, roleRaw, demoId] = String(cb.data ?? "").split(":");
+  const answer = (text = "", alert = false) => telegram("answerCallbackQuery", { callback_query_id: cb.id, text, show_alert: alert });
+  const role = roleRaw === "t" ? "t" : "s";
+  if (!chatId || !messageId || chatId !== fromId) { await answer(); return; }
+
+  if (action === "h") {
+    if (!(await showMenu(chatId, role, messageId))) await greet(chatId, String(cb.from?.first_name ?? ""));
+    await answer();
+  } else if (action === "t" && demoId) {
+    await showTuition(chatId, messageId, role, demoId);
+    await answer();
+  } else if (action === "n") {
+    const { students, tutors } = await linked(chatId);
+    const mine = role === "s" ? students : tutors;
+    if (!mine.length) { await answer("No account is linked to this chat.", true); return; }
+    const turnOff = mine.some((r) => r.notifications_off !== true);
+    const table = role === "s" ? "students" : "tutors";
+    const col = role === "s" ? "student_id" : "tutor_id";
+    await db(`${table}?${col}=${inList(mine.map((r) => String(r[col])))}`, {
+      method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ notifications_off: turnOff }),
+    });
+    await showMenu(chatId, role, messageId);
+    await answer(turnOff ? "Notifications are OFF - no email, no Telegram." : "Notifications are ON again.");
+  } else {
+    await answer();
+  }
+}
+
 /* ---- linking a logged-in student / tutor to their Telegram chat ---- */
 
 const CORS = {
@@ -361,6 +557,7 @@ Deno.serve(async (req: Request) => {
     if (update?.callback_query) {
       const cb = update.callback_query;
       if (String(cb.data ?? "").startsWith("dr:")) await onDemoButton(cb);
+      else if (String(cb.data ?? "").startsWith("m:")) await onMenuButton(cb);
       else await telegram("answerCallbackQuery", { callback_query_id: cb.id });
       return json({ ok: true });
     }
@@ -370,9 +567,12 @@ Deno.serve(async (req: Request) => {
       // keep the chat clean: whatever the user sent is removed
       if (msg.message_id) await telegram("deleteMessage", { chat_id: msg.chat.id, message_id: msg.message_id });
       const command = String(msg.text ?? "").trim().split(/[\s@]/)[0].toLowerCase();
-      if (command === "/student") await sendOne(msg.chat.id, false);
-      else if (command === "/tutor") await sendOne(msg.chat.id, true);
-      else await greet(msg.chat.id, String(msg.from?.first_name ?? ""));
+      const first = String(msg.from?.first_name ?? "");
+      if (command === "/student") {
+        if (!(await showMenu(msg.chat.id, "s", null))) await sendOne(msg.chat.id, false);
+      } else if (command === "/tutor") {
+        if (!(await showMenu(msg.chat.id, "t", null))) await sendOne(msg.chat.id, true);
+      } else await home(msg.chat.id, first);
     }
   } catch (err) {
     console.error("telegram update failed", String(err));
