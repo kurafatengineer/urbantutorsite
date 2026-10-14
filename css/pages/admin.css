@@ -4719,3 +4719,12 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 .fl-base { stroke-width: 0.9; opacity: 0.3; }
 .fl-run { stroke-width: 1.6; }
 .fl-keeps { font-weight: 700; }
+
+/* v15: amounts as equal-width pills (no border), full-width line */
+.flow-svg { max-width: none; width: 100%; }
+.fl-pill rect { stroke: none; }
+.fl-pill.is-inst rect { fill: rgba(96, 165, 250, 0.16); }
+.fl-pill.is-month rect { fill: rgba(45, 212, 191, 0.16); }
+.fl-pill text { font-size: 13.5px; font-weight: 800; }
+.fl-pill.is-inst text { fill: #60a5fa; }
+.fl-pill.is-month text { fill: #2dd4bf; }
