@@ -137,9 +137,11 @@ async function siteMailsOn(): Promise<boolean> {
 // Best-effort: a notification failure must never break the underlying
 // action (payment saved, demo response recorded, etc.), so errors are
 // logged and swallowed rather than thrown.
-export async function sendMail(to: string | null | undefined, subject: string, html: string): Promise<void> {
+// `always` is for a code the person just asked for (sign-up verification): the Super Admin's
+// "all emails off" switch is for notifications and must not block it.
+export async function sendMail(to: string | null | undefined, subject: string, html: string, opts: { always?: boolean } = {}): Promise<void> {
   if (!to) return;
-  if (!(await siteMailsOn())) return;   // Super Admin switched all emails off
+  if (!opts.always && !(await siteMailsOn())) return;   // Super Admin switched all emails off
   const user = Deno.env.get("GMAIL_ADDRESS");
   try {
     await transport().sendMail({
