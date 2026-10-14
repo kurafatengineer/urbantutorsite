@@ -6876,7 +6876,7 @@ function classCard(g, activeRow) {
   const stat = (label, value, kind, extra = "", text = "") => {
     const attr = !editing && kind ? jump(kind) : "";
     const tag = attr ? 'button type="button"' : "div";
-    return `<${tag} class="pc-stat${extra}" ${attr}><small>${esc(label)}</small><b>${text || esc(rupees(value))}</b></${attr ? "button" : "div"}>`;
+    return `<${tag} class="pc-stat${extra}" ${attr}><small>${label.includes("<br>") ? label : esc(label)}</small><b>${text || esc(rupees(value))}</b></${attr ? "button" : "div"}>`;
   };
   const editStat = (label, value, field, wide) => box(label, value, { editable: true, wide, type: "number", attr: cfield(field) });
   const phone = (n, wa) => n ? `<span class="pc-num${wa ? " is-wa" : ""}"><i class="pc-ico">${wa
@@ -6909,7 +6909,7 @@ function classCard(g, activeRow) {
      ${stat("Dues", studentDues, "", studentDues > 0 ? " is-due" : "")}
      ${editing
        ? editStat("Agency Charge (₹)", activeRow.studentAgencyCharge || 0, "Student Agency Charge", true)
-       : stat("Agency Charges", 0, "student-agency", " pc-wide", pcFrac(studentAgencyReceived, studentAgencyCharge))}`);
+       : stat("Agency<br>Charges", 0, "student-agency", " pc-wide", pcFrac(studentAgencyReceived, studentAgencyCharge))}`);
 
   const tutorId = activeRow.tutorId;
   const bal = tutorBalance(tutorId);
@@ -6921,7 +6921,7 @@ function classCard(g, activeRow) {
      ${editing ? editStat("Advance (₹)", activeRow.tutorAdvancePayment, "Tutor Advance Payment") : stat("Advance", tutorAdvance, "tutor-advance")}
      ${stat("Paid", tutorTotalPayment, "tutor-payment")}
      ${stat("Dues", tutorDues, "", tutorDues > 0 ? " is-due" : "")}
-     ${stat("Agency Charges", 0, "tutor-agency", " pc-wide", pcFrac(tutorAgencyReceived, tutorAgencyCharge))}
+     ${stat("Agency<br>Charges", 0, "tutor-agency", " pc-wide", pcFrac(tutorAgencyReceived, tutorAgencyCharge))}
      ${bal ? stat("Balance", bal, "", " pc-wide") : ""}`);
 
   // Collapsed head: 4 fraction figures in one row - Student's own Total
