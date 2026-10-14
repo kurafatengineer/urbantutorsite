@@ -33,6 +33,17 @@ async function send(to: string, message: Json) {
 // Replies from the registration flow: up to 3 choices become buttons, more become a list.
 async function sendOut(to: string, out: Out) {
   const choices = out.choices ?? [];
+  if (out.link && !choices.length) {
+    // WhatsApp has no text hyperlinks; a "cta_url" button opens the page instead.
+    await send(to, {
+      type: "interactive",
+      interactive: {
+        type: "cta_url", body: { text: out.text.slice(0, 1024) },
+        action: { name: "cta_url", parameters: { display_text: out.link.label.slice(0, 20), url: out.link.url } },
+      },
+    });
+    return;
+  }
   if (!choices.length) { await sendText(to, out.text); return; }
   const text = out.text.slice(0, 1024);
   if (choices.length <= 3) {
@@ -167,9 +178,9 @@ async function onMessage(m: Json) {
     return;
   }
   if (action === "a") {
-    await sendText(from, role === "s"
-      ? `*Apply for New Tuition*\nOpen your profile and tap *Apply For New Tuition*:\n${SITE_URL}/studentprofile.html\n\nSend *Hi* any time for the menu.`
-      : `*Find New Tuitions*\nSee the tuitions you can apply for:\n${SITE_URL}/advertisement.html\n\nSend *Hi* any time for the menu.`);
+    await sendOut(from, role === "s"
+      ? { text: "*Apply for New Tuition*\nTap the button below, log in with your email and tap *Apply For New Tuition*.\n\nSend *Hi* any time for the menu.", link: { label: "Open Website", url: `${SITE_URL}/studentprofile.html` } }
+      : { text: "*Find New Tuitions*\nTap the button below to see the tuitions you can apply for.\n\nSend *Hi* any time for the menu.", link: { label: "Open Website", url: `${SITE_URL}/advertisement.html` } });
     return;
   }
   if (action === "c" && cat) { await showCategory(from, role, cat, accounts); return; }
