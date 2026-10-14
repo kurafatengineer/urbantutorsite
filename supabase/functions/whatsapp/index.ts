@@ -2,6 +2,7 @@
 // Secrets (Supabase > Edge Functions > Secrets): WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_VERIFY_TOKEN,
 // and optionally WHATSAPP_APP_SECRET (when set, every incoming call must carry a valid Meta signature).
 import { fmtDate, fmtTime } from "../_shared/mails.ts";
+import { handleInput, startRegistration, type Out } from "../_shared/regflow.ts";
 
 type Json = Record<string, any>;
 
@@ -39,6 +40,25 @@ async function send(to: string, message: Json) {
   });
   if (!res.ok) console.error("whatsapp send failed", res.status, await res.text().catch(() => ""));
 }
+// Replies from the registration flow: up to 3 choices become buttons, more become a list.
+async function sendOut(to: string, out: Out) {
+  const choices = out.choices ?? [];
+  if (!choices.length) { await sendText(to, out.text); return; }
+  const text = out.text.slice(0, 1024);
+  if (choices.length <= 3) {
+    await send(to, {
+      type: "interactive",
+      interactive: { type: "button", body: { text }, action: { buttons: choices.map((c) => ({ type: "reply", reply: { id: `reg|${c.id}`, title: c.title.slice(0, 20) } })) } },
+    });
+    return;
+  }
+  await send(to, {
+    type: "interactive",
+    interactive: { type: "list", body: { text }, action: { button: "Choose", sections: [{ title: "Options", rows: choices.slice(0, 10).map((c) => ({ id: `reg|${c.id}`, title: c.title.slice(0, 24) })) }] } },
+  });
+}
+async function sendAll(to: string, outs: Out[]) { for (const o of outs) await sendOut(to, o); }
+
 const sendText = (to: string, body: string) => send(to, { type: "text", text: { body, preview_url: false } });
 
 // Meta signs the raw body with the app secret: X-Hub-Signature-256: sha256=<hex>
@@ -173,12 +193,27 @@ async function showCategory(to: string, role: string, cat: string, accounts: { s
 async function onMessage(m: Json) {
   const from = String(m.from ?? "");
   if (!from) return;
+  const picked = String(m.interactive?.list_reply?.id ?? m.interactive?.button_reply?.id ?? "");
+
+  // "register as a student" chat flow
+  const reg = { channel: "wa" as const, key: last10(from), verifiedPhone: from };
+  const regChoice = picked.startsWith("reg|") ? picked.slice(4) : "";
+  if (regChoice === "start") { await sendAll(from, await startRegistration(reg)); return; }
+  const inFlow = await handleInput(reg, { text: m.type === "text" ? String(m.text?.body ?? "") : "", choice: regChoice });
+  if (inFlow) { await sendAll(from, inFlow); return; }
+
   const accounts = await accountsFor(from);
   if (!accounts.students.length && !accounts.tutors.length) {
-    await sendText(from, `Hi! This number is not registered on Urban Tutor Site yet.\n\nStudent / Parent: ${SITE_URL}/studentregistration.html\nTutor: ${SITE_URL}/tutorregistration.html`);
+    await send(from, {
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: "Hi! Welcome to Urban Tutor Site.\n\nThis number is not registered yet. Parents / students can register right here in the chat - it takes about 2 minutes." },
+        action: { buttons: [{ type: "reply", reply: { id: "reg|start", title: "Register as Student" } }] },
+      },
+    });
     return;
   }
-  const picked = String(m.interactive?.list_reply?.id ?? m.interactive?.button_reply?.id ?? "");
   const [action, roleRaw, cat] = picked.split(":");
   const role = roleRaw === "t" && accounts.tutors.length ? "t" : roleRaw === "s" && accounts.students.length ? "s" : accounts.students.length ? "s" : "t";
 
