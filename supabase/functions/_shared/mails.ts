@@ -260,7 +260,6 @@ export function agreementMail(d: {
   if (m.model === "margin") {
     rows = d.forTutor
       ? [...common,
-         ["Parent Pays per Class", inr(m.parentPerClass)], ["Agency Share per Class", inr(m.margin)],
          ["You Receive per Class", inr(m.tutorPerClass)], ["You Receive per Hour", inr(m.tutorPerHour)],
          ["You Receive per Month", inr(m.tutorMonthly)],
          ["Paid to You by", "Urban Tutor Site (agency)"],
@@ -276,8 +275,7 @@ export function agreementMail(d: {
     const viaAgency = m.feeTo === "Agency";
     rows = d.forTutor
       ? [...common,
-         ["Monthly Fee", inr(m.monthlyFee)], ["Fee per Class", inr(m.perClass)], ["Fee per Hour", inr(m.perHour)],
-         ["Agency Commission", `${inr(m.cut)}${m.cutPercent ? ` (${m.cutPercent}% of the first month's fee)` : ""} - one time only`],
+         ["Agency Commission", `${inr(m.cut)} - deducted once, from the first month's fee only`],
          ...(viaAgency
            ? [["First Month's Fee Paid to", "Agency"], ["You Receive (First Month)", `${inr(m.tutorFirstMonth)} - ${freq(d.tutorFreq)}, ${inr(m.tutorInstallment)} each`],
               ["From the Second Month", "The parent pays you directly"]] as Row[]
