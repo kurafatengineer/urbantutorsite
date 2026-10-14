@@ -6377,7 +6377,7 @@ function classPlanHtml(g, activeRow, editing, extra = {}) {
   STATE.calMonth[g.demoId] = monthKey;
 
   return `
-    <div class="class-plan" data-class-plan data-month="${esc(monthKey)}" data-dates='${esc(JSON.stringify(dates))}' data-log='${esc(JSON.stringify(activeRow.classLog || {}))}'>
+    <div class="class-plan" data-class-plan data-model="${dealOf(activeRow).model === "margin" ? "margin" : "commission"}" data-month="${esc(monthKey)}" data-dates='${esc(JSON.stringify(dates))}' data-log='${esc(JSON.stringify(activeRow.classLog || {}))}'>
       <div class="class-top">
         <div class="class-cal">
           <div data-cal>${calendarHtml(monthKey, dates, editing, activeRow.classLog || {}, dealOf(activeRow).minutes || "", dealOf(activeRow).time || "")}</div>
@@ -6493,28 +6493,6 @@ function dealPanelHtml(g, activeRow, editing, count) {
         <label class="admin-box" data-set="margin"><input type="text" readonly value="Agency" data-out="margPayTo"><span>Payment to</span></label>
       </div>
 
-      <div class="deal-grid deal-auto">
-        ${out("Number of classes", "classes", count)}
-        ${out("Hours", "hours", Math.round(m.hours * 100) / 100)}
-        <div class="deal-slot" data-set="commission">${out("Per class (₹)", "perClass", m.perClass || 0)}</div>
-        <div class="deal-slot" data-set="commission">${out("Per hour (₹)", "perHour", m.perHour || 0)}</div>
-        <div class="deal-slot" data-set="commission">${out("Agency cut (₹)", "cut", m.cut || 0)}</div>
-        <div class="deal-slot" data-set="commission">${out("Tutor gets, 1st month (₹)", "tutorFirstMonth", m.tutorFirstMonth || 0)}</div>
-        <div class="deal-slot" data-set="margin">${out("Parent per hour (₹)", "parentPerHour", m.parentPerHour || 0)}</div>
-        <div class="deal-slot" data-set="margin">${out("Agency per class (₹)", "margin", m.margin || 0)}</div>
-        <div class="deal-slot" data-set="margin">${out("Tutor per class (₹)", "tutorPerClass", m.tutorPerClass || 0)}</div>
-        <div class="deal-slot" data-set="margin">${out("Tutor per hour (₹)", "tutorPerHour", m.tutorPerHour || 0)}</div>
-        <div class="deal-slot" data-set="margin">${out("Parent per month (₹)", "parentMonthly", m.parentMonthly || 0)}</div>
-        <div class="deal-slot" data-set="margin">${out("Tutor per month (₹)", "tutorMonthly", m.tutorMonthly || 0)}</div>
-        <div class="deal-slot" data-set="margin">${out("Agency per month (₹)", "agencyMonthly", m.agencyMonthly || 0)}</div>
-      </div>
-
-      <div class="deal-grid deal-auto">
-        ${out("Each parent payment (₹)", "parentInstallment", m.parentInstallment || 0)}
-        ${out("Parent pays on", "parentDate", fmtPayDate(pay.parent))}
-        ${out("Each tutor payment (₹)", "tutorInstallment", (m.model === "commission" && m.feeTo === "Tutor" ? m.cutInstallment : m.tutorInstallment) || 0)}
-        ${out("Tutor paid / pays on", "tutorDate", fmtPayDate(pay.tutor))}
-      </div>
       <p class="deal-sched" data-sched>${schedText(activeRow.classStartDate, d.parentFreq || "Monthly")}</p>
 
       <p class="deal-note" data-deal-note>${esc(dealNoteText(m))}</p>
@@ -6590,6 +6568,14 @@ function recalcDeal(panel) {
     sync("freq", freq);
     sync("studentDate", fmtPayDate(pay.parent));
     sync("tutorDate", fmtPayDate(pay.tutor));
+    const plain = ["classes", "hours", "minutes", "cutPercent"];
+    Object.keys(m).forEach(k => {
+      if (typeof m[k] !== "number") return;
+      sync(k, plain.includes(k) ? (k === "hours" ? Math.round(m[k] * 100) / 100 : m[k]) : "₹" + Number(m[k] || 0).toLocaleString("en-IN"));
+    });
+    sync("tutorEach", "₹" + Number((viaTutor ? m.cutInstallment : m.tutorInstallment) || 0).toLocaleString("en-IN"));
+    const planEl = card.querySelector("[data-class-plan]");
+    if (planEl) planEl.dataset.model = m.model;
   }
 }
 
@@ -6876,7 +6862,7 @@ function classCard(g, activeRow) {
     ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.47-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.08-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35m-5.42 7.4h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.89 9.88m8.41-18.3A11.8 11.8 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.41z"/></svg>'
     : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>'}</i>${esc(n)}</span>` : "";
   const pcFrac = (paid, total) => `<span class="pc-frac"><i>${esc(rupees(paid))}</i><i>${esc(rupees(total))}</i></span>`;
-  const party = (cls, avatar, name, id, mobile, whatsapp, payLabel, payValue, syncKey, dueSync, dueValue, stats) => `
+  const party = (cls, avatar, name, id, mobile, whatsapp, payLabel, payValue, syncKey, dueSync, dueValue, tiles, stats) => `
     <section class="pc ${cls}">
       <header class="pc-head">
         ${avatar}
@@ -6887,15 +6873,31 @@ function classCard(g, activeRow) {
         <div><small>${payLabel}</small><b class="pc-chip" data-sync="${syncKey}">${esc(payValue)}</b></div>
         <div><small>Frequency</small><b data-sync="freq">${esc(freq0)}</b></div>
         <div class="pc-due"><small>Next Due Date</small><b data-sync="${dueSync}">${esc(dueValue)}</b></div>
+        ${tiles}
       </div>
       <div class="pc-stats">${stats}</div>
     </section>`;
+
+  const R = v => "₹" + Number(v || 0).toLocaleString("en-IN");
+  const tile = (label, key, val, set = "") => `<div${set ? ` data-set="${set}"` : ""}><small>${label}</small><b data-sync="${key}">${esc(val)}</b></div>`;
+  const common = tile("Classes", "classes", dm0.classes) + tile("Hours", "hours", Math.round(dm0.hours * 100) / 100);
+  const studentTiles = tile("Each Payment", "parentInstallment", R(dm0.parentInstallment)) + common +
+    tile("Per Class", "perClass", R(dm0.perClass), "commission") + tile("Per Hour", "perHour", R(dm0.perHour), "commission") +
+    tile("Per Class", "parentPerClass", R(dm0.parentPerClass), "margin") + tile("Per Hour", "parentPerHour", R(dm0.parentPerHour), "margin") +
+    tile("Per Month", "parentMonthly", R(dm0.parentMonthly), "margin");
+  const tutorEach = dm0.model === "commission" && dm0.feeTo === "Tutor" ? dm0.cutInstallment : dm0.tutorInstallment;
+  const tutorTiles = tile("Each Payment", "tutorEach", R(tutorEach)) + common +
+    tile("Per Class", "perClass", R(dm0.perClass), "commission") + tile("Per Hour", "perHour", R(dm0.perHour), "commission") +
+    tile("Agency Cut", "cut", R(dm0.cut), "commission") + tile("Gets 1st Month", "tutorFirstMonth", R(dm0.tutorFirstMonth), "commission") +
+    tile("Per Class", "tutorPerClass", R(dm0.tutorPerClass), "margin") + tile("Per Hour", "tutorPerHour", R(dm0.tutorPerHour), "margin") +
+    tile("Per Month", "tutorMonthly", R(dm0.tutorMonthly), "margin") + tile("Agency / Class", "margin", R(dm0.margin), "margin") +
+    tile("Agency / Month", "agencyMonthly", R(dm0.agencyMonthly), "margin");
 
   const studentId = g.first.studentId;
   const studentSection = party("pc-student",
     profileAvatar("students", studentId, initials(sv("Student Name"), "S"), subscriptionPayBadge("student", studentId)),
     sv("Student Name"), studentId, sv("Phone"), sv("WhatsApp"),
-    "Pays To", studentTo0, "studentTo", "studentDate", fmtPayDate(pay0.parent),
+    "Pays To", studentTo0, "studentTo", "studentDate", fmtPayDate(pay0.parent), studentTiles,
     `${stat("Total Amount", studentTotalAmount, "student-payment")}
      ${stat("Advance", studentAdvancePaid, "student-advance")}
      ${stat("Paid", collected, "student-payment")}
@@ -6909,7 +6911,7 @@ function classCard(g, activeRow) {
   const tutorSection = party("pc-tutor",
     profileAvatar("tutors", tutorId, initials(tv("Full Name"), "T"), subscriptionPayBadge("tutor", tutorId)),
     tv("Full Name"), tutorId, tv("Mobile Number"), tv("WhatsApp Number"),
-    "Paid By", tutorFrom0, "tutorFrom", "tutorDate", fmtPayDate(pay0.tutor),
+    "Paid By", tutorFrom0, "tutorFrom", "tutorDate", fmtPayDate(pay0.tutor), tutorTiles,
     `${stat("Total Amount", tutorTotalAmount, "tutor-payment")}
      ${editing ? editStat("Advance (₹)", activeRow.tutorAdvancePayment, "Tutor Advance Payment") : stat("Advance", tutorAdvance, "tutor-advance")}
      ${stat("Paid", tutorTotalPayment, "tutor-payment")}
