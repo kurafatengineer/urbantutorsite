@@ -169,3 +169,8 @@ body[data-page="home"] { margin: 0; background: #08080b; }
 .ld-loc span:only-child { margin: 0 auto; }
 .ld-tutors { transition: opacity 0.45s ease; }
 .ld-tutors.ld-swap { opacity: 0; }
+
+/* verified seal sits on the profile circle; the full name goes under it */
+.ld-avw { position: relative; width: 64px; margin: 0 auto; }
+.ld-badge.ld-badge-av { position: absolute; right: -6px; bottom: -4px; width: 24px; height: 24px; filter: drop-shadow(0 0 0 #0f0f13); }
+.ld-name b { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.25; }

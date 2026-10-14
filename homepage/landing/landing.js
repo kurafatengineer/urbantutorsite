@@ -413,7 +413,7 @@
   const TUTORS_URL = "https://zbvtdcqoouwyrcxkzjfv.supabase.co/rest/v1/rpc/get_home_tutors";
   const PHOTOS_URL = "https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/home-photos";
   const PLACE_KEY = "urbantutorsite_visitor_place";
-  const ROTATE_MS = 9000;
+  const ROTATE_MS = 18000;
   let tutorPool = [];
   let tutorOrder = [];
   let tutorAt = 0;
@@ -467,6 +467,12 @@
     return parts[0] || "";
   }
 
+  function cleanName(full) {
+    const parts = String(full || "").trim().split(/\s+/).filter(Boolean);
+    while (parts.length > 1 && TITLES.test(parts[0])) parts.shift();
+    return parts.join(" ");
+  }
+
   function expText(value) {
     const years = parseFloat(String(value == null ? "" : value).replace(/[^\d.]/g, ""));
     if (isNaN(years)) return "";
@@ -498,11 +504,11 @@
     const exp = expText(t.experience);
     return `
       <div class="ld-tt">
-        <div class="ld-av" data-ref="${esc(t.ref)}" style="background:${AVATAR_COLORS[i % AVATAR_COLORS.length]}">${esc(initials(firstName(t.name)))}</div>
-        <div class="ld-name">
-          <b>${esc(firstName(t.name))}</b>
-          <svg class="ld-badge" data-tone="${esc(t.tone || "")}" viewBox="0 0 24 24" role="img" aria-label="Verified"><use href="#ld-verified"/></svg>
+        <div class="ld-avw">
+          <div class="ld-av" data-ref="${esc(t.ref)}" style="background:${AVATAR_COLORS[i % AVATAR_COLORS.length]}">${esc(initials(cleanName(t.name)))}</div>
+          <svg class="ld-badge ld-badge-av" data-tone="${esc(t.tone || "")}" viewBox="0 0 24 24" role="img" aria-label="Verified"><use href="#ld-verified"/></svg>
         </div>
+        <div class="ld-name"><b>${esc(cleanName(t.name))}</b></div>
         ${exp ? `<span class="ld-exp">${esc(exp)}</span>` : ""}
         ${place.length ? `<div class="ld-loc">${place.map(x => `<span>${esc(x)}</span>`).join("")}</div>` : ""}
       </div>`;
