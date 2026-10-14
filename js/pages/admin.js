@@ -6473,6 +6473,11 @@ function dealPanelHtml(g, activeRow, editing, count) {
 
   return `
     <div class="class-bill deal" data-deal data-model="${d.model === "margin" ? "margin" : "commission"}">
+      <div class="bill-seg" role="radiogroup" aria-label="How this class is billed">
+        <button type="button" class="bill-opt${d.model !== "margin" ? " is-on" : ""}" data-action="deal-model" data-model="commission"${editing ? "" : " disabled"}>Monthly commission</button>
+        <button type="button" class="bill-opt${d.model === "margin" ? " is-on" : ""}" data-action="deal-model" data-model="margin"${editing ? "" : " disabled"}>Per class commission</button>
+      </div>
+
       <div class="deal-flow" data-flow>${flowInner(m, d.parentFreq || "Monthly")}</div>
       <div class="deal-sched" data-sched>${schedText(activeRow.classStartDate, d.parentFreq || "Monthly")}</div>
       ${balance ? `<p class="deal-balance">Tutor's balance: <strong>${rs(balance)}</strong>${balance > 0 ? " - used against this commission when the class is finalised" : ""}</p>` : ""}
@@ -6481,11 +6486,6 @@ function dealPanelHtml(g, activeRow, editing, count) {
 
       ${!editing && finalized && !settled ? `<button class="admin-ghost admin-wide deal-settle-btn" data-action="settle-class" type="button">Tutor Left / Fewer Classes - Settle</button>` : ""}
       <div class="deal-settle hidden" data-settle></div>
-
-      <div class="bill-seg" role="radiogroup" aria-label="How this class is billed">
-        <button type="button" class="bill-opt${d.model !== "margin" ? " is-on" : ""}" data-action="deal-model" data-model="commission"${editing ? "" : " disabled"}>Monthly commission</button>
-        <button type="button" class="bill-opt${d.model === "margin" ? " is-on" : ""}" data-action="deal-model" data-model="margin"${editing ? "" : " disabled"}>Per class commission</button>
-      </div>
 
       <div class="deal-grid deal-row6">
         <div class="deal-slot" data-set="commission">${inp("Monthly fee (₹)", "monthlyFee", d.monthlyFee)}</div>
