@@ -4847,6 +4847,19 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 /* v32: twelve stat cards in two rows of six */
 .admin-stats { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 
-/* v33: status rings round a Student's / Tutor's profile circle (see ringAttrs): the colours are
-   box-shadow rings, and the circle's own border goes so only the colour shows */
-.admin-avatar.has-ring { border: 0; }
+/* v33: the tuition-status boxes on the left edge of a Student / Tutor card (see lifeStrip) */
+.admin-card-head:has(> .life-strip) { position: relative; }
+.life-strip {
+  position: absolute; left: -17px; top: -17px; bottom: -17px; width: 7px; z-index: 1;
+  display: flex; flex-direction: column; gap: 2px; pointer-events: auto;
+}
+.life-box { flex: 1 1 0; display: block; min-height: 4px; }
+.life-box:first-child { border-top-left-radius: 18px; }
+.life-box:last-child { border-bottom-left-radius: 18px; }
+.admin-card.is-open .life-strip { bottom: -6px; }
+.admin-card.is-open .life-box:last-child { border-bottom-left-radius: 0; }
+.life-box[data-life="running"] { background: #5be584; }
+.life-box[data-life="scheduled"] { background: #c4a8ff; }
+.life-box[data-life="new"] { background: #7dbbff; }
+.life-box[data-life="new-tutor"] { background: #ffb15c; }
+.life-box[data-life="completed"] { background: #8e8e99; }

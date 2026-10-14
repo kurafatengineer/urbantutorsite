@@ -4279,32 +4279,34 @@ document.addEventListener("click", (event) => {
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeTutorStats(); });
 window.addEventListener("resize", closeTutorStats);
 
-// A coloured ring round a Student's / Tutor's profile circle that says where their tuitions stand
-// (one equal slice per live tuition; rejected, declined and closed ones are left out):
-//   student: blue = finding a tutor / demo scheduled, green = running, grey = completed
-//   tutor:   orange = applied / demo scheduled, green = running, grey = completed
-const RING_COLORS = { blue: "#4da3ff", green: "#16a34a", grey: "#8e8e99", orange: "#ff9f43" };
+// Up to four small borderless boxes down the card's left edge (touching it, following its corners),
+// one per live tuition, showing where each stands. Rejected, declined and closed ones are left out.
+//   student: light blue = finding a tutor, light purple = demo scheduled, light green = running, grey = completed
+//   tutor:   orange = applied, light purple = demo scheduled, light green = running, grey = completed
+const LIFE_ORDER = ["running", "scheduled", "new", "completed"];
+const LIFE_LABELS = {
+  student: { running: "Running", scheduled: "Demo scheduled", new: "Finding tutor", completed: "Completed" },
+  tutor: { running: "Running", scheduled: "Demo scheduled", new: "Applied", completed: "Completed" }
+};
 
-function ringTones(kind, id) {
+function lifeStates(kind, id) {
   if (!id || !STATE.data) return [];
-  if (kind === "students") {
-    return demoGroups().filter(g => g.first.studentId === id).map(groupState)
-      .filter(st => st !== "terminated")
-      .map(st => st === "running" ? "green" : st === "completed" ? "grey" : "blue");
-  }
-  return (STATE.data.demos || []).filter(d => d.hasTutor && d.tutorId === id).map(rowState)
-    .filter(st => st !== "declined" && st !== "terminated")
-    .map(st => st === "running" ? "green" : st === "completed" ? "grey" : "orange");
+  const raw = kind === "students"
+    ? demoGroups().filter(g => g.first.studentId === id).map(groupState)
+    : (STATE.data.demos || []).filter(d => d.hasTutor && d.tutorId === id).map(rowState);
+  return raw.filter(st => st !== "terminated" && st !== "declined")
+    .map(st => st === "running" ? "running" : st === "completed" ? "completed"
+      : (st === "scheduled" || st === "processing") ? "scheduled" : "new")
+    .sort((a, b) => LIFE_ORDER.indexOf(a) - LIFE_ORDER.indexOf(b))
+    .slice(0, 4);
 }
 
-function ringAttrs(kind, id) {
-  // one ring per colour (green, then blue / orange, then grey), drawn outwards from the circle
-  const have = new Set(ringTones(kind, id));
-  const tones = ["green", "blue", "orange", "grey"].filter(t => have.has(t));
-  if (!tones.length) return { cls: "", style: "", title: "" };
-  const shadow = tones.map((t, i) => `0 0 0 ${(i + 1) * 3}px ${RING_COLORS[t]}`).join(", ");
-  const names = { blue: "finding tutor / demo scheduled", green: "running", grey: "completed", orange: "applied / demo scheduled" };
-  return { cls: " has-ring", style: ` style="box-shadow: ${shadow}; margin-inline: ${tones.length * 3}px"`, title: " - " + tones.map(t => names[t]).join(", ") };
+function lifeStrip(kind, id) {
+  const states = lifeStates(kind, id);
+  if (!states.length) return "";
+  const labels = LIFE_LABELS[kind === "students" ? "student" : "tutor"];
+  return `<span class="life-strip" aria-hidden="true">${states.map(st =>
+    `<i class="life-box" data-life="${st}${kind === "tutors" && st === "new" ? "-tutor" : ""}" title="${esc(labels[st])}"></i>`).join("")}</span>`;
 }
 
 function profileAvatar(kind, id, letters, badgeHtml) {
@@ -4369,9 +4371,10 @@ function recordCard(kind, record, opts) {
       data-box data-kind="${kind}" data-row="${record.rowNumber}" data-id="${esc(record.id)}" data-key="${esc(key)}"${kind === "students" ? ` data-tags="${studentTags(record).join(" ")}"` : kind === "tutors" ? ` data-tags="${tutorTags(record).join(" ")}"` : ""}>
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
+        ${kind === "students" || kind === "tutors" ? lifeStrip(kind, record.id) : ""}
         ${kind === "tutors"
-          ? (() => { const ring = ringAttrs("tutors", record.id); return `<button type="button" class="admin-avatar admin-avatar-link${ring.cls}"${ring.style} data-action="tutor-stats" data-id="${esc(record.id)}" title="Tuition record${esc(ring.title)}" aria-haspopup="dialog">${esc(initials(opts.name, "T"))}${tutorPhotoHtml(record.id)}${subscriptionPayBadge("tutor", record.id)}</button>`; })()
-          : (() => { const ring = ringAttrs("students", record.id); return `<div class="admin-avatar${ring.cls}"${ring.style} title="${esc(ring.title.replace(/^ - /, ""))}">${esc(initials(opts.name, "S"))}${subscriptionPayBadge("student", record.id)}</div>`; })()}
+          ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="tutor-stats" data-id="${esc(record.id)}" title="Tuition record" aria-haspopup="dialog">${esc(initials(opts.name, "T"))}${tutorPhotoHtml(record.id)}${subscriptionPayBadge("tutor", record.id)}</button>`
+          : `<div class="admin-avatar">${esc(initials(opts.name, "S"))}${subscriptionPayBadge("student", record.id)}</div>`}
         <div class="admin-card-title">
           ${opts.titleHtml || `<strong>${esc(opts.name || record.id)}</strong><small>${esc(opts.sub)}</small>`}
         </div>
