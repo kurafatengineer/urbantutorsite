@@ -37,6 +37,7 @@
 // derived from it, so no second secret is needed.
 
 import { notify, notifyIfMatched, demoResponseButtons, studentQuiet, tutorQuiet } from "../_shared/telegram.ts";
+import { handleInput, startRegistration, type Out } from "../_shared/regflow.ts";
 import { parentResponseMail, tutorResponseMail, fmtDate, fmtTime, modeText, classReminderMail, classConfirmMail, classDoneMail, contactLine } from "../_shared/mails.ts";
 
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
@@ -125,7 +126,7 @@ async function greet(chatId: number, firstName: string) {
       `Choose below to register or log in - it opens right here in Telegram. ` +
       `New here? Just register. Already registered? Use the same email to log in. ` +
       `A 6-digit code comes to your email either way.`,
-    reply_markup: { inline_keyboard: [[studentButton], [tutorButton]] },
+    reply_markup: { inline_keyboard: [[studentButton], [tutorButton], [{ text: "📝 Register as Student here in chat", callback_data: "rg:start" }]] },
   });
 }
 
@@ -254,6 +255,44 @@ async function onDemoButton(cb: Json) {
    tapping one shows its details (for a student: which tutors applied). One button switches ALL their
    notifications (email + Telegram) off / on. callback_data "m:<action>:<s|t>[:<demoId>]":
    h = home, r = choose role, t = a tuition, n = toggle notifications */
+
+
+/* ---- "register as a student" in the chat (the flow itself lives in _shared/regflow.ts) ----
+   callback "rg:start"        starts it;  "rg:<choice>"  a tapped answer (gender, I agree, Submit ...)
+   free text / shared contact while a registration is open are answers to the current question. */
+
+async function sendOut(chatId: number, out: Out) {
+  const message: Json = { chat_id: chatId, text: out.text, disable_web_page_preview: true };
+  if (out.askPhone) {
+    message.reply_markup = { keyboard: [[{ text: "📱 Share my number", request_contact: true }]], resize_keyboard: true, one_time_keyboard: true };
+  } else if (out.choices?.length) {
+    message.reply_markup = { inline_keyboard: out.choices.map((c) => [{ text: c.title, callback_data: `rg:${c.id}` }]) };
+  } else {
+    message.reply_markup = { remove_keyboard: true };
+  }
+  await telegram("sendMessage", message);
+}
+async function sendAll(chatId: number, outs: Out[]) { for (const o of outs) await sendOut(chatId, o); }
+
+async function onRegButton(cb: Json) {
+  const chatId = Number(cb.message?.chat?.id ?? 0);
+  const messageId = Number(cb.message?.message_id ?? 0);
+  const fromId = Number(cb.from?.id ?? 0);
+  const choice = String(cb.data ?? "").slice(3);
+  const answer = () => telegram("answerCallbackQuery", { callback_query_id: cb.id });
+  if (!chatId || chatId !== fromId) { await answer(); return; }
+  const ctx = { channel: "tg" as const, key: String(chatId), telegramChatId: chatId };
+  if (choice === "start") {
+    await answer();
+    await sendAll(chatId, await startRegistration(ctx));
+    return;
+  }
+  // the tapped buttons go away, so an answer can't be given twice
+  if (messageId) await telegram("editMessageReplyMarkup", { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } });
+  await answer();
+  const outs = await handleInput(ctx, { choice });
+  if (outs) await sendAll(chatId, outs);
+}
 
 const inList = (ids: string[]) => `in.(${ids.map((x) => encodeURIComponent(`"${x}"`)).join(",")})`;
 
@@ -681,6 +720,7 @@ Deno.serve(async (req: Request) => {
       if (String(cb.data ?? "").startsWith("dr:")) await onDemoButton(cb);
       else if (String(cb.data ?? "").startsWith("m:")) await onMenuButton(cb);
       else if (String(cb.data ?? "").startsWith("cl:")) await onClassButton(cb);
+      else if (String(cb.data ?? "").startsWith("rg:")) await onRegButton(cb);
       else await telegram("answerCallbackQuery", { callback_query_id: cb.id });
       return json({ ok: true });
     }
@@ -691,6 +731,14 @@ Deno.serve(async (req: Request) => {
       if (msg.message_id) await telegram("deleteMessage", { chat_id: msg.chat.id, message_id: msg.message_id });
       const command = String(msg.text ?? "").trim().split(/[\s@]/)[0].toLowerCase();
       const first = String(msg.from?.first_name ?? "");
+      // an open registration: what was typed / shared answers the current question (commands are not answers)
+      if (!command.startsWith("/")) {
+        const ctx = { channel: "tg" as const, key: String(msg.chat.id), telegramChatId: Number(msg.chat.id) };
+        // a contact only counts when it is the sender's own
+        const own = msg.contact && Number(msg.contact.user_id) === Number(msg.from?.id);
+        const outs = await handleInput(ctx, { text: String(msg.text ?? ""), contactPhone: own ? String(msg.contact.phone_number ?? "") : "" });
+        if (outs) { await sendAll(msg.chat.id, outs); return json({ ok: true }); }
+      }
       if (command === "/student") {
         if (!(await showMenu(msg.chat.id, "s", null))) await sendOne(msg.chat.id, false);
       } else if (command === "/tutor") {
