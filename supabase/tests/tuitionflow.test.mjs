@@ -36,21 +36,19 @@ o = await handleInput(wa, { choice: "t_pick:SID999" }); assert(step() === "t_pic
 await handleInput(wa, { choice: "t_pick:SID1" }); assert(step() === "t_subjects", "picked -> subjects");
 o = await handleInput(wa, { text: "maths, science" }); assert(o[0].text.includes("Maths") && step() === "t_subjects", "running subject refused");
 await handleInput(wa, { text: "english,  science , English" }); assert(JSON.stringify(db.bot_sessions[0].data.subjects) === '["English","Science"]', "subjects split, title-cased, de-duplicated");
-o = await handleInput(wa, { text: "evening" }); assert(step() === "t_timing", "timing must be tapped");
-await handleInput(wa, { choice: "t_time:own" }); assert(step() === "t_own", "own time -> type it");
-await handleInput(wa, { text: "6 pm - 8 pm" }); assert(step() === "t_tutor" && db.bot_sessions[0].data.timing === "6 pm - 8 pm", "own time saved");
+o = await handleInput(wa, { text: "x" }); assert(step() === "t_timing", "time too short refused");
+await handleInput(wa, { text: "6 pm - 8 pm" }); assert(step() === "t_tutor" && db.bot_sessions[0].data.timing === "6 pm - 8 pm", "typed time saved");
 await handleInput(wa, { choice: "t_tutor:female" }); await handleInput(wa, { choice: "t_mode:home" });
 assert(step() === "t_confirm", "-> confirm");
 o = await handleInput(wa, { choice: "t_post" });
 const added = db.tuitions.filter((t) => t.student_id === "SID1" && t.demo_id !== "DID1");
 assert(added.length === 2 && added[0].preferred_tutor === "Female" && added[0].medium === "Home" && added[0].preferred_timing === "6 pm - 8 pm", "two tuitions saved");
-assert(o[0].text.includes("DID100") && o[0].text.includes("DID101") && db.bot_sessions.length === 0, "posted message + session cleared");
+assert(o[0].text.includes("Tuition: *English* (DID100)\nTutor - Female") && o[0].text.includes("(DID101)") && o[0].text.includes("*Rahul* (SID1)") && db.bot_sessions.length === 0, "posted message + session cleared");
 assert(sent.length === 1 && sent[0].email === "r@x.com" && sent[0].mail.d.demos.length === 2, "tuition-posted notice sent once");
 
 // one student -> straight to subjects; slot button; Hi leaves the flow
 await startTuition(wa, [mine[1]]); assert(step() === "t_subjects", "one student -> subjects");
-await handleInput(wa, { text: "physics" }); await handleInput(wa, { choice: "t_time:evening" });
-assert(db.bot_sessions[0].data.timing === "Evening (4 PM - 7 PM)", "slot saved");
+o = await handleInput(wa, { text: "physics" }); assert(o[0].text.includes("For example") && !o[0].choices, "time is typed, no buttons");
 assert((await handleInput(wa, { text: "Hi" })) === null && db.bot_sessions.length === 0, "Hi leaves the flow");
 o = await startTuition(wa, [{ student_id: "SID3", student_name: "X", blocked_at: "2026-01-01" }]); assert(o[0].text.includes("blocked"), "blocked student cannot post");
 await startTuition(wa, [mine[0]]); o = await handleInput(wa, { text: "cancel" }); assert(o[0].text.startsWith("Cancelled") && db.bot_sessions.length === 0, "cancel");
