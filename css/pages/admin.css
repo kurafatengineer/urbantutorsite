@@ -4820,3 +4820,10 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 /* v27: tutors / employees rows read like the students row - regular weight, 4-icon actions */
 #tutorList .ledger-cell, #employeeList .ledger-cell { font-size: 13.5px; font-weight: 400; color: var(--text); }
 #employeeList .emp-status { font-weight: 400; }
+
+/* v28: a card's tuitions sit side by side, all pills as wide as the longest, wrapping when the line is full */
+.admin-mini-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.admin-mini-row .admin-pill-link {
+  box-sizing: content-box; width: calc(var(--pill-ch) * 0.62em); min-width: 0; max-width: 100%;
+  text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
