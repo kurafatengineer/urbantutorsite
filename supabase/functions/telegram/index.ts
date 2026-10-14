@@ -280,12 +280,40 @@ function nicePlace(parts: Json[]): string {
   return parts.map((x) => String(x ?? "").trim()).filter(Boolean).join(" - ");
 }
 
-function homeRows(role: "s" | "t", both: boolean, off: boolean, tuitions: { demo: string; label: string }[]): Json[][] {
-  const rows: Json[][] = tuitions.map((t) => [{ text: t.label, callback_data: `m:t:${role}:${t.demo}` }]);
-  rows.push([{ text: off ? "🔕 Notifications OFF - tap to turn ON" : "🔔 Notifications ON - tap to turn OFF", callback_data: `m:n:${role}` }]);
-  rows.push(profileRow(role));
-  if (both) rows.push([{ text: role === "s" ? "🔁 Switch to Tutor" : "🔁 Switch to Student", callback_data: `m:h:${role === "s" ? "t" : "s"}` }]);
-  return rows;
+// Telegram centres button text; padding it with invisible braille blanks pushes the words to the left
+const leftPad = (t: string, width = 34) => t + "\u2800".repeat(Math.max(0, width - [...t].length));
+
+const CATS: Record<string, string> = { running: "✅ Running", scheduled: "📅 Demo Scheduled", new: "", completed: "🏁 Completed" };
+const CAT_ORDER = ["running", "scheduled", "new", "completed"];
+const catLabel = (role: "s" | "t", cat: string) => cat === "new" ? (role === "s" ? "🔎 Finding Tutor" : "📨 Applied") : CATS[cat];
+
+type Life = { demo: string; subject: string; cat: string; app: Json | null; tutorIds: string[]; apps: Json[]; student: Json | null };
+
+// every live tuition of this chat's students / tutors, with the category it falls in
+async function loadLife(role: "s" | "t", ids: string[]): Promise<Life[]> {
+  const cols = "demo_id,tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date,demo_time,class_duration,billing_plan";
+  const out: Life[] = [];
+  if (role === "s") {
+    const tuitions = await db(`tuitions?student_id=${inList(ids)}&terminated=eq.false&select=demo_id,subject,student_id&order=posted_at.desc`) ?? [];
+    const apps = tuitions.length ? await db(`applications?demo_id=${inList(tuitions.map((t: Json) => t.demo_id))}&select=${cols}`) ?? [] : [];
+    for (const t of tuitions) {
+      const mine = apps.filter((a: Json) => a.demo_id === t.demo_id && !declined(a));
+      const best = RANK.find((r) => mine.some((a: Json) => applicationState(a) === r));
+      const app = mine.find((a: Json) => applicationState(a) === best) ?? null;
+      out.push({ demo: t.demo_id, subject: String(t.subject ?? ""), cat: !best || best === "applied" ? "new" : best, app, tutorIds: mine.map((a: Json) => String(a.tutor_id)), apps: mine, student: null });
+    }
+  } else {
+    const apps = (await db(`applications?tutor_id=${inList(ids)}&select=${cols}`) ?? []).filter((a: Json) => !declined(a));
+    const tuitions = apps.length ? await db(`tuitions?demo_id=${inList(apps.map((a: Json) => a.demo_id))}&terminated=eq.false&select=demo_id,subject,student_id`) ?? [] : [];
+    const studs = tuitions.length ? await db(`students?student_id=${inList([...new Set(tuitions.map((t: Json) => String(t.student_id)))] as string[])}&select=student_id,student_name,class_name,board,city,pin_code`) ?? [] : [];
+    for (const a of apps) {
+      const t = tuitions.find((x: Json) => x.demo_id === a.demo_id);
+      if (!t) continue;
+      const st = applicationState(a);
+      out.push({ demo: t.demo_id, subject: String(t.subject ?? ""), cat: st === "applied" ? "new" : st, app: a, tutorIds: [String(a.tutor_id)], apps: [a], student: studs.find((x: Json) => x.student_id === t.student_id) ?? null });
+    }
+  }
+  return out;
 }
 
 async function menuContent(chatId: number, role: "s" | "t"): Promise<{ text: string; rows: Json[][] } | null> {
@@ -295,41 +323,25 @@ async function menuContent(chatId: number, role: "s" | "t"): Promise<{ text: str
   const both = !!(students.length && tutors.length);
   const off = mine.every((r) => r.notifications_off === true || r.blocked_at);
   const name = String(role === "s" ? mine[0].student_name : mine[0].full_name ?? "");
-  const idCol = role === "s" ? "student_id" : "tutor_id";
-  const ids = mine.map((r) => String(r[idCol]));
-  const items: { demo: string; label: string; rank: number }[] = [];
+  const life = await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])));
 
-  if (role === "s") {
-    const tuitions = await db(`tuitions?student_id=${inList(ids)}&terminated=eq.false&select=demo_id,subject&order=posted_at.desc`) ?? [];
-    const apps = tuitions.length
-      ? await db(`applications?demo_id=${inList(tuitions.map((t: Json) => t.demo_id))}&select=demo_id,tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date`) ?? []
-      : [];
-    for (const t of tuitions) {
-      const live = apps.filter((a: Json) => a.demo_id === t.demo_id && !declined(a)).map(applicationState);
-      const best = RANK.find((r) => live.includes(r as never));
-      const status = best ? (best === "applied" ? `📨 ${live.length} tutor${live.length === 1 ? "" : "s"} applied` : STATE_TEXT[best]) : "🔎 Finding tutor";
-      items.push({ demo: t.demo_id, label: `${t.subject} · ${status}`, rank: best ? RANK.indexOf(best) : 2 });
-    }
-  } else {
-    const apps = await db(`applications?tutor_id=${inList(ids)}&select=demo_id,tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date`) ?? [];
-    const live = apps.filter((a: Json) => !declined(a));
-    const tuitions = live.length ? await db(`tuitions?demo_id=${inList(live.map((a: Json) => a.demo_id))}&terminated=eq.false&select=demo_id,subject`) ?? [] : [];
-    for (const a of live) {
-      const t = tuitions.find((x: Json) => x.demo_id === a.demo_id);
-      if (!t) continue;
-      const st = applicationState(a);
-      items.push({ demo: t.demo_id, label: `${t.subject} · ${STATE_TEXT[st]}`, rank: RANK.indexOf(st) });
-    }
+  const rows: Json[][] = [];
+  for (const cat of CAT_ORDER) {
+    const n = life.filter((l) => l.cat === cat).length;
+    if (n) rows.push([{ text: leftPad(`${catLabel(role, cat)} (${n})`), callback_data: `m:c:${role}:${cat}` }]);
   }
-  items.sort((a, b) => a.rank - b.rank);
+  if (both) rows.push([{ text: leftPad(role === "s" ? "🔁 Switch to Tutor" : "🔁 Switch to Student"), callback_data: `m:h:${role === "s" ? "t" : "s"}` }]);
+  rows.push([{ text: leftPad(off ? "🔕 Notifications OFF - Tap to turn ON" : "🔔 Notifications ON - Tap to turn OFF"), callback_data: `m:n:${role}` }]);
+  rows.push([{ text: leftPad("👤 Open My Profile"), web_app: profileRow(role)[0].web_app }]);
 
   const text =
-    `👋 Hi ${escapeHtml(name || "there")}! <b>${role === "s" ? "🎓 Student" : "👨‍🏫 Tutor"}</b> menu\n\n` +
-    (items.length
-      ? `${role === "s" ? "Your tuitions" : "Tuitions you applied for"} - tap one to see its details:`
+    `👋 Hi ${escapeHtml(name || "there")}!\n` +
+    `<b>${role === "s" ? "🎓 Student" : "👨‍🏫 Tutor"} menu</b>\n\n` +
+    (life.length
+      ? `${role === "s" ? "Your tuitions" : "Tuitions you applied for"} - tap one to see its details.`
       : role === "s" ? "You have no live tuitions right now." : "You have not applied for any tuition yet.") +
     `\n\n${off ? "🔕 Notifications are OFF (no email, no Telegram)." : "🔔 Notifications are ON."}`;
-  return { text, rows: homeRows(role, both, off, items.slice(0, 20)) };
+  return { text, rows };
 }
 
 async function showText(chatId: number, messageId: number | null, text: string, rows: Json[][]) {
@@ -349,17 +361,15 @@ async function showMenu(chatId: number, role: "s" | "t", messageId: number | nul
 }
 
 // "hi" (or any text) from someone: menu if linked, otherwise the register / login buttons
-async function home(chatId: number, firstName: string, want: "s" | "t" | null = null) {
+async function home(chatId: number, firstName: string) {
   const { students, tutors } = await linked(chatId);
-  if (want === "s" && students.length && await showMenu(chatId, "s", null)) return;
-  if (want === "t" && tutors.length && await showMenu(chatId, "t", null)) return;
   if (students.length && tutors.length) {
     await sendReplacing(chatId, {
       parse_mode: "HTML",
       text: `👋 Hi${firstName ? ` ${escapeHtml(firstName)}` : ""}! You are registered as both a student and a tutor.\n\nWhich one do you want to use now?`,
       reply_markup: { inline_keyboard: [
-        [{ text: "🎓 Act as Student", callback_data: "m:h:s" }],
-        [{ text: "👨‍🏫 Act as Tutor", callback_data: "m:h:t" }],
+        [{ text: leftPad("🎓 Act as Student"), callback_data: "m:h:s" }],
+        [{ text: leftPad("👨‍🏫 Act as Tutor"), callback_data: "m:h:t" }],
       ] },
     });
     return;
@@ -369,46 +379,57 @@ async function home(chatId: number, firstName: string, want: "s" | "t" | null = 
   await greet(chatId, firstName);
 }
 
-async function showTuition(chatId: number, messageId: number, role: "s" | "t", demoId: string) {
-  const back = [{ text: "⬅️ Back", callback_data: `m:h:${role}` }];
+const minutesText = (a: Json): string => {
+  const m = Number(a?.billing_plan?.deal?.minutes ?? a?.class_duration ?? 0);
+  return m > 0 ? `${m} min` : "-";
+};
+const timeText = (a: Json): string => {
+  const t = String(a?.billing_plan?.deal?.time ?? "").trim();
+  return t ? fmtTime(t) : "-";
+};
+const yearsText = (v: unknown) => v == null || v === "" ? "" : `${Number(v)} yr${Number(v) === 1 ? "" : "s"}`;
+
+// the list a category button opens: a few basic lines per tuition
+async function showCategory(chatId: number, messageId: number, role: "s" | "t", cat: string) {
+  const back = [{ text: leftPad("⬅️ Back"), callback_data: `m:h:${role}` }];
   const { students, tutors } = await linked(chatId);
-  const tuition = await one(`tuitions?demo_id=eq.${q(demoId)}&select=demo_id,subject,student_id,medium,preferred_timing`);
-  const mineIds = (role === "s" ? students.map((r) => r.student_id) : tutors.map((r) => r.tutor_id)).map(String);
-  const apps = await db(`applications?demo_id=eq.${q(demoId)}&select=tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date,demo_time`) ?? [];
-  const allowed = role === "s" ? mineIds.includes(String(tuition?.student_id)) : apps.some((a: Json) => mineIds.includes(String(a.tutor_id)));
-  if (!tuition || !allowed) {
-    await showText(chatId, messageId, "This tuition is not available any more.", [back]);
-    return;
-  }
-  const student = await one(`students?student_id=eq.${q(tuition.student_id)}&select=class_name,board,city,pin_code`);
-  const head =
-    `📚 <b>${escapeHtml(String(tuition.subject ?? ""))}</b>\n` +
-    `🆔 ${escapeHtml(demoId)}\n` +
-    (student ? `🏫 ${escapeHtml([student.class_name, student.board].filter(Boolean).join(" · "))}\n` : "") +
-    `🏠 ${escapeHtml(modeText(tuition.medium))}\n` +
-    (student && role === "t" ? `📍 ${escapeHtml(nicePlace([student.city, student.pin_code]))}\n` : "");
+  const mine = role === "s" ? students : tutors;
+  const life = (await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])))).filter((l) => l.cat === cat);
+  if (!life.length) { await showText(chatId, messageId, "Nothing here right now.", [back]); return; }
 
-  const dateLine = (a: Json) => a.demo_date ? ` - ${fmtDate(a.demo_date)}${a.demo_time ? ", " + fmtTime(a.demo_time) : ""}` : "";
+  const allTutors = [...new Set(life.flatMap((l) => l.tutorIds))];
+  const info = role === "s" && allTutors.length
+    ? await db(`tutors?tutor_id=${inList(allTutors)}&select=tutor_id,full_name,gender,experience_years`) ?? []
+    : [];
+  const tutorOf = (id: string) => info.find((x: Json) => x.tutor_id === id) ?? {};
+  const dateLine = (a: Json) => a?.demo_date ? `${fmtDate(a.demo_date)}${a.demo_time ? ", " + fmtTime(a.demo_time) : ""}` : "-";
+  const e = (v: unknown) => escapeHtml(String(v ?? ""));
 
-  if (role === "t") {
-    const mine = apps.filter((a: Json) => mineIds.includes(String(a.tutor_id)));
-    const a = mine.find((x: Json) => !declined(x)) ?? mine[0];
-    const st = a ? (declined(a) ? "❌ Declined" : STATE_TEXT[applicationState(a)]) : "-";
-    await showText(chatId, messageId, `${head}\nStatus: <b>${st}</b>${a ? escapeHtml(dateLine(a)) : ""}`, [back, profileRow("t")[0]]);
-    return;
-  }
-
-  const ids = [...new Set(apps.map((a: Json) => String(a.tutor_id)))];
-  const info = ids.length ? await db(`tutors?tutor_id=${inList(ids)}&select=tutor_id,full_name,gender,experience_years,city`) ?? [] : [];
-  const lines = apps.map((a: Json) => {
-    const t = info.find((x: Json) => x.tutor_id === a.tutor_id) ?? {};
-    const st = declined(a) ? "❌ Declined" : STATE_TEXT[applicationState(a)];
-    const exp = t.experience_years != null ? `${Number(t.experience_years)} yr${Number(t.experience_years) === 1 ? "" : "s"}` : "";
-    const meta = [t.gender, exp, t.city].filter(Boolean).join(" · ");
-    return `• <b>${escapeHtml(String(t.full_name ?? a.tutor_id))}</b> (${escapeHtml(String(a.tutor_id))})\n   ${escapeHtml(meta)}\n   ${st}${escapeHtml(dateLine(a))}`;
+  const blocks = life.map((l) => {
+    const head = `📚 <b>${e(l.subject)}</b> · ${e(l.demo)}`;
+    if (role === "s") {
+      if (cat === "running" || cat === "completed") {
+        const t = tutorOf(String(l.app?.tutor_id));
+        return `${head}\n👨‍🏫 Tutor: ${e(t.full_name ?? l.app?.tutor_id)}\n⏱ Class duration: ${e(minutesText(l.app))}\n⏰ Class time: ${e(timeText(l.app))}`;
+      }
+      if (cat === "scheduled") {
+        const t = tutorOf(String(l.app?.tutor_id));
+        return `${head}\n👨‍🏫 Tutor: ${e(t.full_name ?? l.app?.tutor_id)}\n📅 Demo: ${e(dateLine(l.app))}`;
+      }
+      const lines = l.apps.map((a) => {
+        const t = tutorOf(String(a.tutor_id));
+        return `   • ${e(t.full_name ?? a.tutor_id)}${t.gender ? ` (${e(t.gender)})` : ""}`;
+      });
+      return `${head}\n${lines.length ? "Tutors applied:\n" + lines.join("\n") : "No tutor has applied yet."}`;
+    }
+    const st = l.student ?? {};
+    if (cat === "running" || cat === "completed") {
+      return `${head}\n👤 Student: ${e(st.student_name ?? "-")}\n⏱ Class duration: ${e(minutesText(l.app))}\n⏰ Class time: ${e(timeText(l.app))}`;
+    }
+    if (cat === "scheduled") return `${head}\n🏫 ${e([st.class_name, st.board].filter(Boolean).join(" · "))}\n📅 Demo: ${e(dateLine(l.app))}`;
+    return `${head}\n🏫 ${e([st.class_name, st.board].filter(Boolean).join(" · "))}\n📍 ${e(nicePlace([st.city, st.pin_code]))}`;
   });
-  const body = lines.length ? `\n<b>Tutors who applied (${lines.length})</b>\n${lines.join("\n")}` : "\nNo tutor has applied yet - we will tell you as soon as one does.";
-  await showText(chatId, messageId, head + body, [back, profileRow("s")[0]]);
+  await showText(chatId, messageId, `<b>${e(catLabel(role, cat))}</b>\n\n${blocks.join("\n\n")}`, [back]);
 }
 
 async function onMenuButton(cb: Json) {
@@ -423,8 +444,8 @@ async function onMenuButton(cb: Json) {
   if (action === "h") {
     if (!(await showMenu(chatId, role, messageId))) await greet(chatId, String(cb.from?.first_name ?? ""));
     await answer();
-  } else if (action === "t" && demoId) {
-    await showTuition(chatId, messageId, role, demoId);
+  } else if (action === "c" && demoId) {
+    await showCategory(chatId, messageId, role, demoId);
     await answer();
   } else if (action === "n") {
     const { students, tutors } = await linked(chatId);
