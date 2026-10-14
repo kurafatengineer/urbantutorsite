@@ -4846,3 +4846,11 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 
 /* v32: twelve stat cards in two rows of six */
 .admin-stats { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+/* v33: status ring round a profile circle (see ringAttrs) */
+.admin-avatar.has-ring::after {
+  content: ""; position: absolute; inset: -5px; border-radius: 50%; padding: 3px; pointer-events: none;
+  background: var(--ring);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
