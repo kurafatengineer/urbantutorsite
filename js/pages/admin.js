@@ -1287,8 +1287,52 @@ function agencyChargeLeftAfterPayment() {
   return Math.max(dues - (Number($("paymentPayingNow").value) || 0), 0);
 }
 
+// The class this payment is for (a parent collection or a tutor payout), when its deal is saved
+function paymentClassContext() {
+  const mode = $("paymentTransactionType").value;
+  if (mode !== "collection" && mode !== "payout") return null;
+  const g = demoGroups().find(x => x.demoId === $("paymentDemoId").value.trim());
+  const row = g && activeRowFor(g);
+  if (!row) return null;
+  const m = classMoney(g, row);
+  return m.dueModel ? { mode, m } : null;
+}
+
+// Next Payment Date: filled in by itself when everything due is being paid (the next period's date);
+// when only part is paid it stays open, with the likely dates one tap away.
 function updateNextPaymentDate() {
   $("paymentNextDateField").classList.toggle("needs-reminder", agencyChargeLeftAfterPayment() > 0);
+  const input = $("paymentNextDate");
+  let chips = $("paymentNextChips");
+  if (!chips) {
+    chips = document.createElement("div");
+    chips.id = "paymentNextChips";
+    chips.className = "next-chips";
+    $("paymentNextDateField").after(chips);
+    chips.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-pick]");
+      if (b) { input.value = b.dataset.pick; input.dataset.auto = ""; }
+    });
+    input.addEventListener("input", (e) => { if (e.isTrusted) input.dataset.auto = ""; });
+  }
+  const ctx = paymentClassContext();
+  if (!ctx) { chips.innerHTML = ""; return; }
+  const { mode, m } = ctx, model = m.dueModel, today = isoToday();
+  const payout = mode === "payout";
+  const rate = payout ? model.tutorRate : model.studentRate, lag = payout ? 1 : 0;
+  const paidSoFar = payout ? m.tutorTotalPayment : m.studentAdvancePaid + m.collected;
+  const dues = Number(String($("paymentSubDues").value).replace(/[^\d.-]/g, "")) || 0;
+  const paying = Number($("paymentPayingNow").value) || 0;
+  if (paying > 0 && paying >= dues) {
+    input.value = nextDueFrom(model, rate, paidSoFar + paying, today, lag) || "";
+    input.dataset.auto = "1";
+    chips.innerHTML = "";
+    return;
+  }
+  if (input.dataset.auto === "1") { input.value = ""; input.dataset.auto = ""; }
+  const picks = [["Tomorrow", isoPlusDays(today, 1)]].concat(model.periods
+    .map(p => isoPlusDays(p.start, lag)).filter(d => d > today).slice(0, 3).map(d => [fmtPayDate(d), d]));
+  chips.innerHTML = `<span>Next payment on</span>` + picks.map(([l, d]) => `<button type="button" data-pick="${d}">${esc(l)}</button>`).join("");
 }
 
 // The subscription's current billing cycle "starts" from whichever
@@ -3556,8 +3600,8 @@ async function saveClassDetails(box, button, finalize = false) {
     changes["Student Payment Frequency"] = deal.parentFreq || "Monthly";
     changes["Tutor Payment Frequency"] = deal.parentFreq || "Monthly";
     const due = nextPayDates(changes["Class Start Date"] || box.querySelector('[data-cfield="Class Start Date"]')?.value, deal.parentFreq);
-    changes["Student Next Due Date"] = due.parent;
-    changes["Tutor Next Payment Date"] = due.tutor;
+    changes["Student Next Due Date"] = box.dataset.dueS || due.parent;
+    changes["Tutor Next Payment Date"] = box.dataset.dueT || due.tutor;
     if (finalize) {
       if (!dates.length) { toast("Pick the class dates on the calendar first.", true); return; }
       if (m.model === "commission" ? !(m.monthlyFee > 0) : !(m.parentPerClass > 0)) {
@@ -6196,6 +6240,55 @@ function classMoney(g, activeRow) {
 //     the cut in (agency charge payments + balance used)
 //   margin: parent pays the agency the month's classes, the tutor is paid
 //     theirs; the margin stays with the agency
+/* ---------------------------------------------------------------------
+   DUES FALL DUE IN ADVANCE, period by period
+   The parent pays at the start of every period (week / 15 days / month, counted from
+   the first class), for the classes that fall inside that period. The tutor is paid a
+   day later. What is "due" today is therefore everything up to the current period, less
+   what has been paid. Commission deals only run through the first month.
+   --------------------------------------------------------------------- */
+function dueModel(activeRow, deal, m) {
+  const dates = (activeRow.classDates || []).slice().sort();
+  if (!dates.length) return null;
+  const S = dates[0], last = dates[dates.length - 1];
+  const freq = deal.parentFreq || "Monthly";
+  const commission = m.model === "commission";
+  const viaAgency = !commission || m.feeTo === "Agency";
+  const limit = commission ? payDateAt(S, "Monthly", 1) : "9999-12-31";
+  const classes = m.classes || dates.length;
+  const studentRate = !viaAgency ? 0 : commission ? m.monthlyFee / classes : m.parentPerClass;
+  const tutorRate = !viaAgency ? 0 : commission ? m.tutorFirstMonth / classes : m.tutorPerClass;
+  const periods = [];
+  for (let k = 0; k < 400; k++) {
+    const start = payDateAt(S, freq, k);
+    if (start > last || start >= limit) break;
+    const next = payDateAt(S, freq, k + 1);
+    periods.push({ start, count: dates.filter(d => d >= start && d < next && d < limit).length });
+  }
+  return { S, periods, studentRate, tutorRate };
+}
+
+// what has fallen due by `today` (the tutor a `lag` of days after the parent)
+function dueToDate(model, rate, today, lag = 0) {
+  if (!model) return 0;
+  return Math.round(model.periods.filter(p => isoPlusDays(p.start, lag) <= today).reduce((t, p) => t + p.count * rate, 0));
+}
+
+// the date the next payment is expected once `paid` is in: the first period not yet covered
+// (today when it is already due - so an unpaid due keeps moving forward day by day)
+function nextDueFrom(model, rate, paid, today, lag = 0) {
+  if (!model || !(rate > 0)) return "";
+  let covered = 0;
+  for (const p of model.periods) {
+    covered += p.count * rate;
+    if (covered > paid + 0.5) {
+      const d = isoPlusDays(p.start, lag);
+      return d <= today ? today : d;
+    }
+  }
+  return "";
+}
+
 function dealMoney(g, activeRow, deal) {
   const m = dealNumbers(deal, (activeRow.classDates || []).length);
   const pays = (STATE.payments || []).filter(p => p.demo_id === g.demoId);
@@ -6218,11 +6311,16 @@ function dealMoney(g, activeRow, deal) {
   const studentAgencyCharge = num(activeRow.studentAgencyCharge);
   const studentAgencyReceived = sum(pays.filter(p => p.transaction_type === "agency_charge" && !p.tutor_id));
 
+  const model = dueModel(activeRow, deal, m);
+  const today = isoToday();
+  const studentDueNow = model ? dueToDate(model, model.studentRate, today) : studentTotalAmount;
+  const tutorDueNow = model ? dueToDate(model, model.tutorRate, today, 1) : tutorTotalAmount;
   return {
     studentTotalAmount, studentAdvancePaid, collected,
-    studentDues: Math.max(studentTotalAmount - studentAdvancePaid - collected, 0),
+    studentDues: Math.max(studentDueNow - studentAdvancePaid - collected, 0),
     tutorTotalAmount, tutorAgencyCharge, tutorAdvance, tutorPayouts, tutorTotalPayment,
-    tutorDues: Math.max(tutorTotalAmount - tutorTotalPayment, 0),
+    tutorDues: Math.max(tutorDueNow - tutorTotalPayment, 0),
+    dueModel: model,
     studentAgencyCharge, studentAgencyReceived, studentAgencyDue: Math.max(studentAgencyCharge - studentAgencyReceived, 0),
     tutorAgencyReceived, tutorAgencyDue: Math.max(tutorAgencyCharge - tutorAgencyReceived, 0),
   };
@@ -6610,8 +6708,8 @@ function recalcDeal(panel) {
     sync("studentTo", m.model === "commission" ? m.feeTo : "Agency");
     sync("tutorFrom", viaTutor ? "Parents" : "Agency");
     sync("freq", freq);
-    sync("studentDate", fmtPayDate(pay.parent));
-    sync("tutorDate", fmtPayDate(pay.tutor));
+    sync("studentDate", fmtPayDate(card.dataset.dueS || pay.parent));
+    sync("tutorDate", fmtPayDate(card.dataset.dueT || pay.tutor));
     const plain = ["classes", "hours", "minutes", "cutPercent"];
     Object.keys(m).forEach(k => {
       if (typeof m[k] !== "number") return;
@@ -6898,8 +6996,13 @@ function classCard(g, activeRow) {
     studentTotalAmount, studentAdvancePaid, collected, studentDues,
     tutorTotalAmount, tutorAdvance, tutorTotalPayment, tutorDues,
     studentAgencyCharge, studentAgencyReceived,
-    tutorAgencyCharge, tutorAgencyReceived
+    tutorAgencyCharge, tutorAgencyReceived, dueModel: dueM
   } = classMoney(g, activeRow);
+
+  // Next Due Date: today while something is already due (so it moves on day by day), else the next period
+  const todayD = isoToday();
+  const nextS = studentDues > 0 ? todayD : (nextDueFrom(dueM, dueM && dueM.studentRate, studentAdvancePaid + collected, todayD) || pay0.parent);
+  const nextT = tutorDues > 0 ? todayD : (nextDueFrom(dueM, dueM && dueM.tutorRate, tutorTotalPayment, todayD, 1) || pay0.tutor);
 
   // Student and Tutor: two identical cards that follow the deal (who is paid,
   // how often, on which date) and show this class's own money.
@@ -6946,7 +7049,7 @@ function classCard(g, activeRow) {
   const studentSection = party("pc-student",
     profileAvatar("students", studentId, initials(sv("Student Name"), "S"), subscriptionPayBadge("student", studentId)),
     sv("Student Name"), studentId, sv("Phone"), sv("WhatsApp"),
-    "Pays To", studentTo0, "studentTo", "studentDate", fmtPayDate(pay0.parent), studentTiles,
+    "Pays To", studentTo0, "studentTo", "studentDate", fmtPayDate(nextS), studentTiles,
     `${stat("Total Amount", studentTotalAmount, "student-payment")}
      ${stat("Advance", studentAdvancePaid, "student-advance")}
      ${stat("Paid", collected, "student-payment")}
@@ -6960,7 +7063,7 @@ function classCard(g, activeRow) {
   const tutorSection = party("pc-tutor",
     profileAvatar("tutors", tutorId, initials(tv("Full Name"), "T"), subscriptionPayBadge("tutor", tutorId)),
     tv("Full Name"), tutorId, tv("Mobile Number"), tv("WhatsApp Number"),
-    "Paid By", tutorFrom0, "tutorFrom", "tutorDate", fmtPayDate(pay0.tutor), tutorTiles,
+    "Paid By", tutorFrom0, "tutorFrom", "tutorDate", fmtPayDate(nextT), tutorTiles,
     `${stat("Total Amount", tutorTotalAmount, "tutor-payment")}
      ${editing ? editStat("Advance (₹)", activeRow.tutorAdvancePayment, "Tutor Advance Payment") : stat("Advance", tutorAdvance, "tutor-advance")}
      ${stat("Paid", tutorTotalPayment, "tutor-payment")}
@@ -6987,7 +7090,7 @@ function classCard(g, activeRow) {
     </div>`;
 
   return `
-    <article class="admin-card class-card${open ? " is-open" : ""}" data-box data-demo="${esc(g.demoId)}" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}">
+    <article class="admin-card class-card${open ? " is-open" : ""}" data-box data-demo="${esc(g.demoId)}" data-row="${activeRow.rowNumber}" data-tutor-id="${esc(activeRow.tutorId)}" data-due-s="${studentDues > 0 ? todayD : ""}" data-due-t="${tutorDues > 0 ? todayD : ""}">
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
         <div class="admin-avatar">₹</div>
