@@ -6367,7 +6367,7 @@ function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime =
       <span class="cal-chip cal-bad">${missed} Not Taken</span>
     </p>
     ${editing ? "" : '<p class="cal-hint">Tap a scheduled date to correct it</p>'}
-    ${startISO ? `<p class="cal-cycle">┆ First month: ${esc(fmtPayDate(startISO))} to ${esc(fmtPayDate(isoPlusDays(cycleEnd, -1)))}</p>` : ""}
+    ${startISO ? `<p class="cal-cycle">First Month: ${esc(fmtPayDate(startISO))} to ${esc(fmtPayDate(isoPlusDays(cycleEnd, -1)))}</p>` : ""}
     ${editor}`;
 }
 
@@ -6477,8 +6477,8 @@ function dealPanelHtml(g, activeRow, editing, count) {
   return `
     <div class="class-bill deal" data-deal data-model="${d.model === "margin" ? "margin" : "commission"}">
       <div class="bill-seg" role="radiogroup" aria-label="How this class is billed">
-        <button type="button" class="bill-opt${d.model !== "margin" ? " is-on" : ""}" data-action="deal-model" data-model="commission"${editing ? "" : " disabled"}>Monthly commission</button>
-        <button type="button" class="bill-opt${d.model === "margin" ? " is-on" : ""}" data-action="deal-model" data-model="margin"${editing ? "" : " disabled"}>Per class commission</button>
+        <button type="button" class="bill-opt${d.model !== "margin" ? " is-on" : ""}" data-action="deal-model" data-model="commission"${editing ? "" : " disabled"}>Monthly Commission</button>
+        <button type="button" class="bill-opt${d.model === "margin" ? " is-on" : ""}" data-action="deal-model" data-model="margin"${editing ? "" : " disabled"}>Per Class Commission</button>
       </div>
 
       <div class="deal-flow" data-flow>${flowInner(m, d.parentFreq || "Monthly")}</div>
@@ -6491,14 +6491,14 @@ function dealPanelHtml(g, activeRow, editing, count) {
       <div class="deal-settle hidden" data-settle></div>
 
       <div class="deal-grid deal-row6">
-        <div class="deal-slot" data-set="commission">${inp("Monthly fee (₹)", "monthlyFee", d.monthlyFee)}</div>
-        <div class="deal-slot" data-set="margin">${inp("Parent per class (₹)", "parentPerClass", d.parentPerClass)}</div>
-        <label class="admin-box deal-cut${editing ? " is-edit" : ""}" data-set="commission">${kind("cutType", d.cutType)}<input type="number" min="0" data-d="cutValue" value="${esc(d.cutValue ?? "")}"${editing ? "" : " readonly"}><span>Agency cut</span></label>
-        <label class="admin-box deal-cut${editing ? " is-edit" : ""}" data-set="margin">${kind("marginType", d.marginType)}<input type="number" min="0" data-d="marginValue" value="${esc(d.marginValue ?? "")}"${editing ? "" : " readonly"}><span>Agency commission</span></label>
-        <div class="deal-slot">${inp("Duration (minutes)", "minutes", d.minutes)}</div>
-        <div class="deal-slot">${inp("Class time", "time", d.time, { type: "time" })}</div>
-        ${inp("Parent pays", "parentFreq", d.parentFreq || "Monthly", { type: "text", options: Object.keys(DEAL_FREQ) })}
-        <div class="deal-slot" data-set="commission">${inp("Payment to", "feeTo", d.feeTo || "Tutor", { type: "text", options: ["Agency", "Tutor"] })}</div>
+        <div class="deal-slot" data-set="commission">${inp("Monthly Fee (₹)", "monthlyFee", d.monthlyFee)}</div>
+        <div class="deal-slot" data-set="margin">${inp("Parent Per Class (₹)", "parentPerClass", d.parentPerClass)}</div>
+        <label class="admin-box deal-cut${editing ? " is-edit" : ""}" data-set="commission">${kind("cutType", d.cutType)}<input type="number" min="0" data-d="cutValue" value="${esc(d.cutValue ?? "")}"${editing ? "" : " readonly"}><span>Agency Cut</span></label>
+        <label class="admin-box deal-cut${editing ? " is-edit" : ""}" data-set="margin">${kind("marginType", d.marginType)}<input type="number" min="0" data-d="marginValue" value="${esc(d.marginValue ?? "")}"${editing ? "" : " readonly"}><span>Agency Commission</span></label>
+        <div class="deal-slot">${inp("Duration (Minutes)", "minutes", d.minutes)}</div>
+        <div class="deal-slot">${inp("Class Time", "time", d.time, { type: "time" })}</div>
+        ${inp("Parent Pays", "parentFreq", d.parentFreq || "Monthly", { type: "text", options: Object.keys(DEAL_FREQ) })}
+        <div class="deal-slot" data-set="commission">${inp("Payment To", "feeTo", d.feeTo || "Tutor", { type: "text", options: ["Agency", "Tutor"] })}</div>
         <label class="admin-box" data-set="margin"><input type="text" readonly value="Agency" data-out="margPayTo"><span>Payment to</span></label>
       </div>
     </div>`;
@@ -6554,7 +6554,7 @@ function flowInner(m, freq) {
   const c = m.classes, noun = c === 1 ? "Class" : "Classes";
   const perClassParent = margin ? m.parentPerClass : m.perClass;
   const perClassTutor = margin ? m.tutorPerClass : (c ? Math.round(m.tutorFirstMonth / c) : 0);
-  const cap = `${c} ${noun} / Month · Parent ${R(perClassParent)} / Class · Tutor Gets ${R(perClassTutor)} / Class`;
+  const cap = `${c} ${noun} Per Month · Parent ${R(perClassParent)} Per Class · Tutor Gets ${R(perClassTutor)} Per Class`;
   return `<svg class="flow-svg" viewBox="0 0 ${W} ${cy + nr + 24}" role="img" aria-label="How the money moves">${svg}</svg><p class="flow-cap">${esc(cap)}</p>`;
 }
 
