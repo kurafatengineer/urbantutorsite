@@ -4279,12 +4279,40 @@ document.addEventListener("click", (event) => {
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeTutorStats(); });
 window.addEventListener("resize", closeTutorStats);
 
+// A coloured ring round a Student's / Tutor's profile circle that says where their tuitions stand
+// (one equal slice per live tuition; rejected, declined and closed ones are left out):
+//   student: blue = finding a tutor / demo scheduled, green = running, grey = completed
+//   tutor:   orange = applied / demo scheduled, green = running, grey = completed
+const RING_COLORS = { blue: "#4da3ff", green: "#16a34a", grey: "#8e8e99", orange: "#ff9f43" };
+
+function ringTones(kind, id) {
+  if (!id || !STATE.data) return [];
+  if (kind === "students") {
+    return demoGroups().filter(g => g.first.studentId === id).map(groupState)
+      .filter(st => st !== "terminated")
+      .map(st => st === "running" ? "green" : st === "completed" ? "grey" : "blue");
+  }
+  return (STATE.data.demos || []).filter(d => d.hasTutor && d.tutorId === id).map(rowState)
+    .filter(st => st !== "declined" && st !== "terminated")
+    .map(st => st === "running" ? "green" : st === "completed" ? "grey" : "orange");
+}
+
+function ringAttrs(kind, id) {
+  const tones = ringTones(kind, id);
+  if (!tones.length) return { cls: "", style: "", title: "" };
+  const n = tones.length;
+  const stops = tones.map((t, i) => `${RING_COLORS[t]} ${(i * 100 / n).toFixed(2)}% ${((i + 1) * 100 / n).toFixed(2)}%`).join(", ");
+  const names = { blue: "finding tutor / demo scheduled", green: "running", grey: "completed", orange: "applied / demo scheduled" };
+  return { cls: " has-ring", style: ` style="--ring: conic-gradient(${stops})"`, title: " - " + tones.map(t => names[t]).join(", ") };
+}
+
 function profileAvatar(kind, id, letters, badgeHtml) {
   const exists = id && (kind === "students" ? STUDENT_BY_ID : TUTOR_BY_ID)[id];
   const photo = kind === "tutors" ? tutorPhotoHtml(id) : "";
+  const ring = ringAttrs(kind, id);
   return exists
-    ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="go-to-card" data-tab="${kind}" data-key="${esc(kind + ":" + id)}" title="Open profile">${esc(letters)}${photo}${badgeHtml}</button>`
-    : `<div class="admin-avatar">${esc(letters)}${photo}${badgeHtml}</div>`;
+    ? `<button type="button" class="admin-avatar admin-avatar-link${ring.cls}"${ring.style} data-action="go-to-card" data-tab="${kind}" data-key="${esc(kind + ":" + id)}" title="Open profile${esc(ring.title)}">${esc(letters)}${photo}${badgeHtml}</button>`
+    : `<div class="admin-avatar${ring.cls}"${ring.style}>${esc(letters)}${photo}${badgeHtml}</div>`;
 }
 
 function subscriptionPayBadge(partyType, partyId) {
@@ -4342,8 +4370,8 @@ function recordCard(kind, record, opts) {
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
         ${kind === "tutors"
-          ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="tutor-stats" data-id="${esc(record.id)}" title="Tuition record" aria-haspopup="dialog">${esc(initials(opts.name, "T"))}${tutorPhotoHtml(record.id)}${subscriptionPayBadge("tutor", record.id)}</button>`
-          : `<div class="admin-avatar">${esc(initials(opts.name, "S"))}${subscriptionPayBadge("student", record.id)}</div>`}
+          ? (() => { const ring = ringAttrs("tutors", record.id); return `<button type="button" class="admin-avatar admin-avatar-link${ring.cls}"${ring.style} data-action="tutor-stats" data-id="${esc(record.id)}" title="Tuition record${esc(ring.title)}" aria-haspopup="dialog">${esc(initials(opts.name, "T"))}${tutorPhotoHtml(record.id)}${subscriptionPayBadge("tutor", record.id)}</button>`; })()
+          : (() => { const ring = ringAttrs("students", record.id); return `<div class="admin-avatar${ring.cls}"${ring.style} title="${esc(ring.title.replace(/^ - /, ""))}">${esc(initials(opts.name, "S"))}${subscriptionPayBadge("student", record.id)}</div>`; })()}
         <div class="admin-card-title">
           ${opts.titleHtml || `<strong>${esc(opts.name || record.id)}</strong><small>${esc(opts.sub)}</small>`}
         </div>
