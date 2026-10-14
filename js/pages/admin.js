@@ -4298,21 +4298,21 @@ function ringTones(kind, id) {
 }
 
 function ringAttrs(kind, id) {
-  const tones = ringTones(kind, id);
+  // one ring per colour (green, then blue / orange, then grey), drawn outwards from the circle
+  const have = new Set(ringTones(kind, id));
+  const tones = ["green", "blue", "orange", "grey"].filter(t => have.has(t));
   if (!tones.length) return { cls: "", style: "", title: "" };
-  const n = tones.length;
-  const stops = tones.map((t, i) => `${RING_COLORS[t]} ${(i * 100 / n).toFixed(2)}% ${((i + 1) * 100 / n).toFixed(2)}%`).join(", ");
+  const shadow = tones.map((t, i) => `0 0 0 ${(i + 1) * 3}px ${RING_COLORS[t]}`).join(", ");
   const names = { blue: "finding tutor / demo scheduled", green: "running", grey: "completed", orange: "applied / demo scheduled" };
-  return { cls: " has-ring", style: ` style="--ring: conic-gradient(${stops})"`, title: " - " + tones.map(t => names[t]).join(", ") };
+  return { cls: " has-ring", style: ` style="box-shadow: ${shadow}; margin-inline: ${tones.length * 3}px"`, title: " - " + tones.map(t => names[t]).join(", ") };
 }
 
 function profileAvatar(kind, id, letters, badgeHtml) {
   const exists = id && (kind === "students" ? STUDENT_BY_ID : TUTOR_BY_ID)[id];
   const photo = kind === "tutors" ? tutorPhotoHtml(id) : "";
-  const ring = ringAttrs(kind, id);
   return exists
-    ? `<button type="button" class="admin-avatar admin-avatar-link${ring.cls}"${ring.style} data-action="go-to-card" data-tab="${kind}" data-key="${esc(kind + ":" + id)}" title="Open profile${esc(ring.title)}">${esc(letters)}${photo}${badgeHtml}</button>`
-    : `<div class="admin-avatar${ring.cls}"${ring.style}>${esc(letters)}${photo}${badgeHtml}</div>`;
+    ? `<button type="button" class="admin-avatar admin-avatar-link" data-action="go-to-card" data-tab="${kind}" data-key="${esc(kind + ":" + id)}" title="Open profile">${esc(letters)}${photo}${badgeHtml}</button>`
+    : `<div class="admin-avatar">${esc(letters)}${photo}${badgeHtml}</div>`;
 }
 
 function subscriptionPayBadge(partyType, partyId) {
