@@ -435,7 +435,7 @@ function isLoggedInTutor_() {
 /* =========================================================
    NEW: STUDENT SESSION CHECK
    =========================================================
-   Read-only, same as the tutor check above. studentregistration.js and
+   Read-only, same as the tutor check above. student-registration.js and
    student-profile.js remain the only places that create,
    verify, or clear a student session.
    ========================================================= */
