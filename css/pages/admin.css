@@ -4806,7 +4806,7 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 .cal-cycle { margin: 8px 0 0; }
 
 /* v25: whole refund box is the button */
-.pc-refund-row { display: block; width: 100%; text-align: left; border: 0; border-radius: 14px; color: inherit; font: inherit; cursor: pointer; }
+.pc-refund-row { display: block; width: 100%; text-align: center; border: 0; border-radius: 14px; color: inherit; font: inherit; cursor: pointer; }
 .pc-refund-row:hover:not(:disabled) { filter: brightness(1.15); }
 .pc-refund-row:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -4815,3 +4815,4 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 .class-cal .cal-note { margin-top: auto; }
 .class-cal > .cal-terms { margin-top: 10px; padding-top: 0; }
 .cal-wd.is-plan { background: #3a3d42; color: #fff; border-radius: 999px; padding: 3px 0; font-weight: 800; }
+.pc-refund-row small, .pc-refund-row b, .pc-refund-row em { text-align: center; }
