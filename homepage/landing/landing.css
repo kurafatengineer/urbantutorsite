@@ -174,3 +174,9 @@ body[data-page="home"] { margin: 0; background: #08080b; }
 .ld-avw { position: relative; width: 64px; margin: 0 auto; }
 .ld-badge.ld-badge-av { position: absolute; right: -6px; bottom: -4px; width: 24px; height: 24px; filter: drop-shadow(0 0 0 #0f0f13); }
 .ld-name b { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.25; }
+
+/* anything too long for its card is cut with "..." */
+.ld-tt { min-width: 0; overflow: hidden; }
+.ld-name { display: block; }
+.ld-name b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ld-exp { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
