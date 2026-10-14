@@ -85,7 +85,15 @@ export async function tutorQuiet(email: string | null | undefined): Promise<bool
     if (!res.ok) return false;
     const rows = await res.json().catch(() => []);
     const hit = (rows ?? []).find((r: { email?: string }) => String(r.email ?? "").trim().toLowerCase() === target);
-    return !!hit && (!!hit.blocked_at || hit.notifications_off === true);
+    if (hit && (hit.blocked_at || hit.notifications_off === true)) return true;
+    const ar = await fetch(
+      `${url}/rest/v1/admin_users?email=ilike.${encodeURIComponent(target)}&select=email,notifications_off`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+    );
+    if (!ar.ok) return false;
+    const admins = await ar.json().catch(() => []);
+    return (admins ?? []).some((r: { email?: string; notifications_off?: boolean }) =>
+      String(r.email ?? "").trim().toLowerCase() === target && r.notifications_off === true);
   } catch {
     return false;
   }

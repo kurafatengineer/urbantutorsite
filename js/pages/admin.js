@@ -801,7 +801,7 @@ function applyActiveTab() {
     const sec = $("tab-" + n);
     if (sec) sec.classList.toggle("hidden", n !== STATE.tab);
   });
-  if (STATE.tab === "students" && typeof fitStudentColumns === "function") requestAnimationFrame(fitStudentColumns);
+  if ((STATE.tab === "students" || STATE.tab === "tutors") && typeof fitStudentColumns === "function") requestAnimationFrame(fitStudentColumns);
 }
 
 async function loadOverview(quiet) {
@@ -3462,8 +3462,35 @@ async function onListClick(event) {
       await saveEmployeeEdit(box, actionEl);
       break;
 
+    case "employee-edit":
+      STATE.open.add(actionEl.dataset.key);
+      STATE.editing.add(actionEl.dataset.key);
+      rerenderCurrent();
+      break;
+
+    case "employee-check": {
+      const emp = (STATE.employees || []).find(x => String(x.id) === actionEl.dataset.id) || {};
+      const miss = employeeMissing(emp);
+      toast(miss.length ? `Incomplete: ${miss.join(", ")}.` : "Profile is complete.");
+      break;
+    }
+
+    case "employee-mute": {
+      const emp = (STATE.employees || []).find(x => String(x.id) === actionEl.dataset.id) || {};
+      const name = emp.full_name || emp.email || "this employee";
+      const turnOff = !emp.notifications_off;
+      const ok = await askConfirm(turnOff
+        ? { title: `Turn off notifications for ${name}?`, okText: "Turn Off", lines: ["No notification email or Telegram message will be sent to this employee (login codes still go out)."] }
+        : { title: `Turn notifications back on for ${name}?`, okText: "Turn On", lines: [`${name} will get notifications again.`] });
+      if (!ok) break;
+      actionEl.disabled = true;
+      await save({ action: "adminMuteEmployee", id: actionEl.dataset.id, off: turnOff }, actionEl);
+      break;
+    }
+
     case "employee-status": {
-      const value = actionEl.dataset.value === "true";
+      const value = actionEl.dataset.value !== undefined ? actionEl.dataset.value === "true"
+        : !!(((STATE.employees || []).find(x => String(x.id) === actionEl.dataset.id) || {}).active === false);
       const emp = (STATE.employees || []).find(x => String(x.id) === box.dataset.id) || {};
       const name = emp.full_name || box.dataset.id;
       const ok = window.confirm(value
@@ -4722,10 +4749,7 @@ function renderTutors() {
       // One line, 8 equal columns: Name | Gender | Mobile | WhatsApp |
       // Tutor ID | Subjects | Address (no PIN) | Pin Code - text too
       // long for its column is cut with "..." (see equalRow).
-      titleHtml: equalRow([
-        v("Full Name") || r.id, v("Gender"), v("Mobile Number"), v("WhatsApp Number"),
-        r.id, v("Subject You Teach"), fullAddress(v("Present Address"), v("City"), ""), v("Pin Code")
-      ]),
+      titleHtml: equalRow(tutorSummaryCells(r), TUTOR_COLUMNS),
       // Only the Accept/Reject buttons say the status; the read-only
       // rail is just a fallback for roles that can't verify.
       pill: "",
@@ -4739,6 +4763,8 @@ function renderTutors() {
   $("tutorHeader").innerHTML = rows.length ? tutorHeaderCard() : "";
 
   applyTextSearch("tutorList", "tutorSearch", "No tutors match.");
+  fitStudentColumns();
+  requestAnimationFrame(fitStudentColumns);
 
 }
 
@@ -4757,6 +4783,13 @@ function studentSummaryCells(r) {
 
 // Until the widths are measured the nine columns are equal.
 const STUDENT_COLUMNS = "var(--stu-cols, repeat(9, minmax(0, 1fr)))";
+const TUTOR_COLUMNS = "var(--tut-cols, repeat(8, minmax(0, 1fr)))";
+const TUTOR_COLUMN_LABELS = ["Name", "Gender", "Mobile", "WhatsApp", "Tutor ID", "Subjects", "Address", "Pin Code"];
+function tutorSummaryCells(r) {
+  const v = f => (r.values || {})[f] || "";
+  return [v("Full Name") || r.id, v("Gender"), v("Mobile Number"), v("WhatsApp Number"),
+    r.id, v("Subject You Teach"), fullAddress(v("Present Address"), v("City"), ""), v("Pin Code")];
+}
 const STUDENT_COLUMN_LABELS = ["Name", "Gender", "Class", "Board", "Mobile", "WhatsApp", "Student ID", "Address", "Pin Code"];
 
 /* Column widths of the Students list. Every student's value is measured, so
@@ -4767,11 +4800,23 @@ const STUDENT_COLUMN_LABELS = ["Name", "Gender", "Class", "Board", "Mobile", "Wh
    nobody needs more, what is left is shared equally. */
 let measureCtx = null;
 
+const FIT_LISTS = [
+  { list: "studentList", tab: "tab-students", vars: "--stu-cols", labels: () => STUDENT_COLUMN_LABELS,
+    rows: () => STATE.data.students.rows, cells: r => studentSummaryCells(r) },
+  { list: "tutorList", tab: "tab-tutors", vars: "--tut-cols", labels: () => TUTOR_COLUMN_LABELS,
+    rows: () => STATE.data.tutors.rows, cells: r => tutorSummaryCells(r) },
+];
+
 function fitStudentColumns() {
-  const list = $("studentList");
+  FIT_LISTS.forEach(fitColumns);
+}
+
+function fitColumns(cfg) {
+  const list = $(cfg.list);
   const first = list && list.querySelector(".eq-grid");
-  const rows = STATE.data && STATE.data.students && STATE.data.students.rows;
+  const rows = STATE.data && cfg.rows() ;
   if (!first || !rows || !rows.length) return;
+  const labels = cfg.labels();
   const width = first.getBoundingClientRect().width;
   if (!(width > 0)) return;
 
@@ -4781,13 +4826,13 @@ function fitStudentColumns() {
   measureCtx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
   const pad = 6 + 6 + 2;                                    // cell padding + divider + a hair
 
-  const n = STUDENT_COLUMN_LABELS.length;
-  const need = STUDENT_COLUMN_LABELS.map((label) => {       // the header label counts too
+  const n = labels.length;
+  const need = labels.map((label) => {       // the header label counts too
     measureCtx.font = "800 11px " + style.fontFamily;
     return measureCtx.measureText(label.toUpperCase()).width + label.length * 0.44 + pad;
   });
   measureCtx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-  rows.forEach(r => studentSummaryCells(r).forEach((c, i) => {
+  rows.forEach(r => cfg.cells(r).forEach((c, i) => {
     const text = (c === undefined || c === null || c === "") ? "-" : String(c);
     const w = measureCtx.measureText(text).width + pad;
     if (w > need[i]) need[i] = w;
@@ -4807,7 +4852,7 @@ function fitStudentColumns() {
   if (left > 0.5) give.forEach((_, i) => { give[i] += left / n; });   // nobody needs more: share equally
 
   const template = give.map(g => `minmax(0, ${Math.max(g, 1).toFixed(1)}fr)`).join(" ");
-  $("tab-students").style.setProperty("--stu-cols", template);
+  $(cfg.tab).style.setProperty(cfg.vars, template);
 }
 
 let fitTimer = 0;
@@ -5884,9 +5929,8 @@ function subscriptionHeaderCard() {
 function tutorHeaderCard() {
   return listHeaderCard(`
     <span class="list-header-spacer list-header-avatar-label">Profile</span>
-    ${equalRow(["Name", "Gender", "Mobile", "WhatsApp", "Tutor ID", "Subjects", "Address", "Pin Code"])}
-    <span class="admin-caret" aria-hidden="true"></span>
-    <span class="admin-status-rail admin-rail-sub list-header-vbtns" data-tone="black">Status</span>
+    ${equalRow(TUTOR_COLUMN_LABELS, TUTOR_COLUMNS)}
+    <span class="stu-icons stu-icons-label">Actions</span>
   `);
 }
 
@@ -5894,8 +5938,7 @@ function employeeHeaderCard() {
   return listHeaderCard(`
     <span class="list-header-spacer list-header-avatar-label">Profile</span>
     ${equalRow(["Name", "Email", "Role", "Status"])}
-    <span class="admin-caret" aria-hidden="true"></span>
-    <span class="admin-status-rail admin-rail-sub list-header-vbtns" data-tone="black">Action</span>
+    <span class="stu-icons stu-icons-label">Actions</span>
   `);
 }
 
@@ -5995,6 +6038,33 @@ function renderEmployees() {
 // Always both buttons, on every employee's card - including your own,
 // where both are simply disabled rather than hidden, so the row shape
 // never changes from one card to the next.
+function employeeMissing(e) {
+  const miss = [];
+  if (!String(e.full_name || "").trim()) miss.push("name");
+  if (!e.role) miss.push("role");
+  if (e.role !== "super_admin" && !(e.permissions || []).length) miss.push("permissions");
+  if (e.role !== "super_admin" && !(e.workStart && e.workEnd)) miss.push("login hours");
+  return miss;
+}
+
+function employeeIconsHtml(e, key, isMe) {
+  const can = !!(myPerms().employees);
+  const off = e.active === false, muted = !!e.notifications_off || off;
+  const miss = employeeMissing(e);
+  const btn = (action, icon, tone, label, allowed, on) =>
+    `<button type="button" class="stu-icon" data-tone="${tone}"${on ? ' data-on="1"' : ""} data-action="${action}" data-id="${esc(e.id)}" data-key="${esc(key)}"
+      title="${esc(label)}" aria-label="${esc(label)}"${allowed ? "" : " disabled"}>${stuIcon(icon)}</button>`;
+  return `<span class="stu-icons">
+    ${btn("employee-status", "ban", "red", isMe ? "You can't suspend yourself" : off ? "Suspended - click to make active" : "Active - click to suspend", can && !isMe, off)}
+    ${miss.length
+      ? btn("employee-check", "flag", "orange", "Incomplete: " + miss.join(", "), true, true)
+      : btn("employee-check", "check", "green", "Profile complete", true, true)}
+    ${btn("employee-mute", muted ? "bellOff" : "bell", "blue",
+      off ? "Suspended - notifications are off" : muted ? "Notifications are OFF - click to turn on" : "Notifications are ON - click to turn off", can && !off, muted)}
+    ${btn("employee-edit", "edit", "violet", "Edit employee", can, false)}
+  </span>`;
+}
+
 function employeeStatusButtonsHtml(active, isMe) {
   return `
     <div class="admin-vbtns">
@@ -6119,8 +6189,7 @@ function employeeCard(e) {
           <span class="ledger-cell" title="${esc(ROLE_LABELS[e.role] || e.role)}">${esc(ROLE_LABELS[e.role] || e.role)}</span>
           <span class="ledger-cell"><span class="emp-status" data-active="${e.active ? "yes" : "no"}">${e.active ? "Active" : "Suspended"}</span></span>
         </div>
-        <span class="admin-caret" aria-hidden="true"></span>
-        ${employeeStatusButtonsHtml(!!e.active, isMe)}
+        ${employeeIconsHtml(e, key, isMe)}
       </div>
 
       <div class="admin-card-body">
