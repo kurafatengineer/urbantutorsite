@@ -6571,7 +6571,7 @@ function recalcDeal(panel) {
     const plain = ["classes", "hours", "minutes", "cutPercent"];
     Object.keys(m).forEach(k => {
       if (typeof m[k] !== "number") return;
-      sync(k, plain.includes(k) ? (k === "hours" ? Math.round(m[k] * 100) / 100 : m[k]) : "₹" + Number(m[k] || 0).toLocaleString("en-IN"));
+      sync(k, plain.includes(k) ? (k === "hours" ? Math.round(m[k] * 100) / 100 : k === "minutes" ? m[k] + " min" : m[k]) : "₹" + Number(m[k] || 0).toLocaleString("en-IN"));
     });
     sync("tutorEach", "₹" + Number((viaTutor ? m.cutInstallment : m.tutorInstallment) || 0).toLocaleString("en-IN"));
     const planEl = card.querySelector("[data-class-plan]");
@@ -6872,26 +6872,24 @@ function classCard(g, activeRow) {
       <div class="pc-terms">
         <div><small>${payLabel}</small><b class="pc-chip" data-sync="${syncKey}">${esc(payValue)}</b></div>
         <div><small>Frequency</small><b data-sync="freq">${esc(freq0)}</b></div>
-        <div class="pc-due"><small>Next Due Date</small><b data-sync="${dueSync}">${esc(dueValue)}</b></div>
         ${tiles}
       </div>
       <div class="pc-stats">${stats}</div>
+      <div class="pc-terms"><div class="pc-due"><small>Next Due Date</small><b data-sync="${dueSync}">${esc(dueValue)}</b></div></div>
     </section>`;
 
   const R = v => "₹" + Number(v || 0).toLocaleString("en-IN");
   const tile = (label, key, val, set = "") => `<div${set ? ` data-set="${set}"` : ""}><small>${label}</small><b data-sync="${key}">${esc(val)}</b></div>`;
-  const common = tile("Classes", "classes", dm0.classes) + tile("Hours", "hours", Math.round(dm0.hours * 100) / 100);
-  const studentTiles = tile("Each Payment", "parentInstallment", R(dm0.parentInstallment)) + common +
+  const lead = tile("Duration", "minutes", `${dm0.minutes || 0} min`) + tile("Classes", "classes", dm0.classes) + tile("Hours", "hours", Math.round(dm0.hours * 100) / 100);
+  const studentTiles = lead +
     tile("Per Class", "perClass", R(dm0.perClass), "commission") + tile("Per Hour", "perHour", R(dm0.perHour), "commission") +
     tile("Per Class", "parentPerClass", R(dm0.parentPerClass), "margin") + tile("Per Hour", "parentPerHour", R(dm0.parentPerHour), "margin") +
-    tile("Per Month", "parentMonthly", R(dm0.parentMonthly), "margin");
+    tile("Each Payment", "parentInstallment", R(dm0.parentInstallment));
   const tutorEach = dm0.model === "commission" && dm0.feeTo === "Tutor" ? dm0.cutInstallment : dm0.tutorInstallment;
-  const tutorTiles = tile("Each Payment", "tutorEach", R(tutorEach)) + common +
+  const tutorTiles = lead +
     tile("Per Class", "perClass", R(dm0.perClass), "commission") + tile("Per Hour", "perHour", R(dm0.perHour), "commission") +
-    tile("Agency Cut", "cut", R(dm0.cut), "commission") + tile("Gets 1st Month", "tutorFirstMonth", R(dm0.tutorFirstMonth), "commission") +
     tile("Per Class", "tutorPerClass", R(dm0.tutorPerClass), "margin") + tile("Per Hour", "tutorPerHour", R(dm0.tutorPerHour), "margin") +
-    tile("Per Month", "tutorMonthly", R(dm0.tutorMonthly), "margin") + tile("Agency / Class", "margin", R(dm0.margin), "margin") +
-    tile("Agency / Month", "agencyMonthly", R(dm0.agencyMonthly), "margin");
+    tile("Each Payment", "tutorEach", R(tutorEach));
 
   const studentId = g.first.studentId;
   const studentSection = party("pc-student",

@@ -4631,3 +4631,10 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 .class-plan[data-model="commission"] [data-set="margin"],
 .class-plan[data-model="margin"] [data-set="commission"] { display: none !important; }
 .pc-terms > div > b { font-size: 13px; }
+
+/* the % / ₹ sign of the Agency cut: inside the box, after the number */
+.admin-box.deal-cut > span.deal-kind-text {
+  position: absolute; left: auto; right: 16px; top: 50%; bottom: auto; transform: translateY(-50%);
+  background: none; padding: 0; margin: 0; font-size: 15px; font-weight: 800; letter-spacing: 0; text-transform: none; color: var(--muted);
+}
+.admin-box.deal-cut > input[readonly] { padding-right: 38px; }
