@@ -23,6 +23,14 @@ async function db(path: string): Promise<Json[]> {
 const q = encodeURIComponent;
 const inList = (ids: string[]) => `in.(${ids.map((x) => q(`"${x}"`)).join(",")})`;
 
+async function patch(path: string, body: Json) {
+  await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method: "PATCH",
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify(body),
+  });
+}
+
 async function send(to: string, message: Json) {
   const res = await fetch(`https://graph.facebook.com/v21.0/${PHONE_ID}/messages`, {
     method: "POST",
@@ -50,10 +58,10 @@ async function accountsFor(from: string) {
   if (tail.length < 10) return { students: [] as Json[], tutors: [] as Json[] };
   const like = `*${tail.split("").join("*")}*`.replace(/\*+/g, "*");
   const [s1, s2, t1, t2] = await Promise.all([
-    db(`students?whatsapp=ilike.${q(like)}&select=student_id,student_name,whatsapp,phone,blocked_at`),
-    db(`students?phone=ilike.${q(like)}&select=student_id,student_name,whatsapp,phone,blocked_at`),
-    db(`tutors?whatsapp_number=ilike.${q(like)}&select=tutor_id,full_name,whatsapp_number,mobile_number,blocked_at`),
-    db(`tutors?mobile_number=ilike.${q(like)}&select=tutor_id,full_name,whatsapp_number,mobile_number,blocked_at`),
+    db(`students?whatsapp=ilike.${q(like)}&select=student_id,student_name,whatsapp,phone,blocked_at,notifications_off`),
+    db(`students?phone=ilike.${q(like)}&select=student_id,student_name,whatsapp,phone,blocked_at,notifications_off`),
+    db(`tutors?whatsapp_number=ilike.${q(like)}&select=tutor_id,full_name,whatsapp_number,mobile_number,blocked_at,notifications_off`),
+    db(`tutors?mobile_number=ilike.${q(like)}&select=tutor_id,full_name,whatsapp_number,mobile_number,blocked_at,notifications_off`),
   ]);
   const uniq = (rows: Json[], key: string) => [...new Map(rows.map((r) => [r[key], r])).values()];
   const students = uniq([...s1, ...s2], "student_id").filter((r) => last10(r.whatsapp) === tail || last10(r.phone) === tail);
@@ -120,12 +128,14 @@ async function showMenu(to: string, role: string, accounts: { students: Json[]; 
   if (accounts.students.length && accounts.tutors.length) {
     rows.push({ id: `h:${role === "s" ? "t" : "s"}`, title: role === "s" ? "Switch to Tutor" : "Switch to Student" });
   }
+  const off = mine.every((r) => r.notifications_off === true || r.blocked_at);
+  rows.push({ id: `n:${role}`, title: off ? "Notifications OFF" : "Notifications ON", description: off ? "Tap to turn ON" : "Tap to turn OFF" });
   const body = `Hi ${name || "there"}!\n${role === "s" ? "Student" : "Tutor"} menu\n\n` +
     (life.length
       ? `${role === "s" ? "Your tuitions" : "Tuitions you applied for"} - pick one below to see its details.`
       : role === "s" ? "You have no live tuitions right now." : "You have not applied for any tuition yet.") +
+    `\n\n${off ? "Notifications are OFF (no email, no WhatsApp, no Telegram)." : "Notifications are ON."}` +
     `\n\nProfile: ${SITE_URL}/${role === "s" ? "studentprofile" : "tutorprofile"}.html`;
-  if (!rows.length) { await sendText(to, body); return; }
   await send(to, {
     type: "interactive",
     interactive: {
@@ -172,6 +182,15 @@ async function onMessage(m: Json) {
   const [action, roleRaw, cat] = picked.split(":");
   const role = roleRaw === "t" && accounts.tutors.length ? "t" : roleRaw === "s" && accounts.students.length ? "s" : accounts.students.length ? "s" : "t";
 
+  if (action === "n") {
+    const mine = role === "s" ? accounts.students : accounts.tutors;
+    const turnOff = mine.some((r) => r.notifications_off !== true);
+    const table = role === "s" ? "students" : "tutors";
+    const col = role === "s" ? "student_id" : "tutor_id";
+    await patch(`${table}?${col}=${inList(mine.map((r) => String(r[col])))}`, { notifications_off: turnOff });
+    await sendText(from, turnOff ? "Notifications are OFF - no email, no WhatsApp, no Telegram.\n\nSend *hi* for the menu." : "Notifications are ON again.\n\nSend *hi* for the menu.");
+    return;
+  }
   if (action === "c" && cat) { await showCategory(from, role, cat, accounts); return; }
   if (accounts.students.length && accounts.tutors.length && action !== "h") {
     await send(from, {
