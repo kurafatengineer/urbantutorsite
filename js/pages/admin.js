@@ -4745,15 +4745,10 @@ function renderTutors() {
     const status = r.values["Verification Status"] || "Pending for Verification";
     const v = f => r.values[f] || "";
     const applied = (STATE.data.demos || []).filter(d => d.hasTutor && d.tutorId === r.id);
-    const extra = applied.length ? `
-      <div class="admin-mini-list">
-        <span class="admin-mini-title">Tuitions</span>
-        ${applied.map(d => {
-          const st = rowState(d);
-          const label = st === "schedule" ? "Applied" : ROW_LABELS[st];
-          return `<button type="button" class="admin-pill admin-pill-link" data-tone="${esc(st)}" data-action="go-to-tuition" data-demo="${esc(d.demoId)}">${esc(d.subject)} · ${esc(label)}</button>`;
-        }).join("")}
-      </div>` : "";
+    const extra = miniTuitionsHtml(applied.map(d => {
+      const st = rowState(d);
+      return { demo: d.demoId, subject: d.subject, tone: st, label: st === "schedule" ? "Applied" : ROW_LABELS[st] };
+    }));
     return recordCard("tutors", r, {
       extra,
       name: v("Full Name"),
@@ -4869,6 +4864,22 @@ function fitColumns(cfg) {
 let fitTimer = 0;
 window.addEventListener("resize", () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitStudentColumns, 120); });
 
+// "Tuitions" under a student / tutor card: one pill per tuition ("Maths · Applied"), side by side
+// on one line and wrapping to the next when the line is full. Every pill is as wide as the longest
+// one; a click jumps to that tuition and waves it.
+function miniTuitionsHtml(items) {
+  if (!items.length) return "";
+  const texts = items.map(i => `${i.subject || "-"} · ${i.label}`);
+  const widest = Math.max(...texts.map(t => t.length));
+  return `
+      <div class="admin-mini-list">
+        <span class="admin-mini-title">Tuitions</span>
+        <div class="admin-mini-row" style="--pill-ch: ${widest}">
+          ${items.map((i, n) => `<button type="button" class="admin-pill admin-pill-link" data-tone="${esc(i.tone)}" data-action="go-to-tuition" data-highlight="1" data-demo="${esc(i.demo)}" title="${esc(texts[n])}">${esc(texts[n])}</button>`).join("")}
+        </div>
+      </div>`;
+}
+
 function renderStudents() {
 
   const groups = demoGroups();
@@ -4879,14 +4890,10 @@ function renderStudents() {
 
     const mine = groups.filter(g => g.first.studentId === r.id);
 
-    const extra = mine.length ? `
-      <div class="admin-mini-list">
-        <span class="admin-mini-title">Tuitions</span>
-        ${mine.map(g => {
-          const tone = tuitionRailTone(groupState(g));
-          return `<button type="button" class="admin-pill admin-pill-link" data-tone="${esc(tone)}" data-action="go-to-tuition" data-demo="${esc(g.demoId)}">${esc(g.first.subject)} · ${esc(TUITION_RAIL_LABELS[tone])}</button>`;
-        }).join("")}
-      </div>` : "";
+    const extra = miniTuitionsHtml(mine.map(g => {
+      const tone = tuitionRailTone(groupState(g));
+      return { demo: g.demoId, subject: g.first.subject, tone, label: TUITION_RAIL_LABELS[tone] };
+    }));
 
     return recordCard("students", r, {
       name: r.values["Student Name"],
