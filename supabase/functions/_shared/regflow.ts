@@ -5,48 +5,19 @@
 import { emailTemplate, sendMail } from "./email.ts";
 import { AGENCY_PHONE, SITE_URL } from "./constants.ts";
 import { last10, q, rest, studentEmailTaken as studentWithEmail, studentPhoneTaken as studentWithPhone } from "./botdata.ts";
+import { type Choice, type Ctx, type Input, type Out, clean, clear, load, save, titleCase } from "./session.ts";
+import { startTuition, tuitionInput } from "./tuitionflow.ts";
 
 type Json = Record<string, any>;
-
-export type Choice = { id: string; title: string };
-// link: one button that opens a page of the site (WhatsApp "cta_url" button, Telegram web-app button).
-export type Out = { text: string; choices?: Choice[]; askPhone?: boolean; link?: { label: string; url: string } };
-export type Input = { text?: string; choice?: string; contactPhone?: string };
-export type Ctx = { channel: "wa" | "tg"; key: string; verifiedPhone?: string; telegramChatId?: number };
+export type { Choice, Ctx, Input, Out };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-const SESSION_HOURS = 3;
 const OTP_MINUTES = 10;
 const OTP_MAX_TRIES = 5;
 const OTP_MAX_SENDS = 3;
 const OTP_GAP_SECONDS = 30;
-
-const clean = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim();
-const titleCase = (v: string) => clean(v).toLowerCase().replace(/(^|[\s.'-])([a-z])/g, (_m, a, b) => a + b.toUpperCase());
-
-async function load(ctx: Ctx): Promise<{ step: string; data: Json } | null> {
-  const rows = await rest(`bot_sessions?channel=eq.${ctx.channel}&chat_key=eq.${q(ctx.key)}&select=step,data,updated_at`);
-  const row = rows?.[0];
-  if (!row) return null;
-  // a half-finished registration is forgotten after a few hours, so a later "hi" starts fresh
-  if (Date.now() - new Date(row.updated_at).getTime() > SESSION_HOURS * 3_600_000) {
-    await clear(ctx);
-    return null;
-  }
-  return row;
-}
-async function save(ctx: Ctx, step: string, data: Json) {
-  await rest("bot_sessions?on_conflict=channel,chat_key", {
-    method: "POST",
-    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify({ channel: ctx.channel, chat_key: ctx.key, step, data, updated_at: new Date().toISOString() }),
-  });
-}
-async function clear(ctx: Ctx) {
-  await rest(`bot_sessions?channel=eq.${ctx.channel}&chat_key=eq.${q(ctx.key)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
-}
 
 async function sha(text: string) {
   const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
@@ -62,7 +33,7 @@ function newCode() {
 const ORDER = ["parents", "student", "phone", "email", "otp", "gender", "class", "school", "board", "city", "pin", "address", "terms", "confirm"];
 
 const PROFILE_LINK = { label: "Open Website", url: `${SITE_URL}/studentprofile.html` };
-const CANCEL: Choice ={ id: "cancel", title: "Cancel" };
+const CANCEL: Choice = { id: "cancel", title: "Cancel" };
 
 // The two buttons under every "type the code" message.
 const OTP_CHOICES: Choice[] = [{ id: "otp:resend", title: "Resend Code" }, { id: "otp:change", title: "Change Email" }];
@@ -141,6 +112,11 @@ async function sendOtp(ctx: Ctx, d: Json): Promise<string | null> {
 export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null> {
   const s = await load(ctx);
   if (!s) return null;
+  if (s.step.startsWith("t_")) {
+    // "Hi" / "Menu" in the middle of posting a tuition leaves it and shows the menu
+    if (/^(hi|hello|hey|menu)$/i.test(clean(input.text))) { await clear(ctx); return null; }
+    return tuitionInput(ctx, s, input);
+  }
   const d = s.data;
   const text = clean(input.text);
   const choice = input.choice ?? "";
@@ -287,7 +263,7 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
           method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ telegram_chat_id: ctx.telegramChatId }),
         });
       }
-      await save(ctx, "tuition", { studentId: out.studentId });
+      await save(ctx, "tuition", { studentId: out.studentId, studentName: d.studentName });
       return [{
         text: `*You are registered!*\nYour Student ID is *${out.studentId}*.\n\nDo you want to post a new tuition request now?`,
         choices: [{ id: "tuition:yes", title: "Yes, Post Now" }, { id: "tuition:no", title: "Not Now" }],
@@ -295,13 +271,10 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
     }
 
     case "tuition": {
-      await clear(ctx);
       if (choice === "tuition:yes") {
-        return [{
-          text: "*Post a New Tuition*\nTap the button below, log in with your email and tap *Apply For New Tuition*.\n\nSend *Hi* any time for the menu.",
-          link: PROFILE_LINK,
-        }];
+        return startTuition(ctx, [{ student_id: String(d.studentId), student_name: String(d.studentName ?? "") }]);
       }
+      await clear(ctx);
       return [{ text: "All set.\nSend *Hi* any time for the menu." }];
     }
   }

@@ -115,12 +115,15 @@ Shared code (`_shared/`):
 - `format.ts` — date / time wording ("25 September 2026", "5:00 PM").
 - `telegram.ts` — sending to Telegram + the quiet / notifications-off checks, `notify()`.
 - `botdata.ts` — the bots' database lookups: who is behind a phone / email, the tuition life (Running / Demo Scheduled / Finding Tutor / Completed). Used by both bots and the chat registration.
+- `session.ts` — where the chat flows keep their progress (`bot_sessions`), shared types.
 - `regflow.ts` — the chat registration flow used by both bots.
+- `tuitionflow.ts` — the chat "post a new tuition" flow used by both bots.
 - `deal.ts` — class-deal money maths.
 
 **Tests** (no network needed): `NODE_PATH=$(npm root -g) node supabase/tests/run.mjs` checks the chat
 registration (WhatsApp + Telegram paths, duplicate email / phone, wrong code, cancel) and the bot menu
-categories against a pretend database. Run it after touching `regflow.ts` or `botdata.ts`.
+categories against a pretend database, and the chat tuition posting. Run it after touching `regflow.ts`,
+`tuitionflow.ts` or `botdata.ts`.
 
 `supabase/archive/` — old, switched-off code kept only for reference. Nothing there is live.
 
@@ -176,7 +179,8 @@ link to the profile.
 - Works on the number set in `WHATSAPP_PHONE_NUMBER_ID`. The person is found by
   the sender's number (students' `phone` / `whatsapp`, tutors' `mobile_number` /
   `whatsapp_number`, last 10 digits).
-- Menu, details, notifications on/off, and **Register as a student in the chat**
+- Menu, details, notifications on/off, **Open Website** (a button: WhatsApp cannot put a
+  link on a word), **Apply for New Tuition** in the chat, and **Register as a student in the chat**
   (same questions as Telegram; the mobile number is the sender's own, the email
   is verified with a code).
 - Meta settings: app → WhatsApp → Configuration: callback URL
@@ -199,7 +203,18 @@ link; the code lasts 10 minutes, 5 tries, max 3 sends, 30 seconds apart; a
 half-finished chat is forgotten after 3 hours. The account is created with
 `admin_register_student` (the same duplicate check as the Admin Panel) and gets
 the yearly subscription like any new student. No tutor sign-up here (documents /
-photo stay on the website).
+photo stay on the website). At the end: "Post a new tuition request now?" → Yes
+starts the tuition flow below.
+
+### Chat tuition flow (`_shared/tuitionflow.ts`)
+"Apply for New Tuition" in the bot menu (students only). Steps: pick the student
+(only if the number / chat has more than one) → subjects (comma separated) → time
+(Morning / Afternoon / Evening / Night / Any Time, or type your own) → tutor (Male /
+Female / Any) → mode (Home Tutor / Online / Any) → check & Post. Same result as the
+website form: one Demo ID per subject, a subject that already has a running request
+is refused, and the "Tuition Request Posted" email / Telegram message goes out.
+Only students found behind that WhatsApp number / linked to that Telegram chat can
+be picked. "Hi" or "Cancel" leaves the flow.
 
 ### Class reminders (`class_notifications`)
 15 minutes before a class: "You have class today" to the tutor and the student.

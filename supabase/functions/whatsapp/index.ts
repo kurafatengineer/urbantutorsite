@@ -4,6 +4,7 @@
 import { SITE_URL } from "../_shared/constants.ts";
 import { fmtDate, fmtTime } from "../_shared/format.ts";
 import { handleInput, startRegistration, type Out } from "../_shared/regflow.ts";
+import { startTuition } from "../_shared/tuitionflow.ts";
 import { accountsByPhone, inList, last10, loadLife, q, rest } from "../_shared/botdata.ts";
 
 type Json = Record<string, any>;
@@ -55,7 +56,7 @@ async function sendOut(to: string, out: Out) {
   }
   await send(to, {
     type: "interactive",
-    interactive: { type: "list", body: { text }, action: { button: "Choose", sections: [{ title: "Options", rows: choices.slice(0, 10).map((c) => ({ id: `reg|${c.id}`, title: c.title.slice(0, 24) })) }] } },
+    interactive: { type: "list", body: { text }, action: { button: "Choose", sections: [{ title: "Options", rows: choices.slice(0, 10).map((c) => ({ id: `reg|${c.id}`, title: c.title.slice(0, 24), ...(c.description ? { description: c.description.slice(0, 72) } : {}) })) }] } },
   });
 }
 async function sendAll(to: string, outs: Out[]) { for (const o of outs) await sendOut(to, o); }
@@ -101,12 +102,12 @@ async function showMenu(to: string, role: string, accounts: { students: Json[]; 
     rows.push({ id: `h:${role === "s" ? "t" : "s"}`, title: role === "s" ? "Switch to Tutor" : "Switch to Student" });
   }
   rows.push({ id: `n:${role}`, title: off ? "Notifications are OFF" : "Notifications are ON", description: off ? "Tap to turn it ON" : "Tap to turn it OFF" });
+  rows.push({ id: `w:${role}`, title: "Open Website", description: "Your profile on Urban Tutor Site" });
   const body = `Hi,\n*${name || "there"}* (${role === "s" ? "Student" : "Tutor"}).\n\n` +
     (life.length
       ? `${role === "s" ? "Your tuitions" : "Tuitions you applied for"} - open the *Menu* to see their details.`
       : role === "s" ? "You have no live tuitions right now." : "You have not applied for any tuition yet.") +
-    `\n\nYour notifications are *${off ? "OFF" : "ON"}*.` +
-    `\n\n*Urban Tutor Site*\n${SITE_URL}/${role === "s" ? "studentprofile" : "tutorprofile"}.html`;
+    `\n\nYour notifications are *${off ? "OFF" : "ON"}*.`;
   await send(to, {
     type: "interactive",
     interactive: {
@@ -177,10 +178,13 @@ async function onMessage(m: Json) {
     await sendText(from, turnOff ? "Your notifications are *OFF* now.\n(No email, WhatsApp or Telegram messages.)\n\nSend *Hi* any time for the menu." : "Your notifications are *ON* again.\n\nSend *Hi* any time for the menu.");
     return;
   }
+  if (action === "a" && role === "s") { await sendAll(from, await startTuition(reg, accounts.students)); return; }
   if (action === "a") {
-    await sendOut(from, role === "s"
-      ? { text: "*Apply for New Tuition*\nTap the button below, log in with your email and tap *Apply For New Tuition*.\n\nSend *Hi* any time for the menu.", link: { label: "Open Website", url: `${SITE_URL}/studentprofile.html` } }
-      : { text: "*Find New Tuitions*\nTap the button below to see the tuitions you can apply for.\n\nSend *Hi* any time for the menu.", link: { label: "Open Website", url: `${SITE_URL}/advertisement.html` } });
+    await sendOut(from, { text: "*Find New Tuitions*\nTap the button below to see the tuitions you can apply for.\n\nSend *Hi* any time for the menu.", link: { label: "Open Website", url: `${SITE_URL}/advertisement.html` } });
+    return;
+  }
+  if (action === "w") {
+    await sendOut(from, { text: "*Urban Tutor Site*\nTap the button below to open your profile.\n\nSend *Hi* any time for the menu.", link: { label: "Open Website", url: `${SITE_URL}/${role === "s" ? "studentprofile" : "tutorprofile"}.html` } });
     return;
   }
   if (action === "c" && cat) { await showCategory(from, role, cat, accounts); return; }
