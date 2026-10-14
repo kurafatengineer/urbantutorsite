@@ -71,8 +71,28 @@ export async function studentQuiet(studentId?: string | null): Promise<boolean> 
   }
 }
 
+// A tutor the office blocked or switched notifications off for gets no email / Telegram message at all.
+export async function tutorQuiet(email: string | null | undefined): Promise<boolean> {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const target = String(email ?? "").trim().toLowerCase();
+  if (!url || !key || !target) return false;
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/tutors?email=ilike.${encodeURIComponent(target)}&select=email,blocked_at,notifications_off`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+    );
+    if (!res.ok) return false;
+    const rows = await res.json().catch(() => []);
+    const hit = (rows ?? []).find((r: { email?: string }) => String(r.email ?? "").trim().toLowerCase() === target);
+    return !!hit && (!!hit.blocked_at || hit.notifications_off === true);
+  } catch {
+    return false;
+  }
+}
 export async function notify(email: string | null | undefined, mail: Built, opts: { email?: boolean; telegram?: boolean } = {}) {
   if (!email) return;
+  if (await tutorQuiet(email)) return;
   if (opts.email !== false) await sendMail(email, mail.subject, mail.html);
   if (opts.telegram === false) return;
   try {

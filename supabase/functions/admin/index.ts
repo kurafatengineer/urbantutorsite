@@ -255,6 +255,8 @@ const ACTION_PERMISSION: Record<string, string> = {
   adminUpdateDemoRow: "tuitions_edit",
   adminFinalizeClass: "tuitions_edit",
   adminSetClassDay: "tuitions_edit",
+  adminMuteTutor: "tutors_edit",
+  adminBlockTutor: "tutors_edit",
   adminSettleClass: "payments_add",
   adminAssignTutor: "tuitions_assign_tutor",
   adminSetTerminated: "tuitions_close",
@@ -782,6 +784,15 @@ async function handleGetOverview(caller: Caller): Promise<Json> {
     }
   }
 
+  if (access.tutorsFull && withLinks.tutors?.rows?.length) {
+    const { data: marks } = await selectAll(() => db.from("tutors")
+      .select("tutor_id, notifications_off, blocked_at").order("tutor_id"));
+    const byId = new Map((marks ?? []).map((m: Json) => [m.tutor_id, m]));
+    for (const r of withLinks.tutors.rows) {
+      const m: Json = byId.get(r.id) ?? {};
+      r.meta = { notificationsOff: m.notifications_off === true, blockedAt: m.blocked_at ?? null };
+    }
+  }
   withLinks.me = {
     email: caller.email, fullName: caller.fullName, role: caller.role,
     permissions: [...caller.permissions],
@@ -937,14 +948,14 @@ async function sendDemoScheduled(demoId: string, tutorId: string, date: string, 
   try {
     const { data: s } = await db.from("students").select("telegram_chat_id, class_name, board, city, pin_code")
       .eq("student_id", student.student_id).maybeSingle();
-    const { data: t } = await db.from("tutors").select("telegram_chat_id").eq("tutor_id", tutorId).maybeSingle();
+    const { data: t } = await db.from("tutors").select("telegram_chat_id, blocked_at, notifications_off").eq("tutor_id", tutorId).maybeSingle();
     const online = /^online$/i.test(String(tuition.medium ?? "").trim());
     const msg = {
       ...base, studentName: student.student_name, cls: s?.class_name, board: s?.board,
       area: online ? "" : [s?.city, s?.pin_code].filter(Boolean).join(" - "), tutorName: tutor.full_name, tutorId,
     };
     if (!quiet && s?.telegram_chat_id) await sendTelegram(s.telegram_chat_id, demoScheduledTelegram({ ...msg, forTutor: false, name: student.student_name }), { text: "Open My Profile", page: "studentprofile.html" }, demoResponseButtons("s", demoId, tutorId));
-    if (t?.telegram_chat_id) await sendTelegram(t.telegram_chat_id, demoScheduledTelegram({ ...msg, forTutor: true, name: tutor.full_name }), { text: "Open My Profile", page: "tutorprofile.html" }, demoResponseButtons("t", demoId, tutorId));
+    if (t?.telegram_chat_id && !t.blocked_at && !t.notifications_off) await sendTelegram(t.telegram_chat_id, demoScheduledTelegram({ ...msg, forTutor: true, name: tutor.full_name }), { text: "Open My Profile", page: "tutorprofile.html" }, demoResponseButtons("t", demoId, tutorId));
   } catch (e) { console.error("demo telegram", e); }
 }
 
@@ -1193,6 +1204,10 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
         const { data: cur } = await db.from("students").select("blocked_at").eq("student_id", body.id).maybeSingle();
         if (cur?.blocked_at) return { success: false, message: "This student is blocked. Unblock them to edit." };
       }
+      if (String(body.kind) === "tutors") {
+        const { data: cur } = await db.from("tutors").select("blocked_at").eq("tutor_id", body.id).maybeSingle();
+        if (cur?.blocked_at) return { success: false, message: "This tutor is blocked. Unblock them to edit." };
+      }
       const result = await rpc("admin_update_record", {
         p_kind: body.kind,
         p_id: body.id,
@@ -1371,6 +1386,32 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
     // Block / unblock. Nothing is erased. A blocked student can open their
     // page only: no new tuitions, no replies to tutors, no tuition of theirs
     // shown to tutors, no notifications, no edits - until unblocked.
+    case "adminMuteTutor": {
+      const id = String(body.id ?? "").trim();
+      if (!id) return { success: false, message: "Missing tutor." };
+      const off = body.off === true;
+      const { data: cur } = await db.from("tutors").select("full_name, blocked_at").eq("tutor_id", id).maybeSingle();
+      if (!cur) return { success: false, message: "Tutor not found." };
+      if (cur.blocked_at) return { success: false, message: "This tutor is blocked, so notifications are already off. Unblock them first." };
+      const { error } = await db.from("tutors").update({ notifications_off: off }).eq("tutor_id", id);
+      if (error) return { success: false, message: error.message };
+      return { success: true, message: off
+        ? `Notifications are OFF for ${cur.full_name || id}. No email or Telegram message will go to them.`
+        : `Notifications are ON again for ${cur.full_name || id}.` };
+    }
+    case "adminBlockTutor": {
+      const id = String(body.id ?? "").trim();
+      if (!id) return { success: false, message: "Missing tutor." };
+      const unblock = body.unblock === true;
+      const { data: done, error } = await db.from("tutors")
+        .update({ blocked_at: unblock ? null : new Date().toISOString() }).eq("tutor_id", id).select("full_name");
+      if (error) return { success: false, message: error.message };
+      if (!done?.length) return { success: false, message: "Tutor not found." };
+      const name = done[0].full_name || id;
+      return { success: true, message: unblock
+        ? `${name} is unblocked.`
+        : `${name} is blocked. They can only open their page; nothing else works and no notification goes to them.` };
+    }
     case "adminBlockStudent": {
       const id = String(body.id ?? "").trim();
       if (!id) return { success: false, message: "Missing student." };
@@ -1426,7 +1467,9 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
         if (inserted.subscription_id) {
           await realignSubscriptionCycle(inserted.subscription_id, inserted.payment_date);
         }
-        try { await sendPaymentMail(inserted, callerMailsOn(caller)); } catch (e) { console.error("payment mail", e); }
+        if (inserted.transaction_type !== "refund") {
+          try { await sendPaymentMail(inserted, callerMailsOn(caller)); } catch (e) { console.error("payment mail", e); }
+        }
       }
       return { success: true, message: "Payment recorded." };
     }

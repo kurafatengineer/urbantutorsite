@@ -3230,6 +3230,48 @@ async function onListClick(event) {
       await blockStudent(actionEl.dataset.id, actionEl);
       break;
 
+    case "class-refund":
+    case "class-refund-cancel": {
+      const form = box.querySelector(`[data-refund-form="${actionEl.dataset.side}"]`);
+      if (form) form.classList.toggle("hidden", actionEl.dataset.action === "class-refund-cancel" ? true : !form.classList.contains("hidden"));
+      break;
+    }
+
+    case "class-refund-save": {
+      const side = actionEl.dataset.side;
+      const form = box.querySelector(`[data-refund-form="${side}"]`);
+      const amount = Number(form.querySelector("[data-refund-amount]").value);
+      const mode = form.querySelector("[data-refund-mode]").value.trim();
+      if (!(amount > 0)) { toast("Enter the refund amount.", true); break; }
+      if (!mode) { toast("Enter how the refund was made (cash, UPI, bank transfer, ...).", true); break; }
+      const ok = await save({
+        action: "adminAddPayment", transactionType: "refund", demoId: box.dataset.demo,
+        tutorId: side === "tutor" ? box.dataset.tutorId : "", amount, paymentType: "regular", collectedBy: "agency",
+        paymentMode: mode, paymentDate: isoToday(),
+        notes: side === "tutor" ? "Refund received back from the tutor" : "Refund given to the parent"
+      }, actionEl);
+      if (ok) rerenderCurrent();
+      break;
+    }
+
+    case "tutor-edit":
+      STATE.open.add(actionEl.dataset.key);
+      STATE.editing.add(actionEl.dataset.key);
+      rerenderCurrent();
+      break;
+
+    case "tutor-status":
+      await reviewTutor(actionEl.dataset.id, actionEl);
+      break;
+
+    case "tutor-mute":
+      await muteTutor(actionEl.dataset.id, actionEl);
+      break;
+
+    case "tutor-block":
+      await blockTutor(actionEl.dataset.id, actionEl);
+      break;
+
     case "cancel":
       STATE.editing.delete(actionEl.dataset.key);
       rerenderCurrent();
@@ -4185,7 +4227,7 @@ function recordCard(kind, record, opts) {
   const editing = STATE.editing.has(key);
 
   return `
-    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}${kind === "students" && studentTags(record).includes("blocked") ? " is-blocked" : ""}" data-tone="${opts.tone || ""}"
+    <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}${(kind === "students" && studentTags(record).includes("blocked")) || (kind === "tutors" && record.meta && record.meta.blockedAt) ? " is-blocked" : ""}" data-tone="${opts.tone || ""}"
       data-box data-kind="${kind}" data-row="${record.rowNumber}" data-id="${esc(record.id)}" data-key="${esc(key)}"${kind === "students" ? ` data-tags="${studentTags(record).join(" ")}"` : ""}>
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
@@ -4195,7 +4237,7 @@ function recordCard(kind, record, opts) {
         <div class="admin-card-title">
           ${opts.titleHtml || `<strong>${esc(opts.name || record.id)}</strong><small>${esc(opts.sub)}</small>`}
         </div>
-        ${kind === "students" ? studentIconsHtml(record, key) : `<span class="admin-caret" aria-hidden="true"></span>`}
+        ${kind === "students" ? studentIconsHtml(record, key) : kind === "tutors" ? tutorIconsHtml(record, key) : `<span class="admin-caret" aria-hidden="true"></span>`}
         ${opts.verifyStatus ? verifyButtonsHtml(opts.verifyStatus) : ""}
         ${opts.pill ? `<span class="admin-status-rail admin-rail-sub" data-tone="${opts.tone}" tabindex="-1">${esc(opts.pill)}</span>` : ""}
       </div>
@@ -4203,7 +4245,7 @@ function recordCard(kind, record, opts) {
       <div class="admin-card-body">
         ${fieldsBoxes(kind, record, editing)}
         ${opts.extra || ""}
-        ${(kind === "tutors" ? myPerms().tutorsEdit : (myPerms().studentsEdit && !studentTags(record).includes("blocked"))) ? editButtons(key, editing, "save-record", "Edit Details") : ""}
+        ${(kind === "tutors" ? (myPerms().tutorsEdit && !(record.meta && record.meta.blockedAt)) : (myPerms().studentsEdit && !studentTags(record).includes("blocked"))) ? editButtons(key, editing, "save-record", "Edit Details") : ""}
         ${editing && kind === "students" ? note("Changing the Email moves this student to that login. Brothers / sisters share one Email and Phone.") : ""}
         ${editing && kind === "tutors" ? note("Changing the Mobile Number also moves this tutor's tuitions to the new number.") : ""}
       </div>
@@ -5631,6 +5673,7 @@ const STU_SVG = {
   ban: '<circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/>',
   check: '<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/>',
   flag: '<path d="M4 22V4"/><path d="M4 4h12l-2 4 2 4H4"/>',
+  cross: '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>',
 };
 
 function stuIcon(name) {
@@ -5665,6 +5708,81 @@ function studentIconsHtml(r, key) {
       blocked ? "Blocked - unblock to edit" : m.editedAt ? `Edit details (last edited ${fmtWhen(m.editedAt)})` : "Edit details",
       perms.studentsEdit && !blocked, !!m.editedAt)}
   </span>`;
+}
+
+// Tutors: the same four icons. The tick is the approval: green when approved, orange while it is pending, red when rejected.
+function tutorIconsHtml(r, key) {
+  const perms = myPerms();
+  const m = r.meta || {};
+  const group = statusGroup(r.values["Verification Status"]);
+  const blocked = !!m.blockedAt;
+  const muted = !!m.notificationsOff;
+  const canEdit = perms.tutorsEdit && !blocked;
+  const btn = (action, icon, tone, label, allowed, on) =>
+    `<button type="button" class="stu-icon" data-tone="${tone}"${on ? ' data-on="1"' : ""} data-action="${action}" data-id="${esc(r.id)}" data-key="${esc(key)}"
+      title="${esc(label)}" aria-label="${esc(label)}"${allowed ? "" : " disabled"}>${stuIcon(icon)}</button>`;
+  return `<span class="stu-icons">
+    ${btn("tutor-block", "ban", "red",
+      blocked ? `Blocked since ${fmtWhen(m.blockedAt)} - click to unblock` : "Block this tutor", perms.tutorsEdit, blocked)}
+    ${group === "verified"
+      ? btn("tutor-status", "check", "green", "Approved - profile verified", true, true)
+      : group === "rejected"
+        ? btn("tutor-status", "cross", "red", "Approval rejected", true, true)
+        : btn("tutor-status", "flag", "orange", "Approval pending - click to review", true, true)}
+    ${btn("tutor-mute", muted || blocked ? "bellOff" : "bell", "blue",
+      blocked ? "Blocked - notifications are off" : muted ? "Notifications are OFF - click to turn on" : "Notifications are ON - click to turn off",
+      perms.tutorsEdit && !blocked, muted || blocked)}
+    ${btn("tutor-edit", "edit", "violet", blocked ? "Blocked - unblock to edit" : "Edit details", canEdit, false)}
+  </span>`;
+}
+
+async function muteTutor(id, button) {
+  const r = TUTOR_BY_ID[id];
+  if (!r) return;
+  const name = r.values["Full Name"] || id;
+  const turnOff = !(r.meta && r.meta.notificationsOff);
+  const ok = await askConfirm(turnOff
+    ? { title: `Turn off notifications for ${name}?`, okText: "Turn Off",
+        lines: ["No email and no Telegram message will be sent to this tutor - demos, agreements, payments, replies - until you turn it back on."] }
+    : { title: `Turn notifications back on for ${name}?`, okText: "Turn On",
+        lines: [`${name} will get emails and Telegram messages again.`] });
+  if (!ok) return;
+  button.disabled = true;
+  await save({ action: "adminMuteTutor", id, off: turnOff });
+  if (document.body.contains(button)) button.disabled = false;
+}
+
+async function blockTutor(id, button) {
+  const r = TUTOR_BY_ID[id];
+  if (!r) return;
+  const name = r.values["Full Name"] || id;
+  const unblock = !!(r.meta && r.meta.blockedAt);
+  const ok = await askConfirm(unblock
+    ? { title: `Unblock ${name}?`, okText: "Unblock",
+        lines: [`${id} gets full access again, and can be edited.`] }
+    : { title: `Block ${name}?`, okText: "Block",
+        lines: ["Nothing is deleted. The tutor can only open their page: they can't apply for tuitions, accept or reject demos, or mark classes, no notification is sent, and their details can't be edited - until you unblock."] });
+  if (!ok) return;
+  button.disabled = true;
+  STATE.editing.delete("tutors:" + id);
+  await save({ action: "adminBlockTutor", id, unblock });
+  if (document.body.contains(button)) button.disabled = false;
+}
+
+async function reviewTutor(id, button) {
+  const r = TUTOR_BY_ID[id];
+  if (!r) return;
+  const group = statusGroup(r.values["Verification Status"]);
+  const name = r.values["Full Name"] || id;
+  if (group === "verified") { toast(`${name} is approved (verified).`); return; }
+  if (group === "rejected") { toast(`${name}'s approval was rejected. Use Accept to approve.`); return; }
+  if (!myPerms().tutorsVerify) { toast("Approval is pending. You do not have permission to verify tutors.", true); return; }
+  const ok = await askConfirm({ title: `Approve ${name}?`, okText: "Approve",
+    lines: ["The profile will be marked Verified. To reject instead, use the Reject button on the card."] });
+  if (!ok) return;
+  button.disabled = true;
+  await save({ action: "adminUpdateRecord", kind: "tutors", rowNumber: r.rowNumber, id, changes: { "Verification Status": "Verified" } });
+  if (document.body.contains(button)) button.disabled = false;
 }
 
 async function muteStudent(id, button) {
@@ -6294,11 +6412,12 @@ function dealMoney(g, activeRow, deal) {
   const pays = (STATE.payments || []).filter(p => p.demo_id === g.demoId);
   const sum = (list) => list.reduce((s, p) => s + num(p.amount), 0);
   const studentAdvancePaid = sum(pays.filter(p => p.transaction_type === "collection" && p.payment_type === "advance"));
-  const collected = sum(pays.filter(p => p.transaction_type === "collection" && p.payment_type !== "advance"))
-    - sum(pays.filter(p => p.transaction_type === "refund"));
+  const parentRefunded = sum(pays.filter(p => p.transaction_type === "refund" && !p.tutor_id));
+  const tutorRefunded = sum(pays.filter(p => p.transaction_type === "refund" && p.tutor_id === activeRow.tutorId));
+  const collected = sum(pays.filter(p => p.transaction_type === "collection" && p.payment_type !== "advance")) - parentRefunded;
   const tutorPaid = (STATE.payments || []).filter(p => p.tutor_id === activeRow.tutorId && p.transaction_type === "payout" && (!p.demo_id || p.demo_id === g.demoId));
   const tutorAdvance = num(activeRow.tutorAdvancePayment) + sum(tutorPaid.filter(p => p.payment_type === "advance"));
-  const tutorPayouts = sum(tutorPaid.filter(p => p.payment_type !== "advance"));
+  const tutorPayouts = sum(tutorPaid.filter(p => p.payment_type !== "advance")) - tutorRefunded;
   const tutorTotalPayment = tutorAdvance + tutorPayouts;
 
   const viaAgency = m.model === "margin" || m.feeTo === "Agency";
@@ -6315,7 +6434,12 @@ function dealMoney(g, activeRow, deal) {
   const today = isoToday();
   const studentDueNow = model ? dueToDate(model, model.studentRate, today) : studentTotalAmount;
   const tutorDueNow = model ? dueToDate(model, model.tutorRate, today, 1) : tutorTotalAmount;
+  // paid beyond the classes actually taken (marked done): what may have to go back
+  const doneCount = Object.values(activeRow.classLog || {}).filter(e => e && e.s === "done").length;
+  const studentExcess = model ? Math.max(Math.round(studentAdvancePaid + collected - doneCount * model.studentRate), 0) : 0;
+  const tutorExcess = model ? Math.max(Math.round(tutorTotalPayment - doneCount * model.tutorRate), 0) : 0;
   return {
+    studentExcess, tutorExcess, doneCount, parentRefunded, tutorRefunded,
     studentTotalAmount, studentAdvancePaid, collected,
     studentDues: Math.max(studentDueNow - studentAdvancePaid - collected, 0),
     tutorTotalAmount, tutorAgencyCharge, tutorAdvance, tutorPayouts, tutorTotalPayment,
@@ -6996,7 +7120,8 @@ function classCard(g, activeRow) {
     studentTotalAmount, studentAdvancePaid, collected, studentDues,
     tutorTotalAmount, tutorAdvance, tutorTotalPayment, tutorDues,
     studentAgencyCharge, studentAgencyReceived,
-    tutorAgencyCharge, tutorAgencyReceived, dueModel: dueM
+    tutorAgencyCharge, tutorAgencyReceived, dueModel: dueM,
+    studentExcess, tutorExcess, doneCount, parentRefunded, tutorRefunded
   } = classMoney(g, activeRow);
 
   // Next Due Date: today while something is already due (so it moves on day by day), else the next period
@@ -7016,7 +7141,22 @@ function classCard(g, activeRow) {
     ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.47-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.08-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35m-5.42 7.4h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.89 9.88m8.41-18.3A11.8 11.8 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.41z"/></svg>'
     : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>'}</i>${esc(n)}</span>` : "";
   const pcFrac = (paid, total) => `<span class="pc-frac"><i>${esc(rupees(paid))}</i><i>${esc(rupees(total))}</i></span>`;
-  const party = (cls, avatar, name, id, mobile, whatsapp, payLabel, payValue, syncKey, dueSync, dueValue, tiles, stats) => `
+  const refundBlock = (side, excess, refunded, note) => `
+    <div class="pc-refund" data-refund="${side}">
+      <div class="pc-refund-row">
+        <div><small>${note}</small><b>${esc(R(excess))}</b>${refunded ? `<em>Paid beyond classes taken · refunded ${esc(R(refunded))}</em>` : `<em>Paid beyond classes taken</em>`}</div>
+        <button type="button" class="pc-refund-btn" data-action="class-refund" data-side="${side}"${myPerms().paymentsAdd ? "" : " disabled"}>Refund</button>
+      </div>
+      <div class="pc-refund-form hidden" data-refund-form="${side}">
+        <label class="admin-box is-edit"><input type="number" min="1" step="1" data-refund-amount value="${excess || ""}"><span>Amount (₹)</span></label>
+        <label class="admin-box is-edit"><input type="text" data-refund-mode value="Online"><span>Mode</span></label>
+        <div class="admin-pair">
+          <button class="admin-ghost" type="button" data-action="class-refund-cancel" data-side="${side}">Cancel</button>
+          <button class="admin-primary" type="button" data-action="class-refund-save" data-side="${side}">Save Refund</button>
+        </div>
+      </div>
+    </div>`;
+  const party = (cls, avatar, name, id, mobile, whatsapp, payLabel, payValue, syncKey, dueSync, dueValue, tiles, stats, refund) => `
     <section class="pc ${cls}">
       <header class="pc-head">
         ${avatar}
@@ -7030,6 +7170,7 @@ function classCard(g, activeRow) {
       </div>
       <div class="pc-stats">${stats}</div>
       <div class="pc-terms"><div class="pc-due"><small>Next Due Date</small><b data-sync="${dueSync}">${esc(dueValue)}</b></div></div>
+      ${refund}
     </section>`;
 
   const R = v => "₹" + Number(v || 0).toLocaleString("en-IN");
@@ -7056,7 +7197,8 @@ function classCard(g, activeRow) {
      ${stat("Dues", studentDues, "", studentDues > 0 ? " is-due" : "")}
      ${editing
        ? editStat("Agency Charge (₹)", activeRow.studentAgencyCharge || 0, "Student Agency Charge", true)
-       : stat("Agency<br>Charges", 0, "student-agency", " pc-wide", pcFrac(studentAgencyReceived, studentAgencyCharge))}`);
+       : stat("Agency<br>Charges", 0, "student-agency", " pc-wide", pcFrac(studentAgencyReceived, studentAgencyCharge))}`,
+    refundBlock("student", studentExcess, parentRefunded, "Refund To Parent"));
 
   const tutorId = activeRow.tutorId;
   const bal = tutorBalance(tutorId);
@@ -7069,7 +7211,8 @@ function classCard(g, activeRow) {
      ${stat("Paid", tutorTotalPayment, "tutor-payment")}
      ${stat("Dues", tutorDues, "", tutorDues > 0 ? " is-due" : "")}
      ${stat("Agency<br>Charges", 0, "tutor-agency", " pc-wide", pcFrac(tutorAgencyReceived, tutorAgencyCharge))}
-     ${bal ? stat("Balance", bal, "", " pc-wide") : ""}`);
+     ${bal ? stat("Balance", bal, "", " pc-wide") : ""}`,
+    refundBlock("tutor", tutorExcess, tutorRefunded, "Refund From Tutor"));
 
   // Collapsed head: 4 fraction figures in one row - Student's own Total
   // Payment/Total Amount on the far left, Tutor's on the far right, and
