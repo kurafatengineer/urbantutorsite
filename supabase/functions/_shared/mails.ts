@@ -25,7 +25,7 @@ const tgText = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/<
 
 const make = (
   subject: string, heading: string, badge: { text: string; tone: Tone },
-  name: string, intro: string, rows: Row[], cta: { label: string; page: string },
+  name: string, intro: string, rows: Row[], cta: { label: string; page: string }, footer = "",
 ): Built => {
   const shown = rows.filter(([, v]) => v !== "" && v != null);
   return {
@@ -34,10 +34,12 @@ const make = (
       heading, badge, greeting: `Hi ${name || "there"},`, intro,
       detailRowsHtml: shown.map(([l, v]) => detailRow(l, v)).join(""),
       cta: { label: cta.label, url: `${SITE_URL}/${cta.page}` },
+      footerNote: footer,
     }),
     tg: `${TG_ICON[badge.tone]} <b>${tgText(heading)}</b>\n\n` +
       `Hi ${tgText(name || "there")},\n${tgText(intro)}\n\n` +
-      shown.map(([l, v]) => `• ${tgText(l)}: <b>${tgText(v)}</b>`).join("\n"),
+      shown.map(([l, v]) => `• ${tgText(l)}: <b>${tgText(v)}</b>`).join("\n") +
+      (footer ? `\n\n${tgText(footer)}` : ""),
     cta,
   };
 };
@@ -303,10 +305,13 @@ export const AGENCY_PHONE = "+91 90018 00307";
 export function classReminderMail(d: { forTutor: boolean; name: string; otherName: string; demoId: string; subject: string; time: string; minutes?: number | null; date: string }) {
   return make(
     "You have class today", "Class Today", { text: "CLASS TODAY", tone: "purple" }, d.name,
-    `You have class today at ${fmtTime(d.time)}. If you have any issues, please contact the agency at ${AGENCY_PHONE}.`,
+    `You have class today at ${fmtTime(d.time)}.`,
     [["Demo ID", d.demoId], ["Subject", d.subject], [d.forTutor ? "Student" : "Tutor", d.otherName],
      ["Date", fmtDate(d.date)], ["Time", fmtTime(d.time)], ["Duration", d.minutes ? `${d.minutes} minutes` : ""]],
     { label: "Open My Profile", page: d.forTutor ? "tutorprofile.html" : "studentprofile.html" },
+    d.forTutor
+      ? `If you have any issues, please contact the student's parents or your agency at ${AGENCY_PHONE}.`
+      : `If you have any issues, please contact your parents, your teacher or your agency at ${AGENCY_PHONE}.`,
   );
 }
 
@@ -314,9 +319,10 @@ export function classReminderMail(d: { forTutor: boolean; name: string; otherNam
 export function classConfirmMail(d: { name: string; otherName: string; demoId: string; subject: string; time: string; minutes?: number | null; date: string }) {
   return make(
     "Did you take today's class?", "Class Taken?", { text: "PLEASE CONFIRM", tone: "orange" }, d.name,
-    `Have you taken your class today${d.minutes ? ` (${d.minutes} minutes)` : ""}? Please mark it as taken in your profile. If you have any issues, please contact the agency at ${AGENCY_PHONE}.`,
+    `Have you taken your class today${d.minutes ? ` (${d.minutes} minutes)` : ""}? Please mark it as taken in your profile.`,
     [["Demo ID", d.demoId], ["Subject", d.subject], ["Student", d.otherName], ["Date", fmtDate(d.date)], ["Time", fmtTime(d.time)]],
     { label: "Open My Profile", page: "tutorprofile.html" },
+    `If you have any issues, please contact the student's parents or your agency at ${AGENCY_PHONE}.`,
   );
 }
 
