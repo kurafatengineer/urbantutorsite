@@ -6300,13 +6300,6 @@ function nextPayDates(start, freq) {
   return { parent, tutor: isoPlusDays(parent, 1) };
 }
 
-// calendar icon: plain = scheduled, green with a tick = taken, red with a cross = not taken
-function calIcon(status) {
-  const body = status === "done" ? '<path d="M8.5 15.2l2.4 2.4 4.6-4.9"/>'
-    : status === "missed" ? '<path d="M9.6 13.4l4.8 4.8M14.4 13.4l-4.8 4.8"/>' : "";
-  return `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect class="ci-bg" x="3" y="4.5" width="18" height="16.5" rx="3.5"/><path d="M8 2.5v4M16 2.5v4M3 10h18"/>${body}</svg>`;
-}
-
 function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime = "", sel = "") {
   const [y, m] = monthKey.split("-").map(Number);
   const first = new Date(y, m - 1, 1);
@@ -6324,8 +6317,7 @@ function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime =
     const time = e.t || defTime;
     const state = e.s === "done" ? " is-done" : e.s === "missed" ? " is-missed" : "";
     const meta = on ? `
-      <small>${mins ? esc(mins) + "m" : "&nbsp;"}</small><small>${time ? esc(clock12(time)) : "&nbsp;"}</small>
-      <span class="cal-ico">${calIcon(e.s)}</span>` : "";
+      <small>${mins ? esc(mins) + "m" : "&nbsp;"}</small><small>${time ? esc(clock12(time)) : "&nbsp;"}</small>` : "";
     cells += `<button type="button" class="cal-day${on ? " is-on" : ""}${state}${iso === today ? " is-today" : ""}${iso === sel ? " is-sel" : ""}"
       data-action="cal-day" data-date="${iso}"${editing || on ? "" : " disabled"}><b>${day}</b>${meta}</button>`;
   }
@@ -6338,11 +6330,12 @@ function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime =
     const e = log[sel] || {};
     const wd = new Date(sel + "T00:00:00");
     editor = `
+      <div class="cal-pop"><div class="cal-pop-bg" data-action="day-close"></div>
       <div class="cal-edit" data-day-edit data-date="${sel}" data-s="${esc(e.s || "")}">
         <strong>${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][wd.getDay()]}, ${esc(fmtPayDate(sel))}</strong>
         <div class="cal-edit-status">
-          <button type="button" class="day-opt${e.s === "done" ? " is-on" : ""}" data-action="day-status" data-s="done">&#10003; Taken</button>
-          <button type="button" class="day-opt is-bad${e.s === "missed" ? " is-on" : ""}" data-action="day-status" data-s="missed">&#10005; Not Taken</button>
+          <button type="button" class="day-opt${e.s === "done" ? " is-on" : ""}" data-action="day-status" data-s="done">Taken</button>
+          <button type="button" class="day-opt is-bad${e.s === "missed" ? " is-on" : ""}" data-action="day-status" data-s="missed">Not Taken</button>
           <button type="button" class="day-opt${!e.s ? " is-on" : ""}" data-action="day-status" data-s="">Pending</button>
         </div>
         <div class="cal-edit-fields">
@@ -6353,7 +6346,7 @@ function calendarHtml(monthKey, dates, editing, log = {}, defMin = "", defTime =
           <button class="admin-ghost" type="button" data-action="day-close">Close</button>
           <button class="admin-primary" type="button" data-action="day-save">Save Day</button>
         </div>
-      </div>`;
+      </div></div>`;
   }
 
   return `
@@ -6587,7 +6580,7 @@ function recalcDeal(panel) {
 
   // payment dates follow the class start date and how often the parent pays
   const card = panel.closest("[data-demo]");
-  const start = card && card.querySelector('[data-cfield="Class Start Date"]');
+  const start = card && card.querySelector('[data-term="start"]');
   const deal = readDeal(panel);
   const freq = deal.parentFreq || "Monthly";
   const pay = nextPayDates(start ? start.value : "", freq);
@@ -6755,8 +6748,14 @@ function onClassPlanClick(actionEl) {
       plan.dataset.dates = JSON.stringify(sorted);
       if (sorted.length) {
         const st = plan.querySelector('[data-term="start"]'), en = plan.querySelector('[data-term="end"]');
-        if (st) st.value = sorted[0];
-        if (en) en.value = sorted[sorted.length - 1];
+        const put = (el, iso) => {
+          if (!el) return;
+          el.value = iso;
+          const t = el.parentNode.querySelector("[data-term-text]");
+          if (t) t.textContent = fmtPayDate(iso);
+        };
+        put(st, sorted[0]);
+        put(en, sorted[sorted.length - 1]);
       }
       redrawCalendar(plan);
       recalcDeal(plan.querySelector("[data-deal]"));
@@ -6804,8 +6803,6 @@ async function saveClassDay(box, button) {
       if (plan) redrawCalendar(plan);
     }
   }
-  const start = event.target.closest && event.target.closest('[data-cfield="Class Start Date"]');
-  if (start) recalcDeal(start.closest("[data-demo]")?.querySelector("[data-deal]"));
 }));
 
 function classCard(g, activeRow) {
@@ -6847,10 +6844,17 @@ function classCard(g, activeRow) {
   const studentTo0 = dm0.model === "commission" ? dm0.feeTo : "Agency";
   const tutorFrom0 = dm0.model === "commission" && dm0.feeTo === "Tutor" ? "Parents" : "Agency";
 
+  const termTile = (label, sub, which, iso, field) => `
+    <div class="term-tile">
+      <small>${label}</small>
+      <b data-term-text="${which}">${esc(fmtPayDate(iso))}</b>
+      <span>${sub}</span>
+      <input type="hidden" ${editing ? `data-cfield="${field}" ` : ""}data-term="${which}" value="${esc(iso)}">
+    </div>`;
   const tuitionTermsBoxes = `
-    <div class="admin-boxes cal-terms">
-      ${box("Start Date (first class)", startDateShown, { type: editing ? "date" : "text", attr: cfield("Class Start Date") + ' data-term="start"' })}
-      ${box("End Date (last class)", endDateShown, { type: editing ? "date" : "text", attr: cfield("Class End Date") + ' data-term="end"' })}
+    <div class="cal-terms">
+      ${termTile("Start Date", "First Class", "start", startISO, "Class Start Date")}
+      ${termTile("End Date", "Last Class", "end", endISO, "Class End Date")}
     </div>`;
 
   // Student's Total Amount is never typed in - it's Class Duration x
@@ -6875,16 +6879,17 @@ function classCard(g, activeRow) {
     return `<${tag} class="pc-stat${extra}" ${attr}><small>${esc(label)}</small><b>${text || esc(rupees(value))}</b></${attr ? "button" : "div"}>`;
   };
   const editStat = (label, value, field, wide) => box(label, value, { editable: true, wide, type: "number", attr: cfield(field) });
-  const phone = (n, wa) => n ? `<span class="pc-num${wa ? " is-wa" : ""}">${wa
-    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.5-1.2A9 9 0 1 0 12 3z"/><path d="M9 8.5c0 3.5 3 6.5 6.5 6.5l1-1.6-2-1-1 .8a4 4 0 0 1-2-2l.8-1-1-2z"/></svg>'
-    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>'}${esc(n)}</span>` : "";
+  const phone = (n, wa) => n ? `<span class="pc-num${wa ? " is-wa" : ""}"><i class="pc-ico">${wa
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.47-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.08-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35m-5.42 7.4h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.89 9.88m8.41-18.3A11.8 11.8 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.41z"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>'}</i>${esc(n)}</span>` : "";
+  const pcFrac = (paid, total) => `<span class="pc-frac"><i>${esc(rupees(paid))}</i><i>${esc(rupees(total))}</i></span>`;
   const party = (cls, avatar, name, id, mobile, whatsapp, payLabel, payValue, syncKey, dueSync, dueValue, stats) => `
     <section class="pc ${cls}">
       <header class="pc-head">
         ${avatar}
-        <div class="pc-who"><h3>${esc(name || "-")}</h3><small>${esc(id || "")}</small></div>
-        <div class="pc-nums">${phone(mobile, false)}${phone(whatsapp, true)}</div>
+        <div class="pc-who"><h3>${esc(name || "-")}</h3><span class="pc-id">${esc(id || "")}</span></div>
       </header>
+      <div class="pc-nums">${phone(mobile, false)}${phone(whatsapp, true)}</div>
       <div class="pc-terms">
         <div><small>${payLabel}</small><b class="pc-chip" data-sync="${syncKey}">${esc(payValue)}</b></div>
         <div><small>Frequency</small><b data-sync="freq">${esc(freq0)}</b></div>
@@ -6904,7 +6909,7 @@ function classCard(g, activeRow) {
      ${stat("Dues", studentDues, "", studentDues > 0 ? " is-due" : "")}
      ${editing
        ? editStat("Agency Charge (₹)", activeRow.studentAgencyCharge || 0, "Student Agency Charge", true)
-       : stat("Agency Charge", studentAgencyReceived, "student-agency", " pc-wide", `${esc(rupees(studentAgencyReceived))}<em> / ${esc(rupees(studentAgencyCharge))}</em>`)}`);
+       : stat("Agency Charges", 0, "student-agency", " pc-wide", pcFrac(studentAgencyReceived, studentAgencyCharge))}`);
 
   const tutorId = activeRow.tutorId;
   const bal = tutorBalance(tutorId);
@@ -6916,7 +6921,7 @@ function classCard(g, activeRow) {
      ${editing ? editStat("Advance (₹)", activeRow.tutorAdvancePayment, "Tutor Advance Payment") : stat("Advance", tutorAdvance, "tutor-advance")}
      ${stat("Paid", tutorTotalPayment, "tutor-payment")}
      ${stat("Dues", tutorDues, "", tutorDues > 0 ? " is-due" : "")}
-     ${stat("Agency Charge", tutorAgencyReceived, "tutor-agency", " pc-wide", `${esc(rupees(tutorAgencyReceived))}<em> / ${esc(rupees(tutorAgencyCharge))}</em>`)}
+     ${stat("Agency Charges", 0, "tutor-agency", " pc-wide", pcFrac(tutorAgencyReceived, tutorAgencyCharge))}
      ${bal ? stat("Balance", bal, "", " pc-wide") : ""}`);
 
   // Collapsed head: 4 fraction figures in one row - Student's own Total

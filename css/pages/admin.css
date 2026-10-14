@@ -4455,3 +4455,77 @@ button.pc-stat[data-empty] { cursor: default; }
 .pc-stat.pc-wide small, .pc-stat.pc-wide b { white-space: nowrap; }
 .pc-stat.pc-wide b { font-size: 14px; }
 .pc-terms > div > .pc-chip { margin-top: 1px; }
+
+
+/* =========================================================
+   CLASS CARD v4 - square date cells, popup editor, centred party cards
+========================================================= */
+
+/* calendar dates: squares. orange = scheduled, green = taken, red = not taken */
+.cal-grid { gap: 6px; }
+.cal-day {
+  aspect-ratio: 1;
+  min-height: 0;
+  border-radius: 8px;
+  padding: 3px 1px;
+  justify-content: center;
+  gap: 0;
+  background: transparent;
+}
+.cal-day small { font-size: 9px; line-height: 1.2; }
+.cal-day.is-on { background: rgba(245, 158, 11, 0.22); color: #f59e0b; }
+.cal-day.is-on b { color: #f59e0b; }
+.cal-day.is-on small { color: #f59e0b; opacity: 0.9; }
+.cal-day.is-done { background: #16a34a; color: #fff; }
+.cal-day.is-done b, .cal-day.is-done small { color: #fff; opacity: 1; }
+.cal-day.is-missed { background: #ef4444; color: #fff; }
+.cal-day.is-missed b, .cal-day.is-missed small { color: #fff; opacity: 1; }
+.cal-day.is-today { box-shadow: inset 0 0 0 2px var(--border-light); }
+.cal-ico, .cal-mark { display: none !important; }
+
+/* Scheduled | Taken | Not Taken - equal thirds */
+.cal-note { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cal-chip { text-align: center; padding: 7px 4px; font-size: 11.5px; white-space: nowrap; }
+.cal-chip:first-child { color: #f59e0b; background: rgba(245, 158, 11, 0.16); }
+
+/* Start / End date tiles (read only - they follow the calendar) */
+.cal-terms { gap: 10px; }
+.term-tile {
+  display: grid; justify-items: center; gap: 1px; text-align: center;
+  padding: 12px 8px; border-radius: 14px; background: var(--surface);
+}
+.term-tile small { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: 0.03em; }
+.term-tile b { font-size: 16px; font-weight: 800; }
+.term-tile span { font-size: 11px; font-weight: 700; color: var(--lime); }
+
+/* day editor as a popup */
+.cal-pop { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 16px; }
+.cal-pop-bg { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); }
+.cal-pop .cal-edit { position: relative; width: min(380px, 100%); margin: 0; padding: 18px; background: var(--surface-2); border-radius: 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); }
+
+/* Student / Tutor cards: everything centred, same for both */
+.pc-head { display: flex; align-items: center; gap: 10px; }
+.pc-who h3 { font-size: 15px; }
+.pc-id { display: inline-block; margin-top: 3px; padding: 2px 9px; border-radius: 999px; background: var(--surface); color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: 0.04em; }
+.pc-nums { display: flex; flex-wrap: wrap; gap: 6px; }
+.pc-num { gap: 7px; padding: 4px 10px 4px 5px; border-radius: 999px; background: var(--surface); font-size: 12px; }
+.pc-ico { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: rgba(148, 163, 184, 0.18); flex: none; }
+.pc-ico svg { width: 12px; height: 12px; }
+.pc-num.is-wa .pc-ico { background: #25d366; }
+.pc-num.is-wa .pc-ico svg { fill: #fff; stroke: none; width: 13px; height: 13px; color: #fff; }
+
+.pc-terms { grid-template-columns: 1fr 1fr; text-align: center; }
+.pc-terms > div { display: grid; justify-items: center; align-content: center; gap: 3px; }
+.pc-terms .pc-due { display: grid; grid-template-columns: 1fr 1fr; justify-items: center; align-items: center; }
+.pc-stats { grid-template-columns: 1fr 1fr; }
+.pc-stat { text-align: center; display: grid; justify-items: center; gap: 2px; }
+.pc-stat small { margin: 0; }
+.pc-stat.pc-wide { display: flex; justify-content: space-between; align-items: center; text-align: left; }
+.pc-frac { display: inline-grid; justify-items: center; font-style: normal; line-height: 1.25; }
+.pc-frac i { font-style: normal; font-weight: 800; font-size: 13px; padding: 0 4px; }
+.pc-frac i:first-child { border-bottom: 1px solid currentColor; }
+.cal-day.is-on, .cal-day.is-on b, .cal-day.is-on small { color: #fbbf24; }
+.cal-day.is-done, .cal-day.is-done b, .cal-day.is-done small,
+.cal-day.is-missed, .cal-day.is-missed b, .cal-day.is-missed small { color: #fff; }
+html[data-theme="light"] .cal-day.is-on, html[data-theme="light"] .cal-day.is-on b, html[data-theme="light"] .cal-day.is-on small,
+html[data-theme="light"] .cal-chip:first-child { color: #b45309; }
