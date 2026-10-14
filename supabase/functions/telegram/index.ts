@@ -38,6 +38,7 @@
 
 import { notify, notifyIfMatched, demoResponseButtons, studentQuiet, tutorQuiet } from "../_shared/telegram.ts";
 import { handleInput, startRegistration, type Out } from "../_shared/regflow.ts";
+import { startTuition } from "../_shared/tuitionflow.ts";
 import { inList, loadLife, q, rest as db } from "../_shared/botdata.ts";
 import { SITE_URL } from "../_shared/constants.ts";
 import { parentResponseMail, tutorResponseMail, fmtDate, fmtTime, modeText, classReminderMail, classConfirmMail, classDoneMail, contactLine } from "../_shared/mails.ts";
@@ -259,7 +260,7 @@ async function sendOut(chatId: number, out: Out) {
   } else if (out.link) {
     message.reply_markup = { inline_keyboard: [[{ text: out.link.label, web_app: { url: out.link.url } }]] };
   } else if (out.choices?.length) {
-    message.reply_markup = { inline_keyboard: out.choices.map((c) => [{ text: c.title, callback_data: `rg:${c.id}` }]) };
+    message.reply_markup = { inline_keyboard: out.choices.map((c) => [{ text: c.description ? `${c.title} (${c.description})` : c.title, callback_data: `rg:${c.id}` }]) };
   } else {
     message.reply_markup = { remove_keyboard: true };
   }
@@ -321,7 +322,7 @@ async function menuContent(chatId: number, role: "s" | "t"): Promise<{ text: str
     if (n) rows.push([{ text: leftPad(`${catLabel(role, cat)} (${n})`), callback_data: `m:c:${role}:${cat}` }]);
   }
   rows.push(role === "s"
-    ? [{ text: leftPad("📝 Apply for New Tuition"), web_app: { url: `${SITE_URL}/studentprofile.html` } }]
+    ? [{ text: leftPad("📝 Apply for New Tuition"), callback_data: "m:p:s" }]
     : [{ text: leftPad("🔎 Find New Tuitions"), web_app: { url: `${SITE_URL}/advertisement.html` } }]);
   if (both) rows.push([{ text: leftPad(role === "s" ? "🔁 Switch to Tutor" : "🔁 Switch to Student"), callback_data: `m:h:${role === "s" ? "t" : "s"}` }]);
   rows.push([{ text: leftPad(off ? "🔕 Notifications are OFF - Tap to turn it ON" : "🔔 Notifications are ON - Tap to turn it OFF"), callback_data: `m:n:${role}` }]);
@@ -440,6 +441,10 @@ async function onMenuButton(cb: Json) {
   } else if (action === "c" && demoId) {
     await showCategory(chatId, messageId, role, demoId);
     await answer();
+  } else if (action === "p") {
+    const { students } = await linked(chatId);
+    await answer();
+    if (students.length) await sendAll(chatId, await startTuition({ channel: "tg", key: String(chatId), telegramChatId: chatId }, students));
   } else if (action === "n") {
     const { students, tutors } = await linked(chatId);
     const mine = role === "s" ? students : tutors;
