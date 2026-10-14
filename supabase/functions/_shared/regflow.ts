@@ -154,6 +154,7 @@ async function sendOtp(ctx: Ctx, d: Json): Promise<string | null> {
       intro: `Your verification code is ${code}. It is valid for ${OTP_MINUTES} minutes. If you did not ask for it, ignore this email.`,
       badge: { text: "VERIFY EMAIL", tone: "blue" },
     }),
+    { always: true },
   );
   return null;
 }
