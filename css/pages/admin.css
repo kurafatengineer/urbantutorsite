@@ -4529,3 +4529,20 @@ button.pc-stat[data-empty] { cursor: default; }
 .cal-day.is-missed, .cal-day.is-missed b, .cal-day.is-missed small { color: #fff; }
 html[data-theme="light"] .cal-day.is-on, html[data-theme="light"] .cal-day.is-on b, html[data-theme="light"] .cal-day.is-on small,
 html[data-theme="light"] .cal-chip:first-child { color: #b45309; }
+
+/* v5: numbers on one line, neutral (non-green) terms, vertical Agency Charges label, square hint bar */
+.pc-nums { display: flex; flex-wrap: nowrap; justify-content: space-between; gap: 6px; padding: 5px 8px; border-radius: 12px; background: var(--surface); }
+.pc-num { background: transparent; padding: 0; font-size: 11.5px; gap: 5px; }
+.pc-chip { background: var(--surface-3, rgba(148, 163, 184, 0.16)); color: var(--text); }
+.pc-terms b { color: var(--text); }
+.pc-stat.pc-wide small { line-height: 1.25; text-align: left; }
+.cal-hint {
+  margin: 10px -12px 0;
+  padding: 9px 12px;
+  border-radius: 0;
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+  font-weight: 700;
+  font-size: 12px;
+}
+html[data-theme="light"] .cal-hint { color: #b45309; background: #fef3c7; }
