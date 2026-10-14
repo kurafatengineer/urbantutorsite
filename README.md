@@ -1,29 +1,33 @@
 # Urban Tutor Site — project map (plain language)
 
 A website that connects students (parents) with tutors, plus an office
-**Admin Panel**. It has two halves:
+**Admin Panel**, a **Telegram bot** and a **WhatsApp bot**. It has two halves:
 
-1. **The website** — ordinary files (HTML / CSS / JavaScript) that you upload
-   to your hosting. No build step.
+1. **The website** — ordinary files (HTML / CSS / JavaScript) hosted on GitHub
+   Pages. No build step.
 2. **The server** — a Supabase project (database + login + small server
    programs called "Edge Functions"). It is NOT part of the hosting upload.
+
+Everything that happens (a student registers, a tutor applies, a class is
+taken, money is recorded) is stored in the database; the website, the Admin
+Panel and both bots are just different "doors" to the same data.
 
 ---
 
 ## 1. Website files (what goes on your hosting)
 
 Upload everything in this repo **except** `supabase/`, `share-preview/`,
-`README.md` and `.git`.
+`docs/`, `README.md` and `.git`.
 
 | Page (open this in the browser) | What it is | Its own JS | Its own CSS |
 |---|---|---|---|
-| `index.html` | Home page (shows the landing / dashboard inside it) | `homepage/landing/landing.js`, `homepage/dashboard/dashboard.js` | `homepage/…/*.css` |
-| `studentregistration.html` | Student / parent sign-up + login (email + 6-digit code) | `js/pages/studentregistration.js` | `css/pages/studentregistration.css` |
-| `studentprofile.html` | Student dashboard: tuitions, payments, subscription | `js/pages/student-profile.js` | `css/pages/student-profile.css` |
+| `index.html` | Home page (landing + dashboard inside it) | `homepage/landing/landing.js`, `homepage/dashboard/dashboard.js` | `homepage/…/*.css` |
+| `studentregistration.html` | Student / parent sign-up + login (email + 6-digit code) | `js/pages/student-registration.js` | `css/pages/student-registration.css` |
+| `studentprofile.html` | Student dashboard: tuitions, payments, subscription | `js/pages/student-profile.js` | `css/pages/student-profile.css` (+ `tutor-profile.css`, shared card look) |
 | `tutorregistration.html` | Tutor sign-up + login | `js/pages/tutor-registration.js` | `css/pages/tutor-registration.css` |
 | `tutorprofile.html` | Tutor dashboard: classes, demos, payments | `js/pages/tutor-profile.js` | `css/pages/tutor-profile.css` |
-| `advertisement.html` | List of open tuitions a tutor can apply to | `js/pages/advertisement.js` | `css/pages/advertisement.css` |
-| `admin.html` | Office Admin Panel | `js/pages/admin.js` | `css/pages/admin.css` |
+| `advertisement.html` | List of open tuitions a tutor can apply to | `js/pages/advertisement.js` | `css/pages/advertisement.css` (+ `tutor-profile.css`) |
+| `admin.html` | Office Admin Panel (desktop / web view only) | `js/pages/admin.js` | `css/pages/admin.css` |
 
 Shared pieces used by several pages (change them once, every page changes):
 
@@ -31,18 +35,17 @@ Shared pieces used by several pages (change them once, every page changes):
 |---|---|
 | `js/supabase-client.js` | The connection to the server. Every page loads it first. `sbCall()` runs a database action; `sbCallNotify()` runs an action that also sends an email. |
 | `js/portal.js` | Stamps every login with the door it was made at (Student / Tutor / Admin), so one email logged in at one door does not silently open the others. |
-| `js/telegram.js` | When a page is opened inside Telegram (from the bot), fits it to Telegram: full height, black colours, Telegram's Back button; once logged in, links the person's Telegram chat to their student / tutor record (for bot notifications). Does nothing in a normal browser. |
-| `js/photos.js`, `css/photos.css` | Tutor profile photos on the round name-letter avatars (tutor's own header/profile, student dashboard for verified tutors who applied, Admin cards). The homepage "Tutors worth meeting" cards also show them (via the public home-photos function). |
-| `js/photo-cropper.js`, `css/photo-cropper.css` | The round-crop window on tutor registration: shows the round picture, drag / zoom, "Use this photo" and "Save a copy". |
+| `js/telegram.js` | When a page is opened inside Telegram (from the bot), fits it to Telegram and, once logged in, links the person's Telegram chat to their student / tutor record. Does nothing in a normal browser. |
+| `js/photos.js`, `css/photos.css` | Tutor profile photos on the round name-letter avatars. |
+| `js/photo-cropper.js`, `css/photo-cropper.css` | The round-crop window on tutor registration. |
 | `css/student-forms.css` | The Student Profile pop-up look ("Add a Student", "Apply For New Tuition"), reused by the Admin Panel's Students tab. |
 | `js/common.js` | `escapeHTML()` (safe text) and `hasSession()` (is someone logged in). |
 | `js/profile-common.js` | Date/time text, address, badge helpers shared by the two profile pages. |
 | `js/header.js`, `js/footer.js`, `components/*.html` | The top bar and the footer on every page. |
 | `js/pills.js` | The small coloured status pills. |
+| `js/autocaps.js` | Title-cases typed names / places as people type. |
 | `js/otp-boxes.js`, `css/otpboxes.css` | The six-box login-code entry. |
-| `css/registration-common.css` | Styles shared by both sign-up pages. |
-| `css/profile-common.css` | Styles shared by the profile pages. |
-| `css/header.css`, `css/footer.css` | Top bar and footer look. |
+| `css/registration-common.css`, `css/profile-common.css`, `css/header.css`, `css/footer.css` | Styles shared by the sign-up pages, profile pages, top bar and footer. |
 
 ### The `?v=…` after file names
 `<script src="js/common.js?v=20261001a">` — the part after `?v=` is only a
@@ -54,6 +57,7 @@ whenever you change that file**, or visitors may keep seeing the old version.
   (or `esc()` in the admin panel).
 - Mobile numbers and addresses hidden for an employee are hidden **on the
   server**, not just on the screen.
+- The Admin Panel is designed for a desktop / web view, not for phones.
 
 ---
 
@@ -61,58 +65,181 @@ whenever you change that file**, or visitors may keep seeing the old version.
 
 Project id: `zbvtdcqoouwyrcxkzjfv`
 
-- **Database changes** — `supabase/migrations/NNNN_name.sql`, numbered in the
-  order they were applied. Never edit an old one; add a new number.
-  `supabase/schema/000_catalog_reference.sql` is a *reference map* of the live
-  database (do not run it).
-- **Edge Functions** — `supabase/functions/`
-  - `admin/` — everything the Admin Panel does (permissions, payments,
-    employees, hiding mobile numbers / addresses, adding a student / posting a tuition for a student without OTP).
-  - `actions/` — student/tutor actions that must also send an email (new
-    tuition, tutor applied, accept/reject).
-  - `telegram/` - the Telegram bot **@UrbanTutorSiteBot**. It only greets and
-    shows "Student - Register / Login" / "Tutor - Register / Login" buttons that open `studentregistration.html` / `tutorregistration.html`
-    inside Telegram (a Mini App: same page, same flow, same database).
-    Needs the secret `TELEGRAM_BOT_TOKEN`; after setting / changing it, open
-    `https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/telegram?setup=1`
-    once (connects the bot; its menu button opens the website). The chat keeps ONE message: what a user types is deleted, and the bot's previous buttons message is deleted when it sends a new one (table `telegram_chats`). The footer's Telegram icon links to https://t.me/UrbanTutorSiteBot.
-    Notifications: logging in on the site inside Telegram saves the chat (`?link=1`, checked with Telegram's signed initData) in `students.telegram_chat_id` / `tutors.telegram_chat_id`. When a demo date + time is set in the Admin Panel, both get a "Demo Scheduled" message (`_shared/telegram.ts`) - no mobile numbers, and the tutor sees only the student's area (city - PIN), never the full address. Every other notification email (tuition posted, tutor applied, accepted / rejected, payments, agency charge, payout, subscription) also goes to the person's linked Telegram as the same message (`notify()` in `_shared/telegram.ts`). The Emails On / Off switches stop only the emails. The "Demo Scheduled" Telegram message also has **Accept / Reject** buttons for the parent and the tutor (tap, then confirm). The bot checks the press came from that person's linked chat, then runs the website's own accept / reject as them (`bot_respond_to_demo` / `bot_respond_to_demo_tutor`, service role only, migration 0035), updates the buttons and tells the other side. After changing the bot's webhook settings, open `.../functions/v1/telegram?setup=1` once.
-  - `home-photos/` — public: 1-hour links to the photos of the 4 verified tutors shown on the homepage (nothing else).
-  - `tutor-photos/` — gives a logged-in student 1-hour links to the photos of VERIFIED tutors who applied to his tuitions.
-  - `_shared/email.ts` — the email design + sending. `_shared/mails.ts` — the
-    wording of the 10 emails.
-- `supabase/archive/` — old, switched-off code kept only for reference (the WhatsApp webhook). Nothing there is live.
-- **Login emails** (the 6-digit code mail) — `supabase/email-templates/`; they
-  are pasted by hand into Supabase → Authentication → Email Templates.
-- **Secrets** (set in Supabase → Edge Functions → Secrets, never in the code):
-  `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`, `TELEGRAM_BOT_TOKEN`.
+### 2.1 Database
+- **Changes** — `supabase/migrations/NNNN_name.sql`, numbered in the order they
+  were applied. Never edit an old one; add a new number. (A few were applied
+  directly and are not in Supabase's own migration list — this folder is the
+  source of truth.) `supabase/schema/000_catalog_reference.sql` is a *reference
+  map* of the live database (do not run it).
+- **Main tables** — `students`, `tutors`, `tuitions` (one per subject, with a
+  Demo ID), `applications` (a tutor on a tuition: demo, class terms, calendar
+  `class_log`, billing plan), `payments`, `subscriptions`, `admin_users`
+  (employees), `app_settings` (site switches, e.g. `admin_mails`).
+- **Bot tables** — `telegram_chats` (the one bot message kept per chat),
+  `class_notifications` (the class reminder queue), `bot_sessions` (where a chat
+  is in the "register as a student" conversation). All three are server-only.
+- **IDs** — students `SID+year+4 digits`, tutors `TID…`, tuitions `DID…`
+  (generated in the database).
+- **Scheduled jobs** (pg_cron):
+  `tutor-experience-refresh` (nightly: `tutors.experience_since` → years, 1
+  decimal) and `class-notify-tick` (every minute: queues "class in 15 minutes" /
+  "did you take the class?" messages and calls the `telegram` function only when
+  something is waiting).
+- **Security** — every table has row-level security; the website only talks to
+  the database through the numbered functions (RPCs). The `admin_*` and `bot_*`
+  functions can be run by the server only (`service_role`).
+- **Size** — the whole database is a few MB (≈ 600 students, ≈ 550 tutors), so
+  data volume is not a speed problem. The Admin Panel pages its lists 50 at a
+  time.
 
-### The 10 emails that are sent
-1 Student posted a tuition · 2 Tutor applied · 3 Demo scheduled ·
-4 Tutor accepted/rejected · 5 Parent accepted/rejected · 6 Tuition payment
-received · 7 Agency charge received · 8 Payment to tutor · 9 Student
-subscription · 10 Tutor subscription. Nothing else sends mail.
+### 2.2 Edge Functions (`supabase/functions/`)
+Each folder is one function. They import shared code from `_shared/`, so when
+you deploy a function, deploy the `_shared` files it imports with it.
+
+| Function | What it does |
+|---|---|
+| `admin/` | Everything the Admin Panel does: permissions, payments, employees, hiding mobile numbers / addresses, adding students / tuitions, block / mute, verification, class calendar. |
+| `actions/` | Student / tutor actions that must also send a notification (new tuition, tutor applied, accept / reject). |
+| `telegram/` | The Telegram bot **@UrbanTutorSiteBot** (see §3). Also `?link=1` (links a chat to a login) and `?run=1` (sends the class reminder queue). |
+| `whatsapp/` | The WhatsApp bot on the Meta Cloud API (see §3). Webhook: `…/functions/v1/whatsapp`. |
+| `home-photos/` | Public: 1-hour links to the photos of the tutors shown on the homepage "Tutors worth meeting" (nothing else). |
+| `tutor-photos/` | Gives a logged-in student 1-hour links to the photos of VERIFIED tutors who applied to his tuitions. |
+
+Shared code (`_shared/`): `email.ts` (email design + Gmail sending),
+`mails.ts` (the wording of every message), `telegram.ts` (sending to Telegram +
+the quiet / notifications-off checks, `notify()`), `deal.ts` (class-deal
+money maths), `regflow.ts` (the chat registration flow used by both bots).
+
+`supabase/archive/` — old, switched-off code kept only for reference. Nothing there is live.
+
+**Secrets** (Supabase → Edge Functions → Secrets, never in the code):
+`GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`, `TELEGRAM_BOT_TOKEN`,
+`WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`,
+`WHATSAPP_APP_SECRET` (optional but recommended: rejects calls not signed by Meta).
+
+**Login emails** (the 6-digit code mail for website login) — `supabase/email-templates/`;
+pasted by hand into Supabase → Authentication → Email Templates.
+
+### 2.3 Messages that are sent
+Email (and the same message on the person's linked Telegram): tuition posted ·
+tutor applied · demo scheduled · tutor accepted / declined · parent accepted /
+declined · both accepted · payment received · agency charge · payment to tutor ·
+subscription · tuition agreement · class reminder · class check · class taken.
+Class messages end with a line such as "If you have any queries, please contact
+your tutor (number) or your agency (+91 90018 00307)".
 
 **Emails On / Off** (Admin Panel top bar):
-- **Super Admin** - the switch for the whole site (`app_settings` key
-  `admin_mails`). Off = no notification email at all (Admin Panel updates and
-  students' / tutors' own actions); only login codes (OTP) still go out. It is
-  checked inside `_shared/email.ts` `sendMail`, so every function obeys it.
-- **Other employees** - their own switch (`admin_users.mails_enabled`). Off =
-  the updates that employee makes send no email. Needs the "Switch off emails"
-  permission (Employees section); without it - or while the Super Admin has all
-  emails off - the button shows but is disabled.
-The **Light / Dark
-Mode** button next to it only changes the panel's look on that device.
+- **Super Admin** — the switch for the whole site (`app_settings` key
+  `admin_mails`). Off = no notification email at all. Only login / sign-up
+  codes (OTP) still go out: the chat-registration code uses `sendMail(..., {always: true})`.
+  Checked inside `_shared/email.ts`, so every function obeys it.
+- **Other employees** — their own switch (`admin_users.mails_enabled`); needs the
+  "Switch off emails" permission.
+- Per person: the bell on a student / tutor / employee card (or "Notifications"
+  in the bot menu) turns that person's email + Telegram + WhatsApp off
+  (`notifications_off`). A blocked student / tutor gets none either.
 
 ---
 
-## 3. When something breaks
+## 3. The bots
+
+Both bots link a person by their number / chat to the student or tutor
+record, and show the same menu: Running / Demo Scheduled / Finding Tutor (Applied
+for tutors) / Completed, the tuition details, a Notifications on/off switch and a
+link to the profile.
+
+### Telegram (`telegram/`)
+- Menu, notifications on/off, demo **Accept / Reject** buttons, class reminders
+  and the tutor's "Yes, I took the class" button (marks the day done: the
+  calendar turns green and the parent is told).
+- **Register as a student in the chat**: a new user taps "Register as Student here
+  in chat". The bot asks the details one by one. The mobile number comes from
+  Telegram's "Share my number" button (so it is verified), the email is verified
+  with a 6-digit code. Then the chat is linked to the new student so
+  notifications arrive here.
+- After changing the bot's webhook settings, open
+  `https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/telegram?setup=1` once.
+
+### WhatsApp (`whatsapp/`)
+- Works on the number set in `WHATSAPP_PHONE_NUMBER_ID`. The person is found by
+  the sender's number (students' `phone` / `whatsapp`, tutors' `mobile_number` /
+  `whatsapp_number`, last 10 digits).
+- Menu, details, notifications on/off, and **Register as a student in the chat**
+  (same questions as Telegram; the mobile number is the sender's own, the email
+  is verified with a code).
+- Meta settings: app → WhatsApp → Configuration: callback URL
+  `https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/whatsapp`, verify token =
+  `WHATSAPP_VERIFY_TOKEN`, field **messages** subscribed, and "Subscribe
+  webhooks" on for the WhatsApp Business Account.
+- **Not yet built:** sending notifications (reminders, demo, payments) over WhatsApp.
+  That needs Meta-approved message templates — the ready-to-paste drafts are in
+  `docs/whatsapp-templates.md`.
+- Until the real number is set up, a Meta **test number** is used (messages only
+  to up to 5 verified numbers, 24-hour access token). Switching to the real number =
+  change `WHATSAPP_PHONE_NUMBER_ID` and `WHATSAPP_TOKEN`; the code is the same.
+
+### Chat registration flow (`_shared/regflow.ts`)
+One flow for both bots; the channel only draws the buttons. Steps:
+parents' name → student's name → (Telegram: share number) → email → 6-digit code →
+gender → class → school → board → city → PIN → address → terms → check &
+Submit. Rules: mobile / email already on a student account = refused with a login
+link; the code lasts 10 minutes, 5 tries, max 3 sends, 30 seconds apart; a
+half-finished chat is forgotten after 3 hours. The account is created with
+`admin_register_student` (the same duplicate check as the Admin Panel) and gets
+the yearly subscription like any new student. No tutor sign-up here (documents /
+photo stay on the website).
+
+### Class reminders (`class_notifications`)
+15 minutes before a class: "You have class today" to the tutor and the student.
+After it should have ended: "Have you taken today's class?" to the tutor.
+"Yes" (button on Telegram, or in the profile) marks the day done
+(`applications.class_log`) and tells the parent.
+
+---
+
+## 4. Admin Panel (`admin.html`)
+Sign in with an employee email + 6-digit code. What each employee sees depends on
+their Permissions. Tabs: Overview, Students, Tutors, Tuitions, Payments,
+Subscriptions, Employees.
+- **Overview cards** (2 rows of 6): Finding Tutors, Demo to Schedule, Today's Demo,
+  Running Classes, Classes Completed, Closed · Tutor Verification Pending, Total
+  Verified Tutors, Total Students, Total Tuitions, Blocked Tutors, Blocked Students.
+- **Student / Tutor / Employee cards**: four icons (Block, Verify or profile
+  check, Notifications bell, Edit). A blocked or disabled tutor can still log in
+  and see their details but cannot apply / accept / mark classes. Up to four
+  coloured status boxes on the card's left edge show the tuition stages.
+- **Class cards**: calendar log, class deal (two payment models), refund box
+  (opens "Record a Payment" with Refund to Parent / Refund to Tutor), first-month
+  bar and weekday pills.
+
+---
+
+## 5. When something breaks
 
 | Symptom | Look at |
 |---|---|
 | A page looks old after an update | Bump the `?v=` on that file in the HTML. |
 | "Unable to connect" on a profile/admin page | Supabase → Edge Functions → Logs (function `admin` / `actions`). |
-| Emails not arriving | Supabase secrets `GMAIL_*`; Edge Function logs; Gmail "App password" still valid. |
+| Emails not arriving | Admin Panel "Emails" switch (Super Admin) – if off, only login codes go out; then secrets `GMAIL_*`; Edge Function logs; Gmail "App password" still valid. |
+| WhatsApp bot does not answer | Meta: callback URL + verify token + **messages** subscribed + "Subscribe webhooks" on; `WHATSAPP_TOKEN` not expired (test tokens last 24 h); Supabase → Logs → Edge Function `whatsapp` (no calls at all = Meta is not delivering). |
+| Telegram bot does not answer | `?setup=1` on the telegram function; `TELEGRAM_BOT_TOKEN`. |
 | Employee sees data they shouldn't | Admin → Employees → their Permissions (Privacy: Hide Mobile / Hide Address). |
 | Wrong amount / date on a card | Page's JS in `js/pages/`; money text comes from `rupees()` in `admin.js`. |
+| A database change "hangs" when run from the SQL tool | Run it as small separate statements; scheduled-job (`cron.schedule`) and function-replace statements can time out while the every-minute job holds a lock — retry later. |
+
+---
+
+## 6. Known leftovers (safe to tidy when convenient)
+- Old test Edge Functions still deployed in Supabase but not in this repo:
+  `mailtest`, `mail-test`, `whatsapp-webhook` (the last one needs a login token, so
+  Meta can never reach it). Delete them in Supabase → Edge Functions.
+- Database leftovers: table `_import_stage` (temporary data from the old-site
+  import) and the unused functions `get_public_students`, `get_public_tutors`,
+  `register_student_whatsapp`, `whatsapp_number_status`, `admin_email_allowed`,
+  `admin_verify_tutor`.
+- A test row `DID_TEST_NONE` in `class_notifications`.
+- `bot_respond_to_demo_tutor` does not yet check for a blocked tutor.
+- The `actions` and `admin` functions were last deployed before the newest shared
+  `mails.ts` / `telegram.ts` edits; redeploy them to pick those up.
+- `@supabase/supabase-js@2` is loaded from a CDN without an exact version;
+  pinning an exact version would stop surprise upgrades.
