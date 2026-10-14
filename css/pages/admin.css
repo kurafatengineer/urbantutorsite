@@ -4843,3 +4843,6 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 
 /* v31: two rows of five stat cards */
 .admin-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+/* v32: twelve stat cards in two rows of six */
+.admin-stats { grid-template-columns: repeat(6, minmax(0, 1fr)); }
