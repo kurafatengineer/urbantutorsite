@@ -4744,7 +4744,18 @@ function renderTutors() {
   $("tutorList").innerHTML = rows.length ? rows.map(r => {
     const status = r.values["Verification Status"] || "Pending for Verification";
     const v = f => r.values[f] || "";
+    const applied = (STATE.data.demos || []).filter(d => d.hasTutor && d.tutorId === r.id);
+    const extra = applied.length ? `
+      <div class="admin-mini-list">
+        <span class="admin-mini-title">Tuitions</span>
+        ${applied.map(d => {
+          const st = rowState(d);
+          const label = st === "schedule" ? "Applied" : ROW_LABELS[st];
+          return `<button type="button" class="admin-pill admin-pill-link" data-tone="${esc(st)}" data-action="go-to-tuition" data-demo="${esc(d.demoId)}">${esc(d.subject)} · ${esc(label)}</button>`;
+        }).join("")}
+      </div>` : "";
     return recordCard("tutors", r, {
+      extra,
       name: v("Full Name"),
       // One line, 8 equal columns: Name | Gender | Mobile | WhatsApp |
       // Tutor ID | Subjects | Address (no PIN) | Pin Code - text too
