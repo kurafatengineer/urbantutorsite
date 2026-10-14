@@ -6516,44 +6516,47 @@ function schedText(start, freq) {
 // (P - T - A when the tutor collects the fee and pays the commission). Dotted lines run per instalment and per month.
 function flowInner(m, freq) {
   const R = v => "₹" + Number(v || 0).toLocaleString("en-IN");
-  const per = { "Weekly": "week", "15 Days": "15 days", "Monthly": "month" }[freq] || "month";
-  const both = per !== "month";
+  const per = { "Weekly": "Week", "15 Days": "15 Days", "Monthly": "Month" }[freq] || "Month";
+  const both = per !== "Month";
   const margin = m.model === "margin";
   const viaAgency = margin || m.feeTo === "Agency";
   const seg1 = margin ? [m.parentInstallment, m.parentMonthly] : [m.parentInstallment, m.monthlyFee];
   const seg2 = viaAgency ? (margin ? [m.tutorInstallment, m.tutorMonthly] : [m.tutorInstallment, m.tutorFirstMonth]) : [m.cutInstallment, m.cut];
   const keep = margin ? [m.parentInstallment - m.tutorInstallment, m.agencyMonthly] : [m.cutInstallment, m.cut];
   const note = margin ? "" : (viaAgency ? "first month, once" : "first month, once");
-  const W = 760, cy = 70, nr = 28, ar = 12;
-  const x1 = 30, x2 = 380, x3 = 730;                       // left, middle, right
+  const W = 940, cy = 72, nr = 28, ar = 12;
+  const x1 = nr + 3, x2 = W / 2, x3 = W - nr - 3;                       // left, middle, right
   const nodes = viaAgency
     ? [[x1, "P", "is-parent", nr], [x2, "A", "is-agency", ar], [x3, "T", "is-tutor", nr]]
     : [[x1, "P", "is-parent", nr], [x2, "T", "is-tutor", nr], [x3, "A", "is-agency", ar]];
-  const rows = both ? [[cy - 9, "is-inst", 0, per], [cy + 9, "is-month", 1, "month"]] : [[cy, "is-month", 1, "month"]];
+  const rows = both ? [[cy - 9, "is-inst", 0, per], [cy + 9, "is-month", 1, "Month"]] : [[cy, "is-month", 1, "Month"]];
   const seg = (xa, ra, xb, rb, y) => {                      // line between two circles at height y
     const dy = y - cy;
     const ea = Math.sqrt(Math.max(ra * ra - dy * dy, 0)), eb = Math.sqrt(Math.max(rb * rb - dy * dy, 0));
     return `M${xa + ea + 4} ${y} H${xb - eb - 4}`;
   };
-  let svg = "", labels = "";
+  let svg = "";
+  const pills = [];
   rows.forEach(([y, cls, k, unit]) => {
     const above = k === 0 || !both;
-    const ly = above ? y - 11 : y + 22;
+    const ly = above ? y - 24 : y + 24;
     [[0, 1, seg1], [1, 2, seg2]].forEach(([i, j, amt]) => {
       const d = seg(nodes[i][0], nodes[i][3], nodes[j][0], nodes[j][3], y);
       svg += `<g class="fl ${cls}"><path class="fl-base" d="${d}"/><path class="fl-run" d="${d}"/></g>`;
-      labels += `<text class="fl-amt ${cls}" x="${(nodes[i][0] + nodes[j][0]) / 2}" y="${ly}" text-anchor="middle">${R(amt[k])} / ${unit}</text>`;
+      pills.push([(nodes[i][0] + nodes[j][0]) / 2, ly, `${R(amt[k])} / ${unit}`, cls]);
     });
     const ag = nodes.find(n => n[1] === "A");
-    labels += `<text class="fl-keeps ${cls}" x="${ag[0]}" y="${ly}" text-anchor="middle">${R(keep[k])} / ${unit}</text>`;
+    pills.push([ag[0], ly, `${R(keep[k])} / ${unit}`, cls]);
   });
+  const pw = Math.max(...pills.map(x => x[2].length)) * 8.4 + 24, ph = 24;      // every pill as wide as the longest
+  const labels = pills.map(([x, y, t, cls]) => `<g class="fl-pill ${cls}"><rect x="${x - pw / 2}" y="${y - ph / 2}" width="${pw}" height="${ph}" rx="${ph / 2}"/><text x="${x}" y="${y}" dominant-baseline="central" text-anchor="middle">${t}</text></g>`).join("");
   const circ = ([x, letter, cls, r]) => `<g class="fl-node ${cls}"><circle cx="${x}" cy="${cy}" r="${r}"/><text x="${x}" y="${cy}" dominant-baseline="central" text-anchor="middle" style="font-size:${Math.round(r * (r < 20 ? 1.1 : 0.85))}px">${letter}</text></g>`;
   svg += labels + nodes.map(circ).join("");
   const c = m.classes, noun = c === 1 ? "Class" : "Classes";
   const perClassParent = margin ? m.parentPerClass : m.perClass;
   const perClassTutor = margin ? m.tutorPerClass : (c ? Math.round(m.tutorFirstMonth / c) : 0);
   const cap = `${c} ${noun} / Month · Parent ${R(perClassParent)} / Class · Tutor Gets ${R(perClassTutor)} / Class`;
-  return `<svg class="flow-svg" viewBox="0 0 ${W} ${cy + nr + 14}" role="img" aria-label="How the money moves">${svg}</svg><p class="flow-cap">${esc(cap)}</p>`;
+  return `<svg class="flow-svg" viewBox="0 0 ${W} ${cy + nr + 24}" role="img" aria-label="How the money moves">${svg}</svg><p class="flow-cap">${esc(cap)}</p>`;
 }
 
 function fmtShortDate(iso) {
