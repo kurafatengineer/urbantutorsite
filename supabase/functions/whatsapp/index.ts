@@ -1,12 +1,12 @@
 // WhatsApp Cloud API bot (test phase): the same student / tutor menu that the Telegram bot has.
-// Secrets (Supabase > Edge Functions > Secrets): WHATSAPP_TOKEN, WHATSAPP_PHONE_ID, WHATSAPP_VERIFY_TOKEN,
+// Secrets (Supabase > Edge Functions > Secrets): WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_VERIFY_TOKEN,
 // and optionally WHATSAPP_APP_SECRET (when set, every incoming call must carry a valid Meta signature).
 import { fmtDate, fmtTime } from "../_shared/mails.ts";
 
 type Json = Record<string, any>;
 
 const TOKEN = Deno.env.get("WHATSAPP_TOKEN") ?? "";
-const PHONE_ID = Deno.env.get("WHATSAPP_PHONE_ID") ?? "";
+const PHONE_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
 const VERIFY = Deno.env.get("WHATSAPP_VERIFY_TOKEN") ?? "";
 const APP_SECRET = Deno.env.get("WHATSAPP_APP_SECRET") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
