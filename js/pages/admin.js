@@ -6512,34 +6512,49 @@ function schedText(start, freq) {
   return row("Parent pays", list) + row("Tutor paid", list.map(x => isoPlusDays(x, 1)));
 }
 
-// who pays whom: P(arent) -> A(gency) -> T(utor)  (or P -> T -> A), each step per instalment and per month
+// who pays whom: P(arent), T(utor) on top, A(gency) below. Animated money lines per instalment and per month.
 function flowInner(m, freq) {
   const R = v => "₹" + Number(v || 0).toLocaleString("en-IN");
   const per = { "Weekly": "week", "15 Days": "15 days", "Monthly": "month" }[freq] || "month";
-  const node = (cls, letter, title, subs = []) => `<div class="flow-node ${cls}" title="${title}"><i>${letter}</i>${subs.map(x => `<small>${x}</small>`).join("")}</div>`;
-  const amt = (inst, month, note) => (per === "month"
-    ? `<span>${R(month)} / month</span>`
-    : `<span>${R(inst)} / ${per}</span><em>${R(month)} / month</em>`) + (note ? `<em class="flow-note">${note}</em>` : "");
-  const arrow = html => `<div class="flow-arrow">${html.split("<em")[0]}<svg viewBox="0 0 64 12" aria-hidden="true"><path d="M0 6h60M53 1l7 5-7 5"/></svg>${html.includes("<em") ? "<em" + html.split("<em").slice(1).join("<em") : ""}</div>`;
-  const keeps = (inst, month, note) => per === "month" ? [`keeps ${R(month)} / month${note ? " " + note : ""}`] : [`keeps ${R(inst)} / ${per}`, `${R(month)} / month${note ? " " + note : ""}`];
-  let nodes, cap;
-  if (m.model === "margin") {
-    nodes = node("is-parent", "P", "Parent") + arrow(amt(m.parentInstallment, m.parentMonthly)) +
-      node("is-agency", "A", "Agency", keeps(m.parentInstallment - m.tutorInstallment, m.agencyMonthly)) +
-      arrow(amt(m.tutorInstallment, m.tutorMonthly)) + node("is-tutor", "T", "Tutor");
-    cap = `${m.classes} ${m.classes === 1 ? "class" : "classes"} a month · parent ${R(m.parentPerClass)} a class · tutor gets ${R(m.tutorPerClass)} a class`;
-  } else if (m.feeTo === "Agency") {
-    nodes = node("is-parent", "P", "Parent") + arrow(amt(m.parentInstallment, m.monthlyFee)) +
-      node("is-agency", "A", "Agency", keeps(m.cutInstallment, m.cut, "(first month, once)")) +
-      arrow(amt(m.tutorInstallment, m.tutorFirstMonth, "first month")) + node("is-tutor", "T", "Tutor");
-    cap = `${m.classes} ${m.classes === 1 ? "class" : "classes"} a month for ${R(m.monthlyFee)} · from the second month the parent pays the tutor directly`;
-  } else {
-    nodes = node("is-parent", "P", "Parent") + arrow(amt(m.parentInstallment, m.monthlyFee)) +
-      node("is-tutor", "T", "Tutor") + arrow(amt(m.cutInstallment, m.cut, "commission, first month")) +
-      node("is-agency", "A", "Agency", [`gets ${R(m.cut)} (once)`]);
-    cap = `${m.classes} ${m.classes === 1 ? "class" : "classes"} a month for ${R(m.monthlyFee)} · the tutor pays the agency its commission from the first month's fee`;
-  }
-  return `<div class="flow-row">${nodes}</div><p class="flow-cap">${esc(cap)}</p>`;
+  const both = per !== "month";
+  const margin = m.model === "margin";
+  const viaAgency = margin || m.feeTo === "Agency";
+  // amounts: [per instalment, per month]
+  const left = margin ? [m.parentInstallment, m.parentMonthly] : [m.parentInstallment, m.monthlyFee];
+  const right = margin ? [m.tutorInstallment, m.tutorMonthly] : viaAgency ? [m.tutorInstallment, m.tutorFirstMonth] : null;
+  const keep = margin ? [m.parentInstallment - m.tutorInstallment, m.agencyMonthly] : [m.cutInstallment, m.cut];
+  const note = margin ? "" : (viaAgency ? "first month, once" : "tutor pays, first month");
+  const W = 760, px = 70, tx = 690, bx = viaAgency ? 380 : 600, ay = 196, nr = 28, ar = 19;
+  const y1 = both ? 46 : 64, y2 = 82, ny = 64;
+  const rails = both ? [[y1, "is-inst", 0], [y2, "is-month", 1]] : [[64, "is-month", 1]];
+  const dxs = both ? [-12, 12] : [0];
+  let svg = "";
+  rails.forEach(([y, cls, k], i) => {
+    const bxi = bx + dxs[i];
+    const l = `M${px + 24} ${y} H${bxi}`, r = `M${bxi} ${y} H${tx - 24}`, d = `M${bxi} ${y} V${ay - 24}`;
+    const unit = k === 0 ? per : "month";
+    const ly = k === 0 ? y - 9 : y + 21;
+    const lAmt = `${R(left[k])} / ${unit}`;
+    svg += `<g class="fl ${cls}">
+      <path class="fl-base" d="${l}"/><path class="fl-run" d="${l}"/>
+      ${right ? `<path class="fl-base" d="${r}"/><path class="fl-run" d="${r}"/>` : `<path class="fl-base" d="${r}"/><path class="fl-run" d="${r}"/>`}
+      <path class="fl-base" d="${d}"/><path class="fl-run" d="${d}"/>
+      <circle class="fl-dot" r="4.5"><animateMotion dur="2.2s" repeatCount="indefinite" path="${l}"/></circle>
+      <circle class="fl-dot" r="4.5"><animateMotion dur="2.7s" repeatCount="indefinite" path="${r}"/></circle>
+      <circle class="fl-dot" r="4"><animateMotion dur="1.6s" repeatCount="indefinite" path="${d}"/></circle>
+      <text class="fl-amt" x="${(px + 24 + bxi) / 2}" y="${ly}" text-anchor="middle">${lAmt}</text>
+      ${right ? `<text class="fl-amt" x="${(bxi + tx - 24) / 2}" y="${ly}" text-anchor="middle">${R(right[k])} / ${unit}</text>` : ""}
+      <text class="fl-amt fl-keep" x="${bxi + (dxs[i] < 0 ? -8 : 8)}" y="${both ? y2 + 58 : y + 76}" text-anchor="${dxs[i] < 0 ? "end" : "start"}">${viaAgency ? "keeps " : "gets "}${R(keep[k])} / ${unit}</text>
+    </g>`;
+  });
+  svg += note ? `<text class="fl-sub" x="${bx}" y="${ay + 40}" text-anchor="middle">${note}</text>` : "";
+  const circ = (x, y, r, letter, cls, size) => `<g class="fl-node ${cls}"><circle cx="${x}" cy="${y}" r="${r}"/><text x="${x}" y="${y + size * 0.36}" text-anchor="middle" style="font-size:${size}px">${letter}</text></g>`;
+  svg += circ(px, ny, nr, "P", "is-parent", 24) + circ(tx, ny, nr, "T", "is-tutor", 24) + circ(bx, ay, ar, "A", "is-agency", 17);
+  const c = m.classes, noun = c === 1 ? "Class" : "Classes";
+  const perClassParent = margin ? m.parentPerClass : m.perClass;
+  const perClassTutor = margin ? m.tutorPerClass : (c ? Math.round(m.tutorFirstMonth / c) : 0);
+  const cap = `${c} ${noun} / Month · Parent ${R(perClassParent)} / Class · Tutor Gets ${R(perClassTutor)} / Class`;
+  return `<svg class="flow-svg" viewBox="0 0 ${W} ${ay + 52}" role="img" aria-label="How the money moves">${svg}</svg><p class="flow-cap">${esc(cap)}</p>`;
 }
 
 function fmtShortDate(iso) {
