@@ -508,9 +508,9 @@
           <div class="ld-av" data-ref="${esc(t.ref)}" style="background:${AVATAR_COLORS[i % AVATAR_COLORS.length]}">${esc(initials(cleanName(t.name)))}</div>
           <svg class="ld-badge ld-badge-av" data-tone="${esc(t.tone || "")}" viewBox="0 0 24 24" role="img" aria-label="Verified"><use href="#ld-verified"/></svg>
         </div>
-        <div class="ld-name"><b>${esc(cleanName(t.name))}</b></div>
-        ${exp ? `<span class="ld-exp">${esc(exp)}</span>` : ""}
-        ${place.length ? `<div class="ld-loc">${place.map(x => `<span>${esc(x)}</span>`).join("")}</div>` : ""}
+        <div class="ld-name"><b title="${esc(cleanName(t.name))}">${esc(cleanName(t.name))}</b></div>
+        ${exp ? `<span class="ld-exp" title="${esc(exp)}">${esc(exp)}</span>` : ""}
+        ${place.length ? `<div class="ld-loc">${place.map(x => `<span title="${esc(x)}">${esc(x)}</span>`).join("")}</div>` : ""}
       </div>`;
   }
 
