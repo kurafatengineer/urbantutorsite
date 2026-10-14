@@ -6713,7 +6713,7 @@ function recalcDeal(panel) {
     const plain = ["classes", "hours", "minutes", "cutPercent"];
     Object.keys(m).forEach(k => {
       if (typeof m[k] !== "number") return;
-      sync(k, plain.includes(k) ? (k === "hours" ? Math.round(m[k] * 100) / 100 : k === "minutes" ? m[k] + " min" : m[k]) : "₹" + Number(m[k] || 0).toLocaleString("en-IN"));
+      sync(k, plain.includes(k) ? (k === "hours" ? Math.round(m[k] * 100) / 100 + " hrs" : k === "minutes" ? m[k] + " min" : m[k]) : "₹" + Number(m[k] || 0).toLocaleString("en-IN"));
     });
     sync("tutorEach", "₹" + Number((viaTutor ? m.cutInstallment : m.tutorInstallment) || 0).toLocaleString("en-IN"));
     const planEl = card.querySelector("[data-class-plan]");
@@ -7034,7 +7034,7 @@ function classCard(g, activeRow) {
 
   const R = v => "₹" + Number(v || 0).toLocaleString("en-IN");
   const tile = (label, key, val, set = "") => `<div${set ? ` data-set="${set}"` : ""}><small>${label}</small><b data-sync="${key}">${esc(val)}</b></div>`;
-  const lead = tile("Duration", "minutes", `${dm0.minutes || 0} min`) + tile("Classes", "classes", dm0.classes) + tile("Hours", "hours", Math.round(dm0.hours * 100) / 100);
+  const lead = tile("Class Duration", "minutes", `${dm0.minutes || 0} min`) + tile("No. of Classes", "classes", dm0.classes) + tile("Total Duration", "hours", `${Math.round(dm0.hours * 100) / 100} hrs`);
   const studentTiles = lead +
     tile("Per Class", "perClass", R(dm0.perClass), "commission") + tile("Per Hour", "perHour", R(dm0.perHour), "commission") +
     tile("Per Class", "parentPerClass", R(dm0.parentPerClass), "margin") + tile("Per Hour", "parentPerHour", R(dm0.parentPerHour), "margin") +
