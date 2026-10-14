@@ -2940,13 +2940,24 @@ function goToFilter(tab, filter) {
     clearSearchChips("tuitionSearch");
     $("tuitionFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === filter));
   } else if (tab === "tutors") {
-    STATE.tutorFilter = filter;
+    STATE.tutorFilter = filter === "blocked" ? "all" : filter;
     $("tutorSearch").value = "";
     clearSearchChips("tutorSearch");
-    $("tutorFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === filter));
+    $("tutorFilter").querySelectorAll(".admin-chip").forEach(c => c.classList.toggle("active", c.dataset.value === STATE.tutorFilter));
+  } else if (tab === "students") {
+    $("studentSearch").value = "";
+    clearSearchChips("studentSearch");
+  }
+
+  if (filter === "blocked" && (tab === "tutors" || tab === "students")) {
+    const searchId = tab === "tutors" ? "tutorSearch" : "studentSearch";
+    SEARCH_CHIPS[searchId] = ["blocked"];
+    renderSearchChips(searchId);
   }
 
   showTab(tab);
+  if (tab === "tutors") renderTutors();
+  if (tab === "students") renderStudents();
 
   $("mainTabs").scrollIntoView({ behavior: "smooth", block: "start" });
 
@@ -3933,7 +3944,9 @@ function renderStats() {
     ["Tutor Verification Pending", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "pending").length, "amber", "tutors", "pending"],
     ["Total Verified Tutors", tutors.filter(t => statusGroup(t.values["Verification Status"]) === "verified").length, "green", "tutors", "verified"],
     ["Total Students", (STATE.data.students.rows || []).length, "lime", "students", "all"],
-    ["Total Tuitions", groups.length, "violet", "tuitions", "all"]
+    ["Total Tuitions", groups.length, "violet", "tuitions", "all"],
+    ["Blocked Tutors", tutors.filter(t => t.meta && t.meta.blockedAt).length, "red", "tutors", "blocked"],
+    ["Blocked Students", (STATE.data.students.rows || []).filter(r => r.meta && r.meta.blockedAt).length, "red", "students", "blocked"]
   ];
 
 
@@ -4325,7 +4338,7 @@ function recordCard(kind, record, opts) {
 
   return `
     <article class="admin-card${open ? " is-open" : ""}${editing ? " is-editing" : ""}${(kind === "students" && studentTags(record).includes("blocked")) || (kind === "tutors" && record.meta && record.meta.blockedAt) ? " is-blocked" : ""}" data-tone="${opts.tone || ""}"
-      data-box data-kind="${kind}" data-row="${record.rowNumber}" data-id="${esc(record.id)}" data-key="${esc(key)}"${kind === "students" ? ` data-tags="${studentTags(record).join(" ")}"` : ""}>
+      data-box data-kind="${kind}" data-row="${record.rowNumber}" data-id="${esc(record.id)}" data-key="${esc(key)}"${kind === "students" ? ` data-tags="${studentTags(record).join(" ")}"` : kind === "tutors" ? ` data-tags="${tutorTags(record).join(" ")}"` : ""}>
 
       <div class="admin-card-head" data-toggle="${esc(key)}">
         ${kind === "tutors"
@@ -5768,6 +5781,15 @@ const STUDENT_REQUIRED = ["Parents Name", "Student Name", "Phone", "WhatsApp", "
 
 function studentMissing(r) {
   return STUDENT_REQUIRED.filter(f => !String((r.values || {})[f] || "").trim());
+}
+
+function tutorTags(r) {
+  const m = r.meta || {};
+  const g = statusGroup(r.values["Verification Status"]);
+  const tags = [g === "verified" ? "approved" : "flagged"];
+  if (m.blockedAt) tags.push("blocked");
+  if (m.notificationsOff || m.blockedAt) tags.push("muted");
+  return tags;
 }
 
 function studentTags(r) {
