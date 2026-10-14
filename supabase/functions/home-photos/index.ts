@@ -39,10 +39,38 @@ function reply(body: Json, status = 200): Response {
   });
 }
 
+import { createHash } from "node:crypto";
+
+// photo reference the homepage gets from get_home_tutors(): left(md5('ut' || tutor_id), 12)
+const refOf = (tutorId: string) => createHash("md5").update("ut" + tutorId).digest("hex").slice(0, 12);
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
+    let wanted: string[] = [];
+    if (req.method === "POST") {
+      const body = JSON.parse((await req.text()) || "{}");
+      if (Array.isArray(body?.refs)) wanted = body.refs.map(String).slice(0, 24);
+    }
+
+    // Reference mode: photos of exactly the verified tutors the homepage lists (see get_home_tutors)
+    if (wanted.length) {
+      const { data: all } = await db.from("tutors").select("tutor_id, profile_image")
+        .eq("verification_status", "Verified").is("blocked_at", null).not("profile_image", "is", null);
+      const byRef = new Map<string, string>();
+      (all ?? []).forEach((t: Json) => { const r = refOf(String(t.tutor_id)); if (wanted.includes(r)) byRef.set(r, t.profile_image); });
+      const paths = [...byRef.values()].filter((p) => p && !/^https?:\/\//i.test(p));
+      const signedBy = new Map<string, string>();
+      if (paths.length) {
+        const { data: signed } = await db.storage.from(BUCKET).createSignedUrls(paths, LINK_SECONDS);
+        (signed ?? []).forEach((s: Json) => { if (s?.path && s?.signedUrl) signedBy.set(s.path, s.signedUrl); });
+      }
+      const photos: Record<string, string> = {};
+      byRef.forEach((path, r) => { const u = signedBy.get(path) ?? (/^https?:\/\//i.test(path) ? path : ""); if (u) photos[r] = u; });
+      return reply({ success: true, photos });
+    }
+
     // exactly the tutors get_home_stats lists: newest Verified first, 4 of them
     const { data: tutors } = await db.from("tutors").select("full_name, profile_image")
       .eq("verification_status", "Verified").order("registered_at", { ascending: false }).limit(4);
