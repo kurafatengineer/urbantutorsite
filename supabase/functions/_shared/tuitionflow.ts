@@ -12,17 +12,9 @@ type Json = Record<string, any>;
 
 const CANCEL: Choice = { id: "cancel", title: "Cancel" };
 
-// Time slots offered as buttons; "own" lets the user type a time instead.
-const SLOTS: { id: string; title: string; description: string; value: string }[] = [
-  { id: "morning", title: "Morning", description: "8 AM - 11 AM", value: "Morning (8 AM - 11 AM)" },
-  { id: "afternoon", title: "Afternoon", description: "12 PM - 3 PM", value: "Afternoon (12 PM - 3 PM)" },
-  { id: "evening", title: "Evening", description: "4 PM - 7 PM", value: "Evening (4 PM - 7 PM)" },
-  { id: "night", title: "Night", description: "8 PM - 9 PM", value: "Night (8 PM - 9 PM)" },
-  { id: "any", title: "Any Time", description: "Whenever the tutor is free", value: "Any Time" },
-];
 const TUTOR = { male: "Male", female: "Female", any: "Any" } as Record<string, string>;
 const MODE = { home: "Home", online: "Online", any: "Any" } as Record<string, string>;
-const modeText = (m: string) => m === "Any" ? "Home or Online" : m === "Home" ? "Home Tutor" : m;
+const modeText = (m: string) => m === "Any" ? "Home or Online" : m;
 const tutorText = (t: string) => t === "Any" ? "Male or Female" : t;
 
 const splitSubjects = (v: string) =>
@@ -35,21 +27,17 @@ function prompt(step: string, d: Json): Out {
       choices: [...d.allowed.slice(0, 9).map((s: Json) => ({ id: `t_pick:${s.id}`, title: s.name || s.id, description: s.id })), CANCEL],
     };
     case "t_subjects": return {
-      text: `*Post a New Tuition*\nStudent: *${d.studentName}*\nYou can type *Cancel* any time.\n\n` +
+      text: `*Post a New Tuition*\nStudent: *${d.studentName}*\nStudent ID: *${d.studentId}*\n\nYou can type *Cancel* any time.\n\n` +
         "Which *subjects* do you need a tutor for?\nFor more than one subject, separate them with commas.\n\nFor example -\nMaths, Science",
     };
-    case "t_timing": return {
-      text: "Your *preferred time* for the class?",
-      choices: [...SLOTS.map((s) => ({ id: `t_time:${s.id}`, title: s.title, description: s.description })), { id: "t_time:own", title: "Type My Own Time" }],
-    };
-    case "t_own": return { text: "Type your *preferred time*.\n\nFor example -\n5 PM\n6 PM - 8 PM" };
+    case "t_timing": return { text: "Your *preferred time* for the class?\n\nFor example -\n5 PM\n6 PM - 8 PM" };
     case "t_tutor": return {
       text: "Which *tutor* do you prefer?",
-      choices: [{ id: "t_tutor:male", title: "Male" }, { id: "t_tutor:female", title: "Female" }, { id: "t_tutor:any", title: "Any" }],
+      choices: [{ id: "t_tutor:any", title: "Any" }, { id: "t_tutor:male", title: "Male" }, { id: "t_tutor:female", title: "Female" }],
     };
     case "t_mode": return {
       text: "Which *mode* do you want?",
-      choices: [{ id: "t_mode:home", title: "Home Tutor" }, { id: "t_mode:online", title: "Online" }, { id: "t_mode:any", title: "Any" }],
+      choices: [{ id: "t_mode:any", title: "Any" }, { id: "t_mode:home", title: "Home" }, { id: "t_mode:online", title: "Online" }],
     };
     case "t_confirm": return {
       text: "*Please check your tuition request:*\n\n" +
@@ -161,24 +149,16 @@ export async function tuitionInput(ctx: Ctx, s: { step: string; data: Json }, in
       d.subjects = subjects;
       return goTo(ctx, "t_timing", d);
     }
-    case "t_timing": {
-      if (key !== "t_time") return again("Please tap a *time* from the list.");
-      if (value === "own") return goTo(ctx, "t_own", d);
-      const slot = SLOTS.find((x) => x.id === value);
-      if (!slot) return again("Please tap a *time* from the list.");
-      d.timing = slot.value;
-      return goTo(ctx, "t_tutor", d);
-    }
-    case "t_own":
+    case "t_timing":
       if (text.length < 2 || text.length > 120) return again("Please type your preferred time.");
       d.timing = text;
       return goTo(ctx, "t_tutor", d);
     case "t_tutor":
-      if (key !== "t_tutor" || !TUTOR[value]) return again("Please tap *Male*, *Female* or *Any*.");
+      if (key !== "t_tutor" || !TUTOR[value]) return again("Please tap *Any*, *Male* or *Female*.");
       d.tutor = TUTOR[value];
       return goTo(ctx, "t_mode", d);
     case "t_mode":
-      if (key !== "t_mode" || !MODE[value]) return again("Please tap *Home Tutor*, *Online* or *Any*.");
+      if (key !== "t_mode" || !MODE[value]) return again("Please tap *Any*, *Home* or *Online*.");
       d.medium = MODE[value];
       return goTo(ctx, "t_confirm", d);
     case "t_confirm": {
@@ -191,9 +171,9 @@ export async function tuitionInput(ctx: Ctx, s: { step: string; data: Json }, in
       await clear(ctx);
       if (!res.ok) return [{ text: `${res.message}\n\nSend *Hi* any time for the menu.` }];
       await tellPosted(d.studentId, res.demos!, d);
-      const list = res.demos!.map((x) => `${x.demoId} - *${x.subject}*`).join("\n");
+      const list = res.demos!.map((x) => `Tuition: *${x.subject}* (${x.demoId})\nTutor - ${d.tutor}`).join("\n\n");
       return [{
-        text: `*Tuition request posted!*\n\n${list}\n\nWe will let you know as soon as a tutor applies.\nSend *Hi* any time for the menu.`,
+        text: `*Tuition request posted!*\nStudent: *${d.studentName}* (${d.studentId})\n\n${list}\n\nWe will let you know as soon as a tutor applies.`,
       }];
     }
   }

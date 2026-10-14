@@ -209,8 +209,8 @@ starts the tuition flow below.
 ### Chat tuition flow (`_shared/tuitionflow.ts`)
 "Apply for New Tuition" in the bot menu (students only). Steps: pick the student
 (only if the number / chat has more than one) → subjects (comma separated) → time
-(Morning / Afternoon / Evening / Night / Any Time, or type your own) → tutor (Male /
-Female / Any) → mode (Home Tutor / Online / Any) → check & Post. Same result as the
+(typed, e.g. "5 PM" or "6 PM - 8 PM") → tutor (Any / Male /
+Female) → mode (Any / Home / Online) → check & Post. Same result as the
 website form: one Demo ID per subject, a subject that already has a running request
 is refused, and the "Tuition Request Posted" email / Telegram message goes out.
 Only students found behind that WhatsApp number / linked to that Telegram chat can
