@@ -406,51 +406,167 @@
 
   }
 
-  function renderTutors() {
+  // "Tutors worth meeting": verified tutors, nearest to the visitor first. Where the visitor is
+  // comes from their connection (city / PIN, best effort, remembered for the visit). Closest
+  // tutors are tried first (same PIN, same area, same city); when more than four fit, the
+  // four on show rotate at random so every nearby tutor gets seen.
+  const TUTORS_URL = "https://zbvtdcqoouwyrcxkzjfv.supabase.co/rest/v1/rpc/get_home_tutors";
+  const PHOTOS_URL = "https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/home-photos";
+  const PLACE_KEY = "urbantutorsite_visitor_place";
+  const ROTATE_MS = 9000;
+  let tutorPool = [];
+  let tutorOrder = [];
+  let tutorAt = 0;
+  let tutorTimer = null;
+  const photoByRef = {};
 
-    const list = DATA.tutors || [];
-
-    if (!list.length) return;
-
-    $("ldTutors").classList.remove("ld-hidden");
-
-    $("ldTutorGrid").innerHTML = list.map((t, i) => {
-      const years = parseFloat(String(t.experience || "").replace(/[^\d.]/g, ""));
-      const exp = isNaN(years) ? "" : `${years} ${years === 1 ? "Year" : "Years"} of Teaching Experience`;
-      return `
-        <div class="ld-tt">
-          <div class="ld-av" style="background:${AVATAR_COLORS[i % AVATAR_COLORS.length]}">${esc(initials(t.name))}</div>
-          <div class="ld-name">
-            <b>${esc(t.name)}</b>
-            <svg class="ld-badge" data-tone="${esc(t.tone || "")}" viewBox="0 0 24 24" role="img" aria-label="Verified"><use href="#ld-verified"/></svg>
-          </div>
-          ${exp ? `<span class="ld-exp">${esc(exp)}</span>` : ""}
-        </div>`;
-    }).join("");
-
-    showTutorPhotos(list);
-
+  async function visitorPlace() {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(PLACE_KEY) || "null");
+      if (saved) return saved;
+    } catch (error) { /* storage blocked */ }
+    let place = {};
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2500);
+    try {
+      const response = await fetch("https://ipapi.co/json/", { signal: controller.signal });
+      const info = await response.json();
+      place = { city: String(info.city || ""), pin: String(info.postal || "") };
+    } catch (error) {
+      place = {};
+    } finally {
+      clearTimeout(timer);
+    }
+    try { sessionStorage.setItem(PLACE_KEY, JSON.stringify(place)); } catch (error) { /* storage blocked */ }
+    return place;
   }
 
-  // The tutors' uploaded photos go on top of the name letters. They come from
-  // the public "home-photos" server function (only the verified tutors shown
-  // here). No photo / no connection -> the letters simply stay.
-  async function showTutorPhotos(list) {
-
-    if (!window.UrbanPhoto) return;
-
+  async function fetchTutors(place) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
     try {
-      const response = await fetch("https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/home-photos");
-      const result = JSON.parse(await response.text());
-      const circles = document.querySelectorAll("#ldTutorGrid .ld-av");
-
-      (result.photos || []).forEach((photo, i) => {
-        // the name must match the card at the same position
-        if (photo.url && list[i] && photo.name === list[i].name) window.UrbanPhoto.fill(circles[i], photo.url);
+      const response = await fetch(TUTORS_URL, {
+        method: "POST",
+        headers: { "apikey": STATS_KEY, "Authorization": "Bearer " + STATS_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ p_city: place.city || null, p_pin: place.pin || null }),
+        signal: controller.signal
       });
+      const data = await response.json();
+      return data && data.success ? (data.tutors || []) : [];
+    } catch (error) {
+      return [];
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  const TITLES = /^(dr|mr|mrs|ms|miss|prof|sir|er|shri|smt)\.?$/i;
+  function firstName(full) {
+    const parts = String(full || "").trim().split(/\s+/).filter(Boolean);
+    while (parts.length > 1 && TITLES.test(parts[0])) parts.shift();
+    return parts[0] || "";
+  }
+
+  function expText(value) {
+    const years = parseFloat(String(value == null ? "" : value).replace(/[^\d.]/g, ""));
+    if (isNaN(years)) return "";
+    const shown = Math.round(years * 10) / 10;
+    return `${shown} ${shown === 1 ? "Year" : "Years"} Experience`;
+  }
+
+  function shuffleByTier(list) {
+    const copy = list.slice();
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy.sort((a, b) => a.tier - b.tier);
+  }
+
+  function chooseOrder() {
+    // the nearest tutors that make up at least four cards (all of them when fewer exist)
+    let reach = 3;
+    for (let t = 0; t <= 3; t++) {
+      if (tutorPool.filter(x => x.tier <= t).length >= 4) { reach = t; break; }
+    }
+    tutorOrder = shuffleByTier(tutorPool.filter(x => x.tier <= reach));
+    tutorAt = 0;
+  }
+
+  function tutorCard(t, i) {
+    const place = [t.city, t.pin].filter(Boolean);
+    const exp = expText(t.experience);
+    return `
+      <div class="ld-tt">
+        <div class="ld-av" data-ref="${esc(t.ref)}" style="background:${AVATAR_COLORS[i % AVATAR_COLORS.length]}">${esc(initials(firstName(t.name)))}</div>
+        <div class="ld-name">
+          <b>${esc(firstName(t.name))}</b>
+          <svg class="ld-badge" data-tone="${esc(t.tone || "")}" viewBox="0 0 24 24" role="img" aria-label="Verified"><use href="#ld-verified"/></svg>
+        </div>
+        ${exp ? `<span class="ld-exp">${esc(exp)}</span>` : ""}
+        ${place.length ? `<div class="ld-loc">${place.map(x => `<span>${esc(x)}</span>`).join("")}</div>` : ""}
+      </div>`;
+  }
+
+  function paintTutors() {
+    const grid = $("ldTutorGrid");
+    if (!grid || !tutorOrder.length) return;
+    const show = [];
+    for (let k = 0; k < Math.min(4, tutorOrder.length); k++) show.push(tutorOrder[(tutorAt + k) % tutorOrder.length]);
+    grid.innerHTML = show.map(tutorCard).join("");
+    grid.querySelectorAll(".ld-av").forEach(circle => {
+      const url = photoByRef[circle.dataset.ref];
+      if (url && window.UrbanPhoto) window.UrbanPhoto.fill(circle, url);
+    });
+  }
+
+  function rotateTutors() {
+    const grid = $("ldTutorGrid");
+    if (!grid || tutorOrder.length <= 4) return;
+    grid.classList.add("ld-swap");
+    setTimeout(() => {
+      tutorAt += 4;
+      if (tutorAt >= tutorOrder.length) chooseOrder();
+      paintTutors();
+      grid.classList.remove("ld-swap");
+    }, 450);
+  }
+
+  async function loadTutorPhotos(list) {
+    if (!window.UrbanPhoto || !list.length) return;
+    try {
+      const response = await fetch(PHOTOS_URL, {
+        method: "POST",
+        headers: { "apikey": STATS_KEY, "Authorization": "Bearer " + STATS_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ refs: list.map(t => t.ref) })
+      });
+      const result = JSON.parse(await response.text());
+      Object.assign(photoByRef, result.photos || {});
+      paintTutors();
     } catch (error) {
       /* letters stay */
     }
+  }
+
+  let tutorsStarted = false;
+
+  async function renderTutors() {
+
+    if (tutorsStarted) return;
+    tutorsStarted = true;
+
+    const place = await visitorPlace();
+    tutorPool = await fetchTutors(place);
+
+    if (!tutorPool.length) { tutorsStarted = false; return; }
+
+    $("ldTutors").classList.remove("ld-hidden");
+    chooseOrder();
+    paintTutors();
+    loadTutorPhotos(tutorOrder);
+
+    clearInterval(tutorTimer);
+    tutorTimer = setInterval(rotateTutors, ROTATE_MS);
 
   }
 

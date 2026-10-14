@@ -162,3 +162,10 @@ body[data-page="home"] { margin: 0; background: #08080b; }
   .landing * { animation: none !important; transition: none !important; }
   .ld-reveal { opacity: 1; transform: none; }
 }
+
+/* tutors: place line (city left, PIN right) and the gentle swap while the cards rotate */
+.ld-loc { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--ld-line); font-size: 12px; color: var(--ld-muted); }
+.ld-loc span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ld-loc span:only-child { margin: 0 auto; }
+.ld-tutors { transition: opacity 0.45s ease; }
+.ld-tutors.ld-swap { opacity: 0; }
