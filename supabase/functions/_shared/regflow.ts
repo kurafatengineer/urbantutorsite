@@ -9,7 +9,8 @@ import { last10, q, rest, studentEmailTaken as studentWithEmail, studentPhoneTak
 type Json = Record<string, any>;
 
 export type Choice = { id: string; title: string };
-export type Out = { text: string; choices?: Choice[]; askPhone?: boolean };
+// link: one button that opens a page of the site (WhatsApp "cta_url" button, Telegram web-app button).
+export type Out = { text: string; choices?: Choice[]; askPhone?: boolean; link?: { label: string; url: string } };
 export type Input = { text?: string; choice?: string; contactPhone?: string };
 export type Ctx = { channel: "wa" | "tg"; key: string; verifiedPhone?: string; telegramChatId?: number };
 
@@ -60,7 +61,8 @@ function newCode() {
 // ---- the steps, in order ----
 const ORDER = ["parents", "student", "phone", "email", "otp", "gender", "class", "school", "board", "city", "pin", "address", "terms", "confirm"];
 
-const CANCEL: Choice = { id: "cancel", title: "Cancel" };
+const PROFILE_LINK = { label: "Open Website", url: `${SITE_URL}/studentprofile.html` };
+const CANCEL: Choice ={ id: "cancel", title: "Cancel" };
 
 // The two buttons under every "type the code" message.
 const OTP_CHOICES: Choice[] = [{ id: "otp:resend", title: "Resend Code" }, { id: "otp:change", title: "Change Email" }];
@@ -105,7 +107,7 @@ export async function startRegistration(ctx: Ctx): Promise<Out[]> {
   const d: Json = {};
   if (ctx.verifiedPhone) d.phone = last10(ctx.verifiedPhone);
   if (d.phone && (await studentWithPhone(d.phone))) {
-    return [{ text: `This mobile number is *already registered* with a student account.\nPlease log in with your email at ${SITE_URL}/studentprofile.html\n\nNeed help? Call ${AGENCY_PHONE}.` }];
+    return [{ text: `This mobile number is *already registered* with a student account.\nPlease log in with your email on the website.\n\nNeed help? Call ${AGENCY_PHONE}.`, link: PROFILE_LINK }];
   }
   await save(ctx, "parents", d);
   return [prompt("parents", d)];
@@ -171,7 +173,7 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
       if (phone.length !== 10) return [{ text: "Please tap the button below to share your number.\n(Typing it is not accepted.)", askPhone: true }];
       if (await studentWithPhone(phone)) {
         await clear(ctx);
-        return [{ text: `This mobile number is *already registered* with a student account.\nPlease log in with your email at ${SITE_URL}/studentprofile.html\n\nNeed help? Call ${AGENCY_PHONE}.` }];
+        return [{ text: `This mobile number is *already registered* with a student account.\nPlease log in with your email on the website.\n\nNeed help? Call ${AGENCY_PHONE}.`, link: PROFILE_LINK }];
       }
       d.phone = phone;
       return go("phone");
@@ -181,7 +183,7 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
       const email = text.toLowerCase();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 120) return again("That doesn't look like an email address.\nPlease type it again.");
       if (await studentWithEmail(email)) {
-        return [{ text: `This email is *already registered*.\nTo add another student, please log in at ${SITE_URL}/studentprofile.html\n\nOr type a different email address here.` }];
+        return [{ text: `This email is *already registered*.\nTo add another student, please log in on the website.\n\nOr type a different email address here.`, link: PROFILE_LINK }];
       }
       d.email = email;
       const err = await sendOtp(ctx, d);
@@ -262,7 +264,7 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
       // checked again right before saving, in case it was taken in the meantime
       if (await studentWithEmail(d.email) || await studentWithPhone(d.phone)) {
         await clear(ctx);
-        return [{ text: `This email or mobile number is *already registered*.\nPlease log in at ${SITE_URL}/studentprofile.html` }];
+        return [{ text: `This email or mobile number is *already registered*.\nPlease log in on the website.`, link: PROFILE_LINK }];
       }
       const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_register_student`, {
         method: "POST",
@@ -295,7 +297,10 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
     case "tuition": {
       await clear(ctx);
       if (choice === "tuition:yes") {
-        return [{ text: `Great! Open your profile to post the tuition request:\n${SITE_URL}/studentprofile.html\n\nLog in with your email (a code will be sent to it).\nSend *Hi* any time for the menu.` }];
+        return [{
+          text: "*Post a New Tuition*\nTap the button below, log in with your email and tap *Apply For New Tuition*.\n\nSend *Hi* any time for the menu.",
+          link: PROFILE_LINK,
+        }];
       }
       return [{ text: "All set.\nSend *Hi* any time for the menu." }];
     }

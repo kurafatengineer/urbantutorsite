@@ -256,6 +256,8 @@ async function sendOut(chatId: number, out: Out) {
   const message: Json = { chat_id: chatId, text: html, parse_mode: "HTML", disable_web_page_preview: true };
   if (out.askPhone) {
     message.reply_markup = { keyboard: [[{ text: "📱 Share my number", request_contact: true }]], resize_keyboard: true, one_time_keyboard: true };
+  } else if (out.link) {
+    message.reply_markup = { inline_keyboard: [[{ text: out.link.label, web_app: { url: out.link.url } }]] };
   } else if (out.choices?.length) {
     message.reply_markup = { inline_keyboard: out.choices.map((c) => [{ text: c.title, callback_data: `rg:${c.id}` }]) };
   } else {
