@@ -36,8 +36,8 @@
 // Secret: TELEGRAM_BOT_TOKEN (from @BotFather). The webhook's secret header is
 // derived from it, so no second secret is needed.
 
-import { notify, notifyIfMatched, demoResponseButtons, studentQuiet } from "../_shared/telegram.ts";
-import { parentResponseMail, tutorResponseMail, fmtDate, fmtTime, modeText } from "../_shared/mails.ts";
+import { notify, notifyIfMatched, demoResponseButtons, studentQuiet, tutorQuiet } from "../_shared/telegram.ts";
+import { parentResponseMail, tutorResponseMail, fmtDate, fmtTime, modeText, classReminderMail, classConfirmMail, classDoneMail, AGENCY_PHONE } from "../_shared/mails.ts";
 
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -464,6 +464,102 @@ async function onMenuButton(cb: Json) {
   }
 }
 
+
+/* ---- class reminders (queue filled by pg_cron: class_notifications) ----
+   POST ?run=1   sends what is waiting: "You have class today" 15 minutes before to the tutor and the student,
+                 and "Have you taken your class today?" (with a Yes button) to the tutor once it should be over.
+                 Harmless to call by anyone - it only sends what is due, once.
+   callback "cl:y:<demoId>:<YYYY-MM-DD>"   the tutor taps Yes: the day is marked done (the calendar turns green)
+                 and the parent is told the class took place. */
+
+async function sendQueued(r: Json) {
+  const tuition = await one(`tuitions?demo_id=eq.${q(r.demo_id)}&select=subject,student_id`);
+  const student = tuition?.student_id
+    ? await one(`students?student_id=eq.${q(tuition.student_id)}&select=student_id,student_name,parents_name,email`)
+    : null;
+  const tutor = await one(`tutors?tutor_id=eq.${q(r.tutor_id)}&select=tutor_id,full_name,email,telegram_chat_id`);
+  if (!tuition || !student || !tutor) return;
+  const base = { demoId: String(r.demo_id), subject: String(tuition.subject ?? ""), time: String(r.class_time ?? ""), minutes: r.minutes, date: String(r.class_date) };
+
+  if (r.kind === "reminder") {
+    if (r.audience === "tutor") {
+      await notify(tutor.email, classReminderMail({ ...base, forTutor: true, name: tutor.full_name, otherName: student.student_name }));
+    } else if (!(await studentQuiet(student.student_id))) {
+      await notify(student.email, classReminderMail({ ...base, forTutor: false, name: student.parents_name || student.student_name, otherName: tutor.full_name }));
+    }
+    return;
+  }
+
+  // confirm: the tutor only
+  if (await tutorQuiet(tutor.email)) return;
+  await notify(tutor.email, classConfirmMail({ ...base, name: tutor.full_name, otherName: student.student_name }), { telegram: false });
+  if (tutor.telegram_chat_id) {
+    await telegram("sendMessage", {
+      chat_id: Number(tutor.telegram_chat_id), parse_mode: "HTML", disable_web_page_preview: true,
+      text:
+        `📅 <b>Class check</b>\n\nHi ${escapeHtml(String(tutor.full_name ?? "there"))}, have you taken today's class?\n\n` +
+        `🆔 ${escapeHtml(base.demoId)}\n📚 ${escapeHtml(base.subject)}\n` +
+        (r.minutes ? `⏱ ${r.minutes} minutes\n` : "") + (base.time ? `⏰ ${fmtTime(base.time)}\n` : "") +
+        `\nTap <b>Yes</b> to confirm. If you have any issues, please contact the agency at ${escapeHtml(AGENCY_PHONE)}.`,
+      reply_markup: { inline_keyboard: [
+        [{ text: "✅ Yes, I took the class", callback_data: `cl:y:${r.demo_id}:${r.class_date}` }],
+        profileRow("t"),
+      ] },
+    });
+  }
+}
+
+async function runQueue(): Promise<Response> {
+  const rows = await db("class_notifications?sent_at=is.null&order=id.asc&limit=40&select=*") ?? [];
+  let sent = 0;
+  for (const r of rows) {
+    // claim the row first, so two runs never send the same message twice
+    const claimed = await db(`class_notifications?id=eq.${r.id}&sent_at=is.null`, {
+      method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ sent_at: new Date().toISOString() }),
+    });
+    if (!claimed?.length) continue;
+    try { await sendQueued(r); sent++; } catch (err) { console.error("class notification failed", String(err)); }
+  }
+  return json({ ok: true, sent });
+}
+
+async function onClassButton(cb: Json) {
+  const chatId = Number(cb.message?.chat?.id ?? 0);
+  const messageId = Number(cb.message?.message_id ?? 0);
+  const fromId = Number(cb.from?.id ?? 0);
+  const [, step, demoId, date] = String(cb.data ?? "").split(":");
+  const answer = (text = "", alert = false) => telegram("answerCallbackQuery", { callback_query_id: cb.id, text, show_alert: alert });
+  if (step !== "y" || !chatId || !messageId || !demoId || !/^\d{4}-\d{2}-\d{2}$/.test(String(date))) { await answer(); return; }
+
+  const tutors = await db(`tutors?telegram_chat_id=eq.${fromId}&select=tutor_id,email,full_name`) ?? [];
+  let result: Json = { success: false, message: "This button is not for your account. Please use the website." };
+  for (const t of tutors) {
+    const res = await rpcCall("bot_mark_class", { p_email: t.email, p_demo_id: demoId, p_date: date });
+    if (res?.success) { result = res; break; }
+    if (!/not on your account/i.test(String(res?.message ?? ""))) result = res;
+  }
+  if (!result?.success) { await answer(String(result?.message ?? "Could not save."), true); return; }
+
+  await setButtons(chatId, messageId, [[{ text: "✅ Marked as taken", callback_data: "cl:x:-:-" }], profileRow("t")]);
+  await answer("Saved. Thank you!");
+  if (result.already) return;
+
+  // tell the parent the class took place
+  try {
+    const student = result.studentId
+      ? await one(`students?student_id=eq.${q(String(result.studentId))}&select=student_id,student_name,parents_name,email`)
+      : null;
+    if (student?.email && !(await studentQuiet(student.student_id))) {
+      await notify(student.email, classDoneMail({
+        name: student.parents_name || student.student_name, tutorName: String(result.tutorName ?? ""), demoId,
+        subject: String(result.subject ?? ""), time: result.time, minutes: result.minutes, date,
+      }));
+    }
+  } catch (err) {
+    console.error("class done notify failed", String(err));
+  }
+}
+
 /* ---- linking a logged-in student / tutor to their Telegram chat ---- */
 
 const CORS = {
@@ -568,6 +664,9 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // the queue sender: only sends what is due, once - safe for anyone to wake
+  if (url.searchParams.get("run") === "1") return await runQueue();
+
   // only Telegram knows the secret header
   if (req.headers.get("x-telegram-bot-api-secret-token") !== await webhookSecret()) {
     return json({ ok: false }, 401);
@@ -579,6 +678,7 @@ Deno.serve(async (req: Request) => {
       const cb = update.callback_query;
       if (String(cb.data ?? "").startsWith("dr:")) await onDemoButton(cb);
       else if (String(cb.data ?? "").startsWith("m:")) await onMenuButton(cb);
+      else if (String(cb.data ?? "").startsWith("cl:")) await onClassButton(cb);
       else await telegram("answerCallbackQuery", { callback_query_id: cb.id });
       return json({ ok: true });
     }
