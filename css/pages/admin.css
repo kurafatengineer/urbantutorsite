@@ -4850,12 +4850,12 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 /* v33: the tuition-status boxes on the left edge of a Student / Tutor card (see lifeStrip) */
 .admin-card-head:has(> .life-strip) { position: relative; }
 .life-strip {
-  position: absolute; left: -16px; top: -16px; bottom: -16px; width: 10px; z-index: 1;
+  position: absolute; left: -15px; top: -15px; bottom: -15px; width: 10px; z-index: 1;
   display: flex; flex-direction: column; gap: 2px; pointer-events: auto;
 }
 .life-box { flex: 1 1 0; display: block; min-height: 4px; }
-.life-box:first-child { border-top-left-radius: 17px; }
-.life-box:last-child { border-bottom-left-radius: 17px; }
+.life-box:first-child { border-top-left-radius: 16px; }
+.life-box:last-child { border-bottom-left-radius: 16px; }
 .admin-card.is-open .life-strip { bottom: -6px; }
 .admin-card.is-open .life-box:last-child { border-bottom-left-radius: 0; }
 .life-box[data-life="running"] { background: #5be584; }
