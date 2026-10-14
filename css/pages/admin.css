@@ -4831,3 +4831,12 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 /* v29: tutor card head never shows "..." - long text wraps instead; the open card uses fixed rows of three */
 #tutorList .admin-card-head .ledger-cell { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.25; }
 .admin-box-gap { min-height: 1px; }
+
+/* v30: Subjects and Address stay on one line in the tutor head ("..." when long); scrollable sideways, no scrollbar */
+#tutorList .admin-card-head .eq-grid .ledger-cell:nth-child(6),
+#tutorList .admin-card-head .eq-grid .ledger-cell:nth-child(7) {
+  white-space: nowrap; overflow-x: auto; overflow-y: hidden; text-overflow: ellipsis;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+#tutorList .admin-card-head .eq-grid .ledger-cell:nth-child(6)::-webkit-scrollbar,
+#tutorList .admin-card-head .eq-grid .ledger-cell:nth-child(7)::-webkit-scrollbar { display: none; }
