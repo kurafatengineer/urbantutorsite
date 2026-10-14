@@ -1522,7 +1522,7 @@ function refreshTuitionPaymentFields(mode) {
   if (isRefundMode(mode)) {
     const tutorSide = mode === "refund-tutor";
     const extra = tutorSide ? m.tutorExcess : m.studentExcess;
-    const paid = tutorSide ? m.tutorAgencyReceived : m.studentAdvancePaid + m.collected;
+    const paid = tutorSide ? m.tutorAgencyPaid : m.studentAdvancePaid + m.collected;
     $("paymentSubAmount").value = "₹" + paid.toLocaleString("en-IN");
     $("paymentSubDues").value = (extra < 0 ? "−₹" : "₹") + Math.abs(extra).toLocaleString("en-IN");
     $("paymentPayingNow").value = Math.max(extra, 0) || "";
@@ -1581,14 +1581,16 @@ function openPaymentFormForClass(kind, g, activeRow) {
   // Advance can be recorded even with nothing due; everything else
   // only while dues remain.
   const isAdvance = kind === "student-advance" || kind === "tutor-advance";
-  if (!isAdvance && !(dues > 0)) {
+  const isRefund = kind === "student-refund" || kind === "tutor-refund";
+  if (!isAdvance && !isRefund && !(dues > 0)) {
     toast("No dues left for this.");
     return;
   }
   const types = {
     "student-agency": "student-agency-charge", "tutor-agency": "tutor-agency-charge",
     "student-payment": "collection", "tutor-payment": "payout",
-    "student-advance": "collection", "tutor-advance": "payout"
+    "student-advance": "collection", "tutor-advance": "payout",
+    "student-refund": "refund-parent", "tutor-refund": "refund-tutor"
   };
 
   showTab("payments");
@@ -6470,11 +6472,13 @@ function dealMoney(g, activeRow, deal) {
   const tutorDueNow = model ? dueToDate(model, model.tutorRate, today, 1) : tutorTotalAmount;
   // paid beyond the classes actually taken (marked done): what may have to go back
   const doneCount = Object.values(activeRow.classLog || {}).filter(e => e && e.s === "done").length;
-  const studentExcess = model ? Math.round(studentAdvancePaid + collected - doneCount * model.studentRate) : 0;
+  const studentExcess = model ? Math.max(Math.round(studentAdvancePaid + collected - doneCount * model.studentRate), 0) : 0;
   const scheduled = (activeRow.classDates || []).length;
-  const tutorExcess = scheduled ? Math.round(tutorAgencyReceived - tutorRefunded - tutorAgencyCharge * Math.min(doneCount, scheduled) / scheduled) : 0;
+  // only agency charge actually received from the tutor can come back, never the amount merely due
+  const tutorAgencyPaid = sum(pays.filter(p => (p.transaction_type === "agency_charge" || p.transaction_type === "credit_used") && p.tutor_id === activeRow.tutorId));
+  const tutorExcess = scheduled ? Math.max(Math.round(tutorAgencyPaid - tutorRefunded - tutorAgencyCharge * Math.min(doneCount, scheduled) / scheduled), 0) : 0;
   return {
-    studentExcess, tutorExcess, doneCount, parentRefunded, tutorRefunded,
+    studentExcess, tutorExcess, tutorAgencyPaid, doneCount, parentRefunded, tutorRefunded,
     studentTotalAmount, studentAdvancePaid, collected,
     studentDues: Math.max(studentDueNow - studentAdvancePaid - collected, 0),
     tutorTotalAmount, tutorAgencyCharge, tutorAdvance, tutorPayouts, tutorTotalPayment,
@@ -7181,7 +7185,7 @@ function classCard(g, activeRow) {
     <div class="pc-refund" data-refund="${side}">
       <div class="pc-refund-row">
         <div><small>${note}</small><b>${esc(R(refunded))}</b><em>Extra Balance <span class="${excess > 0 ? "is-plus" : excess < 0 ? "is-minus" : ""}">${esc(signed(excess))}</span></em></div>
-        <button type="button" class="pc-refund-btn" data-action="class-refund" data-side="${side}" data-excess="${Math.max(excess, 0)}"${myPerms().paymentsAdd ? "" : " disabled"}>Refund</button>
+        <button type="button" class="pc-refund-btn" data-action="class-figure" data-kind="${side}-refund"${myPerms().paymentsAdd ? "" : " disabled"}>Refund</button>
       </div>
     </div>`;
   const party = (cls, avatar, name, id, mobile, whatsapp, payLabel, payValue, syncKey, dueSync, dueValue, tiles, stats, refund) => `
