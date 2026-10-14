@@ -4728,3 +4728,9 @@ html[data-theme="light"] .cal-day.is-today { box-shadow: inset 0 0 0 2px #2563eb
 .fl-pill text { font-size: 13.5px; font-weight: 800; }
 .fl-pill.is-inst text { fill: #60a5fa; }
 .fl-pill.is-month text { fill: #2dd4bf; }
+
+/* v16: one button row for the class card */
+.class-actions { display: grid; grid-template-columns: 1fr 1.4fr 0.7fr; gap: 10px; }
+.class-actions button { width: 100%; white-space: nowrap; }
+.class-actions .class-send { background: transparent; color: var(--lime); box-shadow: inset 0 0 0 1.5px var(--lime); }
+.deal .bill-seg { margin-top: 4px; }
