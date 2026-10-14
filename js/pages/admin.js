@@ -2203,10 +2203,6 @@ var taNumberIds = null;     // after picking a shared number: the IDs of the stu
 /* One suggestion row (every suggestion list in the panel looks the same):
    search icon | bold title + grey detail line ("a › b › c") | tag pill. */
 const SUGGEST_ICON = `<svg class="sg-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`;
-function idTag(id) {
-  const p = String(id || "").slice(0, 3).toUpperCase();
-  return p === "SID" ? "Student" : p === "TID" ? "Tutor" : p === "DID" ? "Demo" : "";
-}
 function suggestItem({ title, sub = "", tag = "", attrs = "", disabled = false, note = "", icon = SUGGEST_ICON }) {
   const subText = (Array.isArray(sub) ? sub.filter(Boolean).join(" › ") : sub) || "";
   return `
@@ -4114,14 +4110,6 @@ function highlight(boldValues, smallText, separator, tone, splitSmall) {
     <div class="admin-hl-top" data-tone="${esc(tone || "")}">${line}</div>
     ${small ? `<p class="admin-hl-small${splitSmall ? " admin-hl-small-split" : ""}">${small}</p>` : ""}
   </div>`;
-}
-
-// Left: a short status/info snippet. Right: a date/time, no label.
-function timeSplitLine(leftText, whenIso) {
-  const left = String(leftText || "").trim();
-  const when = recordedAt(whenIso);
-  if (!left && !when) return "";
-  return `<span class="admin-hl-small-text">${esc(left)}</span><span class="admin-hl-small-right">${esc(when)}</span>`;
 }
 
 // "Address, City - PIN" without repeating the city.
@@ -6169,15 +6157,6 @@ function employeeIconsHtml(e, key, isMe) {
   </span>`;
 }
 
-function employeeStatusButtonsHtml(active, isMe) {
-  return `
-    <div class="admin-vbtns">
-      <button class="admin-vbtn v-reject" type="button" data-action="employee-status" data-value="false"${(!active || isMe) ? " disabled" : ""}>Suspend</button>
-      <button class="admin-vbtn v-approve" type="button" data-action="employee-status" data-value="true"${(active || isMe) ? " disabled" : ""}>Active</button>
-    </div>
-  `;
-}
-
 // "09:00" -> "9:00 AM"
 function clock12(t) {
   const m = String(t || "").match(/^(\d{1,2}):(\d{2})/);
@@ -7137,44 +7116,6 @@ async function confirmSettle(box, button) {
     classesDone: v("[data-settle-done]"), parentRefund: v("[data-settle-refund]"), tutorCredit: v("[data-settle-credit]"),
     paymentMode: v("[data-settle-mode]"),
   }, button);
-}
-
-// The older Number of Classes / Hourly helpers stay for cards saved before the deal.
-function planNoteText(hourly, n, minutes) {
-  const hrs = Math.round(n * minutes / 60 * 100) / 100;
-  return hourly
-    ? `${n} class${n === 1 ? "" : "es"} × ${minutes || 0} min = ${hrs} hr${hrs === 1 ? "" : "s"} · Amount = Price per Hour × ${hrs}`
-    : `Amount = Price per Class × ${n} class${n === 1 ? "" : "es"}`;
-}
-
-// the Duration / Price / Amount typed in one option ("classes" or "hourly")
-function billSetValues(plan, set) {
-  const q = k => plan.querySelector(`[data-set="${set}"] [data-bill="${k}"]`);
-  return { minutes: q("minutes").value.trim(), price: q("price").value.trim(), amount: q("amount").value.trim() };
-}
-
-// keeps Number of Classes, the notes and Price <-> Amount in step.
-// The two options never touch each other's boxes.
-function recalcClassPlan(plan, changedEl) {
-  const n = planDates(plan).length;
-  const round2 = v => String(Math.round(v * 100) / 100);
-  plan.querySelectorAll(".bill-set").forEach(setEl => {
-    const q = k => setEl.querySelector(`[data-bill="${k}"]`);
-    const hourly = setEl.dataset.set === "hourly";
-    const minutes = num(q("minutes").value);
-    const units = hourly ? n * (minutes / 60) : n;
-    const price = q("price"), amount = q("amount");
-    q("count").value = n;
-    if (!price.readOnly) {
-      if (changedEl === amount) {
-        price.value = amount.value === "" ? "" : (units > 0 ? round2(num(amount.value) / units) : price.value);
-      } else if (price.value !== "") {
-        amount.value = round2(num(price.value) * units);
-      }
-    }
-    const note = setEl.querySelector("[data-bill-note]");
-    if (note) note.textContent = planNoteText(hourly, n, minutes);
-  });
 }
 
 function redrawCalendar(plan) {

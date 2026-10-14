@@ -39,7 +39,7 @@ async function chatIdByEmail(email: string): Promise<number | null> {
   if (!url || !key || !target) return null;
   for (const table of ["students", "tutors"]) {
     const res = await fetch(
-      `${url}/rest/v1/${table}?email=ilike.${encodeURIComponent(target)}&telegram_chat_id=not.is.null&select=email,telegram_chat_id`,
+      `${url}/rest/v1/${table}?email_lc=eq.${encodeURIComponent(target)}&telegram_chat_id=not.is.null&select=email,telegram_chat_id`,
       { headers: { apikey: key, Authorization: `Bearer ${key}` } },
     );
     if (!res.ok) continue;
@@ -79,7 +79,7 @@ export async function tutorQuiet(email: string | null | undefined): Promise<bool
   if (!url || !key || !target) return false;
   try {
     const res = await fetch(
-      `${url}/rest/v1/tutors?email=ilike.${encodeURIComponent(target)}&select=email,blocked_at,notifications_off`,
+      `${url}/rest/v1/tutors?email_lc=eq.${encodeURIComponent(target)}&select=email,blocked_at,notifications_off`,
       { headers: { apikey: key, Authorization: `Bearer ${key}` } },
     );
     if (!res.ok) return false;

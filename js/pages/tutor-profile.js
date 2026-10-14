@@ -52,16 +52,6 @@ function showPage(name) {
   );
 }
 
-function getTutorSession() {
-  try {
-    const raw = localStorage.getItem(TUTOR_SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (error) {
-    localStorage.removeItem(TUTOR_SESSION_KEY);
-    return null;
-  }
-}
-
 function clearTutorSession() {
   localStorage.removeItem(TUTOR_SESSION_KEY);
 }
