@@ -4,7 +4,7 @@
 import { SITE_URL } from "../_shared/constants.ts";
 import { handleInput, startRegistration, type Out } from "../_shared/regflow.ts";
 import { startTuition } from "../_shared/tuitionflow.ts";
-import { accountsByPhone, inList, last10, loadLife, rest } from "../_shared/botdata.ts";
+import { accountsByPhone, inList, last10, loadLife, pickerText, rest } from "../_shared/botdata.ts";
 import { demoDetail, findingDetail, people, runningDetail } from "../_shared/classinfo.ts";
 
 type Json = Record<string, any>;
@@ -86,16 +86,12 @@ const kidName = (s: Json) => String(s.student_name || s.student_id);
 // More than one child on this number / email: ask who the parent wants to talk about.
 async function showPicker(to: string, accounts: Accounts) {
   const kids = accounts.students;
-  const names = kids.map((s) => `*${kidName(s)}* (${s.student_id})`);
-  const ask = kids.length <= 3
-    ? `Do you want to continue with ${kids.map((s) => `*${kidName(s)}*`).join(kids.length === 2 ? " or " : ", ").replace(/, ([^,]*)$/, " or $1")}?`
-    : "Select the student you want to continue with.";
-  const text = `Hi,\n${names.join("\n")}\n\n${ask}`.slice(0, 1024);
+  const text = pickerText(kids).slice(0, 1024);
   await send(to, kids.length <= 3
     ? { type: "interactive", interactive: { type: "button", body: { text },
         action: { buttons: kids.map((s) => ({ type: "reply", reply: { id: `k:s:${s.student_id}`, title: kidName(s).slice(0, 20) } })) } } }
     : { type: "interactive", interactive: { type: "list", body: { text },
-        action: { button: "Students", sections: [{ title: "Students", rows: kids.slice(0, 10).map((s) => ({ id: `k:s:${s.student_id}`, title: kidName(s).slice(0, 24), description: String(s.student_id) })) }] } } });
+        action: { button: "Students", sections: [{ title: "Students", rows: kids.slice(0, 10).map((s) => ({ id: `k:s:${s.student_id}`, title: kidName(s).slice(0, 24) })) }] } } });
 }
 
 // The menu of one tutor, one student (sid), or the only student on the number.
