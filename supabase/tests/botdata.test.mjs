@@ -24,3 +24,13 @@ const t = await loadLife("t", ["T1"]); console.log("tutor   ", cats(t), "| stude
 const ok = cats(s) === "D1:running:1 D2:scheduled:1 D3:new:2 D4:completed:1 D5:new:0" && cats(t) === "D1:running:1 D2:scheduled:1 D3:new:1 D4:completed:1" && t[0].student?.student_name === "Rahul";
 console.log(ok ? "ok  : categories as expected" : "FAIL"); process.exitCode = ok ? 0 : 1;
 console.log("short phone ->", JSON.stringify(await accountsByPhone("12345")));
+
+// "Hi, parent" + which child to continue with
+const { pickerText } = await import("./build/botdata.mjs");
+const kids = (n) => ["Priyanka Shukla", "Mohit Kumar", "Rahul Kumar", "Mohan Kumar"].slice(0, n).map((x, i) => ({ student_id: "SID" + i, student_name: x, parents_name: i ? "" : "Ramesh Shukla" }));
+const p2 = pickerText(kids(2)), p3 = pickerText(kids(3)), p4 = pickerText(kids(4));
+console.log(p3 + "\n--\n" + p4);
+if (p2 !== "Hi, *Ramesh Shukla*\n\nDo you want to continue with *Priyanka Shukla* or *Mohit Kumar*?") { console.log("FAIL: picker 2", p2); process.exitCode = 1; }
+if (!p3.endsWith("*Priyanka Shukla*, *Mohit Kumar* or *Rahul Kumar*?") || p3.includes("menu")) { console.log("FAIL: picker 3"); process.exitCode = 1; }
+if (!p4.includes("*Rahul Kumar* or *Mohan Kumar*?") || !p4.includes("*Students* menu") || p4.includes("SID")) { console.log("FAIL: picker 4"); process.exitCode = 1; }
+if (!pickerText([{ student_id: "S", student_name: "A" }, { student_id: "T", student_name: "B" }]).startsWith("Hi,\n\nDo you")) { console.log("FAIL: no parent"); process.exitCode = 1; }

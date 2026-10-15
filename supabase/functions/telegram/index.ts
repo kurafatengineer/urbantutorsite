@@ -39,7 +39,7 @@
 import { notify, notifyIfMatched, demoResponseButtons, studentQuiet, tutorQuiet } from "../_shared/telegram.ts";
 import { handleInput, startRegistration, type Out } from "../_shared/regflow.ts";
 import { startTuition } from "../_shared/tuitionflow.ts";
-import { inList, loadLife, q, rest as db } from "../_shared/botdata.ts";
+import { inList, loadLife, pickerText, q, rest as db } from "../_shared/botdata.ts";
 import { SITE_URL } from "../_shared/constants.ts";
 import { demoDetail, findingDetail, people, runningDetail } from "../_shared/classinfo.ts";
 import { parentResponseMail, tutorResponseMail, fmtDate, fmtTime, modeText, classReminderMail, classConfirmMail, classDoneMail, contactLine } from "../_shared/mails.ts";
@@ -291,7 +291,7 @@ async function onRegButton(cb: Json) {
 
 
 async function linked(chatId: number): Promise<{ students: Json[]; tutors: Json[] }> {
-  const students = await db(`students?telegram_chat_id=eq.${chatId}&select=student_id,student_name,notifications_off,blocked_at`) ?? [];
+  const students = await db(`students?telegram_chat_id=eq.${chatId}&select=student_id,student_name,parents_name,notifications_off,blocked_at`) ?? [];
   const tutors = await db(`tutors?telegram_chat_id=eq.${chatId}&select=tutor_id,full_name,notifications_off,blocked_at`) ?? [];
   return { students, tutors };
 }
@@ -340,13 +340,8 @@ async function menuContent(chatId: number, role: "s" | "t", sid = ""): Promise<{
 
 // More than one child linked to this chat: ask who the parent wants to talk about.
 async function showPicker(chatId: number, messageId: number | null, students: Json[]) {
-  const name = (s: Json) => escapeHtml(String(s.student_name || s.student_id));
-  const names = students.map((s) => `<b>${name(s)}</b> (${escapeHtml(String(s.student_id))})`);
-  const ask = students.length <= 3
-    ? `Do you want to continue with ${students.map((s) => `<b>${name(s)}</b>`).join(", ").replace(/, ([^,]*)$/, " or $1")}?`
-    : "Select the student you want to continue with.";
-  const rows = students.map((s) => [{ text: leftPad(`🎓 ${s.student_name || s.student_id} (${s.student_id})`), callback_data: `m:k:s:${s.student_id}` }]);
-  await showText(chatId, messageId, `Hi,\n${names.join("\n")}\n\n${ask}`, rows);
+  const rows = students.map((s) => [{ text: leftPad(`🎓 ${s.student_name || s.student_id}`), callback_data: `m:k:s:${s.student_id}` }]);
+  await showText(chatId, messageId, html(pickerText(students)), rows);
 }
 
 async function showText(chatId: number, messageId: number | null, text: string, rows: Json[][]) {
