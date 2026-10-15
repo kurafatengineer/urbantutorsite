@@ -37,7 +37,7 @@ export function pickerText(students: Json[], channel: "wa" | "tg" = "wa"): strin
   const parent = String(students.map((s) => String(s.parents_name ?? "").trim()).find(Boolean) ?? "");
   const names = students.map((s) => `*${String(s.student_name || s.student_id)}*`);
   const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}` : names.join("");
-  return `Hi${parent ? `, *${parent}*` : ","}\n\nDo you want to continue with ${list}?` +
+  return `Hi,${parent ? `\n*${parent}*` : ""}\n\nDo you want to continue with ${list}?` +
     (students.length <= 3 ? "" : channel === "tg" ? "\n\nTap the student's name below." : "\n\nSelect the student from the *Students* menu.");
 }
 
