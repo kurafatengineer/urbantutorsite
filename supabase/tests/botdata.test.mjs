@@ -34,3 +34,4 @@ if (p2 !== "Hi, *Ramesh Shukla*\n\nDo you want to continue with *Priyanka Shukla
 if (!p3.endsWith("*Priyanka Shukla*, *Mohit Kumar* or *Rahul Kumar*?") || p3.includes("menu")) { console.log("FAIL: picker 3"); process.exitCode = 1; }
 if (!p4.includes("*Rahul Kumar* or *Mohan Kumar*?") || !p4.includes("*Students* menu") || p4.includes("SID")) { console.log("FAIL: picker 4"); process.exitCode = 1; }
 if (!pickerText([{ student_id: "S", student_name: "A" }, { student_id: "T", student_name: "B" }]).startsWith("Hi,\n\nDo you")) { console.log("FAIL: no parent"); process.exitCode = 1; }
+if (!pickerText(kids(4), "tg").endsWith("Tap the student's name below.") || pickerText(kids(3), "tg") !== p3) { console.log("FAIL: picker tg"); process.exitCode = 1; }

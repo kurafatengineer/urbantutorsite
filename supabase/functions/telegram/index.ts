@@ -341,7 +341,7 @@ async function menuContent(chatId: number, role: "s" | "t", sid = ""): Promise<{
 // More than one child linked to this chat: ask who the parent wants to talk about.
 async function showPicker(chatId: number, messageId: number | null, students: Json[]) {
   const rows = students.map((s) => [{ text: leftPad(`🎓 ${s.student_name || s.student_id}`), callback_data: `m:k:s:${s.student_id}` }]);
-  await showText(chatId, messageId, html(pickerText(students)), rows);
+  await showText(chatId, messageId, html(pickerText(students, "tg")), rows);
 }
 
 async function showText(chatId: number, messageId: number | null, text: string, rows: Json[][]) {
