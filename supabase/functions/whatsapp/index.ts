@@ -82,7 +82,6 @@ const lifeOf = (role: string, accounts: { students: Json[]; tutors: Json[] }) =>
 // ---- screens ----
 async function showMenu(to: string, role: string, accounts: { students: Json[]; tutors: Json[] }) {
   const mine = role === "s" ? accounts.students : accounts.tutors;
-  const name = String(role === "s" ? mine[0].student_name : mine[0].full_name ?? "");
   const life = await lifeOf(role, accounts);
   const off = mine.every((r) => r.notifications_off === true || r.blocked_at);
   const rows: Json[] = [];
@@ -95,12 +94,9 @@ async function showMenu(to: string, role: string, accounts: { students: Json[]; 
     rows.push({ id: `h:${role === "s" ? "t" : "s"}`, title: role === "s" ? "Switch to Tutor" : "Switch to Student" });
   }
   rows.push({ id: `n:${role}`, title: off ? "Turn ON Notifications" : "Turn OFF Notifications" });
-  const live = life.some((l) => l.cat !== "completed");
-  const body = `Hi,\n*${name || "there"}* (${role === "s" ? "Student" : "Tutor"}).\n\n` +
-    (live
-      ? `${role === "s" ? "Your tuitions" : "Tuitions you applied for"} - open the *Menu* to see their details.`
-      : role === "s" ? "You have no live tuitions right now." : "You have not applied for any tuition yet.") +
-    `\n\nYour notifications are *${off ? "OFF" : "ON"}*.`;
+  const idCol = role === "s" ? "student_id" : "tutor_id";
+  const names = mine.map((r) => `*${String((role === "s" ? r.student_name : r.full_name) || "-")}* (${r[idCol]})`);
+  const body = `Hi,\n${names.join("\n")}\n\nOpen the *Menu* to see the details.`;
   await send(to, {
     type: "interactive",
     interactive: {
@@ -112,8 +108,23 @@ async function showMenu(to: string, role: string, accounts: { students: Json[]; 
 
 const MENU_HINT = "\n\nSend *Hi* any time for the menu.";
 
-async function showCategory(to: string, role: string, cat: string, accounts: { students: Json[]; tutors: Json[] }) {
-  const life = (await lifeOf(role, accounts)).filter((l) => l.cat === cat);
+async function showCategory(to: string, role: string, cat: string, accounts: { students: Json[]; tutors: Json[] }, sid = "") {
+  let life = (await lifeOf(role, accounts)).filter((l) => l.cat === cat);
+  if (!life.length) { await sendText(to, "Nothing here right now." + MENU_HINT); return; }
+  // more than one child with tuitions here: ask whose details first
+  const sids = [...new Set(life.map((l) => l.sid))];
+  if (role === "s" && !sid && sids.length > 1) {
+    const kids = accounts.students.filter((s) => sids.includes(String(s.student_id)));
+    const text = `*${catLabel(role, cat)}*\n\nWhose details do you want to see?\n\n` +
+      kids.map((s) => `${s.student_name} (${s.student_id})`).join("\n");
+    await send(to, kids.length <= 3
+      ? { type: "interactive", interactive: { type: "button", body: { text },
+          action: { buttons: kids.map((s) => ({ type: "reply", reply: { id: `c:s:${cat}:${s.student_id}`, title: String(s.student_name || s.student_id).slice(0, 20) } })) } } }
+      : { type: "interactive", interactive: { type: "list", body: { text },
+          action: { button: "Students", sections: [{ title: "Students", rows: kids.slice(0, 10).map((s) => ({ id: `c:s:${cat}:${s.student_id}`, title: String(s.student_name || s.student_id).slice(0, 24), description: String(s.student_id) })) }] } } });
+    return;
+  }
+  if (sid) life = life.filter((l) => l.sid === sid);
   if (!life.length) { await sendText(to, "Nothing here right now." + MENU_HINT); return; }
   // more than one running class: pick one first
   if (cat === "running" && life.length > 1) {
@@ -164,7 +175,7 @@ async function onMessage(m: Json) {
     });
     return;
   }
-  const [action, roleRaw, cat] = picked.split(":");
+  const [action, roleRaw, cat, sid] = picked.split(":");
   const role = roleRaw === "t" && accounts.tutors.length ? "t" : roleRaw === "s" && accounts.students.length ? "s" : accounts.students.length ? "s" : "t";
 
   if (action === "n") {
@@ -181,7 +192,7 @@ async function onMessage(m: Json) {
     await sendOut(from, { text: "*Find New Tuitions*\nTap the button below to see the tuitions you can apply for.\n\nSend *Hi* any time for the menu.", link: { label: "Open Website", url: `${SITE_URL}/advertisement.html` } });
     return;
   }
-  if (action === "c" && cat) { await showCategory(from, role, cat, accounts); return; }
+  if (action === "c" && cat) { await showCategory(from, role, cat, accounts, sid ?? ""); return; }
   if (action === "r" && cat) { await showRunning(from, role, cat, accounts); return; }
   if (accounts.students.length && accounts.tutors.length && action !== "h") {
     await send(from, {

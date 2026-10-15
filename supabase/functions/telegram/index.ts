@@ -314,7 +314,6 @@ async function menuContent(chatId: number, role: "s" | "t"): Promise<{ text: str
   if (!mine.length) return null;
   const both = !!(students.length && tutors.length);
   const off = mine.every((r) => r.notifications_off === true || r.blocked_at);
-  const name = String(role === "s" ? mine[0].student_name : mine[0].full_name ?? "");
   const life = await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])));
 
   const rows: Json[][] = [];
@@ -329,14 +328,9 @@ async function menuContent(chatId: number, role: "s" | "t"): Promise<{ text: str
   rows.push([{ text: leftPad(off ? "🔔 Turn ON Notifications" : "🔕 Turn OFF Notifications"), callback_data: `m:n:${role}` }]);
   rows.push([{ text: leftPad("👤 Open My Profile"), web_app: profileRow(role)[0].web_app }]);
 
-  const profileUrl = `${SITE_URL}/${role === "s" ? "studentprofile" : "tutorprofile"}.html`;
-  const text =
-    `Hi,\n<b>${escapeHtml(name || "there")}</b> (${role === "s" ? "Student" : "Tutor"}).\n\n` +
-    (life.some((l) => l.cat !== "completed")
-      ? `${role === "s" ? "Your tuitions" : "Tuitions you applied for"} - tap one to see its details.`
-      : role === "s" ? "You have no live tuitions right now." : "You have not applied for any tuition yet.") +
-    `\n\nYour notifications are <b>${off ? "OFF" : "ON"}</b>.` +
-    `\n\n<a href="${profileUrl}">Urban Tutor Site</a>`;
+  const idCol = role === "s" ? "student_id" : "tutor_id";
+  const names = mine.map((r) => `<b>${escapeHtml(String((role === "s" ? r.student_name : r.full_name) || "-"))}</b> (${escapeHtml(String(r[idCol]))})`);
+  const text = `Hi,\n${names.join("\n")}\n\nTap a button below to see the details.`;
   return { text, rows };
 }
 
@@ -379,11 +373,22 @@ async function home(chatId: number, firstName: string) {
 const html = (t: string) => escapeHtml(t).replace(/\*([^*\n]+)\*/g, "<b>$1</b>");
 
 // the screen a category button opens
-async function showCategory(chatId: number, messageId: number, role: "s" | "t", cat: string) {
+async function showCategory(chatId: number, messageId: number, role: "s" | "t", cat: string, sid = "") {
   const back = [{ text: leftPad("⬅️ Back"), callback_data: `m:h:${role}` }];
   const { students, tutors } = await linked(chatId);
   const mine = role === "s" ? students : tutors;
-  const life = (await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])))).filter((l) => l.cat === cat);
+  let life = (await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])))).filter((l) => l.cat === cat);
+  if (!life.length) { await showText(chatId, messageId, "Nothing here right now.", [back]); return; }
+
+  // more than one child with tuitions here: ask whose details first
+  const sids = [...new Set(life.map((l) => l.sid))];
+  if (role === "s" && !sid && sids.length > 1) {
+    const rows = students.filter((s) => sids.includes(String(s.student_id)))
+      .map((s) => [{ text: leftPad(`🎓 ${s.student_name} (${s.student_id})`), callback_data: `m:c:s:${cat}:${s.student_id}` }]);
+    await showText(chatId, messageId, `<b>${escapeHtml(catLabel(role, cat))}</b>\n\nWhose details do you want to see?`, [...rows, back]);
+    return;
+  }
+  if (sid) life = life.filter((l) => l.sid === sid);
   if (!life.length) { await showText(chatId, messageId, "Nothing here right now.", [back]); return; }
 
   // more than one running class: pick one first
@@ -413,7 +418,7 @@ async function onMenuButton(cb: Json) {
   const chatId = Number(cb.message?.chat?.id ?? 0);
   const messageId = Number(cb.message?.message_id ?? 0);
   const fromId = Number(cb.from?.id ?? 0);
-  const [, action, roleRaw, demoId] = String(cb.data ?? "").split(":");
+  const [, action, roleRaw, demoId, sid] = String(cb.data ?? "").split(":");
   const answer = (text = "", alert = false) => telegram("answerCallbackQuery", { callback_query_id: cb.id, text, show_alert: alert });
   const role = roleRaw === "t" ? "t" : "s";
   if (!chatId || !messageId || chatId !== fromId) { await answer(); return; }
@@ -422,7 +427,7 @@ async function onMenuButton(cb: Json) {
     if (!(await showMenu(chatId, role, messageId))) await greet(chatId, String(cb.from?.first_name ?? ""));
     await answer();
   } else if (action === "c" && demoId) {
-    await showCategory(chatId, messageId, role, demoId);
+    await showCategory(chatId, messageId, role, demoId, sid ?? "");
     await answer();
   } else if (action === "r" && demoId) {
     await showRunning(chatId, messageId, role, demoId);
