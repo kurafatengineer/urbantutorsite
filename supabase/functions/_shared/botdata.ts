@@ -83,7 +83,7 @@ export type Life = {
   student: Json | null;      // tutor menu only: the student of that tuition
 };
 
-const COLS = "demo_id,tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date,demo_time,class_duration,billing_plan,class_dates,class_start_date";
+const COLS = "demo_id,tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date,demo_time,class_duration,billing_plan,class_dates,class_start_date,student_next_due_date,tutor_next_payment_date";
 
 // role "s": the tuitions of these students;  role "t": the tuitions these tutors applied for
 export async function loadLife(role: string, ids: string[]): Promise<Life[]> {

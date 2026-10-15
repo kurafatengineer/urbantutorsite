@@ -127,13 +127,12 @@ async function showMenu(to: string, role: string, accounts: Accounts, sid = "", 
   });
 }
 
-const MENU_HINT = "\n\nSend *Hi* any time for the menu.";
 
 async function showCategory(to: string, role: string, cat: string, accounts: Accounts, sid = "") {
   let life = (await lifeOf(role, accounts)).filter((l) => l.cat === cat);
-  if (!life.length) { await sendText(to, "Nothing here right now." + MENU_HINT); return; }
+  if (!life.length) { await sendText(to, "Nothing here right now."); return; }
   if (sid) life = life.filter((l) => l.sid === sid);
-  if (!life.length) { await sendText(to, "Nothing here right now." + MENU_HINT); return; }
+  if (!life.length) { await sendText(to, "Nothing here right now."); return; }
   // more than one running class: pick one first
   if (cat === "running" && life.length > 1) {
     await send(to, {
@@ -146,17 +145,17 @@ async function showCategory(to: string, role: string, cat: string, accounts: Acc
     return;
   }
   const who = await people(role, life);
-  if (cat === "running") { await sendText(to, runningDetail(role, life[0], who) + MENU_HINT); return; }
+  if (cat === "running") { await sendText(to, runningDetail(role, life[0], who)); return; }
   const blocks = life.map((l) => cat === "scheduled" ? demoDetail(role, l, who)
     : role === "s" ? findingDetail(l, who)
     : `*${l.subject}* (${l.demo})\n${[l.student?.class_name, l.student?.board].filter(Boolean).join(" · ")}`);
-  await sendText(to, `*${catLabel(role, cat)}*\n\n${blocks.join("\n\n")}` + MENU_HINT);
+  await sendText(to, `*${catLabel(role, cat)}*\n\n${blocks.join("\n\n")}`);
 }
 
 async function showRunning(to: string, role: string, demo: string, accounts: { students: Json[]; tutors: Json[] }) {
   const l = (await lifeOf(role, accounts)).find((x) => x.cat === "running" && x.demo === demo);
-  if (!l) { await sendText(to, "That class was not found." + MENU_HINT); return; }
-  await sendText(to, runningDetail(role, l, await people(role, [l])) + MENU_HINT);
+  if (!l) { await sendText(to, "That class was not found."); return; }
+  await sendText(to, runningDetail(role, l, await people(role, [l])));
 }
 
 async function onMessage(m: Json) {
