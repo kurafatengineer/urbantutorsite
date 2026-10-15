@@ -91,7 +91,7 @@ export function runningDetail(role: string, l: Life, who: Map<string, Json>): st
   const studentName = role === "s" ? who.get(`s:${l.sid}`)?.name : p.name;
   const next = who.get(`pay:${l.demo}`)?.date;
 
-  const lines = [`*${l.subject}* (${l.demo})`, "", `Student: *${studentName ?? "-"}* (${l.sid})`];
+  const lines = [`*${studentName ?? l.sid}*`, `*${l.subject}* (${l.demo})`, ""];
   if (role === "s") lines.push(`Tutor: *${p.name ?? "-"}*`);
   lines.push(`Mode: ${modeText(l.mode)}`);
   if (days) lines.push(`Class days: ${days}`);

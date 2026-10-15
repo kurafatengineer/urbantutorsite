@@ -16,9 +16,9 @@ const l = { demo: "DID1", subject: "Maths", mode: "Home", cat: "running", sid: "
 const who = await people("s", [l]);
 const t = runningDetail("s", l, who);
 console.log(t);
-assert(t.includes("*Maths* (DID1)") && t.includes("Tutor: *Amit Singh*") && t.includes("Class days: Mon, Wed"), "running: head, tutor, days");
+assert(t.startsWith("*Mohit Kumar*\n*Maths* (DID1)\n\nTutor:") && t.includes("Tutor: *Amit Singh*") && t.includes("Class days: Mon, Wed"), "running: head, tutor, days");
 assert(t.includes("Monthly fee: *Rs 6000*") && t.includes("Pay to: The tutor directly") && !t.includes("commission"), "parent sees fee, no agency cut");
-assert(t.includes("Student: *Mohit Kumar* (SID1)") && !t.includes("Fee per class"), "student line, no fee per class");
+assert(!t.includes("SID1") && !t.includes("Fee per class"), "no student ID, no fee per class");
 assert(t.includes("Next payment date: *05 November 2026*"), "next payment date from the latest payment");
 assert(t.includes("(+91 90000 00001)"), "tutor phone with +91");
 const { nextPayDate } = await import("./build/classinfo.mjs");
