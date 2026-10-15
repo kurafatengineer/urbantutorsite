@@ -41,6 +41,7 @@ import { handleInput, startRegistration, type Out } from "../_shared/regflow.ts"
 import { startTuition } from "../_shared/tuitionflow.ts";
 import { inList, loadLife, q, rest as db } from "../_shared/botdata.ts";
 import { SITE_URL } from "../_shared/constants.ts";
+import { demoDetail, findingDetail, people, runningDetail } from "../_shared/classinfo.ts";
 import { parentResponseMail, tutorResponseMail, fmtDate, fmtTime, modeText, classReminderMail, classConfirmMail, classDoneMail, contactLine } from "../_shared/mails.ts";
 
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
@@ -303,8 +304,8 @@ function nicePlace(parts: Json[]): string {
 // Telegram centres button text; padding it with invisible braille blanks pushes the words to the left
 const leftPad = (t: string, width = 34) => t + "\u2800".repeat(Math.max(0, width - [...t].length));
 
-const CATS: Record<string, string> = { running: "✅ Running", scheduled: "📅 Demo Scheduled", new: "", completed: "🏁 Completed" };
-const CAT_ORDER = ["running", "scheduled", "new", "completed"];
+const CATS: Record<string, string> = { running: "✅ Running Classes", scheduled: "📅 Demo Scheduled", new: "" };
+const CAT_ORDER = ["running", "new", "scheduled"];
 const catLabel = (role: "s" | "t", cat: string) => cat === "new" ? (role === "s" ? "🔎 Finding Tutor" : "📨 Applied") : CATS[cat];
 
 async function menuContent(chatId: number, role: "s" | "t"): Promise<{ text: string; rows: Json[][] } | null> {
@@ -325,13 +326,13 @@ async function menuContent(chatId: number, role: "s" | "t"): Promise<{ text: str
     ? [{ text: leftPad("📝 Apply for New Tuition"), callback_data: "m:p:s" }]
     : [{ text: leftPad("🔎 Find New Tuitions"), web_app: { url: `${SITE_URL}/advertisement.html` } }]);
   if (both) rows.push([{ text: leftPad(role === "s" ? "🔁 Switch to Tutor" : "🔁 Switch to Student"), callback_data: `m:h:${role === "s" ? "t" : "s"}` }]);
-  rows.push([{ text: leftPad(off ? "🔕 Notifications are OFF - Tap to turn it ON" : "🔔 Notifications are ON - Tap to turn it OFF"), callback_data: `m:n:${role}` }]);
+  rows.push([{ text: leftPad(off ? "🔔 Turn ON Notifications" : "🔕 Turn OFF Notifications"), callback_data: `m:n:${role}` }]);
   rows.push([{ text: leftPad("👤 Open My Profile"), web_app: profileRow(role)[0].web_app }]);
 
   const profileUrl = `${SITE_URL}/${role === "s" ? "studentprofile" : "tutorprofile"}.html`;
   const text =
     `Hi,\n<b>${escapeHtml(name || "there")}</b> (${role === "s" ? "Student" : "Tutor"}).\n\n` +
-    (life.length
+    (life.some((l) => l.cat !== "completed")
       ? `${role === "s" ? "Your tuitions" : "Tuitions you applied for"} - tap one to see its details.`
       : role === "s" ? "You have no live tuitions right now." : "You have not applied for any tuition yet.") +
     `\n\nYour notifications are <b>${off ? "OFF" : "ON"}</b>.` +
@@ -374,16 +375,10 @@ async function home(chatId: number, firstName: string) {
   await greet(chatId, firstName);
 }
 
-const minutesText = (a: Json): string => {
-  const m = Number(a?.billing_plan?.deal?.minutes ?? a?.class_duration ?? 0);
-  return m > 0 ? `${m} min` : "-";
-};
-const timeText = (a: Json): string => {
-  const t = String(a?.billing_plan?.deal?.time ?? "").trim();
-  return t ? fmtTime(t) : "-";
-};
+// shared texts use *bold*; here they become HTML
+const html = (t: string) => escapeHtml(t).replace(/\*([^*\n]+)\*/g, "<b>$1</b>");
 
-// the list a category button opens: a few basic lines per tuition
+// the screen a category button opens
 async function showCategory(chatId: number, messageId: number, role: "s" | "t", cat: string) {
   const back = [{ text: leftPad("⬅️ Back"), callback_data: `m:h:${role}` }];
   const { students, tutors } = await linked(chatId);
@@ -391,39 +386,27 @@ async function showCategory(chatId: number, messageId: number, role: "s" | "t", 
   const life = (await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])))).filter((l) => l.cat === cat);
   if (!life.length) { await showText(chatId, messageId, "Nothing here right now.", [back]); return; }
 
-  const allTutors = [...new Set(life.flatMap((l) => l.tutorIds))];
-  const info = role === "s" && allTutors.length
-    ? await db(`tutors?tutor_id=${inList(allTutors)}&select=tutor_id,full_name,gender,experience_years`) ?? []
-    : [];
-  const tutorOf = (id: string) => info.find((x: Json) => x.tutor_id === id) ?? {};
-  const dateLine = (a: Json) => a?.demo_date ? `${fmtDate(a.demo_date)}${a.demo_time ? ", " + fmtTime(a.demo_time) : ""}` : "-";
-  const e = (v: unknown) => escapeHtml(String(v ?? ""));
+  // more than one running class: pick one first
+  if (cat === "running" && life.length > 1) {
+    const rows = life.map((l) => [{ text: leftPad(`📚 ${l.subject} (${l.demo})`), callback_data: `m:r:${role}:${l.demo}` }]);
+    await showText(chatId, messageId, "<b>Running Classes</b>\n\nWhich class do you want to see?", [...rows, back]);
+    return;
+  }
+  const who = await people(role, life);
+  if (cat === "running") { await showText(chatId, messageId, html(runningDetail(role, life[0], who)), [back]); return; }
+  const blocks = life.map((l) => cat === "scheduled" ? demoDetail(role, l, who)
+    : role === "s" ? findingDetail(l, who)
+    : `*${l.subject}* (${l.demo})\n${[l.student?.class_name, l.student?.board].filter(Boolean).join(" · ")}\n${nicePlace([l.student?.city, l.student?.pin_code])}`);
+  await showText(chatId, messageId, `<b>${escapeHtml(catLabel(role, cat))}</b>\n\n${html(blocks.join("\n\n"))}`, [back]);
+}
 
-  const blocks = life.map((l) => {
-    const head = `📚 <b>${e(l.subject)}</b> · ${e(l.demo)}`;
-    if (role === "s") {
-      if (cat === "running" || cat === "completed") {
-        const t = tutorOf(String(l.app?.tutor_id));
-        return `${head}\n👨‍🏫 Tutor: ${e(t.full_name ?? l.app?.tutor_id)}\n⏱ Class duration: ${e(minutesText(l.app))}\n⏰ Class time: ${e(timeText(l.app))}`;
-      }
-      if (cat === "scheduled") {
-        const t = tutorOf(String(l.app?.tutor_id));
-        return `${head}\n👨‍🏫 Tutor: ${e(t.full_name ?? l.app?.tutor_id)}\n📅 Demo: ${e(dateLine(l.app))}`;
-      }
-      const lines = l.apps.map((a) => {
-        const t = tutorOf(String(a.tutor_id));
-        return `   • ${e(t.full_name ?? a.tutor_id)}${t.gender ? ` (${e(t.gender)})` : ""}`;
-      });
-      return `${head}\n${lines.length ? "Tutors applied:\n" + lines.join("\n") : "No tutor has applied yet."}`;
-    }
-    const st = l.student ?? {};
-    if (cat === "running" || cat === "completed") {
-      return `${head}\n👤 Student: ${e(st.student_name ?? "-")}\n⏱ Class duration: ${e(minutesText(l.app))}\n⏰ Class time: ${e(timeText(l.app))}`;
-    }
-    if (cat === "scheduled") return `${head}\n🏫 ${e([st.class_name, st.board].filter(Boolean).join(" · "))}\n📅 Demo: ${e(dateLine(l.app))}`;
-    return `${head}\n🏫 ${e([st.class_name, st.board].filter(Boolean).join(" · "))}\n📍 ${e(nicePlace([st.city, st.pin_code]))}`;
-  });
-  await showText(chatId, messageId, `<b>${e(catLabel(role, cat))}</b>\n\n${blocks.join("\n\n")}`, [back]);
+// one running class, picked from the list
+async function showRunning(chatId: number, messageId: number, role: "s" | "t", demo: string) {
+  const { students, tutors } = await linked(chatId);
+  const mine = role === "s" ? students : tutors;
+  const l = (await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])))).find((x) => x.cat === "running" && x.demo === demo);
+  const back = [{ text: leftPad("⬅️ Back"), callback_data: `m:c:${role}:running` }];
+  await showText(chatId, messageId, l ? html(runningDetail(role, l, await people(role, [l]))) : "That class was not found.", [back]);
 }
 
 async function onMenuButton(cb: Json) {
@@ -440,6 +423,9 @@ async function onMenuButton(cb: Json) {
     await answer();
   } else if (action === "c" && demoId) {
     await showCategory(chatId, messageId, role, demoId);
+    await answer();
+  } else if (action === "r" && demoId) {
+    await showRunning(chatId, messageId, role, demoId);
     await answer();
   } else if (action === "p") {
     const { students } = await linked(chatId);

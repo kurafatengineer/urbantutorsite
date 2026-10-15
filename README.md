@@ -118,6 +118,7 @@ Shared code (`_shared/`):
 - `session.ts` — where the chat flows keep their progress (`bot_sessions`), shared types.
 - `regflow.ts` — the chat registration flow used by both bots.
 - `tuitionflow.ts` — the chat "post a new tuition" flow used by both bots.
+- `classinfo.ts` — the bot texts for one running class (days, time, fee) and one scheduled demo.
 - `deal.ts` — class-deal money maths.
 
 **Tests** (no network needed): `NODE_PATH=$(npm root -g) node supabase/tests/run.mjs` checks the chat

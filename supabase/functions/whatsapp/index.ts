@@ -2,10 +2,10 @@
 // Secrets (Supabase > Edge Functions > Secrets): WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_VERIFY_TOKEN,
 // and optionally WHATSAPP_APP_SECRET (when set, every incoming call must carry a valid Meta signature).
 import { SITE_URL } from "../_shared/constants.ts";
-import { fmtDate, fmtTime } from "../_shared/format.ts";
 import { handleInput, startRegistration, type Out } from "../_shared/regflow.ts";
 import { startTuition } from "../_shared/tuitionflow.ts";
-import { accountsByPhone, inList, last10, loadLife, q, rest } from "../_shared/botdata.ts";
+import { accountsByPhone, inList, last10, loadLife, rest } from "../_shared/botdata.ts";
+import { demoDetail, findingDetail, people, runningDetail } from "../_shared/classinfo.ts";
 
 type Json = Record<string, any>;
 
@@ -16,9 +16,6 @@ const APP_SECRET = Deno.env.get("WHATSAPP_APP_SECRET") ?? "";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-
-// a failed call counts as "nothing found"
-const db = async (path: string): Promise<Json[]> => (await rest(path)) ?? [];
 
 const patch = (path: string, body: Json) =>
   rest(path, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
@@ -75,36 +72,32 @@ async function validSignature(raw: string, header: string | null) {
 // ---- who is this number? (WhatsApp has already verified it belongs to the sender) ----
 
 // ---- menu labels (the tuition lifecycle itself is in _shared/botdata.ts) ----
-const CAT_ORDER = ["running", "scheduled", "new", "completed"];
+const CAT_ORDER = ["running", "new", "scheduled"];
 const catLabel = (role: string, cat: string) =>
-  cat === "running" ? "Running" : cat === "scheduled" ? "Demo Scheduled" : cat === "completed" ? "Completed"
-  : role === "s" ? "Finding Tutor" : "Applied";
+  cat === "running" ? "Running Classes" : cat === "scheduled" ? "Demo Scheduled" : role === "s" ? "Finding Tutor" : "Applied";
 
-const minutesText = (a: Json | null) => { const m = Number(a?.billing_plan?.deal?.minutes ?? a?.class_duration ?? 0); return m > 0 ? `${m} min` : "-"; };
-const timeText = (a: Json | null) => { const t = String(a?.billing_plan?.deal?.time ?? "").trim(); return t ? fmtTime(t) : "-"; };
-const dateLine = (a: Json | null) => a?.demo_date ? `${fmtDate(a.demo_date)}${a.demo_time ? ", " + fmtTime(a.demo_time) : ""}` : "-";
+const lifeOf = (role: string, accounts: { students: Json[]; tutors: Json[] }) =>
+  loadLife(role, (role === "s" ? accounts.students : accounts.tutors).map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])));
 
 // ---- screens ----
 async function showMenu(to: string, role: string, accounts: { students: Json[]; tutors: Json[] }) {
   const mine = role === "s" ? accounts.students : accounts.tutors;
   const name = String(role === "s" ? mine[0].student_name : mine[0].full_name ?? "");
-  const life = await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])));
+  const life = await lifeOf(role, accounts);
   const off = mine.every((r) => r.notifications_off === true || r.blocked_at);
   const rows: Json[] = [];
   for (const cat of CAT_ORDER) {
     const n = life.filter((l) => l.cat === cat).length;
     if (n) rows.push({ id: `c:${role}:${cat}`, title: `${catLabel(role, cat)} (${n})`.slice(0, 24) });
   }
-  rows.push(role === "s"
-    ? { id: "a:s", title: "Apply for New Tuition", description: "Post a new tuition request" }
-    : { id: "a:t", title: "Find New Tuitions", description: "See the tuitions you can apply for" });
+  rows.push(role === "s" ? { id: "a:s", title: "Apply for New Tuition" } : { id: "a:t", title: "Find New Tuitions" });
   if (accounts.students.length && accounts.tutors.length) {
     rows.push({ id: `h:${role === "s" ? "t" : "s"}`, title: role === "s" ? "Switch to Tutor" : "Switch to Student" });
   }
-  rows.push({ id: `n:${role}`, title: off ? "Notifications are OFF" : "Notifications are ON", description: off ? "Tap to turn it ON" : "Tap to turn it OFF" });
-  rows.push({ id: `w:${role}`, title: "Open Website", description: "Your profile on Urban Tutor Site" });
+  rows.push({ id: `n:${role}`, title: off ? "Turn ON Notifications" : "Turn OFF Notifications" });
+  const live = life.some((l) => l.cat !== "completed");
   const body = `Hi,\n*${name || "there"}* (${role === "s" ? "Student" : "Tutor"}).\n\n` +
-    (life.length
+    (live
       ? `${role === "s" ? "Your tuitions" : "Tuitions you applied for"} - open the *Menu* to see their details.`
       : role === "s" ? "You have no live tuitions right now." : "You have not applied for any tuition yet.") +
     `\n\nYour notifications are *${off ? "OFF" : "ON"}*.`;
@@ -117,29 +110,34 @@ async function showMenu(to: string, role: string, accounts: { students: Json[]; 
   });
 }
 
+const MENU_HINT = "\n\nSend *Hi* any time for the menu.";
+
 async function showCategory(to: string, role: string, cat: string, accounts: { students: Json[]; tutors: Json[] }) {
-  const mine = role === "s" ? accounts.students : accounts.tutors;
-  const life = (await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])))).filter((l) => l.cat === cat);
-  if (!life.length) { await sendText(to, "Nothing here right now.\nSend *Hi* any time for the menu."); return; }
-  const tutorIds = [...new Set(life.flatMap((l) => l.apps.map((a) => String(a.tutor_id))))];
-  const info = role === "s" && tutorIds.length ? await db(`tutors?tutor_id=${inList(tutorIds)}&select=tutor_id,full_name,gender`) : [];
-  const tutorOf = (id: unknown) => info.find((x) => x.tutor_id === id) ?? {};
-  const blocks = life.map((l) => {
-    const head = `*${l.subject}* - ${l.demo}`;
-    if (role === "s") {
-      const t = tutorOf(l.app?.tutor_id);
-      if (cat === "running" || cat === "completed") return `${head}\nTutor: ${t.full_name ?? l.app?.tutor_id}\nClass duration: ${minutesText(l.app)}\nClass time: ${timeText(l.app)}`;
-      if (cat === "scheduled") return `${head}\nTutor: ${t.full_name ?? l.app?.tutor_id}\nDemo: ${dateLine(l.app)}`;
-      const lines = l.apps.map((a) => { const x = tutorOf(a.tutor_id); return `  - ${x.full_name ?? a.tutor_id}${x.gender ? ` (${x.gender})` : ""}`; });
-      return `${head}\n${lines.length ? "Tutors applied:\n" + lines.join("\n") : "No tutor has applied yet."}`;
-    }
-    const st = l.student ?? {};
-    if (cat === "running" || cat === "completed") return `${head}\nStudent: ${st.student_name ?? "-"}\nClass duration: ${minutesText(l.app)}\nClass time: ${timeText(l.app)}`;
-    const place = [st.class_name, st.board].filter(Boolean).join(" · ");
-    if (cat === "scheduled") return `${head}\n${place}\nDemo: ${dateLine(l.app)}`;
-    return `${head}\n${place}\n${[st.city, st.pin_code].filter(Boolean).join(" - ")}`;
-  });
-  await sendText(to, `*${catLabel(role, cat)}*\n\n${blocks.join("\n\n")}\n\nSend *Hi* any time for the menu.`);
+  const life = (await lifeOf(role, accounts)).filter((l) => l.cat === cat);
+  if (!life.length) { await sendText(to, "Nothing here right now." + MENU_HINT); return; }
+  // more than one running class: pick one first
+  if (cat === "running" && life.length > 1) {
+    await send(to, {
+      type: "interactive",
+      interactive: {
+        type: "list", body: { text: "*Running Classes*\n\nWhich class do you want to see?" },
+        action: { button: "Classes", sections: [{ title: "Running Classes", rows: life.slice(0, 10).map((l) => ({ id: `r:${role}:${l.demo}`, title: l.subject.slice(0, 24), description: l.demo })) }] },
+      },
+    });
+    return;
+  }
+  const who = await people(role, life);
+  if (cat === "running") { await sendText(to, runningDetail(role, life[0], who) + MENU_HINT); return; }
+  const blocks = life.map((l) => cat === "scheduled" ? demoDetail(role, l, who)
+    : role === "s" ? findingDetail(l, who)
+    : `*${l.subject}* (${l.demo})\n${[l.student?.class_name, l.student?.board].filter(Boolean).join(" · ")}`);
+  await sendText(to, `*${catLabel(role, cat)}*\n\n${blocks.join("\n\n")}` + MENU_HINT);
+}
+
+async function showRunning(to: string, role: string, demo: string, accounts: { students: Json[]; tutors: Json[] }) {
+  const l = (await lifeOf(role, accounts)).find((x) => x.cat === "running" && x.demo === demo);
+  if (!l) { await sendText(to, "That class was not found." + MENU_HINT); return; }
+  await sendText(to, runningDetail(role, l, await people(role, [l])) + MENU_HINT);
 }
 
 async function onMessage(m: Json) {
@@ -183,11 +181,8 @@ async function onMessage(m: Json) {
     await sendOut(from, { text: "*Find New Tuitions*\nTap the button below to see the tuitions you can apply for.\n\nSend *Hi* any time for the menu.", link: { label: "Open Website", url: `${SITE_URL}/advertisement.html` } });
     return;
   }
-  if (action === "w") {
-    await sendOut(from, { text: "*Urban Tutor Site*\nTap the button below to open your profile.\n\nSend *Hi* any time for the menu.", link: { label: "Open Website", url: `${SITE_URL}/${role === "s" ? "studentprofile" : "tutorprofile"}.html` } });
-    return;
-  }
   if (action === "c" && cat) { await showCategory(from, role, cat, accounts); return; }
+  if (action === "r" && cat) { await showRunning(from, role, cat, accounts); return; }
   if (accounts.students.length && accounts.tutors.length && action !== "h") {
     await send(from, {
       type: "interactive",
