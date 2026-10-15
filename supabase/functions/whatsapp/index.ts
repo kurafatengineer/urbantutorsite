@@ -2,7 +2,7 @@
 // Secrets (Supabase > Edge Functions > Secrets): WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_VERIFY_TOKEN,
 // and optionally WHATSAPP_APP_SECRET (when set, every incoming call must carry a valid Meta signature).
 import { SITE_URL } from "../_shared/constants.ts";
-import { handleInput, startRegistration, type Out } from "../_shared/regflow.ts";
+import { handleInput, startAddChild, startRegistration, type Out } from "../_shared/regflow.ts";
 import { startTuition } from "../_shared/tuitionflow.ts";
 import { accountsByPhone, inList, last10, loadLife, pickerText, rest } from "../_shared/botdata.ts";
 import { demoDetail, findingDetail, people, runningDetail } from "../_shared/classinfo.ts";
@@ -82,16 +82,18 @@ const lifeOf = (role: string, accounts: { students: Json[]; tutors: Json[] }) =>
 // ---- screens ----
 type Accounts = { students: Json[]; tutors: Json[] };
 const kidName = (s: Json) => String(s.student_name || s.student_id);
+const ADD_CHILD = "Add New Child";
 
 // More than one child on this number / email: ask who the parent wants to talk about.
 async function showPicker(to: string, accounts: Accounts) {
   const kids = accounts.students;
   const text = pickerText(kids).slice(0, 1024);
-  await send(to, kids.length <= 3
+  const rows = [...kids.map((s) => ({ id: `k:s:${s.student_id}`, title: kidName(s) })), { id: "nc:s", title: ADD_CHILD }];
+  await send(to, kids.length <= 2
     ? { type: "interactive", interactive: { type: "button", body: { text },
-        action: { buttons: kids.map((s) => ({ type: "reply", reply: { id: `k:s:${s.student_id}`, title: kidName(s).slice(0, 20) } })) } } }
+        action: { buttons: rows.map((r) => ({ type: "reply", reply: { id: r.id, title: r.title.slice(0, 20) } })) } } }
     : { type: "interactive", interactive: { type: "list", body: { text },
-        action: { button: "Students", sections: [{ title: "Students", rows: kids.slice(0, 10).map((s) => ({ id: `k:s:${s.student_id}`, title: kidName(s).slice(0, 24) })) }] } } });
+        action: { button: "Students", sections: [{ title: "Students", rows: rows.slice(0, 10).map((r) => ({ ...r, title: r.title.slice(0, 24) })) }] } } });
 }
 
 // The menu of one tutor, one student (sid), or the only student on the number.
@@ -107,6 +109,7 @@ async function showMenu(to: string, role: string, accounts: Accounts, sid = "", 
   }
   rows.push(role === "s" ? { id: `a:s${tag}`, title: "Apply for New Tuition" } : { id: "a:t", title: "Find New Tuitions" });
   rows.push({ id: `n:${role}${tag}`, title: off ? "Turn ON Notifications" : "Turn OFF Notifications" });
+  if (role === "s") rows.push({ id: "nc:s", title: ADD_CHILD });
   if (many) rows.push({ id: "k:s", title: "Switch Student" });
   if (accounts.students.length && accounts.tutors.length) {
     rows.push({ id: `h:${role === "s" ? "t" : "s"}`, title: role === "s" ? "Switch to Tutor" : "Switch to Student" });
@@ -182,6 +185,7 @@ async function onMessage(m: Json) {
   const role = roleRaw === "t" && accounts.tutors.length ? "t" : roleRaw === "s" && accounts.students.length ? "s" : accounts.students.length ? "s" : "t";
   const arg = rest3[0] ?? "";
   if (action === "r" && arg) { await showRunning(from, role, arg, accounts); return; }
+  if (action === "nc" && accounts.students.length) { await sendAll(from, await startAddChild(reg, accounts.students)); return; }
   const cat = action === "c" ? arg : "";
   const asked = action === "c" ? rest3[1] ?? "" : arg;
   // one child at a time: the chosen one, or the only one

@@ -1,5 +1,5 @@
 globalThis.Deno = { env: { get: (k) => ({ SUPABASE_URL: "http://db", SUPABASE_SERVICE_ROLE_KEY: "k" }[k]) } };
-const db = { bot_sessions: [], students: [{ student_id: "SID1", phone10: "9999900000", whatsapp10: "", email_lc: "taken@x.com" }], registered: [] };
+const db = { bot_sessions: [], students: [{ student_id: "SID1", phone10: "9999900000", whatsapp10: "", email_lc: "taken@x.com", parents_name: "Ravindra Kumar", email: "taken@x.com", phone: "9999900000", city: "Patna", pin_code: "800001", address: "12 Main Road" }], registered: [] };
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url); const path = u.pathname.replace("/rest/v1/", ""); const m = (init.method || "GET").toUpperCase();
   const ok = (b) => ({ ok: true, status: 200, json: async () => b });
@@ -11,13 +11,15 @@ globalThis.fetch = async (url, init = {}) => {
   }
   if (path === "students") {
     const e = u.searchParams.get("email_lc"); if (e) return ok(db.students.filter((s) => "eq." + s.email_lc === e));
+    const sid = u.searchParams.get("student_id");
+    if (sid && m === "GET") return ok(db.students.filter((s) => sid.includes(s.student_id)));
     const or = u.searchParams.get("or"); if (or) { const p = or.match(/phone10\.eq\.(\d+)/)[1]; return ok(db.students.filter((s) => s.phone10 === p || s.whatsapp10 === p)); }
     if (m === "PATCH") { db.patched = JSON.parse(init.body); return ok([]); }
   }
   if (path === "rpc/admin_register_student") { const p = JSON.parse(init.body).p; db.registered.push(p); db.students.push({ student_id: "SID9", phone10: p.phone, whatsapp10: p.phone, email_lc: p.email }); return ok({ success: true, studentId: "SID9" }); }
   throw new Error("unexpected " + m + " " + url);
 };
-const { handleInput, startRegistration } = await import("./build/regflow.mjs");
+const { handleInput, startAddChild, startRegistration } = await import("./build/regflow.mjs");
 const { mails } = await import("./build/email.mjs");
 const assert = (c, msg) => { if (!c) { console.log("FAIL:", msg); process.exitCode = 1; } else console.log("ok  :", msg); };
 const say = async (ctx, input) => (await handleInput(ctx, input)).map((o) => o.text.split("\n")[0].slice(0, 60) + (o.choices ? " [" + o.choices.map((c) => c.id).join("|") + "]" : "") + (o.askPhone ? " [askPhone]" : ""));
@@ -56,3 +58,23 @@ assert(db.registered.length === 2 && db.patched?.telegram_chat_id === 555, "tg r
 // cancel
 await startRegistration(tg); o = await handleInput(tg, { text: "cancel" }); assert(o[0].text.includes("cancelled") && db.bot_sessions.length === 0, "cancel clears the session");
 assert((await handleInput(tg, { text: "hi" })) === null, "no session -> null (normal bot flow continues)");
+
+// --- Add New Child: a sibling on an account we already know
+const mailsBefore = mails.length;
+const wa2 = { channel: "wa", key: "9999900000", verifiedPhone: "919999900000" };
+let c = await startAddChild(wa2, [{ student_id: "SID1" }]);
+assert(c[0].text.includes("Add a New Child") && c[0].text.includes("Ravindra Kumar") && c[0].text.includes("new student's name"), "add child asks only the new name");
+await handleInput(wa2, { text: "priyanka shukla" });
+assert(db.bot_sessions.at(-1).step === "gender", "add child: name -> gender (no number, email or OTP)");
+await handleInput(wa2, { choice: "gender:Female" }); await handleInput(wa2, { text: "9th" }); await handleInput(wa2, { text: "dav school" });
+c = await handleInput(wa2, { text: "CBSE" });
+assert(c[0].text.includes("check the new child") && db.bot_sessions.at(-1).step === "confirm", "add child: board -> confirm");
+c = await handleInput(wa2, { choice: "confirm:yes" });
+const added = db.registered.at(-1);
+assert(added.studentName === "Priyanka Shukla" && added.email === "taken@x.com" && added.phone === "9999900000", "add child reuses the parent's email and number");
+assert(added.parentsName === "Ravindra Kumar" && added.city === "Patna" && added.pinCode === "800001" && added.address === "12 Main Road", "add child reuses the parent's name and address");
+assert(mails.length === mailsBefore, "add child sends no verification code");
+assert(c[0].text.includes("Priyanka Shukla has been added") && c[0].text.includes("SID9"), "add child success message");
+await handleInput(wa2, { choice: "tuition:no" }); assert(db.bot_sessions.length === 0, "add child session cleared");
+c = await startAddChild(wa2, [{ student_id: "SID1", blocked_at: "x" }]);
+assert(c[0].text.includes("could not add a child"), "blocked account cannot add a child");

@@ -31,14 +31,14 @@ const STUDENT_COLS = "student_id,student_name,parents_name,whatsapp,phone,email_
 const TUTOR_COLS = "tutor_id,full_name,whatsapp_number,mobile_number,blocked_at,notifications_off";
 
 // "Hi, *Parent*" and which child to continue with - same words on WhatsApp and Telegram.
-// Up to 3 children get a button each; more than that are picked from the Students menu
-// (WhatsApp) or from the name buttons under the message (Telegram).
+// Up to 2 children get a button each (WhatsApp's third button is "Add New Child"); more than that
+// are picked from the Students menu (WhatsApp) or the name buttons under the message (Telegram).
 export function pickerText(students: Json[], channel: "wa" | "tg" = "wa"): string {
   const parent = String(students.map((s) => String(s.parents_name ?? "").trim()).find(Boolean) ?? "");
   const names = students.map((s) => `*${String(s.student_name || s.student_id)}*`);
   const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}` : names.join("");
   return `Hi,${parent ? `\n*${parent}*` : ""}\n\nDo you want to continue with ${list}?` +
-    (students.length <= 3 ? "" : channel === "tg" ? "\n\nTap the student's name below." : "\n\nSelect the student from the *Students* menu.");
+    (students.length <= 2 ? "" : channel === "tg" ? "\n\nTap the student's name below." : "\n\nSelect the student from the *Students* menu.");
 }
 
 export async function accountsByPhone(phone: unknown): Promise<{ students: Json[]; tutors: Json[] }> {

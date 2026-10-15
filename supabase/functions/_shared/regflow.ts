@@ -4,7 +4,7 @@
 // channel itself (WhatsApp: the sender's number; Telegram: the contact the user shares).
 import { emailTemplate, sendMail } from "./email.ts";
 import { AGENCY_PHONE, SITE_URL } from "./constants.ts";
-import { last10, q, rest, studentEmailTaken as studentWithEmail, studentPhoneTaken as studentWithPhone } from "./botdata.ts";
+import { inList, last10, q, rest, studentEmailTaken as studentWithEmail, studentPhoneTaken as studentWithPhone } from "./botdata.ts";
 import { type Choice, type Ctx, type Input, type Out, clean, clear, load, save, titleCase } from "./session.ts";
 import { startTuition, tuitionInput } from "./tuitionflow.ts";
 
@@ -31,6 +31,9 @@ function newCode() {
 
 // ---- the steps, in order ----
 const ORDER = ["parents", "student", "phone", "email", "otp", "gender", "class", "school", "board", "city", "pin", "address", "terms", "confirm"];
+// A brother / sister on an account we already know: the parent, number, email and address come from the
+// student already on file, so only the new child's own details are asked.
+const CHILD_ORDER = ["student", "gender", "class", "school", "board", "confirm"];
 
 const PROFILE_LINK = { label: "Open Website", url: `${SITE_URL}/studentprofile.html` };
 const CANCEL: Choice = { id: "cancel", title: "Cancel" };
@@ -42,7 +45,11 @@ const OTP_CHOICES: Choice[] = [{ id: "otp:resend", title: "Resend Code" }, { id:
 function prompt(step: string, d: Json): Out {
   switch (step) {
     case "parents": return { text: "Let's register you as a *student*.\nYou can type *Cancel* any time.\n\nWhat is the *parent's name*?" };
-    case "student": return { text: "What is the *student's name*?" };
+    case "student": return {
+      text: d.addChild
+        ? `*Add a New Child*\nParent: *${d.parentsName}*\n\nYou can type *Cancel* any time.\n\nWhat is the *new student's name*?`
+        : "What is the *student's name*?",
+    };
     case "phone": return { text: "Please share your *mobile number* with the button below, so we know it is really yours.", askPhone: true };
     case "email": return { text: "Enter your *email address*.\nWe will send a 6-digit code for verification." };
     case "otp": return {
@@ -58,7 +65,7 @@ function prompt(step: string, d: Json): Out {
     case "address": return { text: "Your *address*?" };
     case "terms": return { text: "I confirm that the information provided by me is accurate and I agree to the *Terms & Conditions* and privacy requirements of Urbantutorsite.", choices: [{ id: "terms:yes", title: "I Agree" }, CANCEL] };
     case "confirm": return {
-      text: "*Please check your details:*\n\n" +
+      text: (d.addChild ? "*Please check the new child's details:*\n\n" : "*Please check your details:*\n\n") +
         `Parent: *${d.parentsName}*\nStudent: *${d.studentName}*\nGender: ${d.gender}\nClass: ${d.className}\nSchool: ${d.school}\nBoard: ${d.board}\n` +
         `Mobile: ${d.phone}\nEmail: ${d.email}\nCity: ${d.city} - ${d.pinCode}\nAddress: ${d.address}`,
       choices: [{ id: "confirm:yes", title: "Submit" }, CANCEL],
@@ -68,10 +75,11 @@ function prompt(step: string, d: Json): Out {
 }
 
 function nextStep(step: string, d: Json) {
-  let i = ORDER.indexOf(step) + 1;
+  const order = d.addChild ? CHILD_ORDER : ORDER;
+  let i = order.indexOf(step) + 1;
   // the mobile step is skipped when the channel already knows the number (WhatsApp)
-  if (ORDER[i] === "phone" && d.phone) i++;
-  return ORDER[i] ?? "confirm";
+  if (order[i] === "phone" && d.phone) i++;
+  return order[i] ?? "confirm";
 }
 
 export async function startRegistration(ctx: Ctx): Promise<Out[]> {
@@ -82,6 +90,31 @@ export async function startRegistration(ctx: Ctx): Promise<Out[]> {
   }
   await save(ctx, "parents", d);
   return [prompt("parents", d)];
+}
+
+// "Add New Child": a sibling for the account this chat already belongs to.
+// students: the ones this chat may act for; the first one that is not blocked gives us the parent's details.
+export async function startAddChild(ctx: Ctx, students: Json[]): Promise<Out[]> {
+  const ids = students.filter((s) => !s.blocked_at).map((s) => String(s.student_id));
+  const base = ids.length
+    ? (await rest(`students?student_id=${inList(ids)}&select=student_id,parents_name,email,phone,whatsapp,city,pin_code,address&limit=1`))?.[0]
+    : null;
+  if (!base?.email || !base?.phone) {
+    return [{ text: `We could not add a child from here.\nPlease add the student on the website.\n\nNeed help? Call ${AGENCY_PHONE}.`, link: PROFILE_LINK }];
+  }
+  const d: Json = {
+    addChild: true,
+    parentsName: String(base.parents_name ?? ""),
+    email: String(base.email).trim().toLowerCase(),
+    phone: last10(base.phone),
+    city: String(base.city ?? ""),
+    pinCode: String(base.pin_code ?? ""),
+    address: String(base.address ?? ""),
+    emailVerified: true,
+    terms: true,
+  };
+  await save(ctx, "student", d);
+  return [prompt("student", d)];
 }
 
 async function sendOtp(ctx: Ctx, d: Json): Promise<string | null> {
@@ -123,7 +156,7 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
 
   if (choice === "cancel" || /^cancel$/i.test(text)) {
     await clear(ctx);
-    return [{ text: "Registration cancelled.\nSend *Hi* to start again." }];
+    return [{ text: d.addChild ? "Cancelled.\nSend *Hi* any time for the menu." : "Registration cancelled.\nSend *Hi* to start again." }];
   }
 
   const again = (msg: string): Out[] => [{ text: msg }, prompt(s.step, d)];
@@ -238,7 +271,8 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
       if (choice !== "confirm:yes") return [prompt("confirm", d)];
       if (!d.emailVerified || !d.phone) { await clear(ctx); return [{ text: "Something went wrong.\nPlease send *Hi* and try again." }]; }
       // checked again right before saving, in case it was taken in the meantime
-      if (await studentWithEmail(d.email) || await studentWithPhone(d.phone)) {
+      // (a sibling shares the parent's email and number, so that check is skipped)
+      if (!d.addChild && (await studentWithEmail(d.email) || await studentWithPhone(d.phone))) {
         await clear(ctx);
         return [{ text: `This email or mobile number is *already registered*.\nPlease log in on the website.`, link: PROFILE_LINK }];
       }
@@ -256,7 +290,9 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
         console.error("bot register failed", res.status, JSON.stringify(out));
         const why = String(out?.message ?? "").replace(/^.*?:\s*/, "");
         await clear(ctx);
-        return [{ text: `We could not complete the registration${why ? ` (${why})` : ""}.\nPlease send *Hi* to try again, or register on the website.` }];
+        return [{ text: d.addChild
+            ? `We could not add the child${why ? ` (${why})` : ""}.\nPlease send *Hi* to try again, or add the student on the website.`
+            : `We could not complete the registration${why ? ` (${why})` : ""}.\nPlease send *Hi* to try again, or register on the website.` }];
       }
       if (ctx.channel === "tg" && ctx.telegramChatId) {
         await rest(`students?student_id=eq.${q(String(out.studentId))}`, {
@@ -265,7 +301,10 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
       }
       await save(ctx, "tuition", { studentId: out.studentId, studentName: d.studentName });
       return [{
-        text: `*You are registered!*\nYour Student ID is *${out.studentId}*.\n\nDo you want to post a new tuition request now?`,
+        text: (d.addChild
+          ? `*${d.studentName} has been added!*\nStudent ID: *${out.studentId}*.`
+          : `*You are registered!*\nYour Student ID is *${out.studentId}*.`) +
+          `\n\nDo you want to post a new tuition request now?`,
         choices: [{ id: "tuition:yes", title: "Yes, Post Now" }, { id: "tuition:no", title: "Not Now" }],
       }];
     }

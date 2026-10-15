@@ -37,7 +37,7 @@
 // derived from it, so no second secret is needed.
 
 import { notify, notifyIfMatched, demoResponseButtons, studentQuiet, tutorQuiet } from "../_shared/telegram.ts";
-import { handleInput, startRegistration, type Out } from "../_shared/regflow.ts";
+import { handleInput, startAddChild, startRegistration, type Out } from "../_shared/regflow.ts";
 import { startTuition } from "../_shared/tuitionflow.ts";
 import { inList, loadLife, pickerText, q, rest as db } from "../_shared/botdata.ts";
 import { SITE_URL } from "../_shared/constants.ts";
@@ -304,6 +304,7 @@ function nicePlace(parts: Json[]): string {
 // Telegram centres button text; padding it with invisible braille blanks pushes the words to the left
 const leftPad = (t: string, width = 34) => t + "\u2800".repeat(Math.max(0, width - [...t].length));
 
+const ADD_CHILD = "➕ Add New Child";
 const CATS: Record<string, string> = { running: "✅ Running Classes", scheduled: "📅 Demo Scheduled", new: "" };
 const CAT_ORDER = ["running", "new", "scheduled"];
 const catLabel = (role: "s" | "t", cat: string) => cat === "new" ? (role === "s" ? "🔎 Finding Tutor" : "📨 Applied") : CATS[cat];
@@ -328,6 +329,7 @@ async function menuContent(chatId: number, role: "s" | "t", sid = ""): Promise<{
     ? [{ text: leftPad("📝 Apply for New Tuition"), callback_data: `m:p:s${tag}` }]
     : [{ text: leftPad("🔎 Find New Tuitions"), web_app: { url: `${SITE_URL}/advertisement.html` } }]);
   rows.push([{ text: leftPad(off ? "🔔 Turn ON Notifications" : "🔕 Turn OFF Notifications"), callback_data: `m:n:${role}${tag}` }]);
+  if (role === "s") rows.push([{ text: leftPad(ADD_CHILD), callback_data: "m:nc:s" }]);
   if (role === "s" && many) rows.push([{ text: leftPad("🔁 Switch Student"), callback_data: "m:k:s" }]);
   if (both) rows.push([{ text: leftPad(role === "s" ? "🔁 Switch to Tutor" : "🔁 Switch to Student"), callback_data: `m:h:${role === "s" ? "t" : "s"}` }]);
   rows.push([{ text: leftPad("👤 Open My Profile"), web_app: profileRow(role)[0].web_app }]);
@@ -341,6 +343,7 @@ async function menuContent(chatId: number, role: "s" | "t", sid = ""): Promise<{
 // More than one child linked to this chat: ask who the parent wants to talk about.
 async function showPicker(chatId: number, messageId: number | null, students: Json[]) {
   const rows = students.map((s) => [{ text: leftPad(`🎓 ${s.student_name || s.student_id}`), callback_data: `m:k:s:${s.student_id}` }]);
+  rows.push([{ text: leftPad(ADD_CHILD), callback_data: "m:nc:s" }]);
   await showText(chatId, messageId, html(pickerText(students, "tg")), rows);
 }
 
@@ -446,6 +449,10 @@ async function onMenuButton(cb: Json) {
   } else if (action === "r" && demoId) {
     await showRunning(chatId, messageId, role, demoId);
     await answer();
+  } else if (action === "nc") {
+    const { students } = await linked(chatId);
+    await answer();
+    if (students.length) await sendAll(chatId, await startAddChild({ channel: "tg", key: String(chatId), telegramChatId: chatId }, students));
   } else if (action === "p") {
     const { students } = await linked(chatId);
     const kid = await kidOf(demoId ?? "");

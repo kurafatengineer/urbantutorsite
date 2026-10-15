@@ -207,6 +207,12 @@ the yearly subscription like any new student. No tutor sign-up here (documents /
 photo stay on the website). At the end: "Post a new tuition request now?" → Yes
 starts the tuition flow below.
 
+**Add New Child** (same file) adds a brother / sister to the account the chat
+already belongs to — in the student picker and in the menu. The parent's name,
+number, email and address come from the student already on file, so it only asks:
+new student's name → gender → class → school → board → check & Submit (no code to
+verify). The same duplicate check applies, so the same child cannot be added twice.
+
 ### Chat tuition flow (`_shared/tuitionflow.ts`)
 "Apply for New Tuition" in the bot menu (students only). Steps: pick the student
 (only if the number / chat has more than one) → subjects (comma separated) → time
