@@ -72,36 +72,36 @@ export function applicationState(a: Json) {
 const RANK = ["running", "scheduled", "applied", "completed"];
 
 export type Life = {
-  demo: string; subject: string;
+  demo: string; subject: string; mode: string;
   cat: string;               // running | scheduled | new (finding tutor / applied) | completed
   app: Json | null;          // the application that decides the category
   tutorIds: string[]; apps: Json[];
   student: Json | null;      // tutor menu only: the student of that tuition
 };
 
-const COLS = "demo_id,tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date,demo_time,class_duration,billing_plan";
+const COLS = "demo_id,tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date,demo_time,class_duration,billing_plan,class_dates,class_start_date";
 
 // role "s": the tuitions of these students;  role "t": the tuitions these tutors applied for
 export async function loadLife(role: string, ids: string[]): Promise<Life[]> {
   const out: Life[] = [];
   if (role === "s") {
-    const tuitions = await rest(`tuitions?student_id=${inList(ids)}&terminated=eq.false&select=demo_id,subject,student_id&order=posted_at.desc`) ?? [];
+    const tuitions = await rest(`tuitions?student_id=${inList(ids)}&terminated=eq.false&select=demo_id,subject,student_id,medium&order=posted_at.desc`) ?? [];
     const apps = tuitions.length ? await rest(`applications?demo_id=${inList(tuitions.map((t: Json) => t.demo_id))}&select=${COLS}`) ?? [] : [];
     for (const t of tuitions) {
       const mine = apps.filter((a: Json) => a.demo_id === t.demo_id && !declined(a));
       const best = RANK.find((r) => mine.some((a: Json) => applicationState(a) === r));
       const app = mine.find((a: Json) => applicationState(a) === best) ?? null;
-      out.push({ demo: t.demo_id, subject: String(t.subject ?? ""), cat: !best || best === "applied" ? "new" : best, app, tutorIds: mine.map((a: Json) => String(a.tutor_id)), apps: mine, student: null });
+      out.push({ demo: t.demo_id, subject: String(t.subject ?? ""), mode: String(t.medium ?? ""), cat: !best || best === "applied" ? "new" : best, app, tutorIds: mine.map((a: Json) => String(a.tutor_id)), apps: mine, student: null });
     }
   } else {
     const apps = (await rest(`applications?tutor_id=${inList(ids)}&select=${COLS}`) ?? []).filter((a: Json) => !declined(a));
-    const tuitions = apps.length ? await rest(`tuitions?demo_id=${inList(apps.map((a: Json) => a.demo_id))}&terminated=eq.false&select=demo_id,subject,student_id`) ?? [] : [];
+    const tuitions = apps.length ? await rest(`tuitions?demo_id=${inList(apps.map((a: Json) => a.demo_id))}&terminated=eq.false&select=demo_id,subject,student_id,medium`) ?? [] : [];
     const studs = tuitions.length ? await rest(`students?student_id=${inList([...new Set(tuitions.map((t: Json) => String(t.student_id)))] as string[])}&select=student_id,student_name,class_name,board,city,pin_code`) ?? [] : [];
     for (const a of apps) {
       const t = tuitions.find((x: Json) => x.demo_id === a.demo_id);
       if (!t) continue;
       const st = applicationState(a);
-      out.push({ demo: t.demo_id, subject: String(t.subject ?? ""), cat: st === "applied" ? "new" : st, app: a, tutorIds: [String(a.tutor_id)], apps: [a], student: studs.find((x: Json) => x.student_id === t.student_id) ?? null });
+      out.push({ demo: t.demo_id, subject: String(t.subject ?? ""), mode: String(t.medium ?? ""), cat: st === "applied" ? "new" : st, app: a, tutorIds: [String(a.tutor_id)], apps: [a], student: studs.find((x: Json) => x.student_id === t.student_id) ?? null });
     }
   }
   return out;
