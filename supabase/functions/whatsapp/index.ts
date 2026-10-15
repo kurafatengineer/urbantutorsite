@@ -80,20 +80,41 @@ const lifeOf = (role: string, accounts: { students: Json[]; tutors: Json[] }) =>
   loadLife(role, (role === "s" ? accounts.students : accounts.tutors).map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])));
 
 // ---- screens ----
-async function showMenu(to: string, role: string, accounts: { students: Json[]; tutors: Json[] }) {
+type Accounts = { students: Json[]; tutors: Json[] };
+const kidName = (s: Json) => String(s.student_name || s.student_id);
+
+// More than one child on this number / email: ask who the parent wants to talk about.
+async function showPicker(to: string, accounts: Accounts) {
+  const kids = accounts.students;
+  const names = kids.map((s) => `*${kidName(s)}* (${s.student_id})`);
+  const ask = kids.length <= 3
+    ? `Do you want to continue with ${kids.map((s) => `*${kidName(s)}*`).join(kids.length === 2 ? " or " : ", ").replace(/, ([^,]*)$/, " or $1")}?`
+    : "Select the student you want to continue with.";
+  const text = `Hi,\n${names.join("\n")}\n\n${ask}`.slice(0, 1024);
+  await send(to, kids.length <= 3
+    ? { type: "interactive", interactive: { type: "button", body: { text },
+        action: { buttons: kids.map((s) => ({ type: "reply", reply: { id: `k:s:${s.student_id}`, title: kidName(s).slice(0, 20) } })) } } }
+    : { type: "interactive", interactive: { type: "list", body: { text },
+        action: { button: "Students", sections: [{ title: "Students", rows: kids.slice(0, 10).map((s) => ({ id: `k:s:${s.student_id}`, title: kidName(s).slice(0, 24), description: String(s.student_id) })) }] } } });
+}
+
+// The menu of one tutor, one student (sid), or the only student on the number.
+async function showMenu(to: string, role: string, accounts: Accounts, sid = "", many = false) {
   const mine = role === "s" ? accounts.students : accounts.tutors;
+  const tag = sid ? `:${sid}` : "";
   const life = await lifeOf(role, accounts);
   const off = mine.every((r) => r.notifications_off === true || r.blocked_at);
   const rows: Json[] = [];
   for (const cat of CAT_ORDER) {
     const n = life.filter((l) => l.cat === cat).length;
-    if (n) rows.push({ id: `c:${role}:${cat}`, title: `${catLabel(role, cat)} (${n})`.slice(0, 24) });
+    if (n) rows.push({ id: `c:${role}:${cat}${tag}`, title: `${catLabel(role, cat)} (${n})`.slice(0, 24) });
   }
-  rows.push(role === "s" ? { id: "a:s", title: "Apply for New Tuition" } : { id: "a:t", title: "Find New Tuitions" });
+  rows.push(role === "s" ? { id: `a:s${tag}`, title: "Apply for New Tuition" } : { id: "a:t", title: "Find New Tuitions" });
+  rows.push({ id: `n:${role}${tag}`, title: off ? "Turn ON Notifications" : "Turn OFF Notifications" });
+  if (many) rows.push({ id: "k:s", title: "Switch Student" });
   if (accounts.students.length && accounts.tutors.length) {
     rows.push({ id: `h:${role === "s" ? "t" : "s"}`, title: role === "s" ? "Switch to Tutor" : "Switch to Student" });
   }
-  rows.push({ id: `n:${role}`, title: off ? "Turn ON Notifications" : "Turn OFF Notifications" });
   const idCol = role === "s" ? "student_id" : "tutor_id";
   const names = mine.map((r) => `*${String((role === "s" ? r.student_name : r.full_name) || "-")}* (${r[idCol]})`);
   const body = `Hi,\n${names.join("\n")}\n\nOpen the *Menu* to see the details.`;
@@ -108,22 +129,9 @@ async function showMenu(to: string, role: string, accounts: { students: Json[]; 
 
 const MENU_HINT = "\n\nSend *Hi* any time for the menu.";
 
-async function showCategory(to: string, role: string, cat: string, accounts: { students: Json[]; tutors: Json[] }, sid = "") {
+async function showCategory(to: string, role: string, cat: string, accounts: Accounts, sid = "") {
   let life = (await lifeOf(role, accounts)).filter((l) => l.cat === cat);
   if (!life.length) { await sendText(to, "Nothing here right now." + MENU_HINT); return; }
-  // more than one child with tuitions here: ask whose details first
-  const sids = [...new Set(life.map((l) => l.sid))];
-  if (role === "s" && !sid && sids.length > 1) {
-    const kids = accounts.students.filter((s) => sids.includes(String(s.student_id)));
-    const text = `*${catLabel(role, cat)}*\n\nWhose details do you want to see?\n\n` +
-      kids.map((s) => `${s.student_name} (${s.student_id})`).join("\n");
-    await send(to, kids.length <= 3
-      ? { type: "interactive", interactive: { type: "button", body: { text },
-          action: { buttons: kids.map((s) => ({ type: "reply", reply: { id: `c:s:${cat}:${s.student_id}`, title: String(s.student_name || s.student_id).slice(0, 20) } })) } } }
-      : { type: "interactive", interactive: { type: "list", body: { text },
-          action: { button: "Students", sections: [{ title: "Students", rows: kids.slice(0, 10).map((s) => ({ id: `c:s:${cat}:${s.student_id}`, title: String(s.student_name || s.student_id).slice(0, 24), description: String(s.student_id) })) }] } } });
-    return;
-  }
   if (sid) life = life.filter((l) => l.sid === sid);
   if (!life.length) { await sendText(to, "Nothing here right now." + MENU_HINT); return; }
   // more than one running class: pick one first
@@ -175,25 +183,36 @@ async function onMessage(m: Json) {
     });
     return;
   }
-  const [action, roleRaw, cat, sid] = picked.split(":");
+  const [action, roleRaw, ...rest3] = picked.split(":");
   const role = roleRaw === "t" && accounts.tutors.length ? "t" : roleRaw === "s" && accounts.students.length ? "s" : accounts.students.length ? "s" : "t";
+  const arg = rest3[0] ?? "";
+  if (action === "r" && arg) { await showRunning(from, role, arg, accounts); return; }
+  const cat = action === "c" ? arg : "";
+  const asked = action === "c" ? rest3[1] ?? "" : arg;
+  // one child at a time: the chosen one, or the only one
+  const many = accounts.students.length > 1;
+  const kid = accounts.students.find((s) => String(s.student_id) === asked) ?? (many ? null : accounts.students[0] ?? null);
+  const sid = kid && many ? String(kid.student_id) : "";
+  const scoped: Accounts = kid ? { students: [kid], tutors: accounts.tutors } : accounts;
 
+  if (role === "s" && many && !kid && ["k", "c", "n", "a"].includes(action)) { await showPicker(from, accounts); return; }
+  if (action === "k" && kid) { await showMenu(from, "s", scoped, sid, many); return; }
   if (action === "n") {
-    const mine = role === "s" ? accounts.students : accounts.tutors;
+    const mine = role === "s" ? scoped.students : accounts.tutors;
     const turnOff = mine.some((r) => r.notifications_off !== true);
     const table = role === "s" ? "students" : "tutors";
     const col = role === "s" ? "student_id" : "tutor_id";
     await patch(`${table}?${col}=${inList(mine.map((r) => String(r[col])))}`, { notifications_off: turnOff });
-    await sendText(from, turnOff ? "Your notifications are *OFF* now.\n(No email, WhatsApp or Telegram messages.)\n\nSend *Hi* any time for the menu." : "Your notifications are *ON* again.\n\nSend *Hi* any time for the menu.");
+    const who = role === "s" && many ? ` for *${kidName(kid!)}*` : "";
+    await sendText(from, turnOff ? `Notifications${who} are *OFF* now.\n(No email, WhatsApp or Telegram messages.)\n\nSend *Hi* any time for the menu.` : `Notifications${who} are *ON* again.\n\nSend *Hi* any time for the menu.`);
     return;
   }
-  if (action === "a" && role === "s") { await sendAll(from, await startTuition(reg, accounts.students)); return; }
+  if (action === "a" && role === "s") { await sendAll(from, await startTuition(reg, scoped.students)); return; }
   if (action === "a") {
     await sendOut(from, { text: "*Find New Tuitions*\nTap the button below to see the tuitions you can apply for.\n\nSend *Hi* any time for the menu.", link: { label: "Open Website", url: `${SITE_URL}/advertisement.html` } });
     return;
   }
-  if (action === "c" && cat) { await showCategory(from, role, cat, accounts, sid ?? ""); return; }
-  if (action === "r" && cat) { await showRunning(from, role, cat, accounts); return; }
+  if (action === "c" && cat) { await showCategory(from, role, cat, scoped, sid); return; }
   if (accounts.students.length && accounts.tutors.length && action !== "h") {
     await send(from, {
       type: "interactive",
@@ -204,7 +223,8 @@ async function onMessage(m: Json) {
     });
     return;
   }
-  await showMenu(from, role, accounts);
+  if (role === "s" && many) { await showPicker(from, accounts); return; }
+  await showMenu(from, role, scoped);
 }
 
 Deno.serve(async (req) => {

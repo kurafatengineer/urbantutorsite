@@ -308,10 +308,13 @@ const CATS: Record<string, string> = { running: "✅ Running Classes", scheduled
 const CAT_ORDER = ["running", "new", "scheduled"];
 const catLabel = (role: "s" | "t", cat: string) => cat === "new" ? (role === "s" ? "🔎 Finding Tutor" : "📨 Applied") : CATS[cat];
 
-async function menuContent(chatId: number, role: "s" | "t"): Promise<{ text: string; rows: Json[][] } | null> {
+// sid: the child the parent picked (when more than one child is linked to this chat)
+async function menuContent(chatId: number, role: "s" | "t", sid = ""): Promise<{ text: string; rows: Json[][] } | null> {
   const { students, tutors } = await linked(chatId);
-  const mine = role === "s" ? students : tutors;
+  const many = students.length > 1;
+  const mine = role === "s" ? (sid ? students.filter((s) => String(s.student_id) === sid) : students) : tutors;
   if (!mine.length) return null;
+  const tag = role === "s" && sid ? `:${sid}` : "";
   const both = !!(students.length && tutors.length);
   const off = mine.every((r) => r.notifications_off === true || r.blocked_at);
   const life = await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])));
@@ -319,19 +322,31 @@ async function menuContent(chatId: number, role: "s" | "t"): Promise<{ text: str
   const rows: Json[][] = [];
   for (const cat of CAT_ORDER) {
     const n = life.filter((l) => l.cat === cat).length;
-    if (n) rows.push([{ text: leftPad(`${catLabel(role, cat)} (${n})`), callback_data: `m:c:${role}:${cat}` }]);
+    if (n) rows.push([{ text: leftPad(`${catLabel(role, cat)} (${n})`), callback_data: `m:c:${role}:${cat}${tag}` }]);
   }
   rows.push(role === "s"
-    ? [{ text: leftPad("📝 Apply for New Tuition"), callback_data: "m:p:s" }]
+    ? [{ text: leftPad("📝 Apply for New Tuition"), callback_data: `m:p:s${tag}` }]
     : [{ text: leftPad("🔎 Find New Tuitions"), web_app: { url: `${SITE_URL}/advertisement.html` } }]);
+  rows.push([{ text: leftPad(off ? "🔔 Turn ON Notifications" : "🔕 Turn OFF Notifications"), callback_data: `m:n:${role}${tag}` }]);
+  if (role === "s" && many) rows.push([{ text: leftPad("🔁 Switch Student"), callback_data: "m:k:s" }]);
   if (both) rows.push([{ text: leftPad(role === "s" ? "🔁 Switch to Tutor" : "🔁 Switch to Student"), callback_data: `m:h:${role === "s" ? "t" : "s"}` }]);
-  rows.push([{ text: leftPad(off ? "🔔 Turn ON Notifications" : "🔕 Turn OFF Notifications"), callback_data: `m:n:${role}` }]);
   rows.push([{ text: leftPad("👤 Open My Profile"), web_app: profileRow(role)[0].web_app }]);
 
   const idCol = role === "s" ? "student_id" : "tutor_id";
   const names = mine.map((r) => `<b>${escapeHtml(String((role === "s" ? r.student_name : r.full_name) || "-"))}</b> (${escapeHtml(String(r[idCol]))})`);
   const text = `Hi,\n${names.join("\n")}\n\nTap a button below to see the details.`;
   return { text, rows };
+}
+
+// More than one child linked to this chat: ask who the parent wants to talk about.
+async function showPicker(chatId: number, messageId: number | null, students: Json[]) {
+  const name = (s: Json) => escapeHtml(String(s.student_name || s.student_id));
+  const names = students.map((s) => `<b>${name(s)}</b> (${escapeHtml(String(s.student_id))})`);
+  const ask = students.length <= 3
+    ? `Do you want to continue with ${students.map((s) => `<b>${name(s)}</b>`).join(", ").replace(/, ([^,]*)$/, " or $1")}?`
+    : "Select the student you want to continue with.";
+  const rows = students.map((s) => [{ text: leftPad(`🎓 ${s.student_name || s.student_id} (${s.student_id})`), callback_data: `m:k:s:${s.student_id}` }]);
+  await showText(chatId, messageId, `Hi,\n${names.join("\n")}\n\n${ask}`, rows);
 }
 
 async function showText(chatId: number, messageId: number | null, text: string, rows: Json[][]) {
@@ -343,8 +358,12 @@ async function showText(chatId: number, messageId: number | null, text: string, 
   await sendReplacing(chatId, message);
 }
 
-async function showMenu(chatId: number, role: "s" | "t", messageId: number | null) {
-  const menu = await menuContent(chatId, role);
+async function showMenu(chatId: number, role: "s" | "t", messageId: number | null, sid = "") {
+  if (role === "s" && !sid) {
+    const { students } = await linked(chatId);
+    if (students.length > 1) { await showPicker(chatId, messageId, students); return true; }
+  }
+  const menu = await menuContent(chatId, role, sid);
   if (!menu) return false;
   await showText(chatId, messageId, menu.text, menu.rows);
   return true;
@@ -374,20 +393,12 @@ const html = (t: string) => escapeHtml(t).replace(/\*([^*\n]+)\*/g, "<b>$1</b>")
 
 // the screen a category button opens
 async function showCategory(chatId: number, messageId: number, role: "s" | "t", cat: string, sid = "") {
-  const back = [{ text: leftPad("⬅️ Back"), callback_data: `m:h:${role}` }];
+  const back = [{ text: leftPad("⬅️ Back"), callback_data: sid ? `m:k:s:${sid}` : `m:h:${role}` }];
   const { students, tutors } = await linked(chatId);
   const mine = role === "s" ? students : tutors;
   let life = (await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])))).filter((l) => l.cat === cat);
   if (!life.length) { await showText(chatId, messageId, "Nothing here right now.", [back]); return; }
 
-  // more than one child with tuitions here: ask whose details first
-  const sids = [...new Set(life.map((l) => l.sid))];
-  if (role === "s" && !sid && sids.length > 1) {
-    const rows = students.filter((s) => sids.includes(String(s.student_id)))
-      .map((s) => [{ text: leftPad(`🎓 ${s.student_name} (${s.student_id})`), callback_data: `m:c:s:${cat}:${s.student_id}` }]);
-    await showText(chatId, messageId, `<b>${escapeHtml(catLabel(role, cat))}</b>\n\nWhose details do you want to see?`, [...rows, back]);
-    return;
-  }
   if (sid) life = life.filter((l) => l.sid === sid);
   if (!life.length) { await showText(chatId, messageId, "Nothing here right now.", [back]); return; }
 
@@ -410,7 +421,7 @@ async function showRunning(chatId: number, messageId: number, role: "s" | "t", d
   const { students, tutors } = await linked(chatId);
   const mine = role === "s" ? students : tutors;
   const l = (await loadLife(role, mine.map((r) => String(r[role === "s" ? "student_id" : "tutor_id"])))).find((x) => x.cat === "running" && x.demo === demo);
-  const back = [{ text: leftPad("⬅️ Back"), callback_data: `m:c:${role}:running` }];
+  const back = [{ text: leftPad("⬅️ Back"), callback_data: `m:c:${role}:running${role === "s" && l ? `:${l.sid}` : ""}` }];
   await showText(chatId, messageId, l ? html(runningDetail(role, l, await people(role, [l]))) : "That class was not found.", [back]);
 }
 
@@ -423,8 +434,16 @@ async function onMenuButton(cb: Json) {
   const role = roleRaw === "t" ? "t" : "s";
   if (!chatId || !messageId || chatId !== fromId) { await answer(); return; }
 
+  // the child picked on the "who do you want to continue with" screen, if it is linked to this chat
+  const kidOf = async (id: string) => id ? (await linked(chatId)).students.find((s) => String(s.student_id) === id) ?? null : null;
+
   if (action === "h") {
     if (!(await showMenu(chatId, role, messageId))) await greet(chatId, String(cb.from?.first_name ?? ""));
+    await answer();
+  } else if (action === "k") {
+    const kid = await kidOf(demoId ?? "");
+    if (kid) await showMenu(chatId, "s", messageId, String(kid.student_id));
+    else await showMenu(chatId, "s", messageId);
     await answer();
   } else if (action === "c" && demoId) {
     await showCategory(chatId, messageId, role, demoId, sid ?? "");
@@ -434,20 +453,24 @@ async function onMenuButton(cb: Json) {
     await answer();
   } else if (action === "p") {
     const { students } = await linked(chatId);
+    const kid = await kidOf(demoId ?? "");
     await answer();
-    if (students.length) await sendAll(chatId, await startTuition({ channel: "tg", key: String(chatId), telegramChatId: chatId }, students));
+    const list = kid ? [kid] : students;
+    if (list.length) await sendAll(chatId, await startTuition({ channel: "tg", key: String(chatId), telegramChatId: chatId }, list));
   } else if (action === "n") {
     const { students, tutors } = await linked(chatId);
-    const mine = role === "s" ? students : tutors;
-    if (!mine.length) { await answer("No account is linked to this chat.", true); return; }
+    const kid = role === "s" ? await kidOf(demoId ?? "") : null;
+    const mine = role === "s" ? (kid ? [kid] : students.length === 1 ? students : []) : tutors;
+    if (!mine.length) { await showMenu(chatId, role, messageId); await answer(); return; }
     const turnOff = mine.some((r) => r.notifications_off !== true);
     const table = role === "s" ? "students" : "tutors";
     const col = role === "s" ? "student_id" : "tutor_id";
     await db(`${table}?${col}=${inList(mine.map((r) => String(r[col])))}`, {
       method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ notifications_off: turnOff }),
     });
-    await showMenu(chatId, role, messageId);
-    await answer(turnOff ? "Your notifications are OFF now." : "Your notifications are ON again.");
+    await showMenu(chatId, role, messageId, kid ? String(kid.student_id) : "");
+    const who = kid && students.length > 1 ? ` for ${kid.student_name}` : "";
+    await answer(turnOff ? `Notifications${who} are OFF now.` : `Notifications${who} are ON again.`);
   } else {
     await answer();
   }
