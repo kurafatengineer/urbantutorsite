@@ -160,7 +160,7 @@ async function onMessage(m: Json) {
       type: "interactive",
       interactive: {
         type: "button",
-        body: { text: "Hi,\nWelcome to *Urban Tutor Site*.\n\nThis number is not registered yet.\nParents / students can register right here in the chat - it takes about 2 minutes." },
+        body: { text: "Hi! 👋\n\nWelcome to *Urban Tutor Site*.\n\nFind the right tutor for your learning needs.\n\nParents & Students can register right here on WhatsApp in just 2 minutes.\n\nLet's get started!" },
         action: { buttons: [{ type: "reply", reply: { id: "reg|start", title: "Register as Student" } }] },
       },
     });
