@@ -3,7 +3,8 @@
 // with the preferred tutor, the mode and the preferred timing.
 // The caller decides which students the chat may post for (WhatsApp: the sender's number; Telegram: the linked chat),
 // and that list is kept in the session, so a tapped button can never post for someone else's student.
-import { q, rest } from "./botdata.ts";
+import { q, inList, rest } from "./botdata.ts";
+import { adminCall } from "./adminbridge.ts";
 import { tuitionPostedMail } from "./mails.ts";
 import { notify, studentQuiet } from "./telegram.ts";
 import { type Choice, type Ctx, type Input, type Out, clean, clear, save, titleCase } from "./session.ts";
@@ -55,13 +56,15 @@ async function goTo(ctx: Ctx, step: string, d: Json): Promise<Out[]> {
 }
 
 // students: the ones this chat may post for ({ student_id, student_name, blocked_at? })
-export async function startTuition(ctx: Ctx, students: Json[]): Promise<Out[]> {
+// adminId: an employee posts the tuition for the parent (the admin function does the posting and tells the parent).
+export async function startTuition(ctx: Ctx, students: Json[], opts: { adminId?: string } = {}): Promise<Out[]> {
   const allowed = students.filter((s) => !s.blocked_at).map((s) => ({ id: String(s.student_id), name: String(s.student_name ?? "") }));
   if (!allowed.length) {
     await clear(ctx);
     return [{ text: "Your account is blocked.\nPlease contact Urban Tutor Site.\n\nSend *Hi* any time for the menu." }];
   }
   const d: Json = { allowed };
+  if (opts.adminId) d.adminId = opts.adminId;
   if (allowed.length === 1) {
     d.studentId = allowed[0].id;
     d.studentName = allowed[0].name;
@@ -80,6 +83,18 @@ async function runningSubjects(studentId: string, subjects: string[]): Promise<s
     if (!["Completed", "Terminated"].includes(String(status))) out.push(titleCase(String(r.subject)));
   }
   return [...new Set(out)];
+}
+
+// An employee posting for a parent: same rules as the Admin Panel's "Apply for new tuition for students".
+async function postAsAdmin(d: Json): Promise<{ ok: boolean; demos?: { demoId: string; subject: string }[]; message?: string }> {
+  const res = await adminCall(String(d.adminId), "adminAddTuition", { p: {
+    studentId: d.studentId, subjects: d.subjects.join(","), preferredTutor: d.tutor, medium: d.medium, preferredTiming: d.timing,
+  } });
+  if (!res?.success) return { ok: false, message: String(res?.message ?? "The tuition could not be posted. Please try again.") };
+  const ids: string[] = (res.demoIds ?? []).map(String);
+  const rows = ids.length ? await rest(`tuitions?demo_id=${inList(ids)}&select=demo_id,subject`) ?? [] : [];
+  const demos = ids.map((id) => ({ demoId: id, subject: String(rows.find((r: Json) => r.demo_id === id)?.subject ?? "") }));
+  return { ok: true, demos };
 }
 
 async function post(d: Json): Promise<{ ok: boolean; demos?: { demoId: string; subject: string }[]; message?: string }> {
@@ -167,13 +182,14 @@ export async function tuitionInput(ctx: Ctx, s: { step: string; data: Json }, in
         await clear(ctx);
         return [{ text: "Something went wrong.\nPlease send *Hi* and try again." }];
       }
-      const res = await post(d);
+      const res = d.adminId ? await postAsAdmin(d) : await post(d);
       await clear(ctx);
       if (!res.ok) return [{ text: `${res.message}\n\nSend *Hi* any time for the menu.` }];
-      await tellPosted(d.studentId, res.demos!, d);
+      if (!d.adminId) await tellPosted(d.studentId, res.demos!, d);
       const list = res.demos!.map((x) => `Tuition: *${x.subject}* (${x.demoId})\nTutor - ${d.tutor}`).join("\n\n");
       return [{
-        text: `*Tuition request posted!*\nStudent: *${d.studentName}* (${d.studentId})\n\n${list}\n\nWe will let you know as soon as a tutor applies.`,
+        text: `*Tuition request posted!*\nStudent: *${d.studentName}* (${d.studentId})\n\n${list}\n\n` +
+          (d.adminId ? "The parent has been told.\nUse *Assign Tutor* in the Menu to add a tutor." : "We will let you know as soon as a tutor applies."),
       }];
     }
   }

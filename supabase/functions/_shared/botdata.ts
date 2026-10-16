@@ -60,6 +60,15 @@ export async function accountsByPhone(phone: unknown): Promise<{ students: Json[
   };
 }
 
+// An employee who writes from this number (their Mobile or WhatsApp number in the Employees list).
+// Only an active employee counts. null when there is none.
+export async function employeeByPhone(phone: unknown): Promise<{ id: string; full_name: string } | null> {
+  const p = last10(phone);
+  if (p.length < 10) return null;
+  const rows = await rest(`admin_users?or=(mobile10.eq.${p},whatsapp10.eq.${p})&active=eq.true&select=id,full_name&limit=1`);
+  return rows?.[0] ? { id: String(rows[0].id), full_name: String(rows[0].full_name ?? "") } : null;
+}
+
 export async function studentEmailTaken(email: string): Promise<boolean> {
   const rows = await rest(`students?email_lc=eq.${q(String(email).trim().toLowerCase())}&select=student_id&limit=1`);
   return !!rows?.length;

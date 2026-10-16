@@ -2839,6 +2839,8 @@ function wireEmployeeForm() {
       $("employeeEmail").value = "";
       $("employeeName").value = "";
       $("employeeRole").value = "tuition_coordinator";
+      $("employeeMobile").value = "";
+      $("employeeWhatsapp").value = "";
       $("employeeWorkHours").value = "9";
       $("employeeWorkStart").value = "09:00";
       $("employeeWorkEnd").value = "18:00";
@@ -2864,6 +2866,7 @@ function wireEmployeeForm() {
 
     const role = $("employeeRole").value;
     const payload = { action: "adminAddEmployee", email, fullName, role,
+      mobileNumber: $("employeeMobile").value.trim(), whatsappNumber: $("employeeWhatsapp").value.trim(),
       workStart: $("employeeWorkStart").value, workEnd: $("employeeWorkEnd").value };
     if (role !== "super_admin") payload.permissions = permValues(perms);
 
@@ -6134,6 +6137,7 @@ function employeeMissing(e) {
   const miss = [];
   if (!String(e.full_name || "").trim()) miss.push("name");
   if (!e.role) miss.push("role");
+  if (!e.mobile_number && !e.whatsapp_number) miss.push("mobile / WhatsApp number");
   if (e.role !== "super_admin" && !(e.permissions || []).length) miss.push("permissions");
   if (e.role !== "super_admin" && !(e.workStart && e.workEnd)) miss.push("login hours");
   return miss;
@@ -6224,11 +6228,15 @@ function employeeCard(e) {
   const open = STATE.open.has(key);
   const editing = STATE.editing.has(key);
   const isMe = STATE.me && lower(e.email) === lower(STATE.me.email);
+  // numbers are masked for an employee whose Hide Mobile Number is on - they can't be edited either
+  const hidden = !!(STATE.me && STATE.me.hideContacts);
 
   const boxes = `
     <div class="admin-boxes">
       ${box("Email", e.email)}
       ${box("Full Name", e.full_name, { editable: editing, attr: editing ? `data-efield="fullName"` : "" })}
+      ${box("Mobile Number", e.mobile_number || "", { editable: editing && !hidden, type: "tel", placeholder: "10 digits", attr: editing && !hidden ? `data-efield="mobileNumber" inputmode="numeric" maxlength="14"` : "" })}
+      ${box("WhatsApp Number", e.whatsapp_number || "", { editable: editing && !hidden, type: "tel", placeholder: "10 digits", attr: editing && !hidden ? `data-efield="whatsappNumber" inputmode="numeric" maxlength="14"` : "" })}
       ${box("Role", ROLE_LABELS[e.role] || e.role, {
         editable: editing && !isMe,
         options: Object.values(ROLE_LABELS),
