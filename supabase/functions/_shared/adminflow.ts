@@ -4,6 +4,8 @@
 //   3. Schedule Demo      - Tuition ID, tutor, date, time
 //   4. Tutor Confirmation - see who has agreed on a tuition; confirm for a tutor
 //   5. Create Payment     - only for a tuition where the tutor and the parent have both agreed
+//   6. Add New Student    - only the name and a mobile number are needed; every other detail can be skipped (no email code)
+//   7. Class & Agreement  - days, start date, time, duration, billing model, fees, how often, who is paid; saves it and sends the agreement
 // Every change is made by the "admin" Edge Function (see adminbridge.ts), so it follows the same rules as the
 // Admin Panel: the employee must be active, inside their login hours and allowed to run that action.
 // The chat only decides what to ask; reading (names, IDs, status) is done here with the service role.
@@ -13,27 +15,31 @@ import { startTuition } from "./tuitionflow.ts";
 import { fmtDate, fmtTime } from "./format.ts";
 import { inr } from "./mails.ts";
 import { dealNumbers } from "./deal.ts";
-import { type Choice, type Ctx, type Input, type Out, clean, clear, save } from "./session.ts";
+import { type Choice, type Ctx, type Input, type Out, clean, clear, save, titleCase } from "./session.ts";
 
 type Json = Record<string, any>;
-export type AdminKind = "new" | "assign" | "demo" | "conf" | "pay";
+export type AdminKind = "new" | "assign" | "demo" | "conf" | "pay" | "student" | "deal";
 
 const CANCEL: Choice = { id: "cancel", title: "Cancel" };
 const YES = (title: string): Choice => ({ id: "ad_yes", title });
 const RETRY = "Type again, or *Cancel*.";
+const ST_SKIP: Choice = { id: "st_skip", title: "Skip" };
 const MENU_HINT = "\n\nSend *Hi* any time for the menu.";
 
 // What the employee needs for each flow (the admin function checks the real action again when it runs).
 const NEED: Record<AdminKind, string> = {
   new: "tuitions_add", assign: "tuitions_assign_tutor", demo: "tuitions_edit", conf: "tuitions_view", pay: "payments_add",
+  student: "students_add", deal: "tuitions_edit",
 };
 
 const FIRST_STEP: Record<AdminKind, string> = {
   new: "ad_new_find", assign: "ad_as_demo", demo: "ad_sd_demo", conf: "ad_tc_demo", pay: "ad_pm_demo",
+  student: "ad_st_name", deal: "ad_dl_demo",
 };
 
 const TITLE: Record<AdminKind, string> = {
   new: "New Tuition", assign: "Assign Tutor", demo: "Schedule Demo", conf: "Tutor Confirmation", pay: "Create Payment",
+  student: "Add New Student", deal: "Class & Agreement",
 };
 
 /* ------------------------------------------------------------------ menu */
@@ -42,7 +48,7 @@ const TITLE: Record<AdminKind, string> = {
 export function adminMenuRows(perms: string[]): Choice[] {
   const has = (p: string) => perms.includes(p);
   const rows: Choice[] = [];
-  (["new", "assign", "demo", "conf", "pay"] as AdminKind[]).forEach((k) => {
+  (["student", "new", "assign", "demo", "conf", "deal", "pay"] as AdminKind[]).forEach((k) => {
     if (has(NEED[k])) rows.push({ id: `ad:${k}`, title: TITLE[k] });
   });
   return rows;
@@ -106,6 +112,69 @@ export function classify(text: string): { kind: "sid" | "did" | "tid" | "phone" 
     return /^[6-9]\d{9}$/.test(ten) ? { kind: "phone", value: ten } : { kind: "badphone", value: ten };
   }
   return { kind: "", value: "" };
+}
+
+
+const WEEKDAY: Record<string, number> = {
+  sun: 0, sunday: 0, mon: 1, monday: 1, tue: 2, tues: 2, tuesday: 2, wed: 3, weds: 3, wednesday: 3,
+  thu: 4, thur: 4, thurs: 4, thursday: 4, fri: 5, friday: 5, sat: 6, saturday: 6,
+};
+const DAY_NAME = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MON_FIRST = [1, 2, 3, 4, 5, 6, 0];
+
+// "Mon, Wed, Fri", "mon-sat", "Fri to Mon", "daily" -> [1, 3, 5] (0 = Sunday); [] when something is not a day
+export function parseDays(text: string): number[] {
+  const t = clean(text).toLowerCase();
+  if (/^(daily|everyday|every day|all|all days|7 days)$/.test(t)) return [0, 1, 2, 3, 4, 5, 6];
+  const tokens = t.replace(/\s+(to|till)\s+/g, "-").replace(/\s*[-–—]\s*/g, "-").split(/[\s,&\/+]+/).filter((x) => x && x !== "and");
+  const out = new Set<number>();
+  for (const tok of tokens) {
+    const range = tok.split("-");
+    if (range.length > 2 || range.some((x) => WEEKDAY[x] === undefined)) return [];
+    if (range.length === 1) { out.add(WEEKDAY[range[0]]); continue; }
+    let i = WEEKDAY[range[0]];
+    const end = WEEKDAY[range[1]];
+    for (let n = 0; n < 8; n++) { out.add(i); if (i === end) break; i = (i + 1) % 7; }
+  }
+  return MON_FIRST.filter((x) => out.has(x));
+}
+
+const daysText = (days: number[]) => days.length === 7 ? "Every day" : days.map((x) => DAY_NAME[x]).join(", ");
+
+// "20%" -> percent 20; "1000" / "Rs. 1,000" -> amount 1000; null when it is not a number
+export function parseCut(text: string): { type: "percent" | "amount"; value: number } | null {
+  const t = clean(text).toLowerCase().replace(/,/g, "");
+  const m = t.match(/^(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d+)?)\s*(%|percent|per cent|rs\.?|rupees?)?$/);
+  if (!m) return null;
+  return { type: m[2] && /^(%|per)/.test(m[2]) ? "percent" : "amount", value: Math.round(+m[1] * 100) / 100 };
+}
+
+const isoPlusDays = (iso: string, n: number) => addDaysIso(iso, n);
+// the k-th payment date counted from the class start (same rule as the Admin Panel)
+export function payDateAt(startISO: string, freq: string, k: number): string {
+  if (freq === "Weekly") return isoPlusDays(startISO, 7 * k);
+  if (freq === "15 Days") return isoPlusDays(startISO, 15 * k);
+  const [y, m, d] = startISO.split("-").map(Number);
+  const first = new Date(Date.UTC(y, m - 1 + k, 1));
+  const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  first.setUTCDate(Math.min(d, last));
+  return first.toISOString().slice(0, 10);
+}
+// the first payment date that is today or later
+export function nextParentDate(startISO: string, freq: string): string {
+  const today = todayIst();
+  let k = 0;
+  while (k < 800 && payDateAt(startISO, freq, k) < today) k++;
+  return payDateAt(startISO, freq, k);
+}
+// the class dates of the first month (start date up to the day before the next month begins) on the chosen weekdays
+export function classDatesFor(startISO: string, days: number[]): string[] {
+  const end = payDateAt(startISO, "Monthly", 1);
+  const out: string[] = [];
+  for (let d = startISO; d < end; d = addDaysIso(d, 1)) {
+    if (days.includes(new Date(d + "T00:00:00Z").getUTCDay())) out.push(d);
+  }
+  return out;
 }
 
 /* ----------------------------------------------------------------- data */
@@ -244,6 +313,63 @@ function prompt(step: string, d: Json): Out {
         "\nThe parent / tutor will get the payment message.",
       choices: [YES("Record Payment"), CANCEL],
     };
+    case "ad_st_name": return { text: "*Add New Student*\nYou can type *Cancel* any time.\n\nOnly the *name* and a *mobile number* are needed. You can skip the rest.\n\nWhat is the *student's name*?" };
+    case "ad_st_parent": return { text: "The *parent's name*?", choices: [ST_SKIP] };
+    case "ad_st_phone": return { text: "The parent's *mobile number* (10 digits).\nThe same number is used as the WhatsApp number." };
+    case "ad_st_more": return {
+      text: "Basic details are enough.\nDo you also want to add the email, gender, class, school or address?",
+      choices: [{ id: "st_save", title: "Save Now" }, { id: "st_more", title: "Add More Details" }],
+    };
+    case "ad_st_email": return { text: "The *email address*?\nNo code is sent to it.", choices: [ST_SKIP] };
+    case "ad_st_gender": return { text: "The student's *gender*?", choices: [{ id: "st_gender:Male", title: "Male" }, { id: "st_gender:Female", title: "Female" }, ST_SKIP] };
+    case "ad_st_class": return { text: "Which *class* is the student in?\n\nFor example -\n10th\nB.Com", choices: [ST_SKIP] };
+    case "ad_st_school": return { text: "*School / College* name?", choices: [ST_SKIP] };
+    case "ad_st_board": return { text: "*Board / University*?\n\nFor example -\nCBSE\nICSE", choices: [ST_SKIP] };
+    case "ad_st_city": return { text: "Which *city*?", choices: [ST_SKIP] };
+    case "ad_st_pin": return { text: "*PIN code* (6 digits)?", choices: [ST_SKIP] };
+    case "ad_st_address": return { text: "The *address*?", choices: [ST_SKIP] };
+    case "ad_st_confirm": return { text: studentSummary(d), choices: [YES("Save Student"), CANCEL] };
+    case "ad_st_post": return {
+      text: `*${d.studentName}* is added.\nStudent ID: *${d.studentId}*\n\nPost a new tuition for this student now?`,
+      choices: [{ id: "st_post", title: "Post Tuition Now" }, { id: "st_done", title: "Not Now" }],
+    };
+    case "ad_dl_demo": return askDemo("deal");
+    case "ad_dl_pick": return pickOut("Which *tutor*?", d.options, "tutor_id", "tutorName");
+    case "ad_dl_days": return {
+      text: `*Class & Agreement*\n*${d.subject}* (${d.demoId})\nStudent: *${d.studentName}*\nTutor: ${d.tutorLine}\n` +
+        (d.existing ? "\nA deal is already saved for this class. Continuing will replace it and send the agreement again.\n" : "") +
+        "\nOn which *days of the week* are the classes?\n\nFor example -\nMon, Wed, Fri\nMon-Sat\nDaily",
+    };
+    case "ad_dl_start": return {
+      text: "From which *date* do the classes start?\n\nType it like *20-10-2026*, or tap a button.",
+      choices: [{ id: "dl_start:today", title: "Today" }, { id: "dl_start:tomorrow", title: "Tomorrow" }],
+    };
+    case "ad_dl_time": return { text: "The *class time*?\n\nFor example -\n5 PM\n5:30 PM\n17:30" };
+    case "ad_dl_min": return {
+      text: "How long is *each class* (minutes)?\n\nTap a button, or type the minutes.",
+      choices: [{ id: "dl_min:30", title: "30 minutes" }, { id: "dl_min:45", title: "45 minutes" }, { id: "dl_min:60", title: "60 minutes" }],
+    };
+    case "ad_dl_model": return {
+      text: "How is this class billed?\n\n*Monthly Commission* - a fixed fee each month. The agency takes its cut once, from the first month.\n\n" +
+        "*Per Class Commission* - the parent pays a price per class. The agency keeps a share of every class and pays the tutor the rest.",
+      choices: [{ id: "dl_model:commission", title: "Monthly Commission" }, { id: "dl_model:margin", title: "Per Class Commission" }],
+    };
+    case "ad_dl_fee": return {
+      text: d.model === "margin" ? "What does the parent pay *per class* (rupees)?\n\nFor example -\n300" : "What is the *monthly fee* the parent pays (rupees)?\n\nFor example -\n6000",
+    };
+    case "ad_dl_cut": return {
+      text: (d.model === "margin" ? "How much does the *agency keep per class*?" : "How much is the *agency cut*? (taken once, from the first month)") +
+        "\n\nType a percentage like *20%*, or an amount in rupees like *1000*.",
+    };
+    case "ad_dl_payto": return {
+      text: "Who gets the *first month's fee*?\n\n*Tutor* - the parent pays the tutor, and the tutor pays the agency its cut.\n*Agency* - the parent pays the agency, which keeps its cut and pays the rest to the tutor.",
+      choices: [{ id: "dl_to:Tutor", title: "Tutor" }, { id: "dl_to:Agency", title: "Agency" }],
+    };
+    case "ad_dl_freq": return {
+      text: "How often does the parent pay?",
+      choices: [{ id: "dl_freq:Weekly", title: "Weekly" }, { id: "dl_freq:15 Days", title: "Every 15 Days" }, { id: "dl_freq:Monthly", title: "Monthly" }],
+    };
+    case "ad_dl_confirm": return { text: dealSummary(d), choices: [YES("Save & Send"), CANCEL] };
     default: return { text: "" };
   }
 }
@@ -272,6 +398,7 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
   if (choice === "cancel" || /^cancel$/i.test(text)) return finish(ctx, "Cancelled.");
   const again = (msg: string): Out[] => [{ text: `${msg}\n\n${RETRY}` }];
   const pickedId = choice.startsWith("ad_pick:") ? choice.slice(8) : "";
+  const skipped = choice === "st_skip" || /^skip$/i.test(text);
 
   switch (step) {
 
@@ -495,6 +622,166 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
       if (!res?.success) return finish(ctx, `The payment could not be recorded.\n${String(res?.message ?? "")}`);
       return finish(ctx, `*Payment recorded.*\n${KIND_TEXT[d.kind]}: *${inr(d.amount)}*\n*${d.subject}* (${d.demoId})\n${fmtDate(d.date)}`);
     }
+    case "ad_st_name": {
+      if (text.length < 2 || text.length > 80) return again("Please type the student's name.");
+      d.f = { studentName: titleCase(text) };
+      return go(ctx, "ad_st_parent", d);
+    }
+    case "ad_st_parent": {
+      if (!skipped) {
+        if (text.length < 2 || text.length > 80) return again("Please type the parent's name, or tap *Skip*.");
+        d.f.parentsName = titleCase(text);
+      }
+      return go(ctx, "ad_st_phone", d);
+    }
+    case "ad_st_phone": {
+      const c = classify(text);
+      if (c.kind !== "phone") return again("That is not a valid mobile number.\nType the 10-digit number.");
+      d.f.phone = c.value;
+      d.sameNumber = (await accountsByPhone(c.value)).students.map((x) => `${x.student_name} (${x.student_id})`).slice(0, 5);
+      return go(ctx, "ad_st_more", d);
+    }
+    case "ad_st_more": {
+      if (choice === "st_more") return go(ctx, ST_FIELDS[0].step, d);
+      if (choice === "st_save") return go(ctx, "ad_st_confirm", d);
+      return [prompt(step, d)];
+    }
+    case "ad_st_email": case "ad_st_gender": case "ad_st_class": case "ad_st_school":
+    case "ad_st_board": case "ad_st_city": case "ad_st_pin": case "ad_st_address": {
+      const i = ST_FIELDS.findIndex((x) => x.step === step);
+      const field = ST_FIELDS[i];
+      if (!skipped) {
+        const typedGender = /^male$/i.test(text) ? "Male" : /^female$/i.test(text) ? "Female" : "";
+        const value = field.key === "gender" ? (choice.startsWith("st_gender:") ? choice.slice(10) : typedGender) : text;
+        const bad = field.check(value);
+        if (bad) return again(bad);
+        d.f[field.key] = field.fix ? field.fix(value) : value;
+      }
+      return go(ctx, ST_FIELDS[i + 1]?.step ?? "ad_st_confirm", d);
+    }
+    case "ad_st_confirm": {
+      if (choice !== "ad_yes") return [prompt(step, d)];
+      const res = await adminCall(d.eid, "adminAddStudent", { p: { basic: true, ...d.f, whatsapp: d.f.phone, termsAccepted: false } });
+      if (!res?.success) return finish(ctx, `The student could not be added.\n${String(res?.message ?? "").replace(/^.*?:\s*/, "")}`);
+      d.studentId = String(res.studentId);
+      d.studentName = d.f.studentName;
+      if (!d.perms.includes("tuitions_add")) return finish(ctx, `*Student added!*\n${d.studentName} - Student ID *${d.studentId}*.`);
+      await save(ctx, "ad_st_post", d);
+      return [prompt("ad_st_post", d)];
+    }
+    case "ad_st_post": {
+      if (choice === "st_post") return startTuition(ctx, [{ student_id: d.studentId, student_name: d.studentName }], { adminId: d.eid });
+      return finish(ctx, `All set.\n${d.studentName} - Student ID *${d.studentId}*.`);
+    }
+    case "ad_dl_demo": {
+      const c = classify(text);
+      if (c.kind !== "did") return again("That is not a valid *Tuition ID*.\nIt starts with *DID* followed by *8 digits*.");
+      const t = await findTuition(c.value);
+      if (!t) return again(`No tuition was found with the ID *${c.value}*.`);
+      if (closed(t)) return again(`*${c.value}* is closed (${t.status || "terminated"}).`);
+      const rows = await applicationsFor(t.demo_id);
+      const agreed = rows.filter((r) => r.parent_accepted && r.tutor_accepted && !r.parent_rejected && !r.tutor_rejected);
+      if (!agreed.length) {
+        const why = rows.length
+          ? "\n\n" + rows.map((r) => `${r.tutorName}: Tutor ${stateText(r.tutor_accepted, r.tutor_rejected).toLowerCase()}, Parent ${stateText(r.parent_accepted, r.parent_rejected).toLowerCase()}`).join("\n")
+          : "\n\nNo tutor is on it yet.";
+        return again(`The class can be set only after the tutor and the parent have both agreed.${why}`);
+      }
+      d.demoId = t.demo_id;
+      d.subject = t.subject;
+      d.studentName = t.student?.student_name ?? "";
+      if (agreed.length === 1) return dealStart(ctx, d, agreed[0]);
+      d.options = agreed.slice(0, 9);
+      return go(ctx, "ad_dl_pick", d);
+    }
+    case "ad_dl_pick": {
+      const chosen = (d.options ?? []).find((o: Json) => o.tutor_id === pickedId);
+      return chosen ? dealStart(ctx, d, chosen) : [prompt(step, d)];
+    }
+    case "ad_dl_days": {
+      const days = parseDays(text);
+      if (!days.length) return again("I could not read the days.\nType them like *Mon, Wed, Fri* or *Mon-Sat*, or *Daily*.");
+      d.days = days;
+      return go(ctx, "ad_dl_start", d);
+    }
+    case "ad_dl_start": {
+      const iso = choice === "dl_start:today" ? todayIst() : choice === "dl_start:tomorrow" ? addDaysIso(todayIst(), 1) : parseDate(text);
+      if (!iso) return again("That is not a valid date.\nType it like *20-10-2026*, or *Today* / *Tomorrow*.");
+      if (iso < addDaysIso(todayIst(), -30)) return again("That date is too far in the past.");
+      d.start = iso;
+      return go(ctx, "ad_dl_time", d);
+    }
+    case "ad_dl_time": {
+      const hhmm = parseTime(text);
+      if (!hhmm) return again("That is not a valid time.\nType it like *5 PM*, *5:30 PM* or *17:30*.");
+      d.time = hhmm;
+      return go(ctx, "ad_dl_min", d);
+    }
+    case "ad_dl_min": {
+      const n = Math.round(Number(choice.startsWith("dl_min:") ? choice.slice(7) : text.replace(/\s*(min|minutes?)$/i, "")));
+      if (!(n >= 10 && n <= 600)) return again("Type the minutes for each class, like *45* or *60*.");
+      d.minutes = n;
+      return go(ctx, "ad_dl_model", d);
+    }
+    case "ad_dl_model": {
+      const model = choice.startsWith("dl_model:") ? choice.slice(9) : "";
+      if (model !== "commission" && model !== "margin") return [prompt(step, d)];
+      d.model = model;
+      return go(ctx, "ad_dl_fee", d);
+    }
+    case "ad_dl_fee": {
+      const amount = parseAmount(text);
+      if (!amount) return again("That is not a valid amount.\nType the amount in rupees.");
+      d.fee = amount;
+      return go(ctx, "ad_dl_cut", d);
+    }
+    case "ad_dl_cut": {
+      const cut = parseCut(text);
+      if (!cut) return again("I could not read that.\nType a percentage like *20%*, or an amount like *1000*.");
+      if (cut.type === "percent" ? cut.value > 100 : cut.value > d.fee) return again(cut.type === "percent" ? "A percentage cannot be more than 100." : "The agency's share cannot be more than the fee.");
+      d.cutType = cut.type;
+      d.cutValue = cut.value;
+      if (d.model === "margin") d.feeTo = "Agency";
+      return go(ctx, d.model === "margin" ? "ad_dl_freq" : "ad_dl_payto", d);
+    }
+    case "ad_dl_payto": {
+      const to = choice.startsWith("dl_to:") ? choice.slice(6) : "";
+      if (to !== "Tutor" && to !== "Agency") return [prompt(step, d)];
+      d.feeTo = to;
+      return go(ctx, "ad_dl_freq", d);
+    }
+    case "ad_dl_freq": {
+      const f = choice.startsWith("dl_freq:") ? choice.slice(8) : /^weekly$/i.test(text) ? "Weekly" : /^monthly$/i.test(text) ? "Monthly" : "";
+      if (!["Weekly", "15 Days", "Monthly"].includes(f)) return [prompt(step, d)];
+      d.freq = f;
+      return go(ctx, "ad_dl_confirm", d);
+    }
+    case "ad_dl_confirm": {
+      if (choice !== "ad_yes") return [prompt(step, d)];
+      const dates = classDatesFor(d.start, d.days);
+      if (!dates.length) return finish(ctx, "No class falls on those days in the first month.");
+      const fresh = (await rest(`applications?demo_id=eq.${q(d.demoId)}&tutor_id=eq.${q(d.tutorId)}&select=billing_plan`))?.[0];
+      const deal = { ...(fresh?.billing_plan?.deal ?? {}), ...dealOf(d) };
+      const m: Json = dealNumbers(deal, dates.length);
+      const parentDue = nextParentDate(d.start, d.freq);
+      const changes: Json = {
+        "Class Dates": dates, "Class Start Date": d.start, "Billing Mode": deal.model,
+        "Billing Plan": { ...(fresh?.billing_plan ?? {}), deal },
+        "Class Duration": deal.minutes,
+        "Class Charges": m.model === "margin" ? m.parentPerClass : m.perClass,
+        "Class Total Amount": m.model === "margin" ? m.parentMonthly : m.monthlyFee,
+        "Student Payment To": m.model === "commission" ? m.feeTo : "Agency",
+        "Tutor Payment From": m.model === "commission" && m.feeTo === "Tutor" ? "Parents" : "Agency",
+        "Tutor Agency Charge": m.model === "commission" ? m.cut : m.agencyMonthly,
+        "Student Payment Frequency": d.freq, "Tutor Payment Frequency": d.freq,
+        "Student Next Due Date": parentDue, "Tutor Next Payment Date": addDaysIso(parentDue, 1),
+      };
+      const saved = await adminCall(d.eid, "adminUpdateDemoRow", { demoId: d.demoId, tutorId: d.tutorId, changes });
+      if (!saved?.success) return finish(ctx, `The class could not be saved.\n${String(saved?.message ?? "")}`);
+      const sent = await adminCall(d.eid, "adminFinalizeClass", { demoId: d.demoId, tutorId: d.tutorId, deal });
+      if (!sent?.success) return finish(ctx, `The class was saved, but the agreement was not sent.\n${String(sent?.message ?? "")}`);
+      return finish(ctx, `*Class set and agreement sent!*\n*${d.subject}* (${d.demoId}) with ${d.tutorLine}\n${dates.length} classes in the first month, from ${fmtDate(d.start)}.\n\nThe parent and the tutor have got the agreement.`);
+    }
   }
   return [];
 }
@@ -538,4 +825,65 @@ async function payKind(ctx: Ctx, d: Json, row: Json): Promise<Out[]> {
     text: `*Create Payment*\n*${d.subject}* (${d.demoId})\nStudent: *${d.studentName}*\nTutor: ${d.tutorLine}\nThe tutor and the parent have agreed.` +
       (m ? `\n\nAs per the deal -\nParent pays each time: ${inr(m.parentInstallment)}\nTutor gets each time: ${inr(m.tutorInstallment)}` : ""),
   }, prompt("ad_pm_kind", d)];
+}
+
+/* ------------------------------------------------------ student + deal */
+
+// The optional details of "Add New Student", asked in this order; each can be skipped.
+const ST_FIELDS: { step: string; key: string; check: (v: string) => string; fix?: (v: string) => string }[] = [
+  { step: "ad_st_email", key: "email", check: (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) && v.length <= 120 ? "" : "That doesn't look like an email address.\nType it again, or tap *Skip*.", fix: (v) => v.toLowerCase() },
+  { step: "ad_st_gender", key: "gender", check: (v) => v === "Male" || v === "Female" ? "" : "Please tap *Male*, *Female* or *Skip*." },
+  { step: "ad_st_class", key: "className", check: (v) => v.length >= 1 && v.length <= 80 ? "" : "Please type the class, or tap *Skip*." },
+  { step: "ad_st_school", key: "school", check: (v) => v.length >= 2 && v.length <= 150 ? "" : "Please type the school / college, or tap *Skip*.", fix: titleCase },
+  { step: "ad_st_board", key: "board", check: (v) => v.length >= 2 && v.length <= 150 ? "" : "Please type the board / university, or tap *Skip*." },
+  { step: "ad_st_city", key: "city", check: (v) => v.length >= 2 && v.length <= 80 ? "" : "Please type the city, or tap *Skip*.", fix: titleCase },
+  { step: "ad_st_pin", key: "pinCode", check: (v) => /^\d{6}$/.test(v) ? "" : "The PIN code must be 6 digits, or tap *Skip*." },
+  { step: "ad_st_address", key: "address", check: (v) => v.length >= 5 && v.length <= 250 ? "" : "Please type the address (a few words), or tap *Skip*." },
+];
+
+function studentSummary(d: Json): string {
+  const f = d.f ?? {};
+  const line = (label: string, v: unknown) => v ? `${label}: ${v}\n` : "";
+  return "*Please check the new student:*\n\n" +
+    `Student: *${f.studentName}*\n` + `Parent: ${f.parentsName ?? "(not given)"}\n` + `Mobile / WhatsApp: ${f.phone}\n` +
+    line("Email", f.email) + line("Gender", f.gender) + line("Class", f.className) + line("School", f.school) + line("Board", f.board) +
+    line("City", [f.city, f.pinCode].filter(Boolean).join(" - ")) + line("Address", f.address) +
+    ((d.sameNumber ?? []).length ? `\nThis number already has: ${d.sameNumber.join(", ")}.\nA new student will be added next to them.\n` : "") +
+    "\nNo email code is sent.";
+}
+
+// the deal in the shape the Admin Panel saves it
+function dealOf(d: Json): Json {
+  const margin = d.model === "margin";
+  return {
+    model: d.model, minutes: String(d.minutes), time: d.time,
+    monthlyFee: margin ? "" : d.fee, cutType: margin ? "percent" : d.cutType, cutValue: margin ? "" : d.cutValue,
+    parentPerClass: margin ? d.fee : "", marginType: margin ? d.cutType : "amount", marginValue: margin ? d.cutValue : "",
+    parentFreq: d.freq, tutorFreq: d.freq, feeTo: margin ? "Agency" : d.feeTo,
+  };
+}
+
+function dealSummary(d: Json): string {
+  const dates = classDatesFor(d.start, d.days);
+  const m: Json = dealNumbers(dealOf(d), dates.length);
+  const per = d.freq === "Weekly" ? "Weekly" : d.freq === "15 Days" ? "Every 15 days" : "Monthly";
+  const money = m.model === "margin"
+    ? `Parent pays per class: *${inr(m.parentPerClass)}*\nAgency keeps: ${inr(m.margin)} per class\nTutor gets: *${inr(m.tutorPerClass)}* per class\n` +
+      `Parent pays: ${per} - *${inr(m.parentInstallment)}*\nTutor is paid by the agency: ${per} - ${inr(m.tutorInstallment)}`
+    : `Monthly fee: *${inr(m.monthlyFee)}*\nAgency cut: ${inr(m.cut)}${m.cutPercent ? ` (${m.cutPercent}%)` : ""} - once, from the first month\n` +
+      `First month's fee goes to: *${m.feeTo}*\n` +
+      (m.feeTo === "Agency" ? `Tutor gets (first month): ${inr(m.tutorFirstMonth)}\n` : `Tutor pays the agency: ${inr(m.cut)}\n`) +
+      `Parent pays: ${per} - *${inr(m.parentInstallment)}*`;
+  return `*Please check the class deal:*\n\n*${d.subject}* (${d.demoId})\nStudent: *${d.studentName}*\nTutor: ${d.tutorLine}\n\n` +
+    `Days: ${daysText(d.days)}\nStarts: ${fmtDate(d.start)}, ${fmtTime(d.time)} (${d.minutes} min)\n` +
+    `Classes in the first month: ${dates.length}\n\n${money}\nNext parent payment: ${fmtDate(nextParentDate(d.start, d.freq))}\n\n` +
+    "The agreement will be sent to the parent and the tutor.";
+}
+
+async function dealStart(ctx: Ctx, d: Json, row: Json): Promise<Out[]> {
+  d.tutorId = row.tutor_id;
+  d.tutorName = row.tutorName;
+  d.tutorLine = person({ ...row, full_name: row.tutorName });
+  d.existing = !!row.billing_plan?.deal?.finalizedAt;
+  return go(ctx, "ad_dl_days", d);
 }

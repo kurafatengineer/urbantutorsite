@@ -104,7 +104,7 @@ interface AuthedUser { id: string; email: string; }
 // a trusted server function with the service key (only edge functions hold it) and names the employee;
 // whether that employee is active, inside their login hours and allowed to run the action is checked
 // exactly as for the panel.
-const BOT_ACTIONS = ["adminWhoAmI", "adminAddTuition", "adminAssignTutor", "adminUpdateDemoRow", "adminAddPayment"];
+const BOT_ACTIONS = ["adminWhoAmI", "adminAddTuition", "adminAssignTutor", "adminUpdateDemoRow", "adminAddPayment", "adminAddStudent", "adminFinalizeClass"];
 
 function sameSecret(a: string, b: string): boolean {
   if (!a || a.length !== b.length) return false;
