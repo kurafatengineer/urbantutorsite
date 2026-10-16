@@ -1,8 +1,8 @@
--- CLEAN-UP, NOT YET APPLIED.
--- These objects are not used by the website, the Edge Functions or any other database function
--- (checked 2026-10-14). The SQL tool used in the review hung on every DROP / function statement
--- (indexes and ALTER TABLE ran fine), so run this once from Supabase -> SQL Editor.
--- Dropping is permanent, so look at it first. When done, move it above with the "applied" note.
+-- CLEAN-UP, APPLIED 2026-10-16 (run by hand from Supabase -> SQL Editor, in one transaction).
+-- These objects were not used by the website, the Edge Functions or any other database function
+-- (checked 2026-10-14). The SQL tool used in the review hung on every DROP / function statement,
+-- so it was run from the SQL Editor. Checked afterwards: all six functions, _import_stage and the
+-- test row are gone; the live bot / registration functions are still there.
 
 drop function if exists public.get_public_students();
 drop function if exists public.get_public_tutors();

@@ -75,7 +75,6 @@
 -- ---------------------------------------------------------------------
 
 -- register_student(p jsonb)            New student sign-up.
--- register_student_whatsapp(p jsonb)   Student sign-up via the WhatsApp bot.
 -- register_tutor(p jsonb)              New tutor sign-up.
 -- set_tutor_documents(...)             Save identity proof / profile image paths.
 -- get_student_profile()                The logged-in student's own profile + tuitions.
@@ -85,9 +84,8 @@
 -- respond_to_demo_tutor(demo_id, decision)       Tutor accepts/rejects a demo.
 -- add_tuition(p jsonb)                 Student posts a new requirement.
 -- get_available_tuitions()             Public list of open tuitions (for tutors to browse).
--- get_public_tutors() / get_public_students()    Public directory listings.
 -- get_home_stats()                     Counts shown on the landing page.
--- email_status(p_email) / whatsapp_number_status(p_number)   Sign-up duplicate checks.
+-- email_status(p_email)                Sign-up duplicate check.
 -- tuition_status(p_demo_id)            Status label for one tuition.
 -- auth_email()                         Helper: lower(auth.jwt() ->> 'email').
 
@@ -104,10 +102,6 @@
 -- admin_update_demo_row(demo_id, tutor_id, changes)   Edit one application row.
 -- admin_assign_tutor(demo_id, tutor_lookup)     Manually assign a tutor to a tuition.
 -- admin_set_terminated(demo_id, terminated)     Terminate / reopen a tuition.
--- admin_verify_tutor(tutor_id, status)          Legacy helper - superseded in the
---                                                Edge Function by admin_update_record
---                                                with kind='tutors', but left in place
---                                                since nothing depends on removing it.
 --
 -- Payments, employees, and admin login/roles are NOT separate SQL
 -- functions - the Edge Function talks to the payments / admin_users

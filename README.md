@@ -264,9 +264,6 @@ Subscriptions, Employees.
 ---
 
 ## 6. Known leftovers (safe to tidy when convenient)
-- Run `supabase/migrations/0051_cleanup_unused.sql` once from Supabase -> SQL Editor: drops 6 unused database
-  functions, the leftover table `_import_stage`, and a test row in `class_notifications`. (The review tool hung on
-  every DROP, so it could not be applied from there.)
 - Old test Edge Functions still deployed in Supabase but not in this repo: `mailtest`, `mail-test`,
   `whatsapp-webhook` (the last one needs a login token, so Meta can never reach it). Delete them in
   Supabase -> Edge Functions.
