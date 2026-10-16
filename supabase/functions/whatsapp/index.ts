@@ -4,6 +4,7 @@
 import { SITE_URL } from "../_shared/constants.ts";
 import { handleInput, startAddChild, startRegistration, type Out } from "../_shared/regflow.ts";
 import { startTuition } from "../_shared/tuitionflow.ts";
+import { startApply } from "../_shared/applyflow.ts";
 import { accountsByPhone, inList, last10, loadLife, pickerText, rest } from "../_shared/botdata.ts";
 import { demoDetail, findingDetail, people, runningDetail } from "../_shared/classinfo.ts";
 
@@ -108,6 +109,7 @@ async function showMenu(to: string, role: string, accounts: Accounts, sid = "", 
     if (n) rows.push({ id: `c:${role}:${cat}${tag}`, title: `${catLabel(role, cat)} (${n})`.slice(0, 24) });
   }
   rows.push(role === "s" ? { id: `a:s${tag}`, title: "Apply for New Tuition" } : { id: "a:t", title: "Find New Tuitions" });
+  if (role === "t") rows.push({ id: "ap:t", title: "Apply for New Tuition" });
   rows.push({ id: `n:${role}${tag}`, title: off ? "Turn ON Notifications" : "Turn OFF Notifications" });
   if (role === "s") rows.push({ id: "nc:s", title: ADD_CHILD });
   if (many) rows.push({ id: "k:s", title: "Switch Student" });
@@ -185,6 +187,7 @@ async function onMessage(m: Json) {
   const role = roleRaw === "t" && accounts.tutors.length ? "t" : roleRaw === "s" && accounts.students.length ? "s" : accounts.students.length ? "s" : "t";
   const arg = rest3[0] ?? "";
   if (action === "r" && arg) { await showRunning(from, role, arg, accounts); return; }
+  if (action === "ap" && accounts.tutors.length) { await sendAll(from, await startApply(reg, accounts.tutors)); return; }
   if (action === "nc" && accounts.students.length) { await sendAll(from, await startAddChild(reg, accounts.students)); return; }
   const cat = action === "c" ? arg : "";
   const asked = action === "c" ? rest3[1] ?? "" : arg;

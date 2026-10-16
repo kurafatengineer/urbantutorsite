@@ -13,7 +13,7 @@ const shared = join(here, "..", "functions", "_shared");
 const out = join(here, "build");
 mkdirSync(out, { recursive: true });
 
-for (const f of ["botdata", "session", "regflow", "tuitionflow", "classinfo", "deal", "constants", "format"]) {
+for (const f of ["botdata", "session", "regflow", "tuitionflow", "applyflow", "classinfo", "deal", "constants", "format"]) {
   const js = ts.transpileModule(readFileSync(join(shared, f + ".ts"), "utf8"), { compilerOptions: { target: "ES2022", module: "ESNext" } }).outputText;
   writeFileSync(join(out, f + ".mjs"), js.replace(/from "\.\/(\w+)\.ts"/g, 'from "./$1.mjs"'));
 }
@@ -21,12 +21,12 @@ for (const f of ["botdata", "session", "regflow", "tuitionflow", "classinfo", "d
 writeFileSync(join(out, "email.mjs"), "export const mails=[];export const emailTemplate=(o)=>o.intro;export async function sendMail(to,subject,html,opts){mails.push({to,subject,html,opts});}");
 
 // the real mails.ts / telegram.ts send mail and Telegram messages: pretend ones that remember what would go out
-writeFileSync(join(out, "mails.mjs"), "export { fmtDate, fmtTime } from './format.mjs';export const tuitionPostedMail=(d)=>({subject:'posted',d});" +
+writeFileSync(join(out, "mails.mjs"), "export { fmtDate, fmtTime } from './format.mjs';export const tuitionPostedMail=(d)=>({subject:'posted',d});export const tutorAppliedMail=(d)=>({subject:'applied',d});" +
   "export const inr=(n)=>'Rs '+Number(n||0);export const contactLine=(t,p)=>'Contact '+(t?'parent':'tutor')+' ('+(p||'')+')';");
 writeFileSync(join(out, "telegram.mjs"), "export const sent=[];export async function notify(email,mail){sent.push({email,mail});}export async function studentQuiet(){return false;}");
 
 let failed = 0;
-for (const t of ["regflow.test.mjs", "tuitionflow.test.mjs", "classinfo.test.mjs", "botdata.test.mjs"]) {
+for (const t of ["regflow.test.mjs", "tuitionflow.test.mjs", "applyflow.test.mjs", "classinfo.test.mjs", "botdata.test.mjs"]) {
   console.log("\n== " + t);
   const r = spawnSync("node", [join(here, t)], { stdio: "inherit" });
   if (r.status) failed++;
