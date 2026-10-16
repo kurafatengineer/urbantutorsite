@@ -229,6 +229,11 @@ website's rules (verified, not blocked, tuition still open, not applied twice) a
 also refuses a tutor whose gender does not match the tuition's preferred tutor
 ("Any" accepts everyone). After a refusal the tutor can type another ID; on success
 the parent gets the "A Tutor Applied" email / Telegram message.
+
+The same gender rule is in `apply_for_tuition` (migration 0054), so the website
+follows it too: on `advertisement.html` a tuition for the other gender shows a pale,
+disabled **Not Applicable** button (`get_available_tuitions` now returns
+`tutorGender`), and the dashboard's "matching tuitions" skips it.
 Only students found behind that WhatsApp number / linked to that Telegram chat can
 be picked. "Hi" or "Cancel" leaves the flow.
 

@@ -657,8 +657,14 @@
     const places = [lower(profile.city), lower(profile.location)].filter(Boolean);
     const applied = new Set(((adsResult && adsResult.appliedDemoIds) || []).map(String));
 
+    const myGender = lower(adsResult && adsResult.tutorGender);
+    const forMyGender = t => {
+      const need = lower(t.preferredTutor);
+      return !myGender || (need !== "male" && need !== "female") || need === myGender;
+    };
+
     const matches = ((adsResult && adsResult.tuitions) || [])
-      .filter(t => !applied.has(String(t.demoId)) && !t.applied)
+      .filter(t => !applied.has(String(t.demoId)) && !t.applied && forMyGender(t))
       .map(t => {
         const subj = lower(t.subject);
         const subjectHit = subjects.find(s => s && (s === subj || s.includes(subj) || subj.includes(s)));
