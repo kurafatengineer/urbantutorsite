@@ -51,6 +51,8 @@ const EMBEDDED = document.documentElement.classList.contains("embed");
 
 // false = a tutor is logged in but NOT verified yet -> Apply locked.
 let tutorVerified = null;
+// The logged-in tutor's gender ("Male" / "Female"), or "" for visitors and students.
+let tutorGender = "";
 
 function showToast(message, isError) {
 
@@ -141,6 +143,7 @@ function applyListResult(result) {
   // Only a logged-in TUTOR has a verification status. Visitors and
   // students get null: no notice, and "Apply" leads to the tutor login.
   tutorVerified = result.loggedInTutor ? !!result.tutorVerified : null;
+  tutorGender = result.loggedInTutor ? String(result.tutorGender || "") : "";
   $("verifyNotice")?.classList.toggle("hidden", tutorVerified !== false);
 
   // Merge (never drop) - keeps anything applied for in this visit
@@ -361,6 +364,19 @@ function formatMedium(value) {
 
 }
 
+// A "Male" / "Female" tuition can only be taken by a tutor of that gender
+// ("Any" / "Both" is open to everyone). Visitors and students are not judged.
+function genderMismatch(item) {
+
+  const needed = String(item.preferredTutor || "").trim().toLowerCase();
+
+  if (needed !== "male" && needed !== "female") return false;
+  if (!tutorGender) return false;
+
+  return tutorGender.toLowerCase() !== needed;
+
+}
+
 function formatPreferredTutor(value) {
 
   const v = String(value || "").trim();
@@ -405,6 +421,7 @@ function renderTuitionCard(item) {
   const pinText = String(item.pinCode || "").trim();
 
   const applied = appliedDemoIds.has(String(item.demoId));
+  const notForMe = !applied && genderMismatch(item);
 
   return `
     <div class="class-card" data-demo-id="${escapeHTML(item.demoId)}">
@@ -434,11 +451,12 @@ function renderTuitionCard(item) {
 
         <div class="class-row-bottom">
           <button
-            class="apply-button ${applied ? "applied" : ""}"
+            class="apply-button ${applied ? "applied" : ""} ${notForMe ? "not-applicable" : ""}"
             type="button"
             data-apply="${escapeHTML(item.demoId)}"
-            ${applied || tutorVerified === false ? 'disabled aria-disabled="true"' : ""}
-          >${applied ? "Already Applied" : (tutorVerified === false ? "Verification Pending" : "Apply")}</button>
+            ${notForMe ? `title="This tuition is only for ${escapeHTML(String(item.preferredTutor).toLowerCase())} tutors"` : ""}
+            ${applied || notForMe || tutorVerified === false ? 'disabled aria-disabled="true"' : ""}
+          >${applied ? "Already Applied" : (notForMe ? "Not Applicable" : (tutorVerified === false ? "Verification Pending" : "Apply"))}</button>
         </div>
 
       </div>
@@ -484,6 +502,14 @@ async function applyForTuition(demoId, button) {
         $("verifyNotice")?.classList.remove("hidden");
         render();
         showToast(result.message || "Your profile is not verified yet.", true);
+        return;
+      }
+
+      if (result && result.genderMismatch) {
+        showToast(result.message || "This tuition is not for your gender.", true);
+        button.disabled = true;
+        button.textContent = "Not Applicable";
+        button.classList.add("not-applicable");
         return;
       }
 

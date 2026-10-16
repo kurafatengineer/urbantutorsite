@@ -292,6 +292,15 @@
   color: rgba(10, 10, 10, 0.75);
 }
 
+/* Not for this tutor (the tuition asks for the other gender): a pale,
+   flat button so it reads as "you cannot apply" and not as a call to act. */
+.apply-button.not-applicable,
+.apply-button.not-applicable:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 600;
+}
+
 /* ================= TOAST ================= */
 
 .apply-toast {
