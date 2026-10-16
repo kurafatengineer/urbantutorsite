@@ -39,6 +39,7 @@
 import { notify, notifyIfMatched, demoResponseButtons, studentQuiet, tutorQuiet } from "../_shared/telegram.ts";
 import { handleInput, startAddChild, startRegistration, type Out } from "../_shared/regflow.ts";
 import { startTuition } from "../_shared/tuitionflow.ts";
+import { startApply } from "../_shared/applyflow.ts";
 import { inList, loadLife, pickerText, q, rest as db } from "../_shared/botdata.ts";
 import { SITE_URL } from "../_shared/constants.ts";
 import { demoDetail, findingDetail, people, runningDetail } from "../_shared/classinfo.ts";
@@ -328,6 +329,7 @@ async function menuContent(chatId: number, role: "s" | "t", sid = ""): Promise<{
   rows.push(role === "s"
     ? [{ text: leftPad("📝 Apply for New Tuition"), callback_data: `m:p:s${tag}` }]
     : [{ text: leftPad("🔎 Find New Tuitions"), web_app: { url: `${SITE_URL}/advertisement.html` } }]);
+  if (role === "t") rows.push([{ text: leftPad("✍️ Apply for New Tuition"), callback_data: "m:ap:t" }]);
   rows.push([{ text: leftPad(off ? "🔔 Turn ON Notifications" : "🔕 Turn OFF Notifications"), callback_data: `m:n:${role}${tag}` }]);
   if (role === "s") rows.push([{ text: leftPad(ADD_CHILD), callback_data: "m:nc:s" }]);
   if (role === "s" && many) rows.push([{ text: leftPad("🔁 Switch Student"), callback_data: "m:k:s" }]);
@@ -449,6 +451,10 @@ async function onMenuButton(cb: Json) {
   } else if (action === "r" && demoId) {
     await showRunning(chatId, messageId, role, demoId);
     await answer();
+  } else if (action === "ap") {
+    const { tutors } = await linked(chatId);
+    await answer();
+    if (tutors.length) await sendAll(chatId, await startApply({ channel: "tg", key: String(chatId), telegramChatId: chatId }, tutors));
   } else if (action === "nc") {
     const { students } = await linked(chatId);
     await answer();

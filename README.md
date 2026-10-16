@@ -220,6 +220,15 @@ verify). The same duplicate check applies, so the same child cannot be added twi
 Female) → mode (Any / Home / Online) → check & Post. Same result as the
 website form: one Demo ID per subject, a subject that already has a running request
 is refused, and the "Tuition Request Posted" email / Telegram message goes out.
+
+### Chat apply flow for tutors (`_shared/applyflow.ts`)
+"Apply for New Tuition" in the tutor's bot menu (next to "Find New Tuitions"). The
+tutor types a Tuition ID — `DID` followed by 8 digits, e.g. `DID20260007` (spaces and
+small letters are fine). `bot_apply_for_tuition` (migration 0053) applies with the
+website's rules (verified, not blocked, tuition still open, not applied twice) and
+also refuses a tutor whose gender does not match the tuition's preferred tutor
+("Any" accepts everyone). After a refusal the tutor can type another ID; on success
+the parent gets the "A Tutor Applied" email / Telegram message.
 Only students found behind that WhatsApp number / linked to that Telegram chat can
 be picked. "Hi" or "Cancel" leaves the flow.
 
