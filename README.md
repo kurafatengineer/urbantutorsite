@@ -188,6 +188,17 @@ link to the profile.
   `https://zbvtdcqoouwyrcxkzjfv.supabase.co/functions/v1/whatsapp`, verify token =
   `WHATSAPP_VERIFY_TOKEN`, field **messages** subscribed, and "Subscribe
   webhooks" on for the WhatsApp Business Account.
+- **Who is this number?** One number can be an employee (Admin), a student/parent and a tutor.
+  If more than one matches, the bot asks *Act as Admin / Student / Tutor*, and every menu has
+  a *Switch to …* row.
+- **Admin on WhatsApp** (WhatsApp only for now; Telegram later): an employee whose **Mobile /
+  WhatsApp number** is set in Admin → Employees gets an Admin menu - *New Tuition* (by WhatsApp /
+  mobile number or Student ID), *Assign Tutor*, *Schedule Demo*, *Tutor Confirmation* (view, or
+  confirm for the tutor) and *Create Payment* (only after tutor and parent both agreed). The bot
+  calls the `admin` function as that employee, so permissions, login hours, "hide mobile" and
+  e-mails are exactly the same as in the panel. Admin recognition is **switched off until the
+  secret `WHATSAPP_APP_SECRET` is set** (Meta app → Settings → Basic → App Secret), so a forged
+  message cannot act as an admin.
 - **Not yet built:** sending notifications (reminders, demo, payments) over WhatsApp.
   That needs Meta-approved message templates — the ready-to-paste drafts are in
   `docs/whatsapp-templates.md`.

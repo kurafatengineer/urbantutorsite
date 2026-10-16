@@ -5,7 +5,8 @@ import { SITE_URL } from "../_shared/constants.ts";
 import { handleInput, startAddChild, startRegistration, type Out } from "../_shared/regflow.ts";
 import { startTuition } from "../_shared/tuitionflow.ts";
 import { startApply } from "../_shared/applyflow.ts";
-import { accountsByPhone, inList, last10, loadLife, pickerText, rest } from "../_shared/botdata.ts";
+import { accountsByPhone, employeeByPhone, inList, last10, loadLife, pickerText, rest } from "../_shared/botdata.ts";
+import { adminMenuRows, startAdminFlow, whoAmI, type AdminKind } from "../_shared/adminflow.ts";
 import { demoDetail, findingDetail, people, runningDetail } from "../_shared/classinfo.ts";
 
 type Json = Record<string, any>;
@@ -98,7 +99,30 @@ async function showPicker(to: string, accounts: Accounts) {
 }
 
 // The menu of one tutor, one student (sid), or the only student on the number.
-async function showMenu(to: string, role: string, accounts: Accounts, sid = "", many = false) {
+// A number can belong to an employee (a), a parent (s) and a tutor (t) at once - rare, but it happens.
+const SWITCH_TO: Record<string, string> = { a: "Switch to Admin", s: "Switch to Student", t: "Switch to Tutor" };
+const ACT_AS: Record<string, string> = { a: "Act as Admin", s: "Act as Student", t: "Act as Tutor" };
+const ROLE_WORDS: Record<string, string> = { a: "an *admin*", s: "a *student*", t: "a *tutor*" };
+
+async function showAdminMenu(to: string, employeeId: string, roles: string[]) {
+  const me = await whoAmI(employeeId);
+  if (!me.ok) { await sendText(to, `${me.message}\n\nSend *Hi* any time for the menu.`); return; }
+  const rows: Json[] = adminMenuRows(me.perms).map((r) => ({ id: r.id, title: r.title }));
+  for (const other of roles.filter((r) => r !== "a")) rows.push({ id: `h:${other}`, title: SWITCH_TO[other] });
+  if (!adminMenuRows(me.perms).length) {
+    await sendText(to, `Hi,\n*${me.name}*\n\nYour account has no admin work on WhatsApp yet.\nAsk the Super Admin to give you the permissions.`);
+    if (!rows.length) return;
+  }
+  await send(to, {
+    type: "interactive",
+    interactive: {
+      type: "list", body: { text: `Hi,\n*${me.name}* (Admin)\n\nOpen the *Menu* to see what you can do.`.slice(0, 1024) }, footer: { text: "Urban Tutor Site" },
+      action: { button: "Menu", sections: [{ title: "Admin Menu", rows: rows.slice(0, 10) }] },
+    },
+  });
+}
+
+async function showMenu(to: string, role: string, accounts: Accounts, sid = "", many = false, roles: string[] = []) {
   const mine = role === "s" ? accounts.students : accounts.tutors;
   const tag = sid ? `:${sid}` : "";
   const life = await lifeOf(role, accounts);
@@ -113,9 +137,7 @@ async function showMenu(to: string, role: string, accounts: Accounts, sid = "", 
   rows.push({ id: `n:${role}${tag}`, title: off ? "Turn ON Notifications" : "Turn OFF Notifications" });
   if (role === "s") rows.push({ id: "nc:s", title: ADD_CHILD });
   if (many) rows.push({ id: "k:s", title: "Switch Student" });
-  if (accounts.students.length && accounts.tutors.length) {
-    rows.push({ id: `h:${role === "s" ? "t" : "s"}`, title: role === "s" ? "Switch to Tutor" : "Switch to Student" });
-  }
+  for (const other of roles.filter((r) => r !== role)) rows.push({ id: `h:${other}`, title: SWITCH_TO[other] });
   const idCol = role === "s" ? "student_id" : "tutor_id";
   const names = mine.map((r) => `*${String((role === "s" ? r.student_name : r.full_name) || "-")}* (${r[idCol]})`);
   const body = `Hi,\n${names.join("\n")}\n\nOpen the *Menu* to see the details.`;
@@ -172,7 +194,11 @@ async function onMessage(m: Json) {
   if (inFlow) { await sendAll(from, inFlow); return; }
 
   const accounts = await accountsByPhone(from);
-  if (!accounts.students.length && !accounts.tutors.length) {
+  // An employee is recognised by their Mobile / WhatsApp number - and only when Meta's signature on the call is
+  // checked (WHATSAPP_APP_SECRET), because admin work must never rest on a message that could have been faked.
+  const employee = APP_SECRET ? await employeeByPhone(from) : null;
+  const roles = [employee ? "a" : "", accounts.students.length ? "s" : "", accounts.tutors.length ? "t" : ""].filter(Boolean);
+  if (!roles.length) {
     await send(from, {
       type: "interactive",
       interactive: {
@@ -184,8 +210,12 @@ async function onMessage(m: Json) {
     return;
   }
   const [action, roleRaw, ...rest3] = picked.split(":");
-  const role = roleRaw === "t" && accounts.tutors.length ? "t" : roleRaw === "s" && accounts.students.length ? "s" : accounts.students.length ? "s" : "t";
+  const role = roles.includes(roleRaw) ? roleRaw : roles.includes("s") ? "s" : roles.includes("t") ? "t" : "a";
   const arg = rest3[0] ?? "";
+  if (action === "ad" && employee && ["new", "assign", "demo", "conf", "pay"].includes(roleRaw)) {
+    await sendAll(from, await startAdminFlow(reg, employee.id, roleRaw as AdminKind));
+    return;
+  }
   if (action === "r" && arg) { await showRunning(from, role, arg, accounts); return; }
   if (action === "ap" && accounts.tutors.length) { await sendAll(from, await startApply(reg, accounts.tutors)); return; }
   if (action === "nc" && accounts.students.length) { await sendAll(from, await startAddChild(reg, accounts.students)); return; }
@@ -198,7 +228,7 @@ async function onMessage(m: Json) {
   const scoped: Accounts = kid ? { students: [kid], tutors: accounts.tutors } : accounts;
 
   if (role === "s" && many && !kid && ["k", "c", "n", "a"].includes(action)) { await showPicker(from, accounts); return; }
-  if (action === "k" && kid) { await showMenu(from, "s", scoped, sid, many); return; }
+  if (action === "k" && kid) { await showMenu(from, "s", scoped, sid, many, roles); return; }
   if (action === "n") {
     const mine = role === "s" ? scoped.students : accounts.tutors;
     const turnOff = mine.some((r) => r.notifications_off !== true);
@@ -215,18 +245,22 @@ async function onMessage(m: Json) {
     return;
   }
   if (action === "c" && cat) { await showCategory(from, role, cat, scoped, sid); return; }
-  if (accounts.students.length && accounts.tutors.length && action !== "h") {
+  // the same number is more than one of admin / student / tutor: ask which one to use
+  if (roles.length > 1 && action !== "h") {
+    const words = roles.map((r) => ROLE_WORDS[r]);
+    const list = words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}` : words[0];
     await send(from, {
       type: "interactive",
       interactive: {
-        type: "button", body: { text: "You are registered as both a student and a tutor. Which one do you want to use now?" },
-        action: { buttons: [{ type: "reply", reply: { id: "h:s", title: "Act as Student" } }, { type: "reply", reply: { id: "h:t", title: "Act as Tutor" } }] },
+        type: "button", body: { text: `This number is registered as ${list}. Which one do you want to use now?` },
+        action: { buttons: roles.map((r) => ({ type: "reply", reply: { id: `h:${r}`, title: ACT_AS[r] } })) },
       },
     });
     return;
   }
+  if (role === "a" && employee) { await showAdminMenu(from, employee.id, roles); return; }
   if (role === "s" && many) { await showPicker(from, accounts); return; }
-  await showMenu(from, role, scoped);
+  await showMenu(from, role, scoped, "", false, roles);
 }
 
 Deno.serve(async (req) => {

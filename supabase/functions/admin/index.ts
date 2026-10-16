@@ -100,9 +100,27 @@ interface Caller {
 
 interface AuthedUser { id: string; email: string; }
 
-async function currentUser(authHeader: string | null): Promise<AuthedUser | null> {
+// The WhatsApp bot runs a few admin actions for an employee it recognised by phone number. It proves it is
+// a trusted server function with the service key (only edge functions hold it) and names the employee;
+// whether that employee is active, inside their login hours and allowed to run the action is checked
+// exactly as for the panel.
+const BOT_ACTIONS = ["adminWhoAmI", "adminAddTuition", "adminAssignTutor", "adminUpdateDemoRow", "adminAddPayment"];
+
+function sameSecret(a: string, b: string): boolean {
+  if (!a || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+async function currentUser(authHeader: string | null, botEmployeeId?: string): Promise<AuthedUser | null> {
   const token = (authHeader ?? "").replace(/^Bearer\s+/i, "").trim();
   if (!token) return null;
+  if (botEmployeeId) {
+    if (!sameSecret(token, SERVICE_KEY)) return null;
+    const { data } = await db.from("admin_users").select("id, email").eq("id", botEmployeeId).maybeSingle();
+    return data?.email ? { id: data.id, email: String(data.email).toLowerCase() } : null;
+  }
   const { data, error } = await db.auth.getUser(token);
   if (error || !data?.user?.email) return null;
   return { id: data.user.id, email: data.user.email.toLowerCase() };
@@ -122,8 +140,8 @@ async function findAuthUserByEmail(email: string): Promise<string | null> {
   return null;
 }
 
-async function loadCaller(authHeader: string | null): Promise<Caller | "no-session" | "not-admin" | "bootstrap-needed"> {
-  const user = await currentUser(authHeader);
+async function loadCaller(authHeader: string | null, botEmployeeId?: string): Promise<Caller | "no-session" | "not-admin" | "bootstrap-needed"> {
+  const user = await currentUser(authHeader, botEmployeeId);
   if (!user) return "no-session";
 
   const { data: row } = await db
@@ -627,7 +645,7 @@ async function buildPaymentDirectory(): Promise<Json> {
 async function listEmployees(): Promise<Json[]> {
   const { data } = await db
     .from("admin_users")
-    .select("id, email, full_name, role, active, created_at, permissions, last_seen_at, last_active_at, logged_out_at, work_start, work_end, notifications_off")
+    .select("id, email, full_name, role, active, created_at, permissions, last_seen_at, last_active_at, logged_out_at, work_start, work_end, notifications_off, mobile_number, whatsapp_number")
     .order("created_at", { ascending: true });
   const now = Date.now();
   const recent = (t: unknown) => !!t && now - new Date(String(t)).getTime() < PRESENCE_MS;
@@ -688,6 +706,34 @@ function hoursChange(value: unknown): string | null | undefined | { error: strin
   const v = String(value ?? "").trim();
   if (!v) return null;
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : { error: "Enter login hours like 09:00." };
+}
+
+// An employee's mobile / WhatsApp number: ten digits (a leading +91 / 91 / 0 is dropped).
+// undefined = not sent, null = cleared.
+function phoneChange(value: unknown, label: string): string | null | undefined | { error: string } {
+  if (value === undefined) return undefined;
+  let d = String(value ?? "").replace(/\D/g, "");
+  if (!d) return null;
+  if (d.length === 12 && d.startsWith("91")) d = d.slice(2);
+  else if (d.length === 11 && d.startsWith("0")) d = d.slice(1);
+  return /^[6-9]\d{9}$/.test(d) ? d : { error: `${label} must be a 10-digit Indian number.` };
+}
+
+// Another employee already has this number (in either column)?
+async function numberTakenByEmployee(numbers: string[], exceptId?: string): Promise<string | null> {
+  for (const n of numbers.filter(Boolean)) {
+    const { data } = await db.from("admin_users").select("id, full_name")
+      .or(`mobile10.eq.${n},whatsapp10.eq.${n}`).limit(2);
+    const other = (data ?? []).find((r: Json) => r.id !== exceptId);
+    if (other) return `${n} already belongs to ${other.full_name}.`;
+  }
+  return null;
+}
+
+// The employee list for one caller: whoever hides contacts gets masked numbers.
+async function employeesFor(caller: Caller): Promise<Json[]> {
+  const list = await listEmployees();
+  return hidesContacts(caller) ? await maskContacts(list, { contacts: true, address: false }) as Json[] : list;
 }
 
 /* ------------------------------------------------------------------
@@ -1123,13 +1169,15 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
 
   const action = String(body?.action ?? "");
   if (action === "adminSendCode") return handleSendCode(body);
-  const user = await currentUser(authHeader);
+  const botId = body?.botEmployeeId ? String(body.botEmployeeId) : undefined;
+  if (botId && !BOT_ACTIONS.includes(action)) return forbidden();
+  const user = await currentUser(authHeader, botId);
 
   if (!user) {
     return { success: false, notAdmin: true, message: "Please log in again." };
   }
 
-  const caller = await loadCaller(authHeader);
+  const caller = await loadCaller(authHeader, botId);
 
   if (caller === "no-session" || caller === "not-admin") {
     return { success: false, notAdmin: true, message: "This email is not set up for admin access." };
@@ -1157,18 +1205,26 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
   }
 
   // Every call counts as "panel open"; anything but reading counts as working.
-  try { await touch(caller, action !== READ_ONLY_ACTION && action !== "adminPing"); } catch (e) { console.error("touch", e); }
+  // (a bot call is not "the panel is open", so it leaves the presence dots alone)
+  if (!botId) {
+    try { await touch(caller, action !== READ_ONLY_ACTION && action !== "adminPing"); } catch (e) { console.error("touch", e); }
+  }
 
   if (action === "adminPing") {
     if (body.active === true) {
       await db.from("admin_users").update({ last_active_at: new Date().toISOString() }).eq("id", caller.id);
     }
     return caller.permissions.has("employees_manage")
-      ? { success: true, employees: await listEmployees() }
+      ? { success: true, employees: await employeesFor(caller) }
       : { success: true };
   }
 
   if (action === READ_ONLY_ACTION) return handleGetOverview(caller);
+
+  // The bot asks who it is talking to: name, role, what they may do (and whether numbers must stay hidden).
+  if (action === "adminWhoAmI") {
+    return { success: true, me: { fullName: caller.fullName, role: caller.role, permissions: [...caller.permissions], hideContacts: hidesContacts(caller) } };
+  }
 
   // Emails On / Off: a Super Admin switches the whole site, anyone else
   // (with the mails_toggle permission) only their own updates.
@@ -1541,7 +1597,7 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
     }
 
     case "adminListEmployees": {
-      return { success: true, employees: await listEmployees() };
+      return { success: true, employees: await employeesFor(caller) };
     }
 
     case "adminAddEmployee": {
@@ -1573,7 +1629,14 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
       const workStart = hoursChange(body.workStart), workEnd = hoursChange(body.workEnd);
       for (const h of [workStart, workEnd]) if (h && typeof h === "object") return { success: false, message: h.error };
 
+      const mobile = phoneChange(body.mobileNumber, "Mobile Number");
+      const whatsapp = phoneChange(body.whatsappNumber, "WhatsApp Number");
+      for (const n of [mobile, whatsapp]) if (n && typeof n === "object") return { success: false, message: n.error };
+      const taken = await numberTakenByEmployee([mobile, whatsapp].filter((n): n is string => typeof n === "string"));
+      if (taken) return { success: false, message: taken };
+
       const { error } = await db.from("admin_users").insert({
+        mobile_number: mobile ?? null, whatsapp_number: whatsapp ?? null,
         id: userId, email: employeeEmail, full_name: fullName, role, active: true,
         work_start: role === "super_admin" ? null : (workStart ?? null),
         work_end: role === "super_admin" ? null : (workEnd ?? null),
@@ -1608,6 +1671,17 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
         const h = hoursChange(body.changes?.[key]);
         if (h && typeof h === "object") return { success: false, message: h.error };
         if (h !== undefined) changes[column] = h;
+      }
+      // Mobile / WhatsApp numbers - not editable by someone who can't see them
+      if (!hidesContacts(caller)) {
+        const numbers: string[] = [];
+        for (const [key, column, label] of [["mobileNumber", "mobile_number", "Mobile Number"], ["whatsappNumber", "whatsapp_number", "WhatsApp Number"]]) {
+          const n = phoneChange(body.changes?.[key], label);
+          if (n && typeof n === "object") return { success: false, message: n.error };
+          if (n !== undefined) { changes[column] = n; if (n) numbers.push(n); }
+        }
+        const taken = await numberTakenByEmployee(numbers, String(body.id));
+        if (taken) return { success: false, message: taken };
       }
       // Whatever role they end up with, a Super Admin's list is never stored
       // and their hours are never limited.

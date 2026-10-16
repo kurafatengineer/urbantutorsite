@@ -593,6 +593,17 @@
               <span>Role</span>
             </label>
           </div>
+          <!-- the WhatsApp bot recognises the employee by these numbers (10 digits, optional) -->
+          <div class="admin-form-row admin-form-row-3">
+            <label class="admin-float">
+              <input id="employeeMobile" type="tel" inputmode="numeric" maxlength="14" placeholder=" " autocomplete="off">
+              <span>Mobile Number</span>
+            </label>
+            <label class="admin-float">
+              <input id="employeeWhatsapp" type="tel" inputmode="numeric" maxlength="14" placeholder=" " autocomplete="off">
+              <span>WhatsApp Number</span>
+            </label>
+          </div>
           <!-- when this employee may use the Admin Panel (India time); a Super Admin: 24 x 7 -->
           <!-- Duration first, then Login From or Login Till - the other one fills in -->
           <div id="employeeHoursRow" class="admin-form-row admin-form-row-3" data-hours>
@@ -874,7 +885,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js?v=20260930r"></script>
 <script src="js/portal.js?v=20261001a"></script>
-<script src="js/pages/admin.js?v=20261017a" defer></script>
+<script src="js/pages/admin.js?v=20261018a" defer></script>
 
 <script src="js/autocaps.js?v=20261013a" defer></script>
 </body>

@@ -8,6 +8,7 @@ import { inList, last10, q, rest, studentEmailTaken as studentWithEmail, student
 import { type Choice, type Ctx, type Input, type Out, clean, clear, load, save, titleCase } from "./session.ts";
 import { startTuition, tuitionInput } from "./tuitionflow.ts";
 import { applyInput } from "./applyflow.ts";
+import { adminInput } from "./adminflow.ts";
 
 type Json = Record<string, any>;
 export type { Choice, Ctx, Input, Out };
@@ -150,6 +151,11 @@ export async function handleInput(ctx: Ctx, input: Input): Promise<Out[] | null>
     // "Hi" / "Menu" in the middle of posting a tuition leaves it and shows the menu
     if (/^(hi|hello|hey|menu)$/i.test(clean(input.text))) { await clear(ctx); return null; }
     return tuitionInput(ctx, s, input);
+  }
+  if (s.step.startsWith("ad_")) {
+    // an employee's admin flow (adminflow.ts): "Hi" / "Menu" leaves it too
+    if (/^(hi|hello|hey|menu)$/i.test(clean(input.text))) { await clear(ctx); return null; }
+    return adminInput(ctx, s, input);
   }
   if (s.step.startsWith("a_")) {
     // same for a tutor typing a Tuition ID to apply for
