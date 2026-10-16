@@ -264,9 +264,6 @@ Subscriptions, Employees.
 ---
 
 ## 6. Known leftovers (safe to tidy when convenient)
-- Old test Edge Functions still deployed in Supabase but not in this repo: `mailtest`, `mail-test`,
-  `whatsapp-webhook` (the last one needs a login token, so Meta can never reach it). Delete them in
-  Supabase -> Edge Functions.
 - `bot_respond_to_demo_tutor` does not yet check for a blocked tutor.
 - The `actions` and `admin` functions were last deployed before the newest shared code (`mails.ts`,
   `telegram.ts`, `constants.ts`, `format.ts`); they keep working, redeploy them when you next change them.
