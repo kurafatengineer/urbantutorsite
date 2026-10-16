@@ -212,7 +212,7 @@ async function onMessage(m: Json) {
   const [action, roleRaw, ...rest3] = picked.split(":");
   const role = roles.includes(roleRaw) ? roleRaw : roles.includes("s") ? "s" : roles.includes("t") ? "t" : "a";
   const arg = rest3[0] ?? "";
-  if (action === "ad" && employee && ["new", "assign", "demo", "conf", "pay"].includes(roleRaw)) {
+  if (action === "ad" && employee && ["new", "assign", "demo", "conf", "pay", "student", "deal"].includes(roleRaw)) {
     await sendAll(from, await startAdminFlow(reg, employee.id, roleRaw as AdminKind));
     return;
   }

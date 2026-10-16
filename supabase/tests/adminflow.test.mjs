@@ -26,7 +26,7 @@ const db = {
     { demo_id: "DID20260010", tutor_id: "TID20260001", parent_accepted: false, tutor_accepted: false },
     { demo_id: "DID20260010", tutor_id: "TID20260002", parent_accepted: false, tutor_accepted: false },
   ],
-  calls: [], me: { fullName: "Rahul Kumar", role: "tuition_coordinator", permissions: ["tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_add", "students_view", "payments_add", "payments_view"], hideContacts: false },
+  calls: [], me: { fullName: "Rahul Kumar", role: "tuition_coordinator", permissions: ["tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_add", "students_view", "students_add", "payments_add", "payments_view"], hideContacts: false },
   adminOk: true,
 };
 const ok = (b) => ({ ok: true, status: 200, json: async () => b });
@@ -37,6 +37,7 @@ globalThis.fetch = async (url, init = {}) => {
     if (!db.adminOk) return ok({ success: false, message: "Your login hours are 9:00 AM - 6:00 PM." });
     if (b.action === "adminWhoAmI") return ok({ success: true, me: db.me });
     if (b.action === "adminAddTuition") return ok({ success: true, demoIds: ["DID20260100"] });
+    if (b.action === "adminAddStudent") return ok(b.p.studentName === "Dup Kid" ? { success: false, message: "P0001: This student is already registered (SID20260001) - same mobile number and student name." } : { success: true, studentId: "SID20260101", demoIds: [] });
     return ok({ success: true, message: "Saved." });
   }
   const path = u.pathname.replace("/rest/v1/", "");
@@ -72,7 +73,7 @@ globalThis.fetch = async (url, init = {}) => {
 };
 
 const { handleInput } = await import("./build/regflow.mjs");
-const { startAdminFlow, adminMenuRows, parseDate, parseTime, parseAmount, classify } = await import("./build/adminflow.mjs");
+const { startAdminFlow, adminMenuRows, parseDate, parseTime, parseAmount, classify, parseDays, parseCut, classDatesFor, payDateAt } = await import("./build/adminflow.mjs");
 const assert = (c, msg) => { if (!c) { console.log("FAIL:", msg); process.exitCode = 1; } else console.log("ok  :", msg); };
 const wa = { channel: "wa", key: "9800000000" };
 const step = () => db.bot_sessions[0]?.step;
@@ -93,7 +94,7 @@ assert(classify("+91 98765 43210").value === "9876543210" && classify("12345").k
 
 // ---- menu
 const rows = adminMenuRows(db.me.permissions).map((r) => r.id);
-assert(rows.join() === "ad:new,ad:assign,ad:demo,ad:conf,ad:pay", "full menu for an employee with every permission");
+assert(rows.join() === "ad:student,ad:new,ad:assign,ad:demo,ad:conf,ad:deal,ad:pay", "full menu for an employee with every permission");
 assert(adminMenuRows(["payments_add"]).map((r) => r.id).join() === "ad:pay" && adminMenuRows([]).length === 0, "menu only shows what the employee may do");
 
 // ---- permission / hours
@@ -103,7 +104,7 @@ await say("cancel"); assert(!db.bot_sessions.length, "Cancel ends it");
 db.me.permissions = ["tuitions_view"];
 o = await startAdminFlow(wa, EID, "pay");
 assert(txt(o).includes("do not have permission") && !db.bot_sessions.length, "no permission -> refused");
-db.me.permissions = ["tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_add", "students_view", "payments_add", "payments_view"];
+db.me.permissions = ["tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_add", "students_view", "students_add", "payments_add", "payments_view"];
 db.adminOk = false;
 o = await startAdminFlow(wa, EID, "new");
 assert(txt(o).includes("login hours") && !db.bot_sessions.length, "outside login hours -> the admin function's message");
@@ -185,7 +186,7 @@ assert(!db.bot_sessions.length && txt(o).includes("Tutor: Agreed") && txt(o).inc
 db.me.permissions = ["tuitions_view"];
 await startAdminFlow(wa, EID, "conf"); o = await say("DID20260008");
 assert(!db.bot_sessions.length && !o.some((x) => x.choices), "a viewer who may not edit gets the details only, no confirm button");
-db.me.permissions = ["tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_add", "students_view", "payments_add", "payments_view"];
+db.me.permissions = ["tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_add", "students_view", "students_add", "payments_add", "payments_view"];
 
 // ---- 5. payment
 await startAdminFlow(wa, EID, "pay");
@@ -214,6 +215,73 @@ await say("", "pm_mode:Offline"); await say("", "pm_today"); await say("17-11-20
 assert(last().transactionType === "agency_charge" && last().paymentType === "agency" && last().paymentMode === "Offline" && last().nextPaymentDate === "2099-11-17" && last().tutorId === "TID20260001", "agency charge from the tutor, with a next payment date");
 await startAdminFlow(wa, EID, "pay"); await say("DID20260007"); await say("", "pm_kind:payout"); await say("900"); await say("", "pm_ptype:advance"); await say("offline"); await say("", "pm_today"); await say("", "pm_skip"); await say("", "ad_yes");
 assert(last().transactionType === "payout" && last().paymentType === "advance" && last().paymentMode === "Offline", "payout to the tutor (mode typed instead of tapped)");
+
+// ---- 6. add new student (basic details, skippable)
+assert(parseDays("Mon, Wed, Fri").join() === "1,3,5" && parseDays("mon-sat").join() === "1,2,3,4,5,6" && parseDays("Fri to Mon").join() === "1,5,6,0" && parseDays("daily").length === 7 && parseDays("monday and thursday").join() === "1,4" && parseDays("blah").length === 0, "weekdays: list, range, wrap-around, daily, words");
+assert(JSON.stringify(parseCut("20%")) === '{"type":"percent","value":20}' && JSON.stringify(parseCut("Rs. 1,000")) === '{"type":"amount","value":1000}' && parseCut("abc") === null, "agency cut: % or rupees");
+assert(classDatesFor("2026-10-20", [1, 3]).join() === "2026-10-21,2026-10-26,2026-10-28,2026-11-02,2026-11-04,2026-11-09,2026-11-11,2026-11-16,2026-11-18" && payDateAt("2026-01-31", "Monthly", 1) === "2026-02-28" && payDateAt("2026-10-20", "Weekly", 2) === "2026-11-03", "first month's class dates; month-end and weekly payment dates");
+await startAdminFlow(wa, EID, "student");
+assert(step() === "ad_st_name", "starts with the student's name");
+o = await say("A"); assert(txt(o).includes("type the student's name"), "too short refused");
+await say("riya sharma"); assert(step() === "ad_st_parent" && o !== undefined, "name -> parent (skippable)");
+o = await say("", "st_skip"); assert(step() === "ad_st_phone", "parent skipped");
+o = await say("12345"); assert(txt(o).includes("not a valid mobile") && step() === "ad_st_phone", "mobile is mandatory and checked");
+o = await say("+91 90000 00001"); assert(step() === "ad_st_more" && o[0].choices.map((c) => c.id).join() === "st_save,st_more", "mobile -> Save Now / Add More Details");
+o = await say("", "st_save");
+assert(step() === "ad_st_confirm" && txt(o).includes("Riya Sharma") && txt(o).includes("(not given)") && txt(o).includes("Priyanka Shukla (SID20260001)") && txt(o).includes("No email code is sent"), "basic summary: only name + mobile; shows who else is on this number; no OTP");
+o = await say("", "ad_yes");
+assert(last().action === "adminAddStudent" && last().p.basic === true && last().p.studentName === "Riya Sharma" && last().p.phone === "9000000001" && last().p.whatsapp === "9000000001" && last().p.email === undefined && last().p.parentsName === undefined && last().p.termsAccepted === false, "saved with only the basics through the admin function (no email, no parent)");
+assert(step() === "ad_st_post" && txt(o).includes("SID20260101") && o[0].choices.map((c) => c.id).join() === "st_post,st_done", "added -> offers to post a tuition");
+o = await say("", "st_post"); assert(step() === "t_subjects" && db.bot_sessions[0].data.adminId === EID && txt(o).includes("Riya Sharma"), "Post Tuition Now -> the usual tuition questions as the employee");
+await say("cancel");
+await startAdminFlow(wa, EID, "student"); await say("Dup Kid"); await say("Mr Dup"); await say("9000000001"); await say("", "st_more");
+assert(step() === "ad_st_email", "Add More Details -> email first");
+o = await say("not-an-email"); assert(txt(o).includes("doesn't look like an email") && step() === "ad_st_email", "bad email refused");
+await say("PARENT@Mail.com"); await say("", "st_gender:Female"); await say("", "st_skip"); await say("dps school"); await say("", "st_skip"); await say("noida");
+o = await say("20130"); assert(txt(o).includes("must be 6 digits"), "bad PIN refused");
+await say("201301"); o = await say("B-12, Sector 5, Noida");
+assert(step() === "ad_st_confirm" && txt(o).includes("parent@mail.com") && txt(o).includes("Female") && txt(o).includes("Dps School") && txt(o).includes("Noida - 201301") && !txt(o).includes("Class:"), "every detail (skipped ones left out) in the summary");
+o = await say("", "ad_yes");
+assert(last().p.email === "parent@mail.com" && last().p.gender === "Female" && last().p.school === "Dps School" && last().p.city === "Noida" && last().p.pinCode === "201301" && last().p.address === "B-12, Sector 5, Noida" && last().p.parentsName === "Mr Dup" && last().p.className === undefined, "optional details sent, skipped ones left out");
+assert(txt(o).includes("could not be added") && txt(o).includes("already registered") && !db.bot_sessions.length, "a duplicate is refused with the reason");
+db.me.permissions = ["students_add"];
+await startAdminFlow(wa, EID, "student"); await say("Solo Add"); await say("", "st_skip"); await say("9811111111"); await say("", "st_save"); o = await say("", "ad_yes");
+assert(txt(o).includes("Student added!") && !db.bot_sessions.length, "no 'post tuition' offer without that permission");
+db.me.permissions = ["tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_add", "students_view", "students_add", "payments_add", "payments_view"];
+
+// ---- 7. class & agreement
+await startAdminFlow(wa, EID, "deal");
+o = await say("DID20260008"); assert(txt(o).includes("both agreed") && txt(o).includes("Parent agreed") === false || txt(o).includes("both agreed"), "not agreed yet -> refused with each side's state");
+o = await say("DID20260007");
+assert(step() === "ad_dl_days" && txt(o).includes("English") && txt(o).includes("Anita Verma") && txt(o).includes("already saved"), "agreed -> asks the days; a saved deal is mentioned");
+o = await say("someday"); assert(txt(o).includes("could not read the days"), "bad days refused");
+await say("Mon, Wed"); assert(step() === "ad_dl_start", "days -> start date");
+o = await say("01-01-2020"); assert(txt(o).includes("too far in the past"), "old start date refused");
+await say("", "dl_start:tomorrow"); assert(step() === "ad_dl_time", "start -> time");
+await say("5 pm"); assert(step() === "ad_dl_min", "time -> duration");
+o = await say("5"); assert(txt(o).includes("minutes for each class"), "silly duration refused");
+await say("", "dl_min:45"); assert(step() === "ad_dl_model", "duration -> billing model");
+await say("", "dl_model:commission"); assert(step() === "ad_dl_fee", "model -> fee");
+await say("6000"); o = await say("7000"); assert(txt(o).includes("cannot be more than the fee"), "cut above the fee refused");
+await say("20%"); assert(step() === "ad_dl_payto", "commission -> who gets the first month");
+await say("", "dl_to:Agency"); assert(step() === "ad_dl_freq", "pay-to -> how often");
+o = await say("", "dl_freq:15 Days");
+assert(step() === "ad_dl_confirm" && txt(o).includes("Monthly fee: *Rs 6000*") && txt(o).includes("Rs 1200 (20%)") && txt(o).includes("First month's fee goes to: *Agency*") && txt(o).includes("Tutor gets (first month): Rs 4800") && txt(o).includes("Every 15 days - *Rs 3000*") && txt(o).includes("Days: Mon, Wed") && txt(o).includes("45 min") && txt(o).includes("5:00 PM"), "commission summary: fee, cut, who is paid, instalments");
+o = await say("", "ad_yes");
+const upd = db.calls.filter((c) => c.action === "adminUpdateDemoRow").at(-1), fin = db.calls.filter((c) => c.action === "adminFinalizeClass").at(-1);
+assert(upd.demoId === "DID20260007" && upd.tutorId === "TID20260001" && upd.changes["Billing Mode"] === "commission" && upd.changes["Class Start Date"] === parseDate("tomorrow") && upd.changes["Class Dates"].length > 5 && upd.changes["Class Duration"] === "45" && upd.changes["Class Total Amount"] === 6000 && upd.changes["Student Payment To"] === "Agency" && upd.changes["Tutor Payment From"] === "Agency" && upd.changes["Tutor Agency Charge"] === 1200 && upd.changes["Student Payment Frequency"] === "15 Days" && upd.changes["Billing Plan"].deal.cutType === "percent" && upd.changes["Billing Plan"].deal.time === "17:00", "class saved through the admin function in the panel's shape");
+assert(fin.deal.model === "commission" && fin.deal.monthlyFee === 6000 && fin.deal.feeTo === "Agency" && fin.deal.parentFreq === "15 Days" && txt(o).includes("agreement sent") && !db.bot_sessions.length, "agreement finalised and sent");
+await startAdminFlow(wa, EID, "deal"); await say("DID20260007"); await say("daily"); await say("", "dl_start:today"); await say("17:30"); await say("60"); await say("", "dl_model:margin");
+o = await say("300"); assert(txt(o).includes("agency keep per class"), "per-class model asks the agency's share per class");
+await say("50"); assert(step() === "ad_dl_freq", "per-class: payment always goes to the agency (no pay-to question)");
+o = await say("", "dl_freq:Weekly");
+assert(txt(o).includes("Parent pays per class: *Rs 300*") && txt(o).includes("Tutor gets: *Rs 250* per class") && txt(o).includes("Weekly"), "per-class summary");
+await say("", "ad_yes");
+const upd2 = db.calls.filter((c) => c.action === "adminUpdateDemoRow").at(-1);
+assert(upd2.changes["Billing Mode"] === "margin" && upd2.changes["Billing Plan"].deal.parentPerClass === 300 && upd2.changes["Billing Plan"].deal.marginValue === 50 && upd2.changes["Billing Plan"].deal.marginType === "amount" && upd2.changes["Student Payment To"] === "Agency" && upd2.changes["Student Payment Frequency"] === "Weekly", "per-class deal saved");
+db.me.permissions = ["tuitions_view"];
+o = await startAdminFlow(wa, EID, "deal"); assert(txt(o).includes("do not have permission"), "no permission to edit -> refused");
+db.me.permissions = ["tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_add", "students_view", "students_add", "payments_add", "payments_view"];
 
 // ---- leaving
 await startAdminFlow(wa, EID, "assign");

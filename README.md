@@ -196,7 +196,13 @@ link to the profile.
   mobile number or Student ID), *Assign Tutor*, *Schedule Demo*, *Tutor Confirmation* (view, or
   confirm for the tutor) and *Create Payment* (only after tutor and parent both agreed). The bot
   calls the `admin` function as that employee, so permissions, login hours, "hide mobile" and
-  e-mails are exactly the same as in the panel. Admin recognition is **switched off until the
+  e-mails are exactly the same as in the panel. Two more items: *Add New Student* (only the
+  student's name and a mobile number are needed; parent, email, gender, class, school, board, city,
+  PIN and address can each be skipped; no email code; then it offers to post a tuition) and
+  *Class & Agreement* (for a tuition where tutor and parent agreed: class days, start date, time,
+  minutes, *Monthly Commission* [fee, agency cut as % or ₹, who gets the first month] or *Per Class
+  Commission* [price per class, agency share], how often the parent pays; it saves the class like
+  the panel's "Save & Send Agreement" and mails/Telegrams the agreement to parent and tutor). Admin recognition is **switched off until the
   secret `WHATSAPP_APP_SECRET` is set** (Meta app → Settings → Basic → App Secret), so a forged
   message cannot act as an admin.
 - **Not yet built:** sending notifications (reminders, demo, payments) over WhatsApp.
