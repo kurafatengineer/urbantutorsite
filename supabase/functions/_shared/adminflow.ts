@@ -352,7 +352,19 @@ function prompt(step: string, d: Json): Out {
         : "Send the *Tuition ID*, the *Student ID*, the *Tutor ID*, or a student's / tutor's *WhatsApp / mobile number*.\n\nFor example -\nDID20260007\nSID20260613\nTID20260123\n9876543210"),
       choices: [CANCEL],
     };
-    case "ad_tc_demo": return askDemo("conf");
+    case "ad_tc_demo": return {
+      text: "*Tutor / Parent Confirm*\n\n" + (d.hide
+        ? "Send the *Tuition ID*, the *Student ID* or the *Tutor ID*.\n\nFor example -\nDID20260007\nSID20260613\nTID20260123"
+        : "Send the *Tuition ID*, the *Student ID*, the *Tutor ID*, or a student's / tutor's *WhatsApp / mobile number*.\n\nFor example -\nDID20260007\nSID20260613\nTID20260123\n9876543210"),
+      choices: [CANCEL],
+    };
+    case "ad_tc_sel": return {
+      text: withHead(d.head, "Which *demo* do you want to confirm?"),
+      choices: [
+        ...d.pairs.slice(0, 9).map((p: Json) => ({ id: `ad_pick:${p.demo_id}:${p.tutor_id}`, title: String(p.subject || p.demo_id), description: `${p.demo_id} · ${p.student_name} · ${p.tutor_name}` })),
+        CANCEL,
+      ],
+    };
     case "ad_pm_demo": return askDemo("pay");
     case "ad_as_tutor": return {
       text: withHead(d.card, d.hide
@@ -386,9 +398,8 @@ function prompt(step: string, d: Json): Out {
       choices: [YES("Schedule"), CANCEL],
     };
     case "ad_tc_pick": return {
-      text: "Confirm for whom?\nUse this only after that person has agreed to you.",
-      choices: [...d.options.slice(0, 9).map((o: Json) => ({ id: `ad_pick:${o.side}:${o.tutor_id}`, title: `${o.side === "p" ? "Parent" : "Tutor"}: ${o.tutorName}`, description: `${o.tutor_id} · ${o.side === "p" ? "parent / student confirms" : "tutor confirms"}` })),
-        { id: "ad_done", title: "Done" }],
+      text: withHead(d.card, "Confirm for whom?\nUse this only after that person has agreed to you."),
+      choices: [...d.options.map((o: Json) => ({ id: `ad_pick:${o.side}:${o.tutor_id}`, title: o.side === "p" ? "Parent Confirms" : "Tutor Confirms" })), CANCEL],
     };
     case "ad_tc_confirm": return {
       text: d.side === "p"
@@ -647,32 +658,31 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
     /* ---------- 4. tutor confirmation ---------- */
     case "ad_tc_demo": {
       const c = classify(text);
-      if (c.kind !== "did") return again("That is not a valid *Tuition ID*.\nIt starts with *DID* followed by *8 digits*.");
-      const t = await findTuition(c.value);
-      if (!t) return again(`No tuition was found with the ID *${c.value}*.`);
-      const rows = await applicationsFor(t.demo_id);
-      if (!rows.length) return again(`No tutor is on *${c.value}* yet.`);
-      const lines = rows.map((r) => `${tutorCard(r.tutor, d.hide)}\n   Tutor: ${stateText(r.tutor_accepted, r.tutor_rejected)}\n   Parent: ${stateText(r.parent_accepted, r.parent_rejected)}\n` +
-        `   Demo: ${r.demo_date ? `${fmtDate(r.demo_date)}${r.demo_time ? ", " + fmtTime(r.demo_time) : ""}` : "Not scheduled"}`);
-      const head = `${tuitionCard(t, d.hide)}\n\n${lines.join("\n\n")}`;
-      const canConfirm = d.perms.includes("tuitions_edit") && !closed(t);
-      const entries: Json[] = [];
-      for (const r of rows) {
-        if (r.parent_rejected || r.tutor_rejected) continue;
-        if (!r.tutor_accepted) entries.push({ side: "t", tutor_id: r.tutor_id, tutorName: r.tutorName, card: tutorCard(r.tutor, d.hide) });
-        if (!r.parent_accepted) entries.push({ side: "p", tutor_id: r.tutor_id, tutorName: r.tutorName, card: tutorCard(r.tutor, d.hide) });
+      if (c.kind === "phone" && d.hide) return again("Your account cannot search by number.\nSend the *Tuition ID*, *Student ID* or *Tutor ID*.");
+      if (!["did", "sid", "tid", "phone"].includes(c.kind)) {
+        return again(d.hide ? "That is not a valid ID.\nSend a *Tuition ID* (DID + 8 digits), a *Student ID* (SID + 8 digits) or a *Tutor ID* (TID + 8 digits)."
+          : "That is not a valid ID or number.\nSend a *Tuition ID* (DID), *Student ID* (SID) or *Tutor ID* (TID) with 8 digits, or a 10-digit *WhatsApp / mobile number*.");
       }
-      if (!canConfirm || !entries.length) {
-        const both = rows.some((r) => r.tutor_accepted && r.parent_accepted && !r.tutor_rejected && !r.parent_rejected);
-        return finish(ctx, head + (both ? "\n\nThe tutor and the parent have agreed. Use *Class & Agreement*, then *Record Payment* in the Menu." : ""));
+      const { found, pairs, skipped } = await demoPairs(c, true);
+      if (!found) {
+        const what = c.kind === "did" ? "tuition" : c.kind === "sid" ? "student" : c.kind === "tid" ? "tutor" : "student or tutor";
+        return again(`No ${what} was found with *${text}*.`);
       }
-      d.demoId = t.demo_id; d.subject = t.subject; d.studentName = t.student?.student_name ?? ""; d.studentCard = studentCard(t.student ?? {}, d.hide);
-      d.options = entries.slice(0, 9);
-      await save(ctx, "ad_tc_pick", d);
-      return [{ text: head }, prompt("ad_tc_pick", d)];
+      if (!pairs.length) {
+        return again(skipped
+          ? `The demo is not scheduled yet for *${text}*.\nUse *Schedule Demo* first.`
+          : `No open tuition with an assigned tutor was found for *${text}*.\nUse *Assign Tutor* first.`);
+      }
+      if (pairs.length === 1) return pickConf(ctx, d, pairs[0]);
+      d.pairs = pairs;
+      d.head = "*Demo Details:*\n\n" + pairs.map((p) => `Subject: *${p.subject}*\nTuition ID: ${p.demo_id}\nStudent: *${p.student_name}* (${p.student_id})\nTutor: *${p.tutor_name}* (${p.tutor_id})\nDemo: ${p.demo_label}`).join("\n\n");
+      return go(ctx, "ad_tc_sel", d);
+    }
+    case "ad_tc_sel": {
+      const chosen = (d.pairs ?? []).find((p: Json) => `${p.demo_id}:${p.tutor_id}` === pickedId);
+      return chosen ? pickConf(ctx, d, chosen) : [prompt(step, d)];
     }
     case "ad_tc_pick": {
-      if (choice === "ad_done") return finish(ctx, "Done.");
       const chosen = (d.options ?? []).find((o: Json) => `${o.side}:${o.tutor_id}` === pickedId);
       if (!chosen) return [prompt(step, d)];
       d.side = chosen.side; d.tutorId = chosen.tutor_id; d.tutorCard = chosen.card;
@@ -986,7 +996,7 @@ async function assignConfirm(ctx: Ctx, d: Json, tutor: Json): Promise<Out[]> {
 }
 
 // every (tuition, tutor) pair that a Tuition ID, Student ID, Tutor ID or a student's / tutor's number points at
-async function demoPairs(c: Json): Promise<{ found: boolean; pairs: Json[] }> {
+async function demoPairs(c: Json, needDemo = false): Promise<{ found: boolean; pairs: Json[]; skipped: number }> {
   const tuitions: Json[] = [];
   const studentDemos = new Set<string>();
   let tutorIds: string[] = [];
@@ -1014,15 +1024,41 @@ async function demoPairs(c: Json): Promise<{ found: boolean; pairs: Json[] }> {
     }
   }
   const pairs: Json[] = [];
+  let skipped = 0;
   for (const t of tuitions) {
     if (closed(t) || t.student?.blocked_at) continue;
     for (const r of await applicationsFor(t.demo_id)) {
       if (r.parent_rejected || r.tutor_rejected) continue;
       if (!studentDemos.has(t.demo_id) && !tutorIds.includes(String(r.tutor_id))) continue;
-      pairs.push({ demo_id: t.demo_id, tutor_id: String(r.tutor_id), subject: t.subject, student_id: t.student?.student_id ?? "", student_name: t.student?.student_name ?? "", tutor_name: r.tutorName });
+      if (needDemo && !r.demo_date) { skipped++; continue; }
+      pairs.push({ demo_label: r.demo_date ? `${fmtDate(r.demo_date)}${r.demo_time ? ", " + fmtTime(r.demo_time) : ""}` : "", demo_id: t.demo_id, tutor_id: String(r.tutor_id), subject: t.subject, student_id: t.student?.student_id ?? "", student_name: t.student?.student_name ?? "", tutor_name: r.tutorName });
     }
   }
-  return { found, pairs: pairs.slice(0, 9) };
+  return { found, pairs: pairs.slice(0, 9), skipped };
+}
+
+// the chosen demo: tuition, student, tutor, demo date and who has agreed - then who to confirm for
+async function pickConf(ctx: Ctx, d: Json, p: Json): Promise<Out[]> {
+  const t = await findTuition(p.demo_id);
+  if (!t || closed(t)) return [{ text: `That tuition is closed now.\n\n${RETRY}` }];
+  const row = (await applicationsFor(p.demo_id)).find((r) => String(r.tutor_id) === String(p.tutor_id));
+  if (!row || row.parent_rejected || row.tutor_rejected) return [{ text: `That tutor is not on this tuition any more.\n\n${RETRY}` }];
+  if (!row.demo_date) return [{ text: `The demo is not scheduled yet.\nUse *Schedule Demo* first.\n\n${RETRY}` }];
+  const when = `${fmtDate(row.demo_date)}${row.demo_time ? ", " + fmtTime(row.demo_time) : ""}`;
+  const card = `${tuitionText(t, true)}\n\n${studentFullText(t.student ?? {}, !!d.hide)}\n\n${tutorFullText(row.tutor ?? {}, !!d.hide)}\n\n` +
+    `*Demo:*\n\nDate & time: ${when}\nTutor: ${stateText(row.tutor_accepted, row.tutor_rejected)}\nParent: ${stateText(row.parent_accepted, row.parent_rejected)}`;
+  const entries: Json[] = [];
+  const mine = { tutor_id: row.tutor_id, tutorName: row.tutorName, card: tutorCard(row.tutor ?? {}, d.hide) };
+  if (!row.tutor_accepted) entries.push({ side: "t", ...mine });
+  if (!row.parent_accepted) entries.push({ side: "p", ...mine });
+  if (!d.perms.includes("tuitions_edit") || !entries.length) {
+    const both = !!row.tutor_accepted && !!row.parent_accepted;
+    return finish(ctx, card + (both ? "\n\nThe tutor and the parent have agreed. Use *Class & Agreement*, then *Record Payment* in the Menu." : ""));
+  }
+  d.demoId = t.demo_id; d.subject = t.subject; d.studentName = t.student?.student_name ?? ""; d.studentCard = studentCard(t.student ?? {}, d.hide);
+  d.card = card;
+  d.options = entries;
+  return go(ctx, "ad_tc_pick", d);
 }
 
 // the chosen tuition + tutor: tuition, student and tutor details in one message, then the date
