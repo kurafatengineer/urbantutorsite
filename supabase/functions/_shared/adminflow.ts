@@ -322,6 +322,9 @@ const pickOut = (text: string, options: Json[], idKey: string, nameKey: string, 
   ],
 });
 
+const firstName = (v: unknown) => String(v ?? "").trim().split(/\s+/)[0] ?? "";
+const pairTitle = (p: Json) => `${p.subject || p.demo_id} - ${firstName(p.tutor_name)}`;
+
 const KIND_TEXT: Record<string, string> = { collection: "Parent paid us", payout: "We paid the tutor", agency_charge: "Tutor paid the agency" };
 const PTYPE_TEXT: Record<string, string> = { advance: "Advance", regular: "Regular", final: "Final", agency: "Agency charge" };
 
@@ -343,7 +346,7 @@ function prompt(step: string, d: Json): Out {
       choices: [CANCEL],
     };
     case "ad_as_tpick": {
-      const o = pickOut(withHead(d.head, "Which *tuition* do you want to assign a tutor to?"), d.tuitions, "demo_id", "subject", (x) => `${x.demo_id} · ${x.student_name}`);
+      const o = pickOut(withHead(d.head, "Which *tuition* do you want to assign a tutor to?"), d.tuitions, "demo_id", "label", (x) => `${x.demo_id} · ${x.student_name}`);
       return o;
     }
     case "ad_sd_demo": return {
@@ -361,7 +364,7 @@ function prompt(step: string, d: Json): Out {
     case "ad_tc_sel": return {
       text: withHead(d.head, "Which *demo* do you want to confirm?"),
       choices: [
-        ...d.pairs.slice(0, 9).map((p: Json) => ({ id: `ad_pick:${p.demo_id}:${p.tutor_id}`, title: String(p.subject || p.demo_id), description: `${p.demo_id} · ${p.student_name} · ${p.tutor_name}` })),
+        ...d.pairs.slice(0, 9).map((p: Json) => ({ id: `ad_pick:${p.demo_id}:${p.tutor_id}`, title: pairTitle(p), description: `${p.demo_id} · ${p.student_name} · ${p.tutor_name}` })),
         CANCEL,
       ],
     };
@@ -383,7 +386,7 @@ function prompt(step: string, d: Json): Out {
     case "ad_sd_pick": return {
       text: withHead(d.head, "Which *demo* do you want to schedule?"),
       choices: [
-        ...d.pairs.slice(0, 9).map((p: Json) => ({ id: `ad_pick:${p.demo_id}:${p.tutor_id}`, title: String(p.subject || p.demo_id), description: `${p.demo_id} · ${p.student_name} · ${p.tutor_name}` })),
+        ...d.pairs.slice(0, 9).map((p: Json) => ({ id: `ad_pick:${p.demo_id}:${p.tutor_id}`, title: pairTitle(p), description: `${p.demo_id} · ${p.student_name} · ${p.tutor_name}` })),
         CANCEL,
       ],
     };
@@ -567,7 +570,7 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
         return again("All the tuitions here are closed or the student is blocked.");
       }
       if (open.length === 1) return pickTuition(ctx, d, open[0]);
-      d.tuitions = open.map((t) => ({ demo_id: t.demo_id, subject: t.subject, student_name: t.student?.student_name ?? "" }));
+      d.tuitions = open.map((t) => ({ demo_id: t.demo_id, subject: t.subject, student_name: t.student?.student_name ?? "", label: `${t.subject} - ${firstName(t.student?.student_name)}` }));
       await save(ctx, "ad_as_tpick", d);
       const students = [...new Map(open.map((t) => [t.student?.student_id, t.student ?? {}])).values()];
       d.head = `*Students Details:*\n\n${studentsBlock(students, !!d.hide)}`;
