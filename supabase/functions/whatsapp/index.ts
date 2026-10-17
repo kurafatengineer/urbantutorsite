@@ -31,6 +31,22 @@ async function send(to: string, message: Json) {
   if (!res.ok) console.error("whatsapp send failed", res.status, await res.text().catch(() => ""));
 }
 // Replies from the registration flow: up to 3 choices become buttons, more become a list.
+type Choice = NonNullable<Out["choices"]>[number];
+// WhatsApp refuses two buttons with the same title, so a repeated title gets a number
+const uniqueTitles = (choices: Choice[], max: number): Choice[] => {
+  const used = new Set<string>();
+  return choices.map((c) => {
+    let t = c.title.slice(0, max);
+    let n = 2;
+    while (used.has(t.toLowerCase())) {
+      const suffix = ` ${n++}`;
+      t = c.title.slice(0, max - suffix.length) + suffix;
+    }
+    used.add(t.toLowerCase());
+    return { ...c, title: t };
+  });
+};
+
 async function sendOut(to: string, out: Out) {
   const choices = out.choices ?? [];
   if (out.link && !choices.length) {
@@ -49,13 +65,13 @@ async function sendOut(to: string, out: Out) {
   if (choices.length <= 3) {
     await send(to, {
       type: "interactive",
-      interactive: { type: "button", body: { text }, action: { buttons: choices.map((c) => ({ type: "reply", reply: { id: `reg|${c.id}`, title: c.title.slice(0, 20) } })) } },
+      interactive: { type: "button", body: { text }, action: { buttons: uniqueTitles(choices, 20).map((c) => ({ type: "reply", reply: { id: `reg|${c.id}`, title: c.title } })) } },
     });
     return;
   }
   await send(to, {
     type: "interactive",
-    interactive: { type: "list", body: { text }, action: { button: "Choose", sections: [{ title: "Options", rows: choices.slice(0, 10).map((c) => ({ id: `reg|${c.id}`, title: c.title.slice(0, 24), ...(c.description ? { description: c.description.slice(0, 72) } : {}) })) }] } },
+    interactive: { type: "list", body: { text }, action: { button: "Choose", sections: [{ title: "Options", rows: uniqueTitles(choices.slice(0, 10), 24).map((c) => ({ id: `reg|${c.id}`, title: c.title, ...(c.description ? { description: c.description.slice(0, 72) } : {}) })) }] } },
   });
 }
 async function sendAll(to: string, outs: Out[]) { for (const o of outs) await sendOut(to, o); }
