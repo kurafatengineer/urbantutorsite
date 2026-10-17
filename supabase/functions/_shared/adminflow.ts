@@ -183,9 +183,9 @@ const modeText = (m: unknown) => /^online$/i.test(String(m)) ? "Online" : /^(hom
 const wantedText = (t: unknown) => /^(male|female)$/i.test(String(t).trim()) ? String(t).trim() : "Male or Female";
 
 async function findTuition(demoId: string): Promise<Json | null> {
-  const t = (await rest(`tuitions?demo_id=eq.${q(demoId)}&select=demo_id,subject,medium,preferred_tutor,student_id,terminated`))?.[0];
+  const t = (await rest(`tuitions?demo_id=eq.${q(demoId)}&select=demo_id,subject,medium,preferred_tutor,preferred_timing,student_id,terminated`))?.[0];
   if (!t) return null;
-  const student = (await rest(`students?student_id=eq.${q(t.student_id)}&select=student_id,student_name,parents_name,phone,whatsapp,class_name,board,blocked_at`))?.[0] ?? {};
+  const student = (await rest(`students?student_id=eq.${q(t.student_id)}&select=student_id,student_name,parents_name,phone,whatsapp,gender,class_name,board,school,address,city,pin_code,blocked_at`))?.[0] ?? {};
   const status = String(await rest("rpc/tuition_status", { method: "POST", body: JSON.stringify({ p_demo_id: demoId }) }) ?? "");
   return { ...t, student, status };
 }
@@ -196,6 +196,67 @@ function tuitionCard(t: Json, hide: boolean): string {
   const cls = [t.student?.class_name, t.student?.board].filter(Boolean).join(" · ");
   return `*${t.subject}* (${t.demo_id})\nStudent: ${studentCard(t.student ?? {}, hide)}\n` +
     (cls ? `Class: ${cls}\n` : "") + `Mode: ${modeText(t.medium)}\nTutor wanted: ${wantedText(t.preferred_tutor)}\nStatus: ${t.status || "-"}`;
+}
+
+// ---- the cards of "Assign Tutor": everything we hold about the student, the tuition and the tutor (no e-mail)
+const fullAddress = (s: Json) => [s.address, [s.city, s.pin_code].filter(Boolean).join(" - ")].filter(Boolean).join(", ");
+const joined = (v: unknown) => Array.isArray(v) ? v.filter(Boolean).join(", ") : String(v ?? "").trim();
+const lineOf = (label: string, v: unknown) => v ? `\n${label}: ${v}` : "";
+
+function studentFullText(s: Json, hide: boolean): string {
+  const wa = numText(s.whatsapp, hide), ph = numText(s.phone, hide);
+  return "*Student Details:*\n" + (s.parents_name ? `Parent: ${s.parents_name}\n` : "") +
+    `Name: *${s.student_name ?? "-"}*\nStudent ID: ${s.student_id ?? "-"}` +
+    lineOf("Gender", s.gender) + lineOf("Class", s.class_name) + lineOf("Board", s.board) + lineOf("School", s.school) +
+    lineOf("WhatsApp", wa) + lineOf("Mobile No.", ph) + (hide ? "" : lineOf("Address", fullAddress(s)));
+}
+
+function tuitionText(t: Json, withStatus = false): string {
+  return `*Tuition Details:*\nSubject: *${t.subject}*\nTuition ID: ${t.demo_id}\nTutor wanted: ${wantedText(t.preferred_tutor)}\nMode: ${modeText(t.medium)}` +
+    lineOf("Time", t.preferred_timing) + (withStatus ? lineOf("Status", t.status) : "");
+}
+
+function tutorFullText(t: Json, hide: boolean): string {
+  const wa = numText(t.whatsapp_number, hide), mo = numText(t.mobile_number, hide);
+  const addr = hide ? "" : [t.present_address, [t.city, t.pin_code].filter(Boolean).join(" - ")].filter(Boolean).join(", ");
+  const years = t.experience_years != null && t.experience_years !== "" ? `${t.experience_years} ${Number(t.experience_years) === 1 ? "year" : "years"}` : "";
+  return `*Tutor Details:*\nName: *${t.full_name ?? "-"}*\nTutor ID: ${t.tutor_id}` +
+    lineOf("Gender", t.gender) + lineOf("Experience", years) + lineOf("Subjects", joined(t.subjects_you_teach)) +
+    lineOf("Classes", joined(t.classes_you_teach)) + lineOf("Boards", joined(t.boards_you_teach)) +
+    lineOf("Teaching mode", joined(t.teaching_location)) + lineOf("WhatsApp", wa) + lineOf("Mobile No.", mo) + lineOf("Address", addr);
+}
+
+// the parent, then each student with the ID, then the numbers and the address
+function studentsBlock(rows: Json[], hide: boolean): string {
+  const groups = new Map<string, Json[]>();
+  for (const s of rows) {
+    const k = String(s.parents_name ?? "").trim().toLowerCase();
+    groups.set(k, [...(groups.get(k) ?? []), s]);
+  }
+  return [...groups.values()].map((list) => {
+    const first = list[0];
+    const wa = numText(first.whatsapp, hide), ph = numText(first.phone, hide), addr = hide ? "" : fullAddress(first);
+    return (first.parents_name ? `Parent: *${first.parents_name}*\n\n` : "") +
+      list.map((s) => `Student: *${s.student_name ?? "-"}*\nStudent ID: ${s.student_id}`).join("\n\n") +
+      (wa ? `\n\nWhatsApp: ${wa}` : "") + (ph ? `\nMobile No.: ${ph}` : "") + (addr ? `\nAddress: ${addr}` : "");
+  }).join("\n\n---\n\n");
+}
+
+// every tuition of a Tuition ID, a Student ID or a WhatsApp / mobile number
+async function tuitionsFor(c: Json): Promise<Json[]> {
+  if (c.kind === "did") {
+    const t = await findTuition(c.value);
+    return t ? [t] : [];
+  }
+  const ids = (await findStudents(c)).map((x) => String(x.student_id));
+  if (!ids.length) return [];
+  const rows = await rest(`tuitions?student_id=${inList(ids)}&terminated=eq.false&select=demo_id&order=posted_at.desc`) ?? [];
+  const out: Json[] = [];
+  for (const r of rows.slice(0, 9)) {
+    const t = await findTuition(String(r.demo_id));
+    if (t) out.push(t);
+  }
+  return out;
 }
 
 const APP_COLS = "tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_rejected,classes_completed,demo_date,demo_time,billing_plan,class_dates";
@@ -211,7 +272,7 @@ async function applicationsFor(demoId: string): Promise<Json[]> {
 }
 
 async function findTutors(c: { kind: string; value: string }): Promise<Json[]> {
-  const cols = "tutor_id,full_name,gender,mobile_number,whatsapp_number,verification_status,blocked_at";
+  const cols = "tutor_id,full_name,gender,mobile_number,whatsapp_number,verification_status,blocked_at,experience_years,subjects_you_teach,classes_you_teach,boards_you_teach,teaching_location,present_address,city,pin_code";
   if (c.kind === "tid") return await rest(`tutors?tutor_id=eq.${q(c.value)}&select=${cols}`) ?? [];
   const [a, b] = await Promise.all([
     rest(`tutors?whatsapp10=eq.${c.value}&select=${cols}`),
@@ -271,21 +332,28 @@ function prompt(step: string, d: Json): Out {
     };
     case "ad_new_pick": return pickOut("Which *student* is the tuition for?", d.options, "student_id", "student_name",
       (o) => `${o.student_id}${o.parents_name ? " · Parent " + o.parents_name : ""}`);
-    case "ad_as_demo": return askDemo("assign");
+    case "ad_as_demo": return {
+      text: "*Assign Tutor*\n\n" + (d.hide
+        ? "Send the *Tuition ID* or the *Student ID*.\n\nFor example -\nDID20260007\nSID20260613"
+        : "Send the *Tuition ID*, the *Student ID*, or the parent's *WhatsApp / mobile number*.\n\nFor example -\nDID20260007\nSID20260613\n9876543210"),
+      choices: [CANCEL],
+    };
+    case "ad_as_tpick": return pickOut("Which *tuition* do you want to assign a tutor to?", d.tuitions, "demo_id", "subject", (o) => `${o.demo_id} · ${o.student_name}`);
     case "ad_sd_demo": return askDemo("demo");
     case "ad_tc_demo": return askDemo("conf");
     case "ad_pm_demo": return askDemo("pay");
     case "ad_as_tutor": return {
       text: d.hide
         ? "Send the tutor's *Tutor ID*.\n\nFor example -\nTID20260123"
-        : "Send the tutor's *WhatsApp number* or *mobile number*, or the *Tutor ID*.\n\nFor example -\n9876543210\nTID20260123",
+        : "Send the tutor's *Tutor ID*, *WhatsApp number* or *mobile number*.\n\nFor example -\nTID20260123\n9876543210",
+      choices: [CANCEL],
     };
     case "ad_as_pick": return pickOut("Which *tutor*?", d.options, "tutor_id", "full_name",
       (o) => `${o.tutor_id} · ${numText(o.whatsapp_number || o.mobile_number, d.hide)}`);
     case "ad_as_confirm": return {
-      text: `*Please check:*\n\nAssign\nTutor: ${d.tutorCard}\n\nto *${d.subject}* (${d.demoId})\nStudent: ${d.studentCard}` +
+      text: `${d.tutorText}\n\nAssign this tutor to *${d.subject}* (${d.demoId}) of *${d.studentName}*?` +
         (d.mismatch ? `\n\nNote: this tuition asks for *${d.wanted.toLowerCase()}* tutors.` : ""),
-      choices: [YES(d.mismatch ? "Assign Anyway" : "Assign"), CANCEL],
+      choices: [YES(d.mismatch ? "Assign Anyway" : "Assign This Tutor"), CANCEL],
     };
     case "ad_sd_pick": return pickOut("Which *tutor* is the demo for?", d.options, "tutor_id", "tutorName",
       (o) => `${o.tutor_id} · ${numText(o.tutor?.whatsapp_number || o.tutor?.mobile_number, d.hide)}`);
@@ -457,17 +525,30 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
     /* ---------- 2. assign tutor ---------- */
     case "ad_as_demo": {
       const c = classify(text);
-      if (c.kind !== "did") return again("That is not a valid *Tuition ID*.\nIt starts with *DID* followed by *8 digits*.");
-      const t = await findTuition(c.value);
-      if (!t) return again(`No tuition was found with the ID *${c.value}*.`);
-      if (closed(t)) return again(`*${c.value}* is closed (${t.status || "terminated"}).`);
-      if (t.student?.blocked_at) return again("This student is blocked.");
-      d.demoId = t.demo_id; d.subject = t.subject; d.studentName = t.student?.student_name ?? ""; d.studentCard = studentCard(t.student ?? {}, d.hide);
-      d.wanted = wantedText(t.preferred_tutor);
-      const onIt = await applicationsFor(t.demo_id);
-      d.card = tuitionCard(t, d.hide) + (onIt.length ? `\n\nTutors on it:\n${onIt.map((r) => "- " + tutorCard(r.tutor, d.hide)).join("\n")}` : "\n\nTutors on it: none yet");
-      await save(ctx, "ad_as_tutor", d);
-      return [{ text: d.card }, prompt("ad_as_tutor", d)];
+      if (c.kind === "phone" && d.hide) return again("Your account cannot search by number.\nSend the *Tuition ID* or the *Student ID*.");
+      if (!["did", "sid", "phone"].includes(c.kind)) {
+        return again(d.hide ? "That is not a valid ID.\nSend a *Tuition ID* (DID + 8 digits) or a *Student ID* (SID + 8 digits)."
+          : "That is not a valid ID or number.\nSend a *Tuition ID* (DID + 8 digits), a *Student ID* (SID + 8 digits) or a 10-digit *WhatsApp / mobile number*.");
+      }
+      const all = await tuitionsFor(c);
+      if (!all.length) return again(c.kind === "did" ? `No tuition was found with the ID *${c.value}*.` : `No tuition has been created yet for *${text}*.`);
+      const open = all.filter((t) => !closed(t) && !t.student?.blocked_at);
+      if (!open.length) {
+        if (c.kind === "did") return again(all[0].student?.blocked_at ? "This student is blocked." : `*${c.value}* is closed (${all[0].status || "terminated"}).`);
+        return again("All the tuitions here are closed or the student is blocked.");
+      }
+      if (open.length === 1) return pickTuition(ctx, d, open[0]);
+      d.tuitions = open.map((t) => ({ demo_id: t.demo_id, subject: t.subject, student_name: t.student?.student_name ?? "" }));
+      await save(ctx, "ad_as_tpick", d);
+      const students = [...new Map(open.map((t) => [t.student?.student_id, t.student ?? {}])).values()];
+      return [{ text: `*Students with this ${c.kind === "did" ? "Tuition" : c.kind === "sid" ? "Student ID" : "WhatsApp / Mobile Number"}:*\n\n${studentsBlock(students, !!d.hide)}` }, prompt("ad_as_tpick", d)];
+    }
+    case "ad_as_tpick": {
+      const chosen = (d.tuitions ?? []).find((o: Json) => o.demo_id === pickedId);
+      if (!chosen) return [prompt(step, d)];
+      const t = await findTuition(chosen.demo_id);
+      if (!t || closed(t)) return again("That tuition is closed now.");
+      return pickTuition(ctx, d, t);
     }
     case "ad_as_tutor": {
       const c = classify(text);
@@ -492,7 +573,8 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
       if (choice !== "ad_yes") return [prompt(step, d)];
       const res = await adminCall(d.eid, "adminAssignTutor", { demoId: d.demoId, tutor: d.tutorId });
       if (!res?.success) return finish(ctx, `The tutor could not be assigned.\n${String(res?.message ?? "")}`);
-      return finish(ctx, `*Tutor assigned!*\n${d.tutorLine} is now on *${d.subject}* (${d.demoId}).\n\nNext: *Schedule Demo* in the Menu.`);
+      await clear(ctx);
+      return [{ text: `*Tutor Assigned!*\n\n${d.tuitionText}\n\n${d.studentText}\n\n${d.tutorText}` }];
     }
 
     /* ---------- 3. schedule demo ---------- */
@@ -852,6 +934,19 @@ function stateText(accepted: unknown, rejected: unknown): string {
   return rejected ? "Rejected" : accepted ? "Agreed" : "Waiting";
 }
 
+// the chosen tuition: show it with the student, then ask for the tutor
+async function pickTuition(ctx: Ctx, d: Json, t: Json): Promise<Out[]> {
+  d.demoId = t.demo_id; d.subject = t.subject; d.studentName = t.student?.student_name ?? "";
+  d.studentCard = studentCard(t.student ?? {}, d.hide);
+  d.wanted = wantedText(t.preferred_tutor);
+  d.studentText = studentFullText(t.student ?? {}, !!d.hide);
+  d.tuitionText = tuitionText(t);
+  const onIt = await applicationsFor(t.demo_id);
+  const card = `${d.studentText}\n\n${tuitionText(t, true)}` + (onIt.length ? `\n\nTutors on it:\n${onIt.map((r) => "- " + tutorCard(r.tutor, d.hide)).join("\n")}` : "\n\nTutors on it: none yet");
+  await save(ctx, "ad_as_tutor", d);
+  return [{ text: card }, prompt("ad_as_tutor", d)];
+}
+
 async function assignConfirm(ctx: Ctx, d: Json, tutor: Json): Promise<Out[]> {
   const again = (msg: string): Out[] => [{ text: `${msg}\n\n${RETRY}` }];
   if (tutor.blocked_at) return again(`*${tutor.full_name}* is blocked.`);
@@ -860,6 +955,7 @@ async function assignConfirm(ctx: Ctx, d: Json, tutor: Json): Promise<Out[]> {
   d.tutorId = tutor.tutor_id;
   d.tutorLine = person(tutor) + (tutor.gender ? ` (${tutor.gender})` : "");
   d.tutorCard = tutorCard(tutor, d.hide);
+  d.tutorText = tutorFullText(tutor, !!d.hide);
   d.mismatch = /^(male|female)$/i.test(d.wanted) && String(tutor.gender ?? "").toLowerCase() !== d.wanted.toLowerCase();
   return go(ctx, "ad_as_confirm", d);
 }
@@ -911,23 +1007,10 @@ function nextStudentStep(step: string, d: Json): string {
   return next ? next.step : "ad_st_confirm";
 }
 
-const fullAddress = (s: Json) => [s.address, [s.city, s.pin_code].filter(Boolean).join(" - ")].filter(Boolean).join(", ");
 
 // Students already on this number: parent, each student with the ID, then the numbers and the address.
 function foundCard(d: Json): string {
-  const groups = new Map<string, Json[]>();
-  for (const s of d.ex ?? []) {
-    const k = String(s.parents_name ?? "").trim().toLowerCase();
-    groups.set(k, [...(groups.get(k) ?? []), s]);
-  }
-  const blocks = [...groups.values()].map((rows) => {
-    const first = rows[0];
-    const wa = numText(first.whatsapp, d.hide), ph = numText(first.phone, d.hide), addr = d.hide ? "" : fullAddress(first);
-    return (first.parents_name ? `Parent: *${first.parents_name}*\n\n` : "") +
-      rows.map((s) => `Student: *${s.student_name ?? "-"}*\nStudent ID: ${s.student_id}`).join("\n\n") +
-      (wa ? `\n\nWhatsApp: ${wa}` : "") + (ph ? `\nMobile No.: ${ph}` : "") + (addr ? `\nAddress: ${addr}` : "");
-  });
-  return `*Students with this WhatsApp / Mobile Number:*\n\n${blocks.join("\n\n---\n\n")}\n\nDo you want to add one more student here?`;
+  return `*Students with this WhatsApp / Mobile Number:*\n\n${studentsBlock(d.ex ?? [], !!d.hide)}\n\nDo you want to add one more student here?`;
 }
 
 function studentSummary(d: Json): string {

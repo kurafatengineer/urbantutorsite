@@ -11,12 +11,12 @@ const db = {
   ],
   tutors: [
     { tutor_id: "TID20260001", full_name: "Anita Verma", gender: "Female", verification_status: "Verified", mobile10: "9111111111", whatsapp10: "9111111111", mobile_number: "9111111111", whatsapp_number: "9111111111" },
-    { tutor_id: "TID20260002", full_name: "Rohit Singh", gender: "Male", verification_status: "Verified", mobile10: "9222222222", whatsapp10: "9222222223", mobile_number: "9222222222", whatsapp_number: "9222222223" },
+    { tutor_id: "TID20260002", full_name: "Rohit Singh", gender: "Male", experience_years: 5, subjects_you_teach: ["Maths", "Physics"], classes_you_teach: ["9th", "10th"], boards_you_teach: ["CBSE"], teaching_location: ["Home", "Online"], present_address: "7 Park Street", city: "Jaipur", pin_code: "302002", verification_status: "Verified", mobile10: "9222222222", whatsapp10: "9222222223", mobile_number: "9222222222", whatsapp_number: "9222222223" },
     { tutor_id: "TID20260003", full_name: "Neha Gupta", gender: "Female", verification_status: "Pending", mobile10: "9333333333", whatsapp10: "9333333333" },
   ],
   tuitions: [
     { demo_id: "DID20260007", subject: "English", medium: "Home", preferred_tutor: "Any", student_id: "SID20260001", terminated: false },
-    { demo_id: "DID20260008", subject: "Maths", medium: "Online", preferred_tutor: "Female", student_id: "SID20260001", terminated: false },
+    { demo_id: "DID20260008", subject: "Maths", medium: "Online", preferred_tutor: "Female", preferred_timing: "6 PM - 8 PM", student_id: "SID20260001", terminated: false },
     { demo_id: "DID20260009", subject: "Science", medium: "Any", preferred_tutor: "Any", student_id: "SID20260001", terminated: true },
     { demo_id: "DID20260010", subject: "Hindi", medium: "Any", preferred_tutor: "Any", student_id: "SID20260004", terminated: false },
   ],
@@ -69,7 +69,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (path === "tuitions" && m === "GET") {
     return ok(db.tuitions.filter((t) =>
       (u.searchParams.has("demo_id") ? (u.searchParams.get("demo_id").startsWith("in.") ? inVals("demo_id").includes(t.demo_id) : t.demo_id === eq("demo_id")) : true) &&
-      (u.searchParams.has("student_id") ? t.student_id === eq("student_id") : true) && !(u.searchParams.has("terminated") && t.terminated)));
+      (u.searchParams.has("student_id") ? (u.searchParams.get("student_id").startsWith("in.") ? inVals("student_id").includes(t.student_id) : t.student_id === eq("student_id")) : true) && !(u.searchParams.has("terminated") && t.terminated)));
   }
   if (path === "applications") return ok(db.applications.filter((a) => a.demo_id === eq("demo_id")));
   if (path === "rpc/tuition_status") return ok(JSON.parse(init.body).p_demo_id === "DID20260009" ? "Terminated" : "Finding Tutor");
@@ -147,22 +147,32 @@ o = await say("SID20260004"); assert(step() === "t_subjects", "...but can use th
 await say("cancel"); db.me.hideContacts = false;
 
 // ---- 2. assign tutor
-await startAdminFlow(wa, EID, "assign");
-o = await say("DID2026"); assert(txt(o).includes("not a valid *Tuition ID*"), "short Tuition ID refused");
+o = await startAdminFlow(wa, EID, "assign");
+assert(step() === "ad_as_demo" && o[0].choices.map((c) => c.id).join() === "cancel" && !txt(o).includes("Cancel any time") && txt(o).includes("*Tuition ID*, the *Student ID*, or the parent's *WhatsApp / mobile number*"), "Assign Tutor asks for a Tuition ID, Student ID or WhatsApp / mobile number, with a Cancel button and no 'type Cancel' text");
+o = await say("DID2026"); assert(txt(o).includes("not a valid ID or number"), "short Tuition ID refused");
 o = await say("DID20260999"); assert(txt(o).includes("No tuition was found"), "unknown Tuition ID refused");
 o = await say("DID20260009"); assert(txt(o).includes("is closed"), "closed tuition refused");
-o = await say("DID20260008");
-assert(step() === "ad_as_tutor" && txt(o).includes("*Maths* (DID20260008)") && txt(o).includes("Student: *Priyanka Shukla* (SID20260001)") && txt(o).includes("Parent: Ravindra Kumar") && txt(o).includes("WhatsApp: +91 90000 00001") && txt(o).includes("Tutor wanted: Female") && txt(o).includes("Tutors on it:") && txt(o).includes("*Anita Verma* (TID20260001)") && txt(o).includes("WhatsApp: +91 91111 11111"), "Tuition ID -> tuition card with student, parent and WhatsApp numbers + tutors already on it, asks for the tutor");
+o = await say("SID20260002"); assert(txt(o).includes("No tuition has been created yet"), "a student with no tuition is told so");
+o = await say("SID20260001");
+assert(step() === "ad_as_tpick" && txt(o).startsWith("*Students with this Student ID:*\n\nParent: *Ravindra Kumar*\n\nStudent: *Priyanka Shukla*\nStudent ID: SID20260001\n\nWhatsApp: +91 90000 00001\nMobile No.: +91 90000 00001\nAddress: 12 Gandhi Road, Jaipur - 302001") && !txt(o).includes("p@x.com") && o[1].choices.map((c) => c.id).join() === "ad_pick:DID20260007,ad_pick:DID20260008,ad_pick:DID20260100,cancel" && o[1].choices.map((c) => c.title).join() === "English,Maths,Physics,Cancel", "more than one tuition -> student details, then a menu of the tuitions + Cancel (no e-mail)");
+o = await say("", "ad_pick:DID20260099"); assert(step() === "ad_as_tpick", "a tuition not on the menu is refused");
+o = await say("", "ad_pick:DID20260008");
+assert(step() === "ad_as_tutor" && txt(o).includes("*Student Details:*\nParent: Ravindra Kumar\nName: *Priyanka Shukla*\nStudent ID: SID20260001") && txt(o).includes("Class: 10th") && txt(o).includes("Address: 12 Gandhi Road, Jaipur - 302001") && txt(o).includes("Subject: *Maths*") && txt(o).includes("Tuition ID: DID20260008") && txt(o).includes("Tutor wanted: Female") && txt(o).includes("Mode: Online") && txt(o).includes("Time: 6 PM - 8 PM") && txt(o).includes("Tutors on it:") && txt(o).includes("*Anita Verma* (TID20260001)") && o[1].choices.map((c) => c.id).join() === "cancel", "tuition chosen -> student + tuition details (mode, time slot), tutors already on it, Cancel button");
 o = await say("9333333333"); assert(txt(o).includes("not a verified tutor"), "unverified tutor refused");
 o = await say("9111111111"); assert(txt(o).includes("already on this tuition"), "tutor already on it refused");
 o = await say("9888888888"); assert(txt(o).includes("No tutor was found"), "unknown tutor number refused");
 o = await say("9222222223");
-assert(step() === "ad_as_confirm" && txt(o).includes("Rohit Singh") && txt(o).includes("WhatsApp: +91 92222 22223") && txt(o).includes("Priyanka Shukla") && txt(o).includes("asks for *female* tutors") && o[0].choices[0].title === "Assign Anyway", "found by WhatsApp number (different from mobile); gender mismatch is warned about");
+assert(step() === "ad_as_confirm" && txt(o).startsWith("*Tutor Details:*\nName: *Rohit Singh*\nTutor ID: TID20260002\nGender: Male\nExperience: 5 years\nSubjects: Maths, Physics\nClasses: 9th, 10th\nBoards: CBSE\nTeaching mode: Home, Online\nWhatsApp: +91 92222 22223\nMobile No.: +91 92222 22222\nAddress: 7 Park Street, Jaipur - 302002") && txt(o).includes("asks for *female* tutors") && o[0].choices.map((c) => c.title).join() === "Assign Anyway,Cancel", "found by WhatsApp number; full tutor details; gender mismatch is warned about");
 o = await say("", "ad_yes");
 assert(last().action === "adminAssignTutor" && last().demoId === "DID20260008" && last().tutor === "TID20260002", "assigned through the admin function, by Tutor ID");
-assert(txt(o).includes("Tutor assigned!") && !db.bot_sessions.length, "success, session cleared");
-await startAdminFlow(wa, EID, "assign"); await say("DID20260007"); o = await say("TID20260002");
-assert(step() === "ad_as_confirm" && o[0].choices[0].title === "Assign" && !txt(o).includes("asks for"), "gender 'Any' -> no warning, plain Assign");
+assert(txt(o).startsWith("*Tutor Assigned!*\n\n*Tuition Details:*\nSubject: *Maths*\nTuition ID: DID20260008\nTutor wanted: Female\nMode: Online\nTime: 6 PM - 8 PM\n\n*Student Details:*") && txt(o).includes("*Tutor Details:*\nName: *Rohit Singh*") && !db.bot_sessions.length && o.length === 1 && !o[0].choices, "final message: tuition, student and tutor details in full; nothing after it");
+await startAdminFlow(wa, EID, "assign"); o = await say("DID20260007");
+assert(step() === "ad_as_tutor", "a single tuition goes straight on to the tutor");
+o = await say("TID20260002");
+assert(step() === "ad_as_confirm" && o[0].choices[0].title === "Assign This Tutor" && !txt(o).includes("asks for"), "gender 'Any' -> no warning, plain Assign This Tutor");
+await say("cancel");
+await startAdminFlow(wa, EID, "assign"); o = await say("9000000001");
+assert(step() === "ad_as_tpick" && txt(o).includes("Priyanka Shukla") && txt(o).includes("Student: *Mohit Kumar*") === false, "a WhatsApp number finds the tuitions of every student on it (only students that have one are listed)");
 await say("cancel");
 
 // ---- 3. schedule demo
