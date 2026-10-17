@@ -4,14 +4,14 @@ const deal = { model: "margin", parentPerClass: 300, marginType: "amount", margi
 const db = {
   bot_sessions: [],
   students: [
-    { student_id: "SID20260001", student_name: "Priyanka Shukla", parents_name: "Ravindra Kumar", phone10: "9000000001", whatsapp10: "9000000001", email_lc: "p@x.com", class_name: "10th", board: "CBSE" },
+    { student_id: "SID20260001", student_name: "Priyanka Shukla", parents_name: "Ravindra Kumar", phone10: "9000000001", whatsapp10: "9000000001", phone: "9000000001", whatsapp: "9000000001", email_lc: "p@x.com", class_name: "10th", board: "CBSE" },
     { student_id: "SID20260002", student_name: "Mohit Kumar", parents_name: "Ravindra Kumar", phone10: "9000000002", whatsapp10: "9000000002", email_lc: "p@x.com", class_name: "8th", board: "CBSE" },
     { student_id: "SID20260003", student_name: "Blocked Kid", parents_name: "X", phone10: "9000000003", whatsapp10: "9000000003", email_lc: "b@x.com", blocked_at: "2026-10-01" },
-    { student_id: "SID20260004", student_name: "Solo Kid", parents_name: "Y", phone10: "9000000004", whatsapp10: "9000000004", email_lc: "s@x.com", class_name: "9th", board: "ICSE" },
+    { student_id: "SID20260004", student_name: "Solo Kid", parents_name: "Y", phone10: "9000000004", whatsapp10: "9000000004", phone: "9000000004", whatsapp: "9000000004", email_lc: "s@x.com", class_name: "9th", board: "ICSE" },
   ],
   tutors: [
-    { tutor_id: "TID20260001", full_name: "Anita Verma", gender: "Female", verification_status: "Verified", mobile10: "9111111111", whatsapp10: "9111111111" },
-    { tutor_id: "TID20260002", full_name: "Rohit Singh", gender: "Male", verification_status: "Verified", mobile10: "9222222222", whatsapp10: "9222222223" },
+    { tutor_id: "TID20260001", full_name: "Anita Verma", gender: "Female", verification_status: "Verified", mobile10: "9111111111", whatsapp10: "9111111111", mobile_number: "9111111111", whatsapp_number: "9111111111" },
+    { tutor_id: "TID20260002", full_name: "Rohit Singh", gender: "Male", verification_status: "Verified", mobile10: "9222222222", whatsapp10: "9222222223", mobile_number: "9222222222", whatsapp_number: "9222222223" },
     { tutor_id: "TID20260003", full_name: "Neha Gupta", gender: "Female", verification_status: "Pending", mobile10: "9333333333", whatsapp10: "9333333333" },
   ],
   tuitions: [
@@ -119,13 +119,13 @@ o = await say("9000000001");
 assert(step() === "ad_new_pick" && o[0].choices.length === 3, "two children on this number (siblings) -> pick one (+ Cancel)");
 o = await say("", "ad_pick:SID20260099"); assert(step() === "ad_new_pick", "a student not on the list is refused");
 o = await say("", "ad_pick:SID20260001");
-assert(step() === "t_subjects" && db.bot_sessions[0].data.adminId === EID && txt(o).includes("Priyanka Shukla"), "picked -> the usual tuition questions, posting as the employee");
+assert(step() === "t_subjects" && db.bot_sessions[0].data.adminId === EID && txt(o).includes("Priyanka Shukla") && txt(o).includes("Parent: Ravindra Kumar") && txt(o).includes("WhatsApp: +91 90000 00001"), "picked -> the student card (parent + WhatsApp), then the usual tuition questions, posting as the employee");
 await say("Physics, Chemistry"); await say("6 pm"); await say("", "t_tutor:female"); await say("", "t_mode:online");
 o = await say("", "t_post");
 assert(last().action === "adminAddTuition" && last().botEmployeeId === EID && last().p.studentId === "SID20260001" && last().p.subjects === "Physics,Chemistry" && last().p.preferredTutor === "Female" && last().p.medium === "Online" && last().p.preferredTiming === "6 pm", "posted through the admin function with the right details");
 assert(txt(o).includes("Tuition request posted!") && txt(o).includes("DID20260100") && txt(o).includes("The parent has been told") && !db.bot_sessions.length, "success message, session cleared");
 await startAdminFlow(wa, EID, "new");
-o = await say("SID20260004"); assert(step() === "t_subjects", "Student ID works too (single student goes straight on)");
+o = await say("SID20260004"); assert(step() === "t_subjects" && txt(o).includes("Parent: Y") && txt(o).includes("WhatsApp: +91 90000 00004"), "Student ID works too (single student goes straight on, with the student card)");
 await say("cancel");
 db.me.hideContacts = true;
 await startAdminFlow(wa, EID, "new");
@@ -139,12 +139,12 @@ o = await say("DID2026"); assert(txt(o).includes("not a valid *Tuition ID*"), "s
 o = await say("DID20260999"); assert(txt(o).includes("No tuition was found"), "unknown Tuition ID refused");
 o = await say("DID20260009"); assert(txt(o).includes("is closed"), "closed tuition refused");
 o = await say("DID20260008");
-assert(step() === "ad_as_tutor" && txt(o).includes("*Maths* (DID20260008)") && txt(o).includes("Student: *Priyanka Shukla*") && txt(o).includes("Tutor wanted: Female") && txt(o).includes("Tutors on it: 1"), "Tuition ID -> tuition card, asks for the tutor");
+assert(step() === "ad_as_tutor" && txt(o).includes("*Maths* (DID20260008)") && txt(o).includes("Student: *Priyanka Shukla* (SID20260001)") && txt(o).includes("Parent: Ravindra Kumar") && txt(o).includes("WhatsApp: +91 90000 00001") && txt(o).includes("Tutor wanted: Female") && txt(o).includes("Tutors on it:") && txt(o).includes("*Anita Verma* (TID20260001)") && txt(o).includes("WhatsApp: +91 91111 11111"), "Tuition ID -> tuition card with student, parent and WhatsApp numbers + tutors already on it, asks for the tutor");
 o = await say("9333333333"); assert(txt(o).includes("not a verified tutor"), "unverified tutor refused");
 o = await say("9111111111"); assert(txt(o).includes("already on this tuition"), "tutor already on it refused");
 o = await say("9888888888"); assert(txt(o).includes("No tutor was found"), "unknown tutor number refused");
 o = await say("9222222223");
-assert(step() === "ad_as_confirm" && txt(o).includes("Rohit Singh") && txt(o).includes("asks for *female* tutors") && o[0].choices[0].title === "Assign Anyway", "found by WhatsApp number (different from mobile); gender mismatch is warned about");
+assert(step() === "ad_as_confirm" && txt(o).includes("Rohit Singh") && txt(o).includes("WhatsApp: +91 92222 22223") && txt(o).includes("Priyanka Shukla") && txt(o).includes("asks for *female* tutors") && o[0].choices[0].title === "Assign Anyway", "found by WhatsApp number (different from mobile); gender mismatch is warned about");
 o = await say("", "ad_yes");
 assert(last().action === "adminAssignTutor" && last().demoId === "DID20260008" && last().tutor === "TID20260002", "assigned through the admin function, by Tutor ID");
 assert(txt(o).includes("Tutor assigned!") && !db.bot_sessions.length, "success, session cleared");
@@ -172,17 +172,27 @@ await say("cancel");
 await startAdminFlow(wa, EID, "demo"); o = await say("DID20260009"); assert(txt(o).includes("is closed"), "closed tuition refused");
 await say("cancel");
 
-// ---- 4. tutor confirmation
+// ---- 4. tutor / parent confirmation
 await startAdminFlow(wa, EID, "conf");
 o = await say("DID20260008");
-assert(step() === "ad_tc_pick" && txt(o).includes("Tutor: Waiting") && txt(o).includes("Parent: Agreed") && o.at(-1).choices.some((c) => c.id === "ad_pick:TID20260001"), "shows who has agreed; offers to confirm for the waiting tutor");
-o = await say("", "ad_pick:TID20260001");
-assert(step() === "ad_tc_confirm" && txt(o).includes("only after the tutor has agreed"), "asks to be sure");
+assert(step() === "ad_tc_pick" && txt(o).includes("Tutor: Waiting") && txt(o).includes("Parent: Agreed") && txt(o).includes("WhatsApp: +91 91111 11111") && txt(o).includes("Parent: Ravindra Kumar") && o.at(-1).choices.some((c) => c.id === "ad_pick:t:TID20260001") && !o.at(-1).choices.some((c) => c.id.startsWith("ad_pick:p:")), "shows both sides + names / IDs / WhatsApp numbers; offers only what is still waiting (tutor)");
+o = await say("", "ad_pick:t:TID20260001");
+assert(step() === "ad_tc_confirm" && txt(o).includes("only after the tutor has agreed") && txt(o).includes("Priyanka Shukla") && txt(o).includes("Anita Verma"), "asks to be sure, names both");
 o = await say("", "ad_yes");
-assert(last().action === "adminUpdateDemoRow" && last().changes["Tutor Accepted"] === true && last().tutorId === "TID20260001", "confirmed through the admin function");
-assert(txt(o).includes("Tutor confirmed.") && txt(o).includes("Parent: Agreed"), "success, shows the parent's side");
+assert(last().action === "adminUpdateDemoRow" && last().changes["Tutor Accepted"] === true && last().changes["Parent Accepted"] === undefined && last().tutorId === "TID20260001", "tutor confirmed through the admin function");
+assert(txt(o).includes("Tutor confirmed.") && txt(o).includes("Parent: Agreed"), "success, shows both sides");
+await startAdminFlow(wa, EID, "conf"); o = await say("DID20260010");
+assert(step() === "ad_tc_pick" && ["t:TID20260001", "p:TID20260001", "t:TID20260002", "p:TID20260002"].every((k) => o.at(-1).choices.some((c) => c.id === "ad_pick:" + k)), "two tutors, nobody agreed -> tutor AND parent can be confirmed for each");
+o = await say("", "ad_pick:p:TID20260002");
+assert(step() === "ad_tc_confirm" && txt(o).includes("parent / student") && txt(o).includes("only after the parent has agreed") && txt(o).includes("Solo Kid") && txt(o).includes("Rohit Singh"), "parent confirmation: asks, names student and tutor");
+o = await say("", "ad_yes");
+assert(last().changes["Parent Accepted"] === true && last().changes["Tutor Accepted"] === undefined && last().tutorId === "TID20260002" && txt(o).includes("Parent confirmed."), "parent confirmed through the admin function");
 await startAdminFlow(wa, EID, "conf"); o = await say("DID20260007");
-assert(!db.bot_sessions.length && txt(o).includes("Tutor: Agreed") && txt(o).includes("Use *Create Payment*"), "already agreed -> just the details and the next step");
+assert(!db.bot_sessions.length && txt(o).includes("Tutor: Agreed") && txt(o).includes("Use *Class & Agreement*"), "already agreed -> just the details and the next step");
+db.me.hideContacts = true;
+await startAdminFlow(wa, EID, "conf"); o = await say("DID20260007");
+assert(txt(o).includes("********11") && !txt(o).includes("91111 11111") && !txt(o).includes("90000 00001") && txt(o).includes("(TID20260001)") && txt(o).includes("(SID20260001)"), "'hide mobile' account: numbers masked (last two digits), names and IDs still shown");
+db.me.hideContacts = false;
 db.me.permissions = ["tuitions_view"];
 await startAdminFlow(wa, EID, "conf"); o = await say("DID20260008");
 assert(!db.bot_sessions.length && !o.some((x) => x.choices), "a viewer who may not edit gets the details only, no confirm button");

@@ -1,9 +1,9 @@
 // WhatsApp (later Telegram) chat flows for an EMPLOYEE (admin), shared by the bots.
-//   1. New Tuition        - find the parent by WhatsApp / mobile number or Student ID, then the usual tuition questions
+//   1. Create New Tuition - find the parent by WhatsApp / mobile number or Student ID, then the usual tuition questions
 //   2. Assign Tutor       - Tuition ID, then the tutor's WhatsApp / mobile number (or Tutor ID)
 //   3. Schedule Demo      - Tuition ID, tutor, date, time
-//   4. Tutor Confirmation - see who has agreed on a tuition; confirm for a tutor
-//   5. Create Payment     - only for a tuition where the tutor and the parent have both agreed
+//   4. Tutor / Parent Confirm - see who has agreed on a tuition; confirm for the tutor or for the parent
+//   5. Record Payment     - only for a tuition where the tutor and the parent have both agreed
 //   6. Add New Student    - only the name and a mobile number are needed; every other detail can be skipped (no email code)
 //   7. Class & Agreement  - days, start date, time, duration, billing model, fees, how often, who is paid; saves it and sends the agreement
 // Every change is made by the "admin" Edge Function (see adminbridge.ts), so it follows the same rules as the
@@ -38,7 +38,7 @@ const FIRST_STEP: Record<AdminKind, string> = {
 };
 
 const TITLE: Record<AdminKind, string> = {
-  new: "New Tuition", assign: "Assign Tutor", demo: "Schedule Demo", conf: "Tutor Confirmation", pay: "Create Payment",
+  new: "Create New Tuition", assign: "Assign Tutor", demo: "Schedule Demo", conf: "Tutor / Parent Confirm", pay: "Record Payment",
   student: "Add New Student", deal: "Class & Agreement",
 };
 
@@ -185,16 +185,16 @@ const wantedText = (t: unknown) => /^(male|female)$/i.test(String(t).trim()) ? S
 async function findTuition(demoId: string): Promise<Json | null> {
   const t = (await rest(`tuitions?demo_id=eq.${q(demoId)}&select=demo_id,subject,medium,preferred_tutor,student_id,terminated`))?.[0];
   if (!t) return null;
-  const student = (await rest(`students?student_id=eq.${q(t.student_id)}&select=student_id,student_name,class_name,board,blocked_at`))?.[0] ?? {};
+  const student = (await rest(`students?student_id=eq.${q(t.student_id)}&select=student_id,student_name,parents_name,phone,whatsapp,class_name,board,blocked_at`))?.[0] ?? {};
   const status = String(await rest("rpc/tuition_status", { method: "POST", body: JSON.stringify({ p_demo_id: demoId }) }) ?? "");
   return { ...t, student, status };
 }
 
 const closed = (t: Json) => t.terminated === true || ["Completed", "Terminated"].includes(t.status);
 
-function tuitionCard(t: Json): string {
+function tuitionCard(t: Json, hide: boolean): string {
   const cls = [t.student?.class_name, t.student?.board].filter(Boolean).join(" · ");
-  return `*${t.subject}* (${t.demo_id})\nStudent: *${t.student?.student_name ?? "-"}* (${t.student?.student_id ?? "-"})\n` +
+  return `*${t.subject}* (${t.demo_id})\nStudent: ${studentCard(t.student ?? {}, hide)}\n` +
     (cls ? `Class: ${cls}\n` : "") + `Mode: ${modeText(t.medium)}\nTutor wanted: ${wantedText(t.preferred_tutor)}\nStatus: ${t.status || "-"}`;
 }
 
@@ -203,12 +203,15 @@ const APP_COLS = "tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_
 async function applicationsFor(demoId: string): Promise<Json[]> {
   const rows: Json[] = await rest(`applications?demo_id=eq.${q(demoId)}&select=${APP_COLS}&order=id`) ?? [];
   const ids = [...new Set(rows.map((r) => String(r.tutor_id)))];
-  const tutors: Json[] = ids.length ? await rest(`tutors?tutor_id=${inList(ids)}&select=tutor_id,full_name,gender`) ?? [] : [];
-  return rows.map((r) => ({ ...r, tutorName: String(tutors.find((t) => t.tutor_id === r.tutor_id)?.full_name ?? r.tutor_id) }));
+  const tutors: Json[] = ids.length ? await rest(`tutors?tutor_id=${inList(ids)}&select=tutor_id,full_name,gender,mobile_number,whatsapp_number`) ?? [] : [];
+  return rows.map((r) => {
+    const tutor = tutors.find((t) => t.tutor_id === r.tutor_id) ?? { tutor_id: r.tutor_id };
+    return { ...r, tutor, tutorName: String(tutor.full_name ?? r.tutor_id) };
+  });
 }
 
 async function findTutors(c: { kind: string; value: string }): Promise<Json[]> {
-  const cols = "tutor_id,full_name,gender,verification_status,blocked_at";
+  const cols = "tutor_id,full_name,gender,mobile_number,whatsapp_number,verification_status,blocked_at";
   if (c.kind === "tid") return await rest(`tutors?tutor_id=eq.${q(c.value)}&select=${cols}`) ?? [];
   const [a, b] = await Promise.all([
     rest(`tutors?whatsapp10=eq.${c.value}&select=${cols}`),
@@ -218,11 +221,27 @@ async function findTutors(c: { kind: string; value: string }): Promise<Json[]> {
 }
 
 async function findStudents(c: { kind: string; value: string }): Promise<Json[]> {
-  if (c.kind === "sid") return await rest(`students?student_id=eq.${q(c.value)}&select=student_id,student_name,parents_name,blocked_at`) ?? [];
+  if (c.kind === "sid") return await rest(`students?student_id=eq.${q(c.value)}&select=student_id,student_name,parents_name,phone,whatsapp,blocked_at`) ?? [];
   return (await accountsByPhone(c.value)).students;
 }
 
 const person = (p: Json, id = "tutor_id", name = "full_name") => `*${p[name] ?? "-"}* (${p[id]})`;
+
+// A number as the employee sees it: in full, or only the last two digits when their account hides numbers.
+const numText = (v: unknown, hide: boolean): string => {
+  const d = last10(v);
+  if (d.length < 10) return "";
+  return hide ? "*".repeat(8) + d.slice(-2) : `+91 ${d.slice(0, 5)} ${d.slice(5)}`;
+};
+// Name, ID, parent and WhatsApp number of a student / tutor - shown wherever an employee works, so it is always clear who it is.
+function studentCard(s: Json, hide: boolean): string {
+  const wa = numText(s.whatsapp || s.phone, hide);
+  return `*${s.student_name ?? "-"}* (${s.student_id ?? "-"})` + (s.parents_name ? `\n   Parent: ${s.parents_name}` : "") + (wa ? `\n   WhatsApp: ${wa}` : "");
+}
+function tutorCard(t: Json, hide: boolean): string {
+  const wa = numText(t.whatsapp_number || t.mobile_number, hide);
+  return `*${t.full_name ?? "-"}* (${t.tutor_id ?? "-"})` + (t.gender ? ` · ${t.gender}` : "") + (wa ? `\n   WhatsApp: ${wa}` : "");
+}
 
 /* --------------------------------------------------------------- prompts */
 
@@ -244,12 +263,13 @@ const PTYPE_TEXT: Record<string, string> = { advance: "Advance", regular: "Regul
 function prompt(step: string, d: Json): Out {
   switch (step) {
     case "ad_new_find": return {
-      text: "*New Tuition*\nYou can type *Cancel* any time.\n\n" +
+      text: "*Create New Tuition*\nYou can type *Cancel* any time.\n\n" +
         (d.hide
           ? "Send the *Student ID*.\n\nFor example -\nSID20260613"
           : "Send the parent's *WhatsApp number* or *mobile number*, or the *Student ID*.\n\nFor example -\n9876543210\nSID20260613"),
     };
-    case "ad_new_pick": return pickOut("Which *student* is the tuition for?", d.options, "student_id", "student_name");
+    case "ad_new_pick": return pickOut("Which *student* is the tuition for?", d.options, "student_id", "student_name",
+      (o) => `${o.student_id}${o.parents_name ? " · Parent " + o.parents_name : ""}`);
     case "ad_as_demo": return askDemo("assign");
     case "ad_sd_demo": return askDemo("demo");
     case "ad_tc_demo": return askDemo("conf");
@@ -259,34 +279,38 @@ function prompt(step: string, d: Json): Out {
         ? "Send the tutor's *Tutor ID*.\n\nFor example -\nTID20260123"
         : "Send the tutor's *WhatsApp number* or *mobile number*, or the *Tutor ID*.\n\nFor example -\n9876543210\nTID20260123",
     };
-    case "ad_as_pick": return pickOut("Which *tutor*?", d.options, "tutor_id", "full_name");
+    case "ad_as_pick": return pickOut("Which *tutor*?", d.options, "tutor_id", "full_name",
+      (o) => `${o.tutor_id} · ${numText(o.whatsapp_number || o.mobile_number, d.hide)}`);
     case "ad_as_confirm": return {
-      text: `*Please check:*\n\nAssign ${d.tutorLine}\n\nto *${d.subject}* (${d.demoId}) of *${d.studentName}*?` +
+      text: `*Please check:*\n\nAssign\nTutor: ${d.tutorCard}\n\nto *${d.subject}* (${d.demoId})\nStudent: ${d.studentCard}` +
         (d.mismatch ? `\n\nNote: this tuition asks for *${d.wanted.toLowerCase()}* tutors.` : ""),
       choices: [YES(d.mismatch ? "Assign Anyway" : "Assign"), CANCEL],
     };
     case "ad_sd_pick": return pickOut("Which *tutor* is the demo for?", d.options, "tutor_id", "tutorName",
-      (o) => o.demo_date ? `${o.tutor_id} · demo ${fmtDate(o.demo_date)}` : `${o.tutor_id} · no demo yet`);
+      (o) => `${o.tutor_id} · ${numText(o.tutor?.whatsapp_number || o.tutor?.mobile_number, d.hide)}`);
     case "ad_sd_date": return {
       text: `Demo *date* for *${d.tutorName}*?\n\nType it like *18-10-2026* (day-month-year), or *Today* / *Tomorrow*.` +
         (d.currentDemo ? `\n\nThe demo is now on ${d.currentDemo}. A new date will move it.` : ""),
     };
     case "ad_sd_time": return { text: "Demo *time*?\n\nFor example -\n5 PM\n5:30 PM\n17:30" };
     case "ad_sd_confirm": return {
-      text: `*Please check the demo:*\n\n*${d.subject}* (${d.demoId})\nStudent: *${d.studentName}*\nTutor: ${d.tutorLine}\n` +
+      text: `*Please check the demo:*\n\n*${d.subject}* (${d.demoId})\nStudent: ${d.studentCard}\nTutor: ${d.tutorCard}\n` +
         `Date: *${fmtDate(d.date)}*\nTime: *${fmtTime(d.time)}*\n\nThe parent and the tutor will be told.`,
       choices: [YES("Schedule"), CANCEL],
     };
     case "ad_tc_pick": return {
-      text: "Confirm for which tutor?\nUse this only after the tutor has agreed to you.",
-      choices: [...d.options.slice(0, 8).map((o: Json) => ({ id: `ad_pick:${o.tutor_id}`, title: `Confirm: ${o.tutorName}`, description: String(o.tutor_id) })),
+      text: "Confirm for whom?\nUse this only after that person has agreed to you.",
+      choices: [...d.options.slice(0, 9).map((o: Json) => ({ id: `ad_pick:${o.side}:${o.tutor_id}`, title: `${o.side === "p" ? "Parent" : "Tutor"}: ${o.tutorName}`, description: `${o.tutor_id} · ${o.side === "p" ? "parent / student confirms" : "tutor confirms"}` })),
         { id: "ad_done", title: "Done" }],
     };
     case "ad_tc_confirm": return {
-      text: `Confirm for ${d.tutorLine} that the tutor *accepts* *${d.subject}* (${d.demoId})?\n\nUse this only after the tutor has agreed to you.`,
+      text: d.side === "p"
+        ? `Confirm that the *parent / student* accepts this tutor for *${d.subject}* (${d.demoId})?\n\nStudent: ${d.studentCard}\nTutor: ${d.tutorCard}\n\nUse this only after the parent has agreed to you.`
+        : `Confirm that the *tutor accepts* *${d.subject}* (${d.demoId})?\n\nTutor: ${d.tutorCard}\nStudent: ${d.studentCard}\n\nUse this only after the tutor has agreed to you.`,
       choices: [YES("Yes, Confirm"), CANCEL],
     };
-    case "ad_pm_pick": return pickOut("Which *tutor* is the payment for?", d.options, "tutor_id", "tutorName");
+    case "ad_pm_pick": return pickOut("Which *tutor* is the payment for?", d.options, "tutor_id", "tutorName",
+      (o) => `${o.tutor_id} · ${numText(o.tutor?.whatsapp_number || o.tutor?.mobile_number, d.hide)}`);
     case "ad_pm_kind": return {
       text: "What kind of payment is this?",
       choices: [{ id: "pm_kind:collection", title: KIND_TEXT.collection }, { id: "pm_kind:payout", title: KIND_TEXT.payout },
@@ -307,7 +331,7 @@ function prompt(step: string, d: Json): Out {
       choices: [{ id: "pm_skip", title: "Skip" }],
     };
     case "ad_pm_confirm": return {
-      text: `*Please check the payment:*\n\n*${d.subject}* (${d.demoId})\nStudent: *${d.studentName}*\nTutor: ${d.tutorLine}\n` +
+      text: `*Please check the payment:*\n\n*${d.subject}* (${d.demoId})\nStudent: ${d.studentCard}\nTutor: ${d.tutorCard}\n` +
         `Kind: ${KIND_TEXT[d.kind]}\nAmount: *${inr(d.amount)}*\nPayment type: ${PTYPE_TEXT[d.ptype]}\nMode: ${d.mode}\n` +
         `Date: ${fmtDate(d.date)}\n` + (d.next ? `Next payment: ${fmtDate(d.next)}\n` : "") +
         "\nThe parent / tutor will get the payment message.",
@@ -334,9 +358,10 @@ function prompt(step: string, d: Json): Out {
       choices: [{ id: "st_post", title: "Post Tuition Now" }, { id: "st_done", title: "Not Now" }],
     };
     case "ad_dl_demo": return askDemo("deal");
-    case "ad_dl_pick": return pickOut("Which *tutor*?", d.options, "tutor_id", "tutorName");
+    case "ad_dl_pick": return pickOut("Which *tutor*?", d.options, "tutor_id", "tutorName",
+      (o) => `${o.tutor_id} · ${numText(o.tutor?.whatsapp_number || o.tutor?.mobile_number, d.hide)}`);
     case "ad_dl_days": return {
-      text: `*Class & Agreement*\n*${d.subject}* (${d.demoId})\nStudent: *${d.studentName}*\nTutor: ${d.tutorLine}\n` +
+      text: `*Class & Agreement*\n*${d.subject}* (${d.demoId})\nStudent: ${d.studentCard}\nTutor: ${d.tutorCard}\n` +
         (d.existing ? "\nA deal is already saved for this class. Continuing will replace it and send the agreement again.\n" : "") +
         "\nOn which *days of the week* are the classes?\n\nFor example -\nMon, Wed, Fri\nMon-Sat\nDaily",
     };
@@ -414,14 +439,14 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
       if (!found.length) return again(`No student was found with *${text}*.`);
       const open = found.filter((x) => !x.blocked_at);
       if (!open.length) return again("This student is blocked.\nUnblock them in the Admin Panel first.");
-      if (open.length === 1) return startTuition(ctx, [open[0]], { adminId: d.eid });
-      d.options = open.slice(0, 9).map((x) => ({ student_id: x.student_id, student_name: x.student_name }));
+      if (open.length === 1) return [{ text: `*Student*\n${studentCard(open[0], d.hide)}` }, ...(await startTuition(ctx, [open[0]], { adminId: d.eid }))];
+      d.options = open.slice(0, 9).map((x) => ({ student_id: x.student_id, student_name: x.student_name, parents_name: x.parents_name, whatsapp: x.whatsapp, phone: x.phone }));
       return go(ctx, "ad_new_pick", d);
     }
     case "ad_new_pick": {
       const chosen = (d.options ?? []).find((o: Json) => o.student_id === pickedId);
       if (!chosen) return [prompt(step, d)];
-      return startTuition(ctx, [{ student_id: chosen.student_id, student_name: chosen.student_name }], { adminId: d.eid });
+      return [{ text: `*Student*\n${studentCard(chosen, d.hide)}` }, ...(await startTuition(ctx, [{ student_id: chosen.student_id, student_name: chosen.student_name }], { adminId: d.eid }))];
     }
 
     /* ---------- 2. assign tutor ---------- */
@@ -432,10 +457,10 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
       if (!t) return again(`No tuition was found with the ID *${c.value}*.`);
       if (closed(t)) return again(`*${c.value}* is closed (${t.status || "terminated"}).`);
       if (t.student?.blocked_at) return again("This student is blocked.");
-      d.demoId = t.demo_id; d.subject = t.subject; d.studentName = t.student?.student_name ?? "";
+      d.demoId = t.demo_id; d.subject = t.subject; d.studentName = t.student?.student_name ?? ""; d.studentCard = studentCard(t.student ?? {}, d.hide);
       d.wanted = wantedText(t.preferred_tutor);
-      const onIt = (await applicationsFor(t.demo_id)).length;
-      d.card = tuitionCard(t) + `\nTutors on it: ${onIt}`;
+      const onIt = await applicationsFor(t.demo_id);
+      d.card = tuitionCard(t, d.hide) + (onIt.length ? `\n\nTutors on it:\n${onIt.map((r) => "- " + tutorCard(r.tutor, d.hide)).join("\n")}` : "\n\nTutors on it: none yet");
       await save(ctx, "ad_as_tutor", d);
       return [{ text: d.card }, prompt("ad_as_tutor", d)];
     }
@@ -474,7 +499,7 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
       if (closed(t)) return again(`*${c.value}* is closed (${t.status || "terminated"}).`);
       const rows = (await applicationsFor(t.demo_id)).filter((r) => !r.parent_rejected && !r.tutor_rejected);
       if (!rows.length) return again(`No tutor is on *${c.value}* yet.\nUse *Assign Tutor* first.`);
-      d.demoId = t.demo_id; d.subject = t.subject; d.studentName = t.student?.student_name ?? "";
+      d.demoId = t.demo_id; d.subject = t.subject; d.studentName = t.student?.student_name ?? ""; d.studentCard = studentCard(t.student ?? {}, d.hide);
       if (rows.length === 1) return demoDate(ctx, d, rows[0]);
       d.options = rows.slice(0, 9);
       return go(ctx, "ad_sd_pick", d);
@@ -515,34 +540,41 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
       if (!t) return again(`No tuition was found with the ID *${c.value}*.`);
       const rows = await applicationsFor(t.demo_id);
       if (!rows.length) return again(`No tutor is on *${c.value}* yet.`);
-      const lines = rows.map((r) => `${person({ ...r, full_name: r.tutorName })}\nTutor: ${stateText(r.tutor_accepted, r.tutor_rejected)}\nParent: ${stateText(r.parent_accepted, r.parent_rejected)}\n` +
-        `Demo: ${r.demo_date ? `${fmtDate(r.demo_date)}${r.demo_time ? ", " + fmtTime(r.demo_time) : ""}` : "Not scheduled"}`);
-      const head = `${tuitionCard(t)}\n\n${lines.join("\n\n")}`;
+      const lines = rows.map((r) => `${tutorCard(r.tutor, d.hide)}\n   Tutor: ${stateText(r.tutor_accepted, r.tutor_rejected)}\n   Parent: ${stateText(r.parent_accepted, r.parent_rejected)}\n` +
+        `   Demo: ${r.demo_date ? `${fmtDate(r.demo_date)}${r.demo_time ? ", " + fmtTime(r.demo_time) : ""}` : "Not scheduled"}`);
+      const head = `${tuitionCard(t, d.hide)}\n\n${lines.join("\n\n")}`;
       const canConfirm = d.perms.includes("tuitions_edit") && !closed(t);
-      const todo = rows.filter((r) => !r.tutor_accepted && !r.tutor_rejected && !r.parent_rejected);
-      if (!canConfirm || !todo.length) {
-        const both = rows.some((r) => r.tutor_accepted && r.parent_accepted && !r.tutor_rejected && !r.parent_rejected);
-        return finish(ctx, head + (both ? "\n\nThe tutor and the parent have agreed. Use *Create Payment* in the Menu." : ""));
+      const entries: Json[] = [];
+      for (const r of rows) {
+        if (r.parent_rejected || r.tutor_rejected) continue;
+        if (!r.tutor_accepted) entries.push({ side: "t", tutor_id: r.tutor_id, tutorName: r.tutorName, card: tutorCard(r.tutor, d.hide) });
+        if (!r.parent_accepted) entries.push({ side: "p", tutor_id: r.tutor_id, tutorName: r.tutorName, card: tutorCard(r.tutor, d.hide) });
       }
-      d.demoId = t.demo_id; d.subject = t.subject; d.options = todo.slice(0, 8);
+      if (!canConfirm || !entries.length) {
+        const both = rows.some((r) => r.tutor_accepted && r.parent_accepted && !r.tutor_rejected && !r.parent_rejected);
+        return finish(ctx, head + (both ? "\n\nThe tutor and the parent have agreed. Use *Class & Agreement*, then *Record Payment* in the Menu." : ""));
+      }
+      d.demoId = t.demo_id; d.subject = t.subject; d.studentName = t.student?.student_name ?? ""; d.studentCard = studentCard(t.student ?? {}, d.hide);
+      d.options = entries.slice(0, 9);
       await save(ctx, "ad_tc_pick", d);
       return [{ text: head }, prompt("ad_tc_pick", d)];
     }
     case "ad_tc_pick": {
       if (choice === "ad_done") return finish(ctx, "Done.");
-      const chosen = (d.options ?? []).find((o: Json) => o.tutor_id === pickedId);
+      const chosen = (d.options ?? []).find((o: Json) => `${o.side}:${o.tutor_id}` === pickedId);
       if (!chosen) return [prompt(step, d)];
-      d.tutorId = chosen.tutor_id; d.tutorLine = person({ ...chosen, full_name: chosen.tutorName });
+      d.side = chosen.side; d.tutorId = chosen.tutor_id; d.tutorCard = chosen.card;
+      d.tutorLine = `*${chosen.tutorName}* (${chosen.tutor_id})`;
       return go(ctx, "ad_tc_confirm", d);
     }
     case "ad_tc_confirm": {
       if (choice !== "ad_yes") return [prompt(step, d)];
-      const res = await adminCall(d.eid, "adminUpdateDemoRow", { demoId: d.demoId, tutorId: d.tutorId, changes: { "Tutor Accepted": true } });
+      const res = await adminCall(d.eid, "adminUpdateDemoRow", { demoId: d.demoId, tutorId: d.tutorId, changes: { [d.side === "p" ? "Parent Accepted" : "Tutor Accepted"]: true } });
       if (!res?.success) return finish(ctx, `It could not be saved.\n${String(res?.message ?? "")}`);
       const row = (await applicationsFor(d.demoId)).find((r) => r.tutor_id === d.tutorId);
-      const parentOk = !!row?.parent_accepted && !row?.parent_rejected;
-      return finish(ctx, `*Tutor confirmed.*\n${d.tutorLine} accepts *${d.subject}* (${d.demoId}).\n\nParent: ${stateText(row?.parent_accepted, row?.parent_rejected)}` +
-        (parentOk ? "\n\nThe tutor and the parent have agreed. Use *Create Payment* in the Menu." : ""));
+      const bothOk = !!row?.parent_accepted && !!row?.tutor_accepted && !row?.parent_rejected && !row?.tutor_rejected;
+      return finish(ctx, `*${d.side === "p" ? "Parent confirmed" : "Tutor confirmed"}.*\n${d.tutorLine} - *${d.subject}* (${d.demoId}).\n\nTutor: ${stateText(row?.tutor_accepted, row?.tutor_rejected)}\nParent: ${stateText(row?.parent_accepted, row?.parent_rejected)}` +
+        (bothOk ? "\n\nThe tutor and the parent have agreed. Use *Class & Agreement*, then *Record Payment* in the Menu." : ""));
     }
 
     /* ---------- 5. create payment ---------- */
@@ -560,7 +592,7 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
           : "\n\nNo tutor is on it yet.";
         return again(`A payment can be created only after the tutor and the parent have both agreed.${why}`);
       }
-      d.demoId = t.demo_id; d.subject = t.subject; d.studentName = t.student?.student_name ?? "";
+      d.demoId = t.demo_id; d.subject = t.subject; d.studentName = t.student?.student_name ?? ""; d.studentCard = studentCard(t.student ?? {}, d.hide);
       if (agreed.length === 1) return payKind(ctx, d, agreed[0]);
       d.options = agreed.slice(0, 9);
       return go(ctx, "ad_pm_pick", d);
@@ -689,7 +721,7 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
       }
       d.demoId = t.demo_id;
       d.subject = t.subject;
-      d.studentName = t.student?.student_name ?? "";
+      d.studentName = t.student?.student_name ?? ""; d.studentCard = studentCard(t.student ?? {}, d.hide);
       if (agreed.length === 1) return dealStart(ctx, d, agreed[0]);
       d.options = agreed.slice(0, 9);
       return go(ctx, "ad_dl_pick", d);
@@ -799,6 +831,7 @@ async function assignConfirm(ctx: Ctx, d: Json, tutor: Json): Promise<Out[]> {
   if ((await applicationsFor(d.demoId)).some((r) => r.tutor_id === tutor.tutor_id)) return again(`*${tutor.full_name}* is already on this tuition.`);
   d.tutorId = tutor.tutor_id;
   d.tutorLine = person(tutor) + (tutor.gender ? ` (${tutor.gender})` : "");
+  d.tutorCard = tutorCard(tutor, d.hide);
   d.mismatch = /^(male|female)$/i.test(d.wanted) && String(tutor.gender ?? "").toLowerCase() !== d.wanted.toLowerCase();
   return go(ctx, "ad_as_confirm", d);
 }
@@ -807,6 +840,7 @@ async function demoDate(ctx: Ctx, d: Json, row: Json): Promise<Out[]> {
   d.tutorId = row.tutor_id;
   d.tutorName = row.tutorName;
   d.tutorLine = person({ ...row, full_name: row.tutorName });
+  d.tutorCard = tutorCard(row.tutor ?? {}, d.hide);
   d.currentDemo = row.demo_date ? `${fmtDate(row.demo_date)}${row.demo_time ? ", " + fmtTime(row.demo_time) : ""}` : "";
   return go(ctx, "ad_sd_date", d);
 }
@@ -816,13 +850,14 @@ async function payKind(ctx: Ctx, d: Json, row: Json): Promise<Out[]> {
   d.tutorId = row.tutor_id;
   d.tutorName = row.tutorName;
   d.tutorLine = person({ ...row, full_name: row.tutorName });
+  d.tutorCard = tutorCard(row.tutor ?? {}, d.hide);
   const deal = row.billing_plan?.deal ?? {};
   const dates = (row.class_dates ?? []).map(String);
   const ready = deal.finalizedAt && (deal.model === "margin" || deal.model === "commission") && dates.length;
   const m = ready ? dealNumbers(deal, dates.length) : null;
   await save(ctx, "ad_pm_kind", d);
   return [{
-    text: `*Create Payment*\n*${d.subject}* (${d.demoId})\nStudent: *${d.studentName}*\nTutor: ${d.tutorLine}\nThe tutor and the parent have agreed.` +
+    text: `*Record Payment*\n*${d.subject}* (${d.demoId})\nStudent: ${d.studentCard}\nTutor: ${d.tutorCard}\nThe tutor and the parent have agreed.` +
       (m ? `\n\nAs per the deal -\nParent pays each time: ${inr(m.parentInstallment)}\nTutor gets each time: ${inr(m.tutorInstallment)}` : ""),
   }, prompt("ad_pm_kind", d)];
 }
@@ -874,7 +909,7 @@ function dealSummary(d: Json): string {
       `First month's fee goes to: *${m.feeTo}*\n` +
       (m.feeTo === "Agency" ? `Tutor gets (first month): ${inr(m.tutorFirstMonth)}\n` : `Tutor pays the agency: ${inr(m.cut)}\n`) +
       `Parent pays: ${per} - *${inr(m.parentInstallment)}*`;
-  return `*Please check the class deal:*\n\n*${d.subject}* (${d.demoId})\nStudent: *${d.studentName}*\nTutor: ${d.tutorLine}\n\n` +
+  return `*Please check the class deal:*\n\n*${d.subject}* (${d.demoId})\nStudent: ${d.studentCard}\nTutor: ${d.tutorCard}\n\n` +
     `Days: ${daysText(d.days)}\nStarts: ${fmtDate(d.start)}, ${fmtTime(d.time)} (${d.minutes} min)\n` +
     `Classes in the first month: ${dates.length}\n\n${money}\nNext parent payment: ${fmtDate(nextParentDate(d.start, d.freq))}\n\n` +
     "The agreement will be sent to the parent and the tutor.";
@@ -884,6 +919,7 @@ async function dealStart(ctx: Ctx, d: Json, row: Json): Promise<Out[]> {
   d.tutorId = row.tutor_id;
   d.tutorName = row.tutorName;
   d.tutorLine = person({ ...row, full_name: row.tutorName });
+  d.tutorCard = tutorCard(row.tutor ?? {}, d.hide);
   d.existing = !!row.billing_plan?.deal?.finalizedAt;
   return go(ctx, "ad_dl_days", d);
 }
