@@ -219,11 +219,8 @@ function tuitionText(t: Json, withStatus = false): string {
 function tutorFullText(t: Json, hide: boolean): string {
   const wa = numText(t.whatsapp_number, hide), mo = numText(t.mobile_number, hide);
   const addr = hide ? "" : [t.present_address, [t.city, t.pin_code].filter(Boolean).join(" - ")].filter(Boolean).join(", ");
-  const years = t.experience_years != null && t.experience_years !== "" ? `${t.experience_years} ${Number(t.experience_years) === 1 ? "year" : "years"}` : "";
   return `*Tutor Details:*\nName: *${t.full_name ?? "-"}*\nTutor ID: ${t.tutor_id}` +
-    lineOf("Gender", t.gender) + lineOf("Experience", years) + lineOf("Subjects", joined(t.subjects_you_teach)) +
-    lineOf("Classes", joined(t.classes_you_teach)) + lineOf("Boards", joined(t.boards_you_teach)) +
-    lineOf("Teaching mode", joined(t.teaching_location)) + lineOf("WhatsApp", wa) + lineOf("Mobile No.", mo) + lineOf("Address", addr);
+    lineOf("Gender", t.gender) + lineOf("WhatsApp", wa) + lineOf("Mobile No.", mo) + lineOf("Address", addr);
 }
 
 // the parent, then each student with the ID, then the numbers and the address
@@ -310,6 +307,13 @@ const askDemo = (kind: AdminKind): Out => ({
   text: `*${TITLE[kind]}*\nYou can type *Cancel* any time.\n\nEnter the *Tuition ID*.\nIt starts with *DID* followed by *8 digits*.\n\nFor example -\nDID20260007`,
 });
 
+// the details above, the question below - the whole thing must fit one button / list message (1024 characters)
+const withHead = (head: string, question: string): string => {
+  const room = 1024 - question.length - 4;
+  const h = String(head ?? "");
+  return (h.length > room ? h.slice(0, Math.max(0, room - 1)) + "…" : h) + "\n\n" + question;
+};
+
 const pickOut = (text: string, options: Json[], idKey: string, nameKey: string, extra?: (o: Json) => string): Out => ({
   text,
   choices: [
@@ -338,14 +342,17 @@ function prompt(step: string, d: Json): Out {
         : "Send the *Tuition ID*, the *Student ID*, or the parent's *WhatsApp / mobile number*.\n\nFor example -\nDID20260007\nSID20260613\n9876543210"),
       choices: [CANCEL],
     };
-    case "ad_as_tpick": return pickOut("Which *tuition* do you want to assign a tutor to?", d.tuitions, "demo_id", "subject", (o) => `${o.demo_id} · ${o.student_name}`);
+    case "ad_as_tpick": {
+      const o = pickOut(withHead(d.head, "Which *tuition* do you want to assign a tutor to?"), d.tuitions, "demo_id", "subject", (x) => `${x.demo_id} · ${x.student_name}`);
+      return o;
+    }
     case "ad_sd_demo": return askDemo("demo");
     case "ad_tc_demo": return askDemo("conf");
     case "ad_pm_demo": return askDemo("pay");
     case "ad_as_tutor": return {
-      text: d.hide
+      text: withHead(d.card, d.hide
         ? "Send the tutor's *Tutor ID*.\n\nFor example -\nTID20260123"
-        : "Send the tutor's *Tutor ID*, *WhatsApp number* or *mobile number*.\n\nFor example -\nTID20260123\n9876543210",
+        : "Send the tutor's *Tutor ID*, *WhatsApp number* or *mobile number*.\n\nFor example -\nTID20260123\n9876543210"),
       choices: [CANCEL],
     };
     case "ad_as_pick": return pickOut("Which *tutor*?", d.options, "tutor_id", "full_name",
@@ -541,7 +548,9 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
       d.tuitions = open.map((t) => ({ demo_id: t.demo_id, subject: t.subject, student_name: t.student?.student_name ?? "" }));
       await save(ctx, "ad_as_tpick", d);
       const students = [...new Map(open.map((t) => [t.student?.student_id, t.student ?? {}])).values()];
-      return [{ text: `*Students with this ${c.kind === "did" ? "Tuition" : c.kind === "sid" ? "Student ID" : "WhatsApp / Mobile Number"}:*\n\n${studentsBlock(students, !!d.hide)}` }, prompt("ad_as_tpick", d)];
+      d.head = studentsBlock(students, !!d.hide);
+      await save(ctx, "ad_as_tpick", d);
+      return [prompt("ad_as_tpick", d)];
     }
     case "ad_as_tpick": {
       const chosen = (d.tuitions ?? []).find((o: Json) => o.demo_id === pickedId);
@@ -942,9 +951,9 @@ async function pickTuition(ctx: Ctx, d: Json, t: Json): Promise<Out[]> {
   d.studentText = studentFullText(t.student ?? {}, !!d.hide);
   d.tuitionText = tuitionText(t);
   const onIt = await applicationsFor(t.demo_id);
-  const card = `${d.studentText}\n\n${tuitionText(t, true)}` + (onIt.length ? `\n\nTutors on it:\n${onIt.map((r) => "- " + tutorCard(r.tutor, d.hide)).join("\n")}` : "\n\nTutors on it: none yet");
+  d.card = `${tuitionText(t, true)}\n\n${d.studentText}` + (onIt.length ? `\n\nTutors on it:\n${onIt.map((r) => "- " + tutorCard(r.tutor, d.hide)).join("\n")}` : "");
   await save(ctx, "ad_as_tutor", d);
-  return [{ text: card }, prompt("ad_as_tutor", d)];
+  return [prompt("ad_as_tutor", d)];
 }
 
 async function assignConfirm(ctx: Ctx, d: Json, tutor: Json): Promise<Out[]> {
