@@ -246,6 +246,25 @@ await startAdminFlow(wa, EID, "conf"); o = await say("DID20260008");
 assert(!db.bot_sessions.length && !o.some((x) => x.choices), "a viewer who may not edit gets the details only, no confirm button");
 db.me.permissions = ["tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_add", "students_view", "students_add", "payments_add", "payments_view"];
 
+// ---- demo flows when nothing matches (no demo scheduled / no tutor / unknown)
+await startAdminFlow(wa, EID, "conf"); o = await say("9000000004");
+assert(txt(o).includes("demo is not scheduled yet for *9000000004*") && step() === "ad_tc_demo", "Confirm: student number whose tuition has tutors but no demo -> schedule first");
+await say("cancel");
+await startAdminFlow(wa, EID, "conf"); o = await say("SID20260004");
+assert(txt(o).includes("demo is not scheduled yet") && step() === "ad_tc_demo", "Confirm: Student ID with no scheduled demo -> schedule first");
+await say("cancel");
+await startAdminFlow(wa, EID, "conf"); o = await say("9333333333");
+assert(txt(o).includes("No open tuition with an assigned tutor") && txt(o).includes("Assign Tutor"), "Confirm / Schedule: a tutor who is on nothing -> assign first");
+await say("cancel");
+await startAdminFlow(wa, EID, "demo"); o = await say("9333333333");
+assert(txt(o).includes("No open tuition with an assigned tutor") && txt(o).includes("Assign Tutor"), "Schedule Demo: a tutor who is on nothing -> assign first");
+await say("cancel");
+for (const kind of ["conf", "demo"]) {
+  await startAdminFlow(wa, EID, kind); o = await say("9888888888");
+  assert(txt(o).includes("No student or tutor was found"), kind + ": unknown number -> not found");
+  await say("cancel");
+}
+
 // ---- 5. payment
 await startAdminFlow(wa, EID, "pay");
 o = await say("DID20260010"); assert(txt(o).includes("both agreed") && txt(o).includes("Tutor waiting"), "tutor + parent not both agreed -> refused, with the state of each");
