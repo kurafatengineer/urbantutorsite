@@ -192,7 +192,7 @@ link to the profile.
   If more than one matches, the bot asks *Act as Admin / Student / Tutor*, and every menu has
   a *Switch to …* row.
 - **Admin on WhatsApp** (WhatsApp only for now; Telegram later): an employee whose **Mobile /
-  WhatsApp number** is set in Admin → Employees gets an Admin menu - *Create New Tuition* (by WhatsApp /
+  WhatsApp number** is set in Admin → Employees gets an Admin menu (every step has a *Cancel* button that goes straight back to the menu; tutor choices are Male / Female / Male or Female, mode Home Tutor / Online Tutor / Home or Online Tutor) - *Create New Tuition* (by WhatsApp /
   mobile number or Student ID), *Assign Tutor*, *Schedule Demo*, *Tutor / Parent Confirm* (view, or
   confirm for the tutor or for the parent) and *Record Payment* (only after tutor and parent both agreed). The bot
   calls the `admin` function as that employee, so permissions, login hours, "hide mobile" and

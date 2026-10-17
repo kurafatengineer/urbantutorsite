@@ -6,7 +6,8 @@ type Json = Record<string, any>;
 
 export type Choice = { id: string; title: string; description?: string };
 // link: one button that opens a page of the site (WhatsApp "cta_url" button, Telegram web-app button).
-export type Out = { text: string; choices?: Choice[]; askPhone?: boolean; link?: { label: string; url: string } };
+// menu: no message, just go back to this person's main menu (a = admin, s = student, t = tutor) - WhatsApp admin flows use it for Cancel.
+export type Out = { text: string; choices?: Choice[]; askPhone?: boolean; link?: { label: string; url: string }; menu?: "a" | "s" | "t" };
 export type Input = { text?: string; choice?: string; contactPhone?: string };
 export type Ctx = { channel: "wa" | "tg"; key: string; verifiedPhone?: string; telegramChatId?: number };
 

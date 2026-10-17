@@ -3,7 +3,7 @@
 // with the preferred tutor, the mode and the preferred timing.
 // The caller decides which students the chat may post for (WhatsApp: the sender's number; Telegram: the linked chat),
 // and that list is kept in the session, so a tapped button can never post for someone else's student.
-import { q, inList, rest } from "./botdata.ts";
+import { q, inList, last10, rest } from "./botdata.ts";
 import { adminCall } from "./adminbridge.ts";
 import { tuitionPostedMail } from "./mails.ts";
 import { notify, studentQuiet } from "./telegram.ts";
@@ -17,6 +17,21 @@ const TUTOR = { male: "Male", female: "Female", any: "Any" } as Record<string, s
 const MODE = { home: "Home", online: "Online", any: "Any" } as Record<string, string>;
 const modeText = (m: string) => m === "Any" ? "Home or Online" : m;
 const tutorText = (t: string) => t === "Any" ? "Male or Female" : t;
+// "Any" is never shown: Male first, then Female, then both; the same for the mode.
+const TUTOR_CHOICES: Choice[] = [{ id: "t_tutor:male", title: "Male" }, { id: "t_tutor:female", title: "Female" }, { id: "t_tutor:any", title: "Male or Female" }];
+const MODE_CHOICES: Choice[] = [{ id: "t_mode:home", title: "Home Tutor" }, { id: "t_mode:online", title: "Online Tutor" }, { id: "t_mode:any", title: "Home or Online Tutor" }];
+
+// A number as shown to an employee: in full, or only the last two digits when their account hides numbers.
+const numText = (v: unknown, hide: boolean): string => {
+  const x = last10(v);
+  if (x.length < 10) return "";
+  return hide ? "*".repeat(8) + x.slice(-2) : `+91 ${x.slice(0, 5)} ${x.slice(5)}`;
+};
+// name, ID, WhatsApp and phone of the student (for an employee posting on a parent's behalf)
+function studentDetails(d: Json): string {
+  const wa = numText(d.studentWa, !!d.hide), ph = numText(d.studentPhone, !!d.hide);
+  return `*Student Details*\nName: *${d.studentName}*\nStudent ID: ${d.studentId}` + (wa ? `\nWhatsApp: ${wa}` : "") + (ph ? `\nPhone: ${ph}` : "");
+}
 
 const splitSubjects = (v: string) =>
   [...new Map(v.split(",").map((x) => titleCase(x)).filter((x) => x.length >= 2).map((x) => [x.toLowerCase(), x])).values()];
@@ -24,21 +39,27 @@ const splitSubjects = (v: string) =>
 function prompt(step: string, d: Json): Out {
   switch (step) {
     case "t_pick": return {
-      text: "*Post a New Tuition*\nYou can type *Cancel* any time.\n\nWhich *student* is this tuition for?",
+      text: d.adminId ? "*Post New Tuition*\n\nWhich *student* is this tuition for?" : "*Post a New Tuition*\nYou can type *Cancel* any time.\n\nWhich *student* is this tuition for?",
       choices: [...d.allowed.slice(0, 9).map((s: Json) => ({ id: `t_pick:${s.id}`, title: s.name || s.id, description: s.id })), CANCEL],
     };
-    case "t_subjects": return {
-      text: `*Post a New Tuition*\nStudent: *${d.studentName}*\nStudent ID: *${d.studentId}*\n\nYou can type *Cancel* any time.\n\n` +
-        "Which *subjects* do you need a tutor for?\nFor more than one subject, separate them with commas.\n\nFor example -\nMaths, Science",
+    case "t_subjects": {
+      const finding = (d.finding ?? []).length ? `You are currently finding a tutor for:\n${d.finding.map((x: string) => `- ${x}`).join("\n")}\n\n` : "";
+      const ask = "Which *subjects* do you need a tutor for?\nFor more than one subject, separate them with commas.\n\nFor example -\nMaths, Science";
+      return d.adminId
+        ? { text: `*Post New Tuition*\n\n${studentDetails(d)}\n\n${finding}${ask}`, choices: [CANCEL] }
+        : { text: `*Post a New Tuition*\nStudent: *${d.studentName}*\nStudent ID: *${d.studentId}*\n\nYou can type *Cancel* any time.\n\n${finding}${ask}` };
+    }
+    case "t_timing": return {
+      text: "Your *preferred time* for the class?\n\nFor example -\n5 PM\n6 PM - 8 PM",
+      ...(d.adminId ? { choices: [CANCEL] } : {}),
     };
-    case "t_timing": return { text: "Your *preferred time* for the class?\n\nFor example -\n5 PM\n6 PM - 8 PM" };
     case "t_tutor": return {
       text: "Which *tutor* do you prefer?",
-      choices: [{ id: "t_tutor:any", title: "Any" }, { id: "t_tutor:male", title: "Male" }, { id: "t_tutor:female", title: "Female" }],
+      choices: d.adminId ? [...TUTOR_CHOICES, CANCEL] : TUTOR_CHOICES,
     };
     case "t_mode": return {
       text: "Which *mode* do you want?",
-      choices: [{ id: "t_mode:any", title: "Any" }, { id: "t_mode:home", title: "Home" }, { id: "t_mode:online", title: "Online" }],
+      choices: d.adminId ? [...MODE_CHOICES, CANCEL] : MODE_CHOICES,
     };
     case "t_confirm": return {
       text: "*Please check your tuition request:*\n\n" +
@@ -50,24 +71,47 @@ function prompt(step: string, d: Json): Out {
   }
 }
 
+// Subjects this student is still finding a tutor for (shown above the subject question).
+async function findingFor(studentId: string): Promise<string[]> {
+  try {
+    const rows = await rest(`tuitions?student_id=eq.${q(studentId)}&terminated=eq.false&select=demo_id,subject&order=posted_at.desc`) ?? [];
+    const out: string[] = [];
+    for (const r of rows) {
+      const status = await rest("rpc/tuition_status", { method: "POST", body: JSON.stringify({ p_demo_id: r.demo_id }) });
+      if (String(status) === "Finding Tutor") out.push(`*${r.subject}* (${r.demo_id})`);
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 async function goTo(ctx: Ctx, step: string, d: Json): Promise<Out[]> {
+  if (step === "t_subjects") d.finding = await findingFor(String(d.studentId));
   await save(ctx, step, d);
   return [prompt(step, d)];
 }
 
+function chooseStudent(d: Json, a: Json) {
+  d.studentId = a.id;
+  d.studentName = a.name;
+  d.studentWa = a.whatsapp ?? "";
+  d.studentPhone = a.phone ?? "";
+}
+
 // students: the ones this chat may post for ({ student_id, student_name, blocked_at? })
 // adminId: an employee posts the tuition for the parent (the admin function does the posting and tells the parent).
-export async function startTuition(ctx: Ctx, students: Json[], opts: { adminId?: string } = {}): Promise<Out[]> {
-  const allowed = students.filter((s) => !s.blocked_at).map((s) => ({ id: String(s.student_id), name: String(s.student_name ?? "") }));
+export async function startTuition(ctx: Ctx, students: Json[], opts: { adminId?: string; hide?: boolean } = {}): Promise<Out[]> {
+  const allowed = students.filter((s) => !s.blocked_at).map((s) => ({ id: String(s.student_id), name: String(s.student_name ?? ""), whatsapp: s.whatsapp ?? "", phone: s.phone ?? "" }));
   if (!allowed.length) {
     await clear(ctx);
     return [{ text: "Your account is blocked.\nPlease contact Urban Tutor Site.\n\nSend *Hi* any time for the menu." }];
   }
   const d: Json = { allowed };
   if (opts.adminId) d.adminId = opts.adminId;
+  if (opts.hide) d.hide = true;
   if (allowed.length === 1) {
-    d.studentId = allowed[0].id;
-    d.studentName = allowed[0].name;
+    chooseStudent(d, allowed[0]);
     return goTo(ctx, "t_subjects", d);
   }
   return goTo(ctx, "t_pick", d);
@@ -141,7 +185,7 @@ export async function tuitionInput(ctx: Ctx, s: { step: string; data: Json }, in
   const [key, value] = choice.split(":");
   if (choice === "cancel" || /^cancel$/i.test(text)) {
     await clear(ctx);
-    return [{ text: "Cancelled.\nSend *Hi* any time for the menu." }];
+    return d.adminId ? [{ text: "", menu: "a" }] : [{ text: "Cancelled.\nSend *Hi* any time for the menu." }];
   }
   const again = (msg: string): Out[] => [{ text: msg }, prompt(s.step, d)];
 
@@ -149,8 +193,7 @@ export async function tuitionInput(ctx: Ctx, s: { step: string; data: Json }, in
     case "t_pick": {
       const pick = d.allowed.find((x: Json) => key === "t_pick" && x.id === value);
       if (!pick) return again("Please tap a *student* from the list.");
-      d.studentId = pick.id;
-      d.studentName = pick.name;
+      chooseStudent(d, pick);
       return goTo(ctx, "t_subjects", d);
     }
     case "t_subjects": {
@@ -169,11 +212,11 @@ export async function tuitionInput(ctx: Ctx, s: { step: string; data: Json }, in
       d.timing = text;
       return goTo(ctx, "t_tutor", d);
     case "t_tutor":
-      if (key !== "t_tutor" || !TUTOR[value]) return again("Please tap *Any*, *Male* or *Female*.");
+      if (key !== "t_tutor" || !TUTOR[value]) return again("Please tap *Male*, *Female* or *Male or Female*.");
       d.tutor = TUTOR[value];
       return goTo(ctx, "t_mode", d);
     case "t_mode":
-      if (key !== "t_mode" || !MODE[value]) return again("Please tap *Any*, *Home* or *Online*.");
+      if (key !== "t_mode" || !MODE[value]) return again("Please tap *Home Tutor*, *Online Tutor* or *Home or Online Tutor*.");
       d.medium = MODE[value];
       return goTo(ctx, "t_confirm", d);
     case "t_confirm": {
@@ -186,10 +229,13 @@ export async function tuitionInput(ctx: Ctx, s: { step: string; data: Json }, in
       await clear(ctx);
       if (!res.ok) return [{ text: `${res.message}\n\nSend *Hi* any time for the menu.` }];
       if (!d.adminId) await tellPosted(d.studentId, res.demos!, d);
-      const list = res.demos!.map((x) => `Tuition: *${x.subject}* (${x.demoId})\nTutor - ${d.tutor}`).join("\n\n");
+      if (d.adminId) {
+        const items = res.demos!.map((x) => `Subject: *${x.subject}*\nTuition ID: ${x.demoId}\nTutor: ${tutorText(d.tutor)}\nMode: ${modeText(d.medium)}`).join("\n\n");
+        return [{ text: `*Tuition Request Posted!*\n\n${studentDetails(d)}\n\n*Tuition Details*\n${items}\n\nThe parents have been told.` }];
+      }
+      const list = res.demos!.map((x) => `Tuition: *${x.subject}* (${x.demoId})\nTutor - ${tutorText(d.tutor)}`).join("\n\n");
       return [{
-        text: `*Tuition request posted!*\nStudent: *${d.studentName}* (${d.studentId})\n\n${list}\n\n` +
-          (d.adminId ? "The parent has been told.\nUse *Assign Tutor* in the Menu to add a tutor." : "We will let you know as soon as a tutor applies."),
+        text: `*Tuition request posted!*\nStudent: *${d.studentName}* (${d.studentId})\n\n${list}\n\nWe will let you know as soon as a tutor applies.`,
       }];
     }
   }
