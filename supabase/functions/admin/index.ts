@@ -25,7 +25,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { notify, sendTelegram, demoScheduledTelegram, demoResponseButtons, studentQuiet } from "../_shared/telegram.ts";
 import type { Built } from "../_shared/mails.ts";
-import { waDemoScheduled } from "../_shared/wasend.ts";
+import { waDemoScheduled, waTutorApplied } from "../_shared/wasend.ts";
 import {
   demoScheduledMail, paymentReceivedMail, agencyChargeMail, payoutMail, subscriptionMail, tuitionPostedMail, agreementMail,
 } from "../_shared/mails.ts";
@@ -1394,10 +1394,21 @@ async function handle(body: Json, authHeader: string | null): Promise<Json> {
     }
 
     case "adminAssignTutor": {
-      return await rpc("admin_assign_tutor", {
+      const demoId = String(body.demoId ?? "");
+      const { data: had } = await db.from("applications").select("tutor_id").eq("demo_id", demoId);
+      const result = await rpc("admin_assign_tutor", {
         p_demo_id: body.demoId,
         p_tutor_lookup: String(body.tutor ?? ""),
       });
+      if (result?.success) {
+        // an assigned tutor counts as an applied one: tell the parent on WhatsApp
+        try {
+          const old = new Set((had ?? []).map((a: Json) => a.tutor_id));
+          const { data: now } = await db.from("applications").select("tutor_id").eq("demo_id", demoId);
+          for (const a of now ?? []) if (!old.has(a.tutor_id)) await waTutorApplied(demoId, String(a.tutor_id));
+        } catch (e) { console.error("assign whatsapp", e); }
+      }
+      return result;
     }
 
     case "adminSetTerminated": {
