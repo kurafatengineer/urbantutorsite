@@ -191,7 +191,9 @@ async function onMessage(m: Json) {
   const regChoice = picked.startsWith("reg|") ? picked.slice(4) : "";
   if (regChoice === "start") { await sendAll(from, await startRegistration(reg)); return; }
   const inFlow = await handleInput(reg, { text: m.type === "text" ? String(m.text?.body ?? "") : "", choice: regChoice });
-  if (inFlow) { await sendAll(from, inFlow); return; }
+  // Cancel inside an admin flow: no message, straight back to that person's main menu
+  const back = inFlow?.find((o) => o.menu)?.menu ?? "";
+  if (inFlow && !back) { await sendAll(from, inFlow); return; }
 
   const accounts = await accountsByPhone(from);
   // An employee is recognised by their Mobile / WhatsApp number - and only when Meta's signature on the call is
@@ -209,7 +211,7 @@ async function onMessage(m: Json) {
     });
     return;
   }
-  const [action, roleRaw, ...rest3] = picked.split(":");
+  const [action, roleRaw, ...rest3] = (back ? `h:${back}` : picked).split(":");
   const role = roles.includes(roleRaw) ? roleRaw : roles.includes("s") ? "s" : roles.includes("t") ? "t" : "a";
   const arg = rest3[0] ?? "";
   if (action === "ad" && employee && ["new", "assign", "demo", "conf", "pay", "student", "deal"].includes(roleRaw)) {

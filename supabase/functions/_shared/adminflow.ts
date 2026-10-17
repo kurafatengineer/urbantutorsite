@@ -263,10 +263,11 @@ const PTYPE_TEXT: Record<string, string> = { advance: "Advance", regular: "Regul
 function prompt(step: string, d: Json): Out {
   switch (step) {
     case "ad_new_find": return {
-      text: "*Create New Tuition*\nYou can type *Cancel* any time.\n\n" +
+      text: "*Create New Tuition*\n\n" +
         (d.hide
           ? "Send the *Student ID*.\n\nFor example -\nSID20260613"
           : "Send the parent's *WhatsApp number* or *mobile number*, or the *Student ID*.\n\nFor example -\n9876543210\nSID20260613"),
+      choices: [CANCEL],
     };
     case "ad_new_pick": return pickOut("Which *student* is the tuition for?", d.options, "student_id", "student_name",
       (o) => `${o.student_id}${o.parents_name ? " · Parent " + o.parents_name : ""}`);
@@ -420,7 +421,7 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
   const text = clean(input.text);
   const choice = input.choice ?? "";
 
-  if (choice === "cancel" || /^cancel$/i.test(text)) return finish(ctx, "Cancelled.");
+  if (choice === "cancel" || /^cancel$/i.test(text)) { await clear(ctx); return [{ text: "", menu: "a" }]; }
   const again = (msg: string): Out[] => [{ text: `${msg}\n\n${RETRY}` }];
   const pickedId = choice.startsWith("ad_pick:") ? choice.slice(8) : "";
   const skipped = choice === "st_skip" || /^skip$/i.test(text);
@@ -439,14 +440,14 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
       if (!found.length) return again(`No student was found with *${text}*.`);
       const open = found.filter((x) => !x.blocked_at);
       if (!open.length) return again("This student is blocked.\nUnblock them in the Admin Panel first.");
-      if (open.length === 1) return [{ text: `*Student*\n${studentCard(open[0], d.hide)}` }, ...(await startTuition(ctx, [open[0]], { adminId: d.eid }))];
+      if (open.length === 1) return startTuition(ctx, [open[0]], { adminId: d.eid, hide: d.hide });
       d.options = open.slice(0, 9).map((x) => ({ student_id: x.student_id, student_name: x.student_name, parents_name: x.parents_name, whatsapp: x.whatsapp, phone: x.phone }));
       return go(ctx, "ad_new_pick", d);
     }
     case "ad_new_pick": {
       const chosen = (d.options ?? []).find((o: Json) => o.student_id === pickedId);
       if (!chosen) return [prompt(step, d)];
-      return [{ text: `*Student*\n${studentCard(chosen, d.hide)}` }, ...(await startTuition(ctx, [{ student_id: chosen.student_id, student_name: chosen.student_name }], { adminId: d.eid }))];
+      return startTuition(ctx, [chosen], { adminId: d.eid, hide: d.hide });
     }
 
     /* ---------- 2. assign tutor ---------- */
@@ -702,7 +703,10 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
       return [prompt("ad_st_post", d)];
     }
     case "ad_st_post": {
-      if (choice === "st_post") return startTuition(ctx, [{ student_id: d.studentId, student_name: d.studentName }], { adminId: d.eid });
+      if (choice === "st_post") {
+        const st = (await rest(`students?student_id=eq.${q(d.studentId)}&select=student_id,student_name,phone,whatsapp`))?.[0] ?? { student_id: d.studentId, student_name: d.studentName, phone: d.f?.phone, whatsapp: d.f?.phone };
+        return startTuition(ctx, [st], { adminId: d.eid, hide: d.hide });
+      }
       return finish(ctx, `All set.\n${d.studentName} - Student ID *${d.studentId}*.`);
     }
     case "ad_dl_demo": {

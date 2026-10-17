@@ -36,7 +36,7 @@ globalThis.fetch = async (url, init = {}) => {
     const b = JSON.parse(init.body); db.calls.push(b);
     if (!db.adminOk) return ok({ success: false, message: "Your login hours are 9:00 AM - 6:00 PM." });
     if (b.action === "adminWhoAmI") return ok({ success: true, me: db.me });
-    if (b.action === "adminAddTuition") return ok({ success: true, demoIds: ["DID20260100"] });
+    if (b.action === "adminAddTuition") { db.tuitions.push({ demo_id: "DID20260100", subject: "Physics", medium: "Online", preferred_tutor: "Female", student_id: b.p.studentId, terminated: false }); return ok({ success: true, demoIds: ["DID20260100"] }); }
     if (b.action === "adminAddStudent") return ok(b.p.studentName === "Dup Kid" ? { success: false, message: "P0001: This student is already registered (SID20260001) - same mobile number and student name." } : { success: true, studentId: "SID20260101", demoIds: [] });
     return ok({ success: true, message: "Saved." });
   }
@@ -119,13 +119,18 @@ o = await say("9000000001");
 assert(step() === "ad_new_pick" && o[0].choices.length === 3, "two children on this number (siblings) -> pick one (+ Cancel)");
 o = await say("", "ad_pick:SID20260099"); assert(step() === "ad_new_pick", "a student not on the list is refused");
 o = await say("", "ad_pick:SID20260001");
-assert(step() === "t_subjects" && db.bot_sessions[0].data.adminId === EID && txt(o).includes("Priyanka Shukla") && txt(o).includes("Parent: Ravindra Kumar") && txt(o).includes("WhatsApp: +91 90000 00001"), "picked -> the student card (parent + WhatsApp), then the usual tuition questions, posting as the employee");
+assert(step() === "t_subjects" && db.bot_sessions[0].data.adminId === EID && o.length === 1 && txt(o).startsWith("*Post New Tuition*\n\n*Student Details*\nName: *Priyanka Shukla*\nStudent ID: SID20260001\nWhatsApp: +91 90000 00001\nPhone: +91 90000 00001") && txt(o).includes("You are currently finding a tutor for:\n- *English* (DID20260007)\n- *Maths* (DID20260008)\n\nWhich *subjects*") && !txt(o).includes("Cancel any time") && o[0].choices.map((c) => c.id).join() === "cancel", "picked -> ONE message: Post New Tuition + Student Details (name, ID, WhatsApp, phone) + what is still finding a tutor + the subject question, with a Cancel button");
 await say("Physics, Chemistry"); await say("6 pm"); await say("", "t_tutor:female"); await say("", "t_mode:online");
 o = await say("", "t_post");
 assert(last().action === "adminAddTuition" && last().botEmployeeId === EID && last().p.studentId === "SID20260001" && last().p.subjects === "Physics,Chemistry" && last().p.preferredTutor === "Female" && last().p.medium === "Online" && last().p.preferredTiming === "6 pm", "posted through the admin function with the right details");
-assert(txt(o).includes("Tuition request posted!") && txt(o).includes("DID20260100") && txt(o).includes("The parent has been told") && !db.bot_sessions.length, "success message, session cleared");
+assert(txt(o) === "*Tuition Request Posted!*\n\n*Student Details*\nName: *Priyanka Shukla*\nStudent ID: SID20260001\nWhatsApp: +91 90000 00001\nPhone: +91 90000 00001\n\n*Tuition Details*\nSubject: *Physics*\nTuition ID: DID20260100\nTutor: Female\nMode: Online\n\nThe parents have been told." && !db.bot_sessions.length, "final message: student details, tuition details, the parents have been told - nothing after it");
 await startAdminFlow(wa, EID, "new");
-o = await say("SID20260004"); assert(step() === "t_subjects" && txt(o).includes("Parent: Y") && txt(o).includes("WhatsApp: +91 90000 00004"), "Student ID works too (single student goes straight on, with the student card)");
+o = await say("SID20260004"); assert(step() === "t_subjects" && txt(o).includes("Name: *Solo Kid*") && txt(o).includes("Phone: +91 90000 00004"), "Student ID works too (single student goes straight on, with the student details)");
+await say("physics"); o = await say("5 pm"); assert(o[0].choices.map((c) => c.id).join() === "t_tutor:male,t_tutor:female,t_tutor:any,cancel" && o[0].choices[2].title === "Male or Female", "tutor choices: Male, Female, Male or Female (+ Cancel)");
+o = await say("", "t_tutor:any"); assert(o[0].choices.map((c) => c.title).join() === "Home Tutor,Online Tutor,Home or Online Tutor,Cancel", "mode choices: Home Tutor, Online Tutor, Home or Online Tutor (+ Cancel)");
+o = await say("", "cancel"); assert(o.length === 1 && o[0].menu === "a" && o[0].text === "" && !db.bot_sessions.length, "Cancel anywhere in New Tuition -> straight back to the admin main menu (no message)");
+await startAdminFlow(wa, EID, "new"); o = await say("", "cancel"); assert(o[0].menu === "a" && !db.bot_sessions.length, "Cancel on the first question -> main menu too");
+await startAdminFlow(wa, EID, "new"); assert(db.bot_sessions[0].step === "ad_new_find" && !(await handleInput(wa, { text: "x" })).some((x) => x.text.includes("Cancel any time")), "no 'type Cancel any time' text any more");
 await say("cancel");
 db.me.hideContacts = true;
 await startAdminFlow(wa, EID, "new");
