@@ -198,9 +198,12 @@ link to the profile.
   calls the `admin` function as that employee, so permissions, login hours, "hide mobile" and
   e-mails are exactly the same as in the panel. Wherever an employee works, the chat shows name, ID,
   parent and WhatsApp number of the student and the tutor (masked to the last two digits for a
-  "Hide Mobile Number" account). Two more items: *Add New Student* (only the
-  student's name and a mobile number are needed; parent, email, gender, class, school, board, city,
-  PIN and address can each be skipped; no email code; then it offers to post a tuition) and
+  "Hide Mobile Number" account). Two more items: *Add New Student* (asks the
+  parent's WhatsApp number first and shows the students already on it - parent, each student + ID,
+  numbers, full address - with Add New Student / Cancel; then name, gender, class [skippable], board,
+  school [skippable]; the parent's details are copied from the old record; no email code; it then shows
+  the saved student with a *Create New Tuition* button). After a tuition is posted, an employee who may
+  assign tutors gets an *Assign Tutor* button that continues straight into that flow and
   *Class & Agreement* (for a tuition where tutor and parent agreed: class days, start date, time,
   minutes, *Monthly Commission* [fee, agency cut as % or ₹, who gets the first month] or *Per Class
   Commission* [price per class, agency share], how often the parent pays; it saves the class like

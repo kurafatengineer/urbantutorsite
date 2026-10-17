@@ -5,7 +5,7 @@ const db = {
   bot_sessions: [],
   students: [
     { student_id: "SID20260001", student_name: "Priyanka Shukla", parents_name: "Ravindra Kumar", phone10: "9000000001", whatsapp10: "9000000001", phone: "9000000001", whatsapp: "9000000001", email_lc: "p@x.com", class_name: "10th", board: "CBSE", address: "12 Gandhi Road", city: "Jaipur", pin_code: "302001" },
-    { student_id: "SID20260002", student_name: "Mohit Kumar", parents_name: "Ravindra Kumar", phone10: "9000000002", whatsapp10: "9000000002", email_lc: "p@x.com", class_name: "8th", board: "CBSE" },
+    { student_id: "SID20260002", student_name: "Mohit Kumar", parents_name: "Ravindra Kumar", phone10: "9000000002", whatsapp10: "9000000002", phone: "9000000002", whatsapp: "9000000002", email_lc: "p@x.com", class_name: "8th", board: "CBSE" },
     { student_id: "SID20260003", student_name: "Blocked Kid", parents_name: "X", phone10: "9000000003", whatsapp10: "9000000003", email_lc: "b@x.com", blocked_at: "2026-10-01" },
     { student_id: "SID20260004", student_name: "Solo Kid", parents_name: "Y", phone10: "9000000004", whatsapp10: "9000000004", phone: "9000000004", whatsapp: "9000000004", email_lc: "s@x.com", class_name: "9th", board: "ICSE" },
   ],
@@ -37,7 +37,11 @@ globalThis.fetch = async (url, init = {}) => {
     if (!db.adminOk) return ok({ success: false, message: "Your login hours are 9:00 AM - 6:00 PM." });
     if (b.action === "adminWhoAmI") return ok({ success: true, me: db.me });
     if (b.action === "adminAddTuition") { db.tuitions.push({ demo_id: "DID20260100", subject: "Physics", medium: "Online", preferred_tutor: "Female", student_id: b.p.studentId, terminated: false }); return ok({ success: true, demoIds: ["DID20260100"] }); }
-    if (b.action === "adminAddStudent") return ok(b.p.studentName === "Dup Kid" ? { success: false, message: "P0001: This student is already registered (SID20260001) - same mobile number and student name." } : { success: true, studentId: "SID20260101", demoIds: [] });
+    if (b.action === "adminAddStudent") {
+      if (b.p.studentName === "Dup Kid") return ok({ success: false, message: "P0001: This student is already registered (SID20260001) - same mobile number and student name." });
+      db.students.push({ student_id: "SID20260101", student_name: b.p.studentName, gender: b.p.gender, class_name: b.p.className, board: b.p.board, school: b.p.school, parents_name: b.p.parentsName, phone: b.p.phone, whatsapp: b.p.whatsapp, email: b.p.email, address: b.p.address, city: b.p.city, pin_code: b.p.pinCode });
+      return ok({ success: true, studentId: "SID20260101", demoIds: [] });
+    }
     return ok({ success: true, message: "Saved." });
   }
   const path = u.pathname.replace("/rest/v1/", "");
@@ -51,7 +55,7 @@ globalThis.fetch = async (url, init = {}) => {
   }
   if (path === "students") {
     return ok(db.students.filter((s) =>
-      (u.searchParams.has("student_id") ? s.student_id === eq("student_id") : true) &&
+      (u.searchParams.has("student_id") ? (u.searchParams.get("student_id").startsWith("in.") ? inVals("student_id").includes(s.student_id) : s.student_id === eq("student_id")) : true) &&
       (u.searchParams.has("phone10") ? s.phone10 === eq("phone10") : true) &&
       (u.searchParams.has("whatsapp10") ? s.whatsapp10 === eq("whatsapp10") : true) &&
       (u.searchParams.has("email_lc") ? inVals("email_lc").includes(s.email_lc) : true)));
@@ -123,7 +127,11 @@ assert(step() === "t_subjects" && db.bot_sessions[0].data.adminId === EID && o.l
 await say("Physics, Chemistry"); await say("6 pm"); await say("", "t_tutor:female"); await say("", "t_mode:online");
 o = await say("", "t_post");
 assert(last().action === "adminAddTuition" && last().botEmployeeId === EID && last().p.studentId === "SID20260001" && last().p.subjects === "Physics,Chemistry" && last().p.preferredTutor === "Female" && last().p.medium === "Online" && last().p.preferredTiming === "6 pm", "posted through the admin function with the right details");
-assert(txt(o) === "*Tuition Request Posted!*\n\n*Student Details:*\nName: *Priyanka Shukla*\nStudent ID: SID20260001\nWhatsApp: +91 90000 00001\nMobile No.: +91 90000 00001\nAddress: 12 Gandhi Road, Jaipur - 302001\n\n*Tuition Details:*\nSubject: *Physics*\nTuition ID: DID20260100\nTutor: Female\nMode: Online\n\nThe parents have been told." && !db.bot_sessions.length, "final message: student details, tuition details, the parents have been told - nothing after it");
+assert(txt(o) === "*Tuition Request Posted!*\n\n*Student Details:*\nName: *Priyanka Shukla*\nStudent ID: SID20260001\nWhatsApp: +91 90000 00001\nMobile No.: +91 90000 00001\nAddress: 12 Gandhi Road, Jaipur - 302001\n\n*Tuition Details:*\nSubject: *Physics*\nTuition ID: DID20260100\nTutor: Female\nMode: Online\n\nThe parents have been told." , "final message: student details, tuition details, the parents have been told - nothing after it");
+assert(o[0].choices.map((c) => c.id).join() === "af_assign:DID20260100" && o[0].choices[0].title === "Assign Tutor" && step() === "ad_after", "posted message carries an Assign Tutor button");
+o = await say("", "af_assign:DID20260100");
+assert(step() === "ad_as_tutor" && txt(o).includes("Physics") && txt(o).includes("DID20260100"), "Assign Tutor button -> straight into the assign flow for that tuition");
+await say("cancel");
 await startAdminFlow(wa, EID, "new");
 o = await say("SID20260004"); assert(step() === "t_subjects" && txt(o).includes("Name: *Solo Kid*") && txt(o).includes("Mobile No.: +91 90000 00004"), "Student ID works too (single student goes straight on, with the student details)");
 await say("physics"); o = await say("5 pm"); assert(o[0].choices.map((c) => c.id).join() === "t_tutor:male,t_tutor:female,t_tutor:any" && o[0].choices[2].title === "Male or Female", "tutor choices: Male, Female, Male or Female ");
@@ -235,33 +243,42 @@ assert(last().transactionType === "payout" && last().paymentType === "advance" &
 assert(parseDays("Mon, Wed, Fri").join() === "1,3,5" && parseDays("mon-sat").join() === "1,2,3,4,5,6" && parseDays("Fri to Mon").join() === "1,5,6,0" && parseDays("daily").length === 7 && parseDays("monday and thursday").join() === "1,4" && parseDays("blah").length === 0, "weekdays: list, range, wrap-around, daily, words");
 assert(JSON.stringify(parseCut("20%")) === '{"type":"percent","value":20}' && JSON.stringify(parseCut("Rs. 1,000")) === '{"type":"amount","value":1000}' && parseCut("abc") === null, "agency cut: % or rupees");
 assert(classDatesFor("2026-10-20", [1, 3]).join() === "2026-10-21,2026-10-26,2026-10-28,2026-11-02,2026-11-04,2026-11-09,2026-11-11,2026-11-16,2026-11-18" && payDateAt("2026-01-31", "Monthly", 1) === "2026-02-28" && payDateAt("2026-10-20", "Weekly", 2) === "2026-11-03", "first month's class dates; month-end and weekly payment dates");
-await startAdminFlow(wa, EID, "student");
-assert(step() === "ad_st_name", "starts with the student's name");
+o = await startAdminFlow(wa, EID, "student");
+assert(step() === "ad_st_phone" && txt(o).includes("WhatsApp number") && o[0].choices.map((c) => c.id).join() === "cancel", "starts with the WhatsApp number, with a Cancel button");
+o = await say("12345"); assert(txt(o).includes("not a valid WhatsApp") && step() === "ad_st_phone", "number checked");
+o = await say("9000000001");
+assert(step() === "ad_st_found" && txt(o).startsWith("*Students with this WhatsApp / Mobile Number:*\n\nParent: *Ravindra Kumar*\n\nStudent: *Priyanka Shukla*\nStudent ID: SID20260001\n\nStudent: *Mohit Kumar*\nStudent ID: SID20260002\n\nWhatsApp: +91 90000 00001\nMobile No.: +91 90000 00001\nAddress: 12 Gandhi Road, Jaipur - 302001") && o[0].choices.map((c) => c.id).join() === "st_add,cancel", "number already has students -> parent, each student + ID, numbers, address; Add New Student / Cancel");
+o = await say("", "st_add"); assert(step() === "ad_st_name" && o[0].choices.map((c) => c.id).join() === "cancel", "name, with Cancel");
 o = await say("A"); assert(txt(o).includes("type the student's name"), "too short refused");
-await say("riya sharma"); assert(step() === "ad_st_parent" && o !== undefined, "name -> parent (skippable)");
-o = await say("", "st_skip"); assert(step() === "ad_st_phone", "parent skipped");
-o = await say("12345"); assert(txt(o).includes("not a valid mobile") && step() === "ad_st_phone", "mobile is mandatory and checked");
-o = await say("+91 90000 00001"); assert(step() === "ad_st_more" && o[0].choices.map((c) => c.id).join() === "st_save,st_more", "mobile -> Save Now / Add More Details");
-o = await say("", "st_save");
-assert(step() === "ad_st_confirm" && txt(o).includes("Riya Sharma") && txt(o).includes("(not given)") && txt(o).includes("Priyanka Shukla (SID20260001)") && txt(o).includes("No email code is sent"), "basic summary: only name + mobile; shows who else is on this number; no OTP");
+o = await say("riya sharma"); assert(step() === "ad_st_gender" && o[0].choices.map((c) => c.id).join() === "st_gender:Male,st_gender:Female,cancel", "gender: Male / Female / Cancel");
+o = await say("", "st_skip"); assert(step() === "ad_st_gender", "gender cannot be skipped");
+o = await say("", "st_gender:Female"); assert(step() === "ad_st_class" && o[0].choices.map((c) => c.id).join() === "st_skip,cancel", "class: Skip / Cancel");
+o = await say("", "st_skip"); assert(step() === "ad_st_board" && o[0].choices.map((c) => c.id).join() === "cancel", "board: Cancel only");
+o = await say("c"); assert(txt(o).includes("type the board") && step() === "ad_st_board", "board is required");
+o = await say("cbse"); assert(step() === "ad_st_school" && o[0].choices.map((c) => c.id).join() === "st_skip,cancel", "school: Skip / Cancel");
+o = await say("", "st_skip");
+assert(step() === "ad_st_confirm" && txt(o).includes("Riya Sharma") && txt(o).includes("Ravindra Kumar") && txt(o).includes("Gandhi Road") && txt(o).includes("Board: cbse") && !txt(o).includes("Class:") && o[0].choices.map((c) => c.id).join() === "ad_yes,cancel", "existing parent: nothing more is asked, summary has the parent and address");
 o = await say("", "ad_yes");
-assert(last().action === "adminAddStudent" && last().p.basic === true && last().p.studentName === "Riya Sharma" && last().p.phone === "9000000001" && last().p.whatsapp === "9000000001" && last().p.email === undefined && last().p.parentsName === undefined && last().p.termsAccepted === false, "saved with only the basics through the admin function (no email, no parent)");
-assert(step() === "ad_st_post" && txt(o).includes("SID20260101") && o[0].choices.map((c) => c.id).join() === "st_post,st_done", "added -> offers to post a tuition");
-o = await say("", "st_post"); assert(step() === "t_subjects" && db.bot_sessions[0].data.adminId === EID && txt(o).includes("Riya Sharma"), "Post Tuition Now -> the usual tuition questions as the employee");
+assert(last().action === "adminAddStudent" && last().p.basic === true && last().p.studentName === "Riya Sharma" && last().p.gender === "Female" && last().p.board === "cbse" && last().p.className === undefined && last().p.parentsName === "Ravindra Kumar" && last().p.address === "12 Gandhi Road" && last().p.city === "Jaipur" && last().p.pinCode === "302001" && last().p.phone === "9000000001" && last().p.whatsapp === "9000000001" && last().p.termsAccepted === false, "saved with the parent's address, city and PIN taken from the old record");
+assert(step() === "ad_st_post" && txt(o).startsWith("*New Student Added!*\n\n*Student Details:*\nName: *Riya Sharma*\nStudent ID: SID20260101\nGender: Female\nBoard: cbse\nParent: Ravindra Kumar\nWhatsApp: +91 90000 00001\nMobile No.: +91 90000 00001\nAddress: 12 Gandhi Road, Jaipur - 302001") && o[0].choices.map((c) => c.id).join() === "st_post" && o[0].choices[0].title === "Create New Tuition", "added -> all details + one Create New Tuition button");
+o = await say("", "st_post"); assert(step() === "t_subjects" && db.bot_sessions[0].data.adminId === EID && txt(o).includes("Riya Sharma"), "Create New Tuition -> the usual tuition questions for this student");
 await say("cancel");
-await startAdminFlow(wa, EID, "student"); await say("Dup Kid"); await say("Mr Dup"); await say("9000000001"); await say("", "st_more");
-assert(step() === "ad_st_email", "Add More Details -> email first");
+await startAdminFlow(wa, EID, "student"); o = await say("9811111111");
+assert(step() === "ad_st_parent" && o[0].choices.map((c) => c.id).join() === "st_skip,cancel", "new number -> parent's name (Skip / Cancel)");
+await say("Mr New"); await say("Dup Kid"); await say("", "st_gender:Male"); await say("", "st_skip"); await say("CBSE"); o = await say("", "st_skip");
+assert(step() === "ad_st_more" && o[0].choices.map((c) => c.id).join() === "st_save,st_more,cancel", "new number -> Save Now / Add More Details / Cancel");
+o = await say("", "st_more"); assert(step() === "ad_st_email", "Add More Details -> email first");
 o = await say("not-an-email"); assert(txt(o).includes("doesn't look like an email") && step() === "ad_st_email", "bad email refused");
-await say("PARENT@Mail.com"); await say("", "st_gender:Female"); await say("", "st_skip"); await say("dps school"); await say("", "st_skip"); await say("noida");
+await say("PARENT@Mail.com"); await say("noida");
 o = await say("20130"); assert(txt(o).includes("must be 6 digits"), "bad PIN refused");
 await say("201301"); o = await say("B-12, Sector 5, Noida");
-assert(step() === "ad_st_confirm" && txt(o).includes("parent@mail.com") && txt(o).includes("Female") && txt(o).includes("Dps School") && txt(o).includes("Noida - 201301") && !txt(o).includes("Class:"), "every detail (skipped ones left out) in the summary");
+assert(step() === "ad_st_confirm" && txt(o).includes("parent@mail.com") && txt(o).includes("Mr New") && txt(o).includes("B-12, Sector 5, Noida, Noida - 201301"), "every detail in the summary");
 o = await say("", "ad_yes");
-assert(last().p.email === "parent@mail.com" && last().p.gender === "Female" && last().p.school === "Dps School" && last().p.city === "Noida" && last().p.pinCode === "201301" && last().p.address === "B-12, Sector 5, Noida" && last().p.parentsName === "Mr Dup" && last().p.className === undefined, "optional details sent, skipped ones left out");
+assert(last().p.email === "parent@mail.com" && last().p.city === "Noida" && last().p.pinCode === "201301" && last().p.address === "B-12, Sector 5, Noida" && last().p.parentsName === "Mr New" && last().p.phone === "9811111111" && last().p.className === undefined, "details sent, skipped ones left out");
 assert(txt(o).includes("could not be added") && txt(o).includes("already registered") && !db.bot_sessions.length, "a duplicate is refused with the reason");
 db.me.permissions = ["students_add"];
-await startAdminFlow(wa, EID, "student"); await say("Solo Add"); await say("", "st_skip"); await say("9811111111"); await say("", "st_save"); o = await say("", "ad_yes");
-assert(txt(o).includes("Student added!") && !db.bot_sessions.length, "no 'post tuition' offer without that permission");
+await startAdminFlow(wa, EID, "student"); await say("9822222222"); await say("", "st_skip"); await say("Solo Add"); await say("", "st_gender:Male"); await say("", "st_skip"); await say("CBSE"); await say("", "st_skip"); await say("", "st_save"); o = await say("", "ad_yes");
+assert(txt(o).includes("New Student Added!") && !o[0].choices && !db.bot_sessions.length, "no 'Create New Tuition' button without that permission");
 db.me.permissions = ["tuitions_view", "tuitions_edit", "tuitions_assign_tutor", "tuitions_add", "students_view", "students_add", "payments_add", "payments_view"];
 
 // ---- 7. class & agreement
