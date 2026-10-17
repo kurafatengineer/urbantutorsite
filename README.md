@@ -203,7 +203,7 @@ link to the profile.
   numbers, full address - with Add New Student / Cancel; then name, gender, class [skippable], board,
   school [skippable]; the parent's details are copied from the old record; no email code; it then shows
   the saved student with a *Create New Tuition* button). After a tuition is posted, an employee who may
-  assign tutors gets an *Assign Tutor* button that continues straight into that flow and
+  assign tutors gets an *Assign Tutor* button that continues straight into that flow. *Assign Tutor* takes a Tuition ID, Student ID or the parent's WhatsApp/mobile number, shows the student's details (no email), lets the employee pick one tuition if there are several, then takes a Tutor ID/WhatsApp/mobile, shows the tutor's full details with *Assign This Tutor* / Cancel, and finally sends subject, Tuition ID, tutor and student details with addresses, gender, mode and the student's time slot; and
   *Class & Agreement* (for a tuition where tutor and parent agreed: class days, start date, time,
   minutes, *Monthly Commission* [fee, agency cut as % or ₹, who gets the first month] or *Per Class
   Commission* [price per class, agency share], how often the parent pays; it saves the class like
