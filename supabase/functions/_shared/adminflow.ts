@@ -261,7 +261,7 @@ const APP_COLS = "tutor_id,parent_accepted,tutor_accepted,parent_rejected,tutor_
 async function applicationsFor(demoId: string): Promise<Json[]> {
   const rows: Json[] = await rest(`applications?demo_id=eq.${q(demoId)}&select=${APP_COLS}&order=id`) ?? [];
   const ids = [...new Set(rows.map((r) => String(r.tutor_id)))];
-  const tutors: Json[] = ids.length ? await rest(`tutors?tutor_id=${inList(ids)}&select=tutor_id,full_name,gender,mobile_number,whatsapp_number`) ?? [] : [];
+  const tutors: Json[] = ids.length ? await rest(`tutors?tutor_id=${inList(ids)}&select=tutor_id,full_name,gender,mobile_number,whatsapp_number,present_address,city,pin_code`) ?? [] : [];
   return rows.map((r) => {
     const tutor = tutors.find((t) => t.tutor_id === r.tutor_id) ?? { tutor_id: r.tutor_id };
     return { ...r, tutor, tutorName: String(tutor.full_name ?? r.tutor_id) };
@@ -346,7 +346,12 @@ function prompt(step: string, d: Json): Out {
       const o = pickOut(withHead(d.head, "Which *tuition* do you want to assign a tutor to?"), d.tuitions, "demo_id", "subject", (x) => `${x.demo_id} · ${x.student_name}`);
       return o;
     }
-    case "ad_sd_demo": return askDemo("demo");
+    case "ad_sd_demo": return {
+      text: "*Schedule Demo*\n\n" + (d.hide
+        ? "Send the *Tuition ID*, the *Student ID* or the *Tutor ID*.\n\nFor example -\nDID20260007\nSID20260613\nTID20260123"
+        : "Send the *Tuition ID*, the *Student ID*, the *Tutor ID*, or a student's / tutor's *WhatsApp / mobile number*.\n\nFor example -\nDID20260007\nSID20260613\nTID20260123\n9876543210"),
+      choices: [CANCEL],
+    };
     case "ad_tc_demo": return askDemo("conf");
     case "ad_pm_demo": return askDemo("pay");
     case "ad_as_tutor": return {
@@ -363,13 +368,18 @@ function prompt(step: string, d: Json): Out {
         (d.mismatch ? `\n\nNote: this tuition asks for *${d.wanted.toLowerCase()}* tutors.` : "")),
       choices: [YES(d.mismatch ? "Assign Anyway" : "Assign This Tutor"), CANCEL],
     };
-    case "ad_sd_pick": return pickOut("Which *tutor* is the demo for?", d.options, "tutor_id", "tutorName",
-      (o) => `${o.tutor_id} · ${numText(o.tutor?.whatsapp_number || o.tutor?.mobile_number, d.hide)}`);
-    case "ad_sd_date": return {
-      text: `Demo *date* for *${d.tutorName}*?\n\nType it like *18-10-2026* (day-month-year), or *Today* / *Tomorrow*.` +
-        (d.currentDemo ? `\n\nThe demo is now on ${d.currentDemo}. A new date will move it.` : ""),
+    case "ad_sd_pick": return {
+      text: withHead(d.head, "Which *demo* do you want to schedule?"),
+      choices: [
+        ...d.pairs.slice(0, 9).map((p: Json) => ({ id: `ad_pick:${p.demo_id}:${p.tutor_id}`, title: String(p.subject || p.demo_id), description: `${p.demo_id} · ${p.student_name} · ${p.tutor_name}` })),
+        CANCEL,
+      ],
     };
-    case "ad_sd_time": return { text: "Demo *time*?\n\nFor example -\n5 PM\n5:30 PM\n17:30" };
+    case "ad_sd_date": return {
+      text: withHead(d.card, "Demo *date*?\n\nType it like *18-10-2026* (day-month-year), or tap a button."),
+      choices: [{ id: "sd_date:today", title: "Today" }, { id: "sd_date:tomorrow", title: "Tomorrow" }, CANCEL],
+    };
+    case "ad_sd_time": return { text: "Demo *time*?\n\nFor example -\n5 PM\n5:30 PM\n17:30", choices: [CANCEL] };
     case "ad_sd_confirm": return {
       text: `*Please check the demo:*\n\n*${d.subject}* (${d.demoId})\nStudent: ${d.studentCard}\nTutor: ${d.tutorCard}\n` +
         `Date: *${fmtDate(d.date)}*\nTime: *${fmtTime(d.time)}*\n\nThe parent and the tutor will be told.`,
@@ -590,23 +600,28 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
     /* ---------- 3. schedule demo ---------- */
     case "ad_sd_demo": {
       const c = classify(text);
-      if (c.kind !== "did") return again("That is not a valid *Tuition ID*.\nIt starts with *DID* followed by *8 digits*.");
-      const t = await findTuition(c.value);
-      if (!t) return again(`No tuition was found with the ID *${c.value}*.`);
-      if (closed(t)) return again(`*${c.value}* is closed (${t.status || "terminated"}).`);
-      const rows = (await applicationsFor(t.demo_id)).filter((r) => !r.parent_rejected && !r.tutor_rejected);
-      if (!rows.length) return again(`No tutor is on *${c.value}* yet.\nUse *Assign Tutor* first.`);
-      d.demoId = t.demo_id; d.subject = t.subject; d.studentName = t.student?.student_name ?? ""; d.studentCard = studentCard(t.student ?? {}, d.hide);
-      if (rows.length === 1) return demoDate(ctx, d, rows[0]);
-      d.options = rows.slice(0, 9);
+      if (c.kind === "phone" && d.hide) return again("Your account cannot search by number.\nSend the *Tuition ID*, *Student ID* or *Tutor ID*.");
+      if (!["did", "sid", "tid", "phone"].includes(c.kind)) {
+        return again(d.hide ? "That is not a valid ID.\nSend a *Tuition ID* (DID + 8 digits), a *Student ID* (SID + 8 digits) or a *Tutor ID* (TID + 8 digits)."
+          : "That is not a valid ID or number.\nSend a *Tuition ID* (DID), *Student ID* (SID) or *Tutor ID* (TID) with 8 digits, or a 10-digit *WhatsApp / mobile number*.");
+      }
+      const { found, pairs } = await demoPairs(c);
+      if (!found) {
+        const what = c.kind === "did" ? "tuition" : c.kind === "sid" ? "student" : c.kind === "tid" ? "tutor" : "student or tutor";
+        return again(`No ${what} was found with *${text}*.`);
+      }
+      if (!pairs.length) return again(`No open tuition with an assigned tutor was found for *${text}*.\nUse *Assign Tutor* first.`);
+      if (pairs.length === 1) return pickPair(ctx, d, pairs[0]);
+      d.pairs = pairs;
+      d.head = "*Demo Details:*\n\n" + pairs.map((p) => `Subject: *${p.subject}*\nTuition ID: ${p.demo_id}\nStudent: *${p.student_name}* (${p.student_id})\nTutor: *${p.tutor_name}* (${p.tutor_id})`).join("\n\n");
       return go(ctx, "ad_sd_pick", d);
     }
     case "ad_sd_pick": {
-      const chosen = (d.options ?? []).find((o: Json) => o.tutor_id === pickedId);
-      return chosen ? demoDate(ctx, d, chosen) : [prompt(step, d)];
+      const chosen = (d.pairs ?? []).find((p: Json) => `${p.demo_id}:${p.tutor_id}` === pickedId);
+      return chosen ? pickPair(ctx, d, chosen) : [prompt(step, d)];
     }
     case "ad_sd_date": {
-      const iso = parseDate(text);
+      const iso = choice.startsWith("sd_date:") ? parseDate(choice.slice(8)) : parseDate(text);
       if (!iso) return again("That is not a valid date.\nType it like *18-10-2026* (day-month-year), or *Today* / *Tomorrow*.");
       if (iso < todayIst()) return again("That date has already passed.");
       d.date = iso;
@@ -970,12 +985,60 @@ async function assignConfirm(ctx: Ctx, d: Json, tutor: Json): Promise<Out[]> {
   return go(ctx, "ad_as_confirm", d);
 }
 
-async function demoDate(ctx: Ctx, d: Json, row: Json): Promise<Out[]> {
+// every (tuition, tutor) pair that a Tuition ID, Student ID, Tutor ID or a student's / tutor's number points at
+async function demoPairs(c: Json): Promise<{ found: boolean; pairs: Json[] }> {
+  const tuitions: Json[] = [];
+  const studentDemos = new Set<string>();
+  let tutorIds: string[] = [];
+  let found = false;
+  if (c.kind === "did") {
+    const t = await findTuition(c.value);
+    if (t) { found = true; tuitions.push(t); studentDemos.add(t.demo_id); }
+  } else {
+    if (c.kind === "sid" || c.kind === "phone") {
+      if ((await findStudents(c)).length) found = true;
+      for (const t of await tuitionsFor(c)) { tuitions.push(t); studentDemos.add(t.demo_id); }
+    }
+    if (c.kind === "tid" || c.kind === "phone") {
+      const tutors = await findTutors(c);
+      if (tutors.length) found = true;
+      tutorIds = tutors.map((x) => String(x.tutor_id));
+      if (tutorIds.length) {
+        const apps: Json[] = await rest(`applications?tutor_id=${inList(tutorIds)}&select=demo_id`) ?? [];
+        for (const demo of [...new Set(apps.map((a) => String(a.demo_id)))].slice(0, 9)) {
+          if (tuitions.some((t) => t.demo_id === demo)) continue;
+          const t = await findTuition(demo);
+          if (t) tuitions.push(t);
+        }
+      }
+    }
+  }
+  const pairs: Json[] = [];
+  for (const t of tuitions) {
+    if (closed(t) || t.student?.blocked_at) continue;
+    for (const r of await applicationsFor(t.demo_id)) {
+      if (r.parent_rejected || r.tutor_rejected) continue;
+      if (!studentDemos.has(t.demo_id) && !tutorIds.includes(String(r.tutor_id))) continue;
+      pairs.push({ demo_id: t.demo_id, tutor_id: String(r.tutor_id), subject: t.subject, student_id: t.student?.student_id ?? "", student_name: t.student?.student_name ?? "", tutor_name: r.tutorName });
+    }
+  }
+  return { found, pairs: pairs.slice(0, 9) };
+}
+
+// the chosen tuition + tutor: tuition, student and tutor details in one message, then the date
+async function pickPair(ctx: Ctx, d: Json, p: Json): Promise<Out[]> {
+  const t = await findTuition(p.demo_id);
+  if (!t || closed(t)) return [{ text: `That tuition is closed now.\n\n${RETRY}` }];
+  const row = (await applicationsFor(p.demo_id)).find((r) => String(r.tutor_id) === String(p.tutor_id));
+  if (!row || row.parent_rejected || row.tutor_rejected) return [{ text: `That tutor is not on this tuition any more.\n\n${RETRY}` }];
+  d.demoId = t.demo_id; d.subject = t.subject; d.studentName = t.student?.student_name ?? ""; d.studentCard = studentCard(t.student ?? {}, d.hide);
   d.tutorId = row.tutor_id;
   d.tutorName = row.tutorName;
   d.tutorLine = person({ ...row, full_name: row.tutorName });
   d.tutorCard = tutorCard(row.tutor ?? {}, d.hide);
   d.currentDemo = row.demo_date ? `${fmtDate(row.demo_date)}${row.demo_time ? ", " + fmtTime(row.demo_time) : ""}` : "";
+  d.card = `${tuitionText(t, true)}\n\n${studentFullText(t.student ?? {}, !!d.hide)}\n\n${tutorFullText(row.tutor ?? {}, !!d.hide)}` +
+    (d.currentDemo ? `\n\nThe demo is now on ${d.currentDemo}. A new date will move it.` : "");
   return go(ctx, "ad_sd_date", d);
 }
 
