@@ -934,12 +934,12 @@ function studentSummary(d: Json): string {
   const f = d.f ?? {};
   const home = (d.ex ?? [])[0];
   const line = (label: string, v: unknown) => v ? `${label}: ${v}\n` : "";
-  const wa = numText(home?.whatsapp || f.whatsapp, d.hide);
-  return "*Please check the new student:*\n\n" +
-    `Student: *${f.studentName}*\n` + line("Gender", f.gender) + line("Class", f.className) + line("Board", f.board) + line("School", f.school) +
-    `Parent: ${home?.parents_name || f.parentsName || "(not given)"}\n` + `WhatsApp: ${wa}\n` +
-    line("Email", home?.email || f.email) + line("Address", d.hide ? "" : fullAddress(home ?? { address: f.address, city: f.city, pin_code: f.pinCode })) +
-    "\nNo email code is sent.";
+  const wa = numText(home?.whatsapp || f.whatsapp, d.hide), ph = numText(home?.phone || f.whatsapp, d.hide);
+  return ("*Please check the new student:*\n\n" +
+    `Parent: ${home?.parents_name || f.parentsName || "(not given)"}\n` + `Student: *${f.studentName}*\n` +
+    line("Gender", f.gender) + line("Class", f.className) + line("Board", f.board) + line("School", f.school) +
+    line("WhatsApp", wa) + line("Mobile No.", ph) +
+    line("Email", home?.email || f.email) + line("Address", d.hide ? "" : fullAddress(home ?? { address: f.address, city: f.city, pin_code: f.pinCode }))).trimEnd();
 }
 
 // the saved student, with everything we hold (numbers hidden for a "Hide Mobile Number" account)
