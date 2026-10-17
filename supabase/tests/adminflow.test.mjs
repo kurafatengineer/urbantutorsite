@@ -71,7 +71,9 @@ globalThis.fetch = async (url, init = {}) => {
       (u.searchParams.has("demo_id") ? (u.searchParams.get("demo_id").startsWith("in.") ? inVals("demo_id").includes(t.demo_id) : t.demo_id === eq("demo_id")) : true) &&
       (u.searchParams.has("student_id") ? (u.searchParams.get("student_id").startsWith("in.") ? inVals("student_id").includes(t.student_id) : t.student_id === eq("student_id")) : true) && !(u.searchParams.has("terminated") && t.terminated)));
   }
-  if (path === "applications") return ok(db.applications.filter((a) => a.demo_id === eq("demo_id")));
+  if (path === "applications") return ok(db.applications.filter((a) =>
+    (u.searchParams.has("demo_id") ? a.demo_id === eq("demo_id") : true) &&
+    (u.searchParams.has("tutor_id") ? inVals("tutor_id").includes(a.tutor_id) : true)));
   if (path === "rpc/tuition_status") return ok(JSON.parse(init.body).p_demo_id === "DID20260009" ? "Terminated" : "Finding Tutor");
   throw new Error("unexpected " + m + " " + url);
 };
@@ -176,13 +178,18 @@ assert(step() === "ad_as_tpick" && txt(o).includes("Priyanka Shukla") && txt(o).
 await say("cancel");
 
 // ---- 3. schedule demo
-await startAdminFlow(wa, EID, "demo");
+o = await startAdminFlow(wa, EID, "demo");
+assert(step() === "ad_sd_demo" && o[0].choices.map((c) => c.id).join() === "cancel" && !txt(o).includes("Cancel any time") && txt(o).includes("*Tutor ID*"), "Schedule Demo asks for a Tuition / Student / Tutor ID or a number, with a Cancel button");
+o = await say("12345"); assert(txt(o).includes("not a valid ID or number"), "bad entry refused");
+o = await say("DID20260999"); assert(txt(o).includes("No tuition was found"), "unknown Tuition ID refused");
+o = await say("TID20269999"); assert(txt(o).includes("No tutor was found"), "unknown Tutor ID refused");
 o = await say("DID20260010");
-assert(step() === "ad_sd_pick" && o[0].choices.length === 3, "two tutors on the tuition -> pick one");
-o = await say("", "ad_pick:TID20260002"); assert(step() === "ad_sd_date" && txt(o).includes("Rohit Singh"), "tutor picked -> asks the date");
+assert(step() === "ad_sd_pick" && txt(o).startsWith("*Demo Details:*\n\nSubject:") && txt(o).endsWith("Which *demo* do you want to schedule?") && o[0].choices.length === 3 && o[0].choices.at(-1).id === "cancel", "two tutors on the tuition -> details and a menu in one message");
+o = await say("", "ad_pick:DID20260010:TID20260002");
+assert(step() === "ad_sd_date" && o.length === 1 && txt(o).indexOf("*Tuition Details:*") < txt(o).indexOf("*Student Details:*") && txt(o).indexOf("*Student Details:*") < txt(o).indexOf("*Tutor Details:*") && txt(o).includes("Rohit Singh") && o[0].choices.map((c) => c.id).join() === "sd_date:today,sd_date:tomorrow,cancel", "pair picked -> tuition, student, tutor details, then the date with buttons");
 o = await say("tomorrow-ish"); assert(txt(o).includes("not a valid date") && step() === "ad_sd_date", "bad date refused");
 o = await say("01-01-2020"); assert(txt(o).includes("already passed"), "past date refused");
-await say("tomorrow"); assert(step() === "ad_sd_time", "date ok -> asks the time");
+await say("", "sd_date:tomorrow"); assert(step() === "ad_sd_time", "date button ok -> asks the time");
 o = await say("seven"); assert(txt(o).includes("not a valid time"), "bad time refused");
 o = await say("5:30 PM");
 assert(step() === "ad_sd_confirm" && txt(o).includes("5:30 PM") && txt(o).includes("Hindi") && txt(o).includes("Solo Kid"), "summary shown");
@@ -192,7 +199,13 @@ assert(txt(o).includes("Demo scheduled!") && !db.bot_sessions.length, "success")
 await startAdminFlow(wa, EID, "demo"); o = await say("DID20260007");
 assert(step() === "ad_sd_date" && txt(o).includes("The demo is now on 01 October 2026, 5:00 PM"), "one tutor goes straight to the date; an existing demo is mentioned");
 await say("cancel");
-await startAdminFlow(wa, EID, "demo"); o = await say("DID20260009"); assert(txt(o).includes("is closed"), "closed tuition refused");
+await startAdminFlow(wa, EID, "demo"); o = await say("TID20260002");
+assert(["ad_sd_date", "ad_sd_pick"].includes(step()) && txt(o).includes("Rohit Singh"), "a Tutor ID finds the tuitions the tutor is on");
+await say("cancel");
+await startAdminFlow(wa, EID, "demo"); o = await say("SID20260001");
+assert(["ad_sd_date", "ad_sd_pick"].includes(step()) || txt(o).includes("Use *Assign Tutor* first"), "a Student ID finds its tuitions with tutors");
+await say("cancel");
+await startAdminFlow(wa, EID, "demo"); o = await say("DID20260009"); assert(txt(o).includes("No open tuition"), "closed tuition has nothing to schedule");
 await say("cancel");
 
 // ---- 4. tutor / parent confirmation
