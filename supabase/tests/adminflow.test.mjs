@@ -74,7 +74,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (path === "applications") return ok(db.applications.filter((a) =>
     (u.searchParams.has("demo_id") ? a.demo_id === eq("demo_id") : true) &&
     (u.searchParams.has("tutor_id") ? inVals("tutor_id").includes(a.tutor_id) : true)));
-  if (path === "rpc/tuition_status") return ok(JSON.parse(init.body).p_demo_id === "DID20260009" ? "Terminated" : "Finding Tutor");
+  if (path === "rpc/tuition_status") { const id = JSON.parse(init.body).p_demo_id; return ok(id === "DID20260009" ? "Terminated" : globalThis.runningDemos?.has(id) ? "Running" : "Finding Tutor"); }
   throw new Error("unexpected " + m + " " + url);
 };
 
@@ -237,6 +237,11 @@ assert(txt(o).includes("demo is not scheduled yet"), "a Tutor ID with no schedul
 await say("cancel");
 await startAdminFlow(wa, EID, "conf"); o = await say("DID20260007");
 assert(!db.bot_sessions.length && txt(o).includes("Tutor: Agreed") && txt(o).includes("Use *Class & Agreement*"), "already agreed -> just the details and the next step");
+globalThis.runningDemos = new Set(["DID20260007"]);
+await startAdminFlow(wa, EID, "conf"); o = await say("DID20260007");
+assert(txt(o).includes("already running") && step() === "ad_tc_demo", "Confirm: a tuition that is already Running is not offered");
+await say("cancel");
+globalThis.runningDemos = new Set();
 db.me.hideContacts = true;
 await startAdminFlow(wa, EID, "conf"); o = await say("DID20260007");
 assert(txt(o).includes("********11") && !txt(o).includes("91111 11111") && !txt(o).includes("90000 00001") && txt(o).includes("TID20260001") && txt(o).includes("SID20260001"), "'hide mobile' account: numbers masked (last two digits), names and IDs still shown");

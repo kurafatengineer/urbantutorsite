@@ -666,12 +666,13 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
         return again(d.hide ? "That is not a valid ID.\nSend a *Tuition ID* (DID + 8 digits), a *Student ID* (SID + 8 digits) or a *Tutor ID* (TID + 8 digits)."
           : "That is not a valid ID or number.\nSend a *Tuition ID* (DID), *Student ID* (SID) or *Tutor ID* (TID) with 8 digits, or a 10-digit *WhatsApp / mobile number*.");
       }
-      const { found, pairs, skipped } = await demoPairs(c, true);
+      const { found, pairs, skipped, running } = await demoPairs(c, true);
       if (!found) {
         const what = c.kind === "did" ? "tuition" : c.kind === "sid" ? "student" : c.kind === "tid" ? "tutor" : "student or tutor";
         return again(`No ${what} was found with *${text}*.`);
       }
       if (!pairs.length) {
+        if (running && !skipped) return again(`The tuition for *${text}* is already running.\nIts demo no longer needs confirming.`);
         return again(skipped
           ? `The demo is not scheduled yet for *${text}*.\nUse *Schedule Demo* first.`
           : `No open tuition with an assigned tutor was found for *${text}*.\nUse *Assign Tutor* first.`);
@@ -999,7 +1000,7 @@ async function assignConfirm(ctx: Ctx, d: Json, tutor: Json): Promise<Out[]> {
 }
 
 // every (tuition, tutor) pair that a Tuition ID, Student ID, Tutor ID or a student's / tutor's number points at
-async function demoPairs(c: Json, needDemo = false): Promise<{ found: boolean; pairs: Json[]; skipped: number }> {
+async function demoPairs(c: Json, needDemo = false): Promise<{ found: boolean; pairs: Json[]; skipped: number; running: number }> {
   const tuitions: Json[] = [];
   const studentDemos = new Set<string>();
   let tutorIds: string[] = [];
@@ -1027,9 +1028,10 @@ async function demoPairs(c: Json, needDemo = false): Promise<{ found: boolean; p
     }
   }
   const pairs: Json[] = [];
-  let skipped = 0;
+  let skipped = 0, running = 0;
   for (const t of tuitions) {
     if (closed(t) || t.student?.blocked_at) continue;
+    if (needDemo && t.status === "Running") { running++; continue; }
     for (const r of await applicationsFor(t.demo_id)) {
       if (r.parent_rejected || r.tutor_rejected) continue;
       if (!studentDemos.has(t.demo_id) && !tutorIds.includes(String(r.tutor_id))) continue;
@@ -1037,7 +1039,7 @@ async function demoPairs(c: Json, needDemo = false): Promise<{ found: boolean; p
       pairs.push({ demo_label: r.demo_date ? `${fmtDate(r.demo_date)}${r.demo_time ? ", " + fmtTime(r.demo_time) : ""}` : "", demo_id: t.demo_id, tutor_id: String(r.tutor_id), subject: t.subject, student_id: t.student?.student_id ?? "", student_name: t.student?.student_name ?? "", tutor_name: r.tutorName });
     }
   }
-  return { found, pairs: pairs.slice(0, 9), skipped };
+  return { found, pairs: pairs.slice(0, 9), skipped, running };
 }
 
 // the chosen demo: tuition, student, tutor, demo date and who has agreed - then who to confirm for
