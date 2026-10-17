@@ -346,7 +346,7 @@ function prompt(step: string, d: Json): Out {
     case "ad_st_parent": return { text: "No student is registered on this number yet.\n\nThe *parent's name*?", choices: [ST_SKIP, CANCEL] };
     case "ad_st_name": return { text: "What is the *student's name*?", choices: [CANCEL] };
     case "ad_st_gender": return { text: "The student's *gender*?", choices: [{ id: "st_gender:Male", title: "Male" }, { id: "st_gender:Female", title: "Female" }, CANCEL] };
-    case "ad_st_class": return { text: "Which *class* is the student in?\n\nFor example -\n10th\nB.Com", choices: [ST_SKIP, CANCEL] };
+    case "ad_st_class": return { text: "Which *class* is the student in?\n\nFor example -\n10th\nB.Com", choices: [CANCEL] };
     case "ad_st_board": return { text: "*Board / University*?\n\nFor example -\nCBSE\nICSE", choices: [CANCEL] };
     case "ad_st_school": return { text: "*School / College* name?", choices: [ST_SKIP, CANCEL] };
     case "ad_st_more": return {
@@ -895,7 +895,7 @@ async function payKind(ctx: Ctx, d: Json, row: Json): Promise<Out[]> {
 // The details of "Add New Student": the main ones first, then the optional extras (only for a number with no student yet).
 const ST_FIELDS: { step: string; key: string; required?: boolean; check: (v: string) => string; fix?: (v: string) => string }[] = [
   { step: "ad_st_gender", key: "gender", required: true, check: (v) => v === "Male" || v === "Female" ? "" : "Please tap *Male* or *Female*." },
-  { step: "ad_st_class", key: "className", check: (v) => v.length >= 1 && v.length <= 80 ? "" : "Please type the class, or tap *Skip*." },
+  { step: "ad_st_class", key: "className", required: true, check: (v) => v.length >= 1 && v.length <= 80 ? "" : "Please type the class." },
   { step: "ad_st_board", key: "board", required: true, check: (v) => v.length >= 2 && v.length <= 150 ? "" : "Please type the board / university." },
   { step: "ad_st_school", key: "school", check: (v) => v.length >= 2 && v.length <= 150 ? "" : "Please type the school / college, or tap *Skip*.", fix: titleCase },
   { step: "ad_st_email", key: "email", check: (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) && v.length <= 120 ? "" : "That doesn't look like an email address.\nType it again, or tap *Skip*.", fix: (v) => v.toLowerCase() },
