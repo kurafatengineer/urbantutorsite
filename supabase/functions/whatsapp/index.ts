@@ -116,7 +116,7 @@ async function showAdminMenu(to: string, employeeId: string, roles: string[]) {
   await send(to, {
     type: "interactive",
     interactive: {
-      type: "list", body: { text: `Hi,\n*${me.name}* (Admin)\n\nOpen the *Menu* to see what you can do.`.slice(0, 1024) }, footer: { text: "Urban Tutor Site" },
+      type: "list", body: { text: `Hi,\n*${me.name}* (Admin)\n\nOpen the *Menu* to see what you can do.`.slice(0, 1024) },
       action: { button: "Menu", sections: [{ title: "Admin Menu", rows: rows.slice(0, 10) }] },
     },
   });
