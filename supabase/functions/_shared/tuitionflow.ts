@@ -30,7 +30,7 @@ const numText = (v: unknown, hide: boolean): string => {
 // name, ID, WhatsApp and phone of the student (for an employee posting on a parent's behalf)
 function studentDetails(d: Json): string {
   const wa = numText(d.studentWa, !!d.hide), ph = numText(d.studentPhone, !!d.hide);
-  return `*Student Details:*\nName: *${d.studentName}*\nStudent ID: ${d.studentId}` + (wa ? `\nWhatsApp: ${wa}` : "") + (ph ? `\nMobile No.: ${ph}` : "");
+  return `*Student Details:*\nName: *${d.studentName}*\nStudent ID: ${d.studentId}` + (wa ? `\nWhatsApp: ${wa}` : "") + (ph ? `\nMobile No.: ${ph}` : "") + (d.studentAddr && !d.hide ? `\nAddress: ${d.studentAddr}` : "");
 }
 
 const splitSubjects = (v: string) =>
@@ -90,8 +90,19 @@ async function findingFor(studentId: string): Promise<{ finding: string[]; runni
   }
 }
 
+// Full address with PIN code (shown in the student details for an employee).
+async function addressOf(studentId: string): Promise<string> {
+  const st = (await rest(`students?student_id=eq.${q(studentId)}&select=address,city,pin_code`))?.[0];
+  if (!st) return "";
+  const place = [st.city, st.pin_code].filter(Boolean).join(" - ");
+  return [st.address, place].filter(Boolean).join(", ");
+}
+
 async function goTo(ctx: Ctx, step: string, d: Json): Promise<Out[]> {
-  if (step === "t_subjects") Object.assign(d, await findingFor(String(d.studentId)));
+  if (step === "t_subjects") {
+    Object.assign(d, await findingFor(String(d.studentId)));
+    if (d.adminId) d.studentAddr = await addressOf(String(d.studentId));
+  }
   await save(ctx, step, d);
   return [prompt(step, d)];
 }
