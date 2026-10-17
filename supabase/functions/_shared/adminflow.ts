@@ -205,21 +205,21 @@ const lineOf = (label: string, v: unknown) => v ? `\n${label}: ${v}` : "";
 
 function studentFullText(s: Json, hide: boolean): string {
   const wa = numText(s.whatsapp, hide), ph = numText(s.phone, hide);
-  return "*Student Details:*\n" + (s.parents_name ? `Parent: ${s.parents_name}\n` : "") +
+  return "*Student Details:*\n\n" + (s.parents_name ? `Parent: ${s.parents_name}\n` : "") +
     `Name: *${s.student_name ?? "-"}*\nStudent ID: ${s.student_id ?? "-"}` +
     lineOf("Gender", s.gender) + lineOf("Class", s.class_name) + lineOf("Board", s.board) + lineOf("School", s.school) +
     lineOf("WhatsApp", wa) + lineOf("Mobile No.", ph) + (hide ? "" : lineOf("Address", fullAddress(s)));
 }
 
 function tuitionText(t: Json, withStatus = false): string {
-  return `*Tuition Details:*\nSubject: *${t.subject}*\nTuition ID: ${t.demo_id}\nTutor wanted: ${wantedText(t.preferred_tutor)}\nMode: ${modeText(t.medium)}` +
+  return `*Tuition Details:*\n\nSubject: *${t.subject}*\nTuition ID: ${t.demo_id}\nTutor wanted: ${wantedText(t.preferred_tutor)}\nMode: ${modeText(t.medium)}` +
     lineOf("Time", t.preferred_timing) + (withStatus ? lineOf("Status", t.status) : "");
 }
 
 function tutorFullText(t: Json, hide: boolean): string {
   const wa = numText(t.whatsapp_number, hide), mo = numText(t.mobile_number, hide);
   const addr = hide ? "" : [t.present_address, [t.city, t.pin_code].filter(Boolean).join(" - ")].filter(Boolean).join(", ");
-  return `*Tutor Details:*\nName: *${t.full_name ?? "-"}*\nTutor ID: ${t.tutor_id}` +
+  return `*Tutor Details:*\n\nName: *${t.full_name ?? "-"}*\nTutor ID: ${t.tutor_id}` +
     lineOf("Gender", t.gender) + lineOf("WhatsApp", wa) + lineOf("Mobile No.", mo) + lineOf("Address", addr);
 }
 
@@ -358,8 +358,9 @@ function prompt(step: string, d: Json): Out {
     case "ad_as_pick": return pickOut("Which *tutor*?", d.options, "tutor_id", "full_name",
       (o) => `${o.tutor_id} · ${numText(o.whatsapp_number || o.mobile_number, d.hide)}`);
     case "ad_as_confirm": return {
-      text: `${d.tutorText}\n\nAssign this tutor to *${d.subject}* (${d.demoId}) of *${d.studentName}*?` +
-        (d.mismatch ? `\n\nNote: this tuition asks for *${d.wanted.toLowerCase()}* tutors.` : ""),
+      text: withHead(`${d.tutorText}\n\n${d.tuitionText}\n\n${d.studentText}`,
+        `Assign this tutor to *${d.subject}* (${d.demoId}) of *${d.studentName}*?` +
+        (d.mismatch ? `\n\nNote: this tuition asks for *${d.wanted.toLowerCase()}* tutors.` : "")),
       choices: [YES(d.mismatch ? "Assign Anyway" : "Assign This Tutor"), CANCEL],
     };
     case "ad_sd_pick": return pickOut("Which *tutor* is the demo for?", d.options, "tutor_id", "tutorName",
@@ -548,7 +549,7 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
       d.tuitions = open.map((t) => ({ demo_id: t.demo_id, subject: t.subject, student_name: t.student?.student_name ?? "" }));
       await save(ctx, "ad_as_tpick", d);
       const students = [...new Map(open.map((t) => [t.student?.student_id, t.student ?? {}])).values()];
-      d.head = studentsBlock(students, !!d.hide);
+      d.head = `*Students Details:*\n\n${studentsBlock(students, !!d.hide)}`;
       await save(ctx, "ad_as_tpick", d);
       return [prompt("ad_as_tpick", d)];
     }
@@ -951,7 +952,7 @@ async function pickTuition(ctx: Ctx, d: Json, t: Json): Promise<Out[]> {
   d.studentText = studentFullText(t.student ?? {}, !!d.hide);
   d.tuitionText = tuitionText(t);
   const onIt = await applicationsFor(t.demo_id);
-  d.card = `${tuitionText(t, true)}\n\n${d.studentText}` + (onIt.length ? `\n\nTutors on it:\n${onIt.map((r) => "- " + tutorCard(r.tutor, d.hide)).join("\n")}` : "");
+  d.card = `${tuitionText(t, true)}\n\n${d.studentText}` + (onIt.length ? `\n\nTutors on it:\n\n${onIt.map((r) => "- " + tutorCard(r.tutor, d.hide)).join("\n")}` : "");
   await save(ctx, "ad_as_tutor", d);
   return [prompt("ad_as_tutor", d)];
 }
@@ -1039,7 +1040,7 @@ function newStudentCard(d: Json): string {
   const s = d.saved ?? {};
   const line = (label: string, v: unknown) => v ? `\n${label}: ${v}` : "";
   const wa = numText(s.whatsapp, d.hide), ph = numText(s.phone, d.hide);
-  return "*New Student Added!*\n\n*Student Details:*\n" +
+  return "*New Student Added!*\n\n*Student Details:*\n\n" +
     `Name: *${s.student_name ?? d.studentName}*\nStudent ID: ${s.student_id ?? d.studentId}` +
     line("Gender", s.gender) + line("Class", s.class_name) + line("Board", s.board) + line("School", s.school) +
     line("Parent", s.parents_name) + line("WhatsApp", wa) + line("Mobile No.", ph) +

@@ -30,7 +30,7 @@ const numText = (v: unknown, hide: boolean): string => {
 // name, ID, WhatsApp and phone of the student (for an employee posting on a parent's behalf)
 function studentDetails(d: Json): string {
   const wa = numText(d.studentWa, !!d.hide), ph = numText(d.studentPhone, !!d.hide);
-  return `*Student Details:*\nName: *${d.studentName}*\nStudent ID: ${d.studentId}` + (wa ? `\nWhatsApp: ${wa}` : "") + (ph ? `\nMobile No.: ${ph}` : "") + (d.studentAddr && !d.hide ? `\nAddress: ${d.studentAddr}` : "");
+  return `*Student Details:*\n\nName: *${d.studentName}*\nStudent ID: ${d.studentId}` + (wa ? `\nWhatsApp: ${wa}` : "") + (ph ? `\nMobile No.: ${ph}` : "") + (d.studentAddr && !d.hide ? `\nAddress: ${d.studentAddr}` : "");
 }
 
 const splitSubjects = (v: string) =>
@@ -65,7 +65,7 @@ function prompt(step: string, d: Json): Out {
     };
     case "t_confirm": return {
       text: "*Please check your tuition request:*\n\n" +
-        (d.adminId ? `${studentDetails(d)}\n\n*New Tuition Details:*\n` : `Student: *${d.studentName}* (${d.studentId})\n`) +
+        (d.adminId ? `${studentDetails(d)}\n\n*New Tuition Details:*\n\n` : `Student: *${d.studentName}* (${d.studentId})\n`) +
         `Subjects: *${d.subjects.join(", ")}*\n` +
         `Time: ${d.timing}\nTutor: ${tutorText(d.tutor)}\nMode: ${modeText(d.medium)}`,
       choices: [{ id: "t_post", title: "Post Request" }, CANCEL],
@@ -247,7 +247,7 @@ export async function tuitionInput(ctx: Ctx, s: { step: string; data: Json }, in
       if (!d.adminId) await tellPosted(d.studentId, res.demos!, d);
       if (d.adminId) {
         const items = res.demos!.map((x) => `Subject: *${x.subject}*\nTuition ID: ${x.demoId}\nTutor: ${tutorText(d.tutor)}\nMode: ${modeText(d.medium)}`).join("\n\n");
-        const text = `*Tuition Request Posted!*\n\n${studentDetails(d)}\n\n*Tuition Details:*\n${items}\n\nThe parents have been told.`;
+        const text = `*Tuition Request Posted!*\n\n${studentDetails(d)}\n\n*Tuition Details:*\n\n${items}\n\nThe parents have been told.`;
         // an employee who may assign tutors gets a button to go straight on to Assign Tutor
         if (!(d.perms ?? []).includes("tuitions_assign_tutor")) return [{ text }];
         await save(ctx, "ad_after", { eid: d.adminId, hide: !!d.hide, perms: d.perms });
