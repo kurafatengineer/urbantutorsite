@@ -30,7 +30,7 @@ const numText = (v: unknown, hide: boolean): string => {
 // name, ID, WhatsApp and phone of the student (for an employee posting on a parent's behalf)
 function studentDetails(d: Json): string {
   const wa = numText(d.studentWa, !!d.hide), ph = numText(d.studentPhone, !!d.hide);
-  return `*Student Details*\nName: *${d.studentName}*\nStudent ID: ${d.studentId}` + (wa ? `\nWhatsApp: ${wa}` : "") + (ph ? `\nPhone: ${ph}` : "");
+  return `*Student Details:*\nName: *${d.studentName}*\nStudent ID: ${d.studentId}` + (wa ? `\nWhatsApp: ${wa}` : "") + (ph ? `\nMobile No.: ${ph}` : "");
 }
 
 const splitSubjects = (v: string) =>
@@ -43,7 +43,9 @@ function prompt(step: string, d: Json): Out {
       choices: [...d.allowed.slice(0, 9).map((s: Json) => ({ id: `t_pick:${s.id}`, title: s.name || s.id, description: s.id })), CANCEL],
     };
     case "t_subjects": {
-      const finding = (d.finding ?? []).length ? `You are currently finding a tutor for:\n${d.finding.map((x: string) => `- ${x}`).join("\n")}\n\n` : "";
+      const list = (title: string, xs: string[] = []) => xs.length ? `${title}\n${xs.map((x) => `- ${x}`).join("\n")}\n\n` : "";
+      const finding = list("You have a tutor running for these subjects (a new request cannot be posted for them):", d.running)
+        + list("You are currently finding a tutor for:", d.finding);
       const ask = "Which *subjects* do you need a tutor for?\nFor more than one subject, separate them with commas.\n\nFor example -\nMaths, Science";
       return d.adminId
         ? { text: `*Post New Tuition*\n\n${studentDetails(d)}\n\n${finding}${ask}`, choices: [CANCEL] }
@@ -55,15 +57,16 @@ function prompt(step: string, d: Json): Out {
     };
     case "t_tutor": return {
       text: "Which *tutor* do you prefer?",
-      choices: d.adminId ? [...TUTOR_CHOICES, CANCEL] : TUTOR_CHOICES,
+      choices: TUTOR_CHOICES,
     };
     case "t_mode": return {
       text: "Which *mode* do you want?",
-      choices: d.adminId ? [...MODE_CHOICES, CANCEL] : MODE_CHOICES,
+      choices: MODE_CHOICES,
     };
     case "t_confirm": return {
       text: "*Please check your tuition request:*\n\n" +
-        `Student: *${d.studentName}* (${d.studentId})\nSubjects: *${d.subjects.join(", ")}*\n` +
+        (d.adminId ? `${studentDetails(d)}\n\n*New Tuition Details:*\n` : `Student: *${d.studentName}* (${d.studentId})\n`) +
+        `Subjects: *${d.subjects.join(", ")}*\n` +
         `Time: ${d.timing}\nTutor: ${tutorText(d.tutor)}\nMode: ${modeText(d.medium)}`,
       choices: [{ id: "t_post", title: "Post Request" }, CANCEL],
     };
@@ -71,23 +74,24 @@ function prompt(step: string, d: Json): Out {
   }
 }
 
-// Subjects this student is still finding a tutor for (shown above the subject question).
-async function findingFor(studentId: string): Promise<string[]> {
+// Subjects this student is still finding a tutor for, and those already running (shown above the subject question).
+async function findingFor(studentId: string): Promise<{ finding: string[]; running: string[] }> {
   try {
     const rows = await rest(`tuitions?student_id=eq.${q(studentId)}&terminated=eq.false&select=demo_id,subject&order=posted_at.desc`) ?? [];
-    const out: string[] = [];
+    const finding: string[] = [], running: string[] = [];
     for (const r of rows) {
-      const status = await rest("rpc/tuition_status", { method: "POST", body: JSON.stringify({ p_demo_id: r.demo_id }) });
-      if (String(status) === "Finding Tutor") out.push(`*${r.subject}* (${r.demo_id})`);
+      const status = String(await rest("rpc/tuition_status", { method: "POST", body: JSON.stringify({ p_demo_id: r.demo_id }) }));
+      if (status === "Finding Tutor") finding.push(`*${r.subject}* (${r.demo_id})`);
+      else if (!["Completed", "Terminated"].includes(status)) running.push(`*${r.subject}* (${r.demo_id})`);
     }
-    return out;
+    return { finding, running };
   } catch {
-    return [];
+    return { finding: [], running: [] };
   }
 }
 
 async function goTo(ctx: Ctx, step: string, d: Json): Promise<Out[]> {
-  if (step === "t_subjects") d.finding = await findingFor(String(d.studentId));
+  if (step === "t_subjects") Object.assign(d, await findingFor(String(d.studentId)));
   await save(ctx, step, d);
   return [prompt(step, d)];
 }
@@ -231,7 +235,7 @@ export async function tuitionInput(ctx: Ctx, s: { step: string; data: Json }, in
       if (!d.adminId) await tellPosted(d.studentId, res.demos!, d);
       if (d.adminId) {
         const items = res.demos!.map((x) => `Subject: *${x.subject}*\nTuition ID: ${x.demoId}\nTutor: ${tutorText(d.tutor)}\nMode: ${modeText(d.medium)}`).join("\n\n");
-        return [{ text: `*Tuition Request Posted!*\n\n${studentDetails(d)}\n\n*Tuition Details*\n${items}\n\nThe parents have been told.` }];
+        return [{ text: `*Tuition Request Posted!*\n\n${studentDetails(d)}\n\n*Tuition Details:*\n${items}\n\nThe parents have been told.` }];
       }
       const list = res.demos!.map((x) => `Tuition: *${x.subject}* (${x.demoId})\nTutor - ${tutorText(d.tutor)}`).join("\n\n");
       return [{
