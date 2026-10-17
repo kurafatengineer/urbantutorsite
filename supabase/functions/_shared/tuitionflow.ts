@@ -116,7 +116,7 @@ function chooseStudent(d: Json, a: Json) {
 
 // students: the ones this chat may post for ({ student_id, student_name, blocked_at? })
 // adminId: an employee posts the tuition for the parent (the admin function does the posting and tells the parent).
-export async function startTuition(ctx: Ctx, students: Json[], opts: { adminId?: string; hide?: boolean } = {}): Promise<Out[]> {
+export async function startTuition(ctx: Ctx, students: Json[], opts: { adminId?: string; hide?: boolean; perms?: string[] } = {}): Promise<Out[]> {
   const allowed = students.filter((s) => !s.blocked_at).map((s) => ({ id: String(s.student_id), name: String(s.student_name ?? ""), whatsapp: s.whatsapp ?? "", phone: s.phone ?? "" }));
   if (!allowed.length) {
     await clear(ctx);
@@ -125,6 +125,7 @@ export async function startTuition(ctx: Ctx, students: Json[], opts: { adminId?:
   const d: Json = { allowed };
   if (opts.adminId) d.adminId = opts.adminId;
   if (opts.hide) d.hide = true;
+  if (opts.perms) d.perms = opts.perms;
   if (allowed.length === 1) {
     chooseStudent(d, allowed[0]);
     return goTo(ctx, "t_subjects", d);
@@ -246,7 +247,15 @@ export async function tuitionInput(ctx: Ctx, s: { step: string; data: Json }, in
       if (!d.adminId) await tellPosted(d.studentId, res.demos!, d);
       if (d.adminId) {
         const items = res.demos!.map((x) => `Subject: *${x.subject}*\nTuition ID: ${x.demoId}\nTutor: ${tutorText(d.tutor)}\nMode: ${modeText(d.medium)}`).join("\n\n");
-        return [{ text: `*Tuition Request Posted!*\n\n${studentDetails(d)}\n\n*Tuition Details:*\n${items}\n\nThe parents have been told.` }];
+        const text = `*Tuition Request Posted!*\n\n${studentDetails(d)}\n\n*Tuition Details:*\n${items}\n\nThe parents have been told.`;
+        // an employee who may assign tutors gets a button to go straight on to Assign Tutor
+        if (!(d.perms ?? []).includes("tuitions_assign_tutor")) return [{ text }];
+        await save(ctx, "ad_after", { eid: d.adminId, hide: !!d.hide, perms: d.perms });
+        const many = res.demos!.length > 1;
+        return [{
+          text,
+          choices: res.demos!.map((x) => ({ id: `af_assign:${x.demoId}`, title: many ? `Assign ${x.subject}`.slice(0, 24) : "Assign Tutor" })),
+        }];
       }
       const list = res.demos!.map((x) => `Tuition: *${x.subject}* (${x.demoId})\nTutor - ${tutorText(d.tutor)}`).join("\n\n");
       return [{

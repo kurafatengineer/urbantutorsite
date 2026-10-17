@@ -34,7 +34,7 @@ const NEED: Record<AdminKind, string> = {
 
 const FIRST_STEP: Record<AdminKind, string> = {
   new: "ad_new_find", assign: "ad_as_demo", demo: "ad_sd_demo", conf: "ad_tc_demo", pay: "ad_pm_demo",
-  student: "ad_st_name", deal: "ad_dl_demo",
+  student: "ad_st_phone", deal: "ad_dl_demo",
 };
 
 const TITLE: Record<AdminKind, string> = {
@@ -338,25 +338,29 @@ function prompt(step: string, d: Json): Out {
         "\nThe parent / tutor will get the payment message.",
       choices: [YES("Record Payment"), CANCEL],
     };
-    case "ad_st_name": return { text: "*Add New Student*\nYou can type *Cancel* any time.\n\nOnly the *name* and a *mobile number* are needed. You can skip the rest.\n\nWhat is the *student's name*?" };
-    case "ad_st_parent": return { text: "The *parent's name*?", choices: [ST_SKIP] };
-    case "ad_st_phone": return { text: "The parent's *mobile number* (10 digits).\nThe same number is used as the WhatsApp number." };
-    case "ad_st_more": return {
-      text: "Basic details are enough.\nDo you also want to add the email, gender, class, school or address?",
-      choices: [{ id: "st_save", title: "Save Now" }, { id: "st_more", title: "Add More Details" }],
+    case "ad_st_phone": return {
+      text: "*Add New Student*\n\nWhat is the parent's *WhatsApp number*? (10 digits)",
+      choices: [CANCEL],
     };
-    case "ad_st_email": return { text: "The *email address*?\nNo code is sent to it.", choices: [ST_SKIP] };
-    case "ad_st_gender": return { text: "The student's *gender*?", choices: [{ id: "st_gender:Male", title: "Male" }, { id: "st_gender:Female", title: "Female" }, ST_SKIP] };
-    case "ad_st_class": return { text: "Which *class* is the student in?\n\nFor example -\n10th\nB.Com", choices: [ST_SKIP] };
-    case "ad_st_school": return { text: "*School / College* name?", choices: [ST_SKIP] };
-    case "ad_st_board": return { text: "*Board / University*?\n\nFor example -\nCBSE\nICSE", choices: [ST_SKIP] };
-    case "ad_st_city": return { text: "Which *city*?", choices: [ST_SKIP] };
-    case "ad_st_pin": return { text: "*PIN code* (6 digits)?", choices: [ST_SKIP] };
-    case "ad_st_address": return { text: "The *address*?", choices: [ST_SKIP] };
+    case "ad_st_found": return { text: foundCard(d), choices: [{ id: "st_add", title: "Add New Student" }, CANCEL] };
+    case "ad_st_parent": return { text: "No student is registered on this number yet.\n\nThe *parent's name*?", choices: [ST_SKIP, CANCEL] };
+    case "ad_st_name": return { text: "What is the *student's name*?", choices: [CANCEL] };
+    case "ad_st_gender": return { text: "The student's *gender*?", choices: [{ id: "st_gender:Male", title: "Male" }, { id: "st_gender:Female", title: "Female" }, CANCEL] };
+    case "ad_st_class": return { text: "Which *class* is the student in?\n\nFor example -\n10th\nB.Com", choices: [ST_SKIP, CANCEL] };
+    case "ad_st_board": return { text: "*Board / University*?\n\nFor example -\nCBSE\nICSE", choices: [CANCEL] };
+    case "ad_st_school": return { text: "*School / College* name?", choices: [ST_SKIP, CANCEL] };
+    case "ad_st_more": return {
+      text: "Do you also want to add the email, city, PIN code or address?",
+      choices: [{ id: "st_save", title: "Save Now" }, { id: "st_more", title: "Add More Details" }, CANCEL],
+    };
+    case "ad_st_email": return { text: "The *email address*?\nNo code is sent to it.", choices: [ST_SKIP, CANCEL] };
+    case "ad_st_city": return { text: "Which *city*?", choices: [ST_SKIP, CANCEL] };
+    case "ad_st_pin": return { text: "*PIN code* (6 digits)?", choices: [ST_SKIP, CANCEL] };
+    case "ad_st_address": return { text: "The *address*?", choices: [ST_SKIP, CANCEL] };
     case "ad_st_confirm": return { text: studentSummary(d), choices: [YES("Save Student"), CANCEL] };
     case "ad_st_post": return {
-      text: `*${d.studentName}* is added.\nStudent ID: *${d.studentId}*\n\nPost a new tuition for this student now?`,
-      choices: [{ id: "st_post", title: "Post Tuition Now" }, { id: "st_done", title: "Not Now" }],
+      text: newStudentCard(d),
+      ...(d.perms.includes("tuitions_add") ? { choices: [{ id: "st_post", title: "Create New Tuition" }] } : {}),
     };
     case "ad_dl_demo": return askDemo("deal");
     case "ad_dl_pick": return pickOut("Which *tutor*?", d.options, "tutor_id", "tutorName",
@@ -440,14 +444,14 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
       if (!found.length) return again(`No student was found with *${text}*.`);
       const open = found.filter((x) => !x.blocked_at);
       if (!open.length) return again("This student is blocked.\nUnblock them in the Admin Panel first.");
-      if (open.length === 1) return startTuition(ctx, [open[0]], { adminId: d.eid, hide: d.hide });
+      if (open.length === 1) return startTuition(ctx, [open[0]], { adminId: d.eid, hide: d.hide, perms: d.perms });
       d.options = open.slice(0, 9).map((x) => ({ student_id: x.student_id, student_name: x.student_name, parents_name: x.parents_name, whatsapp: x.whatsapp, phone: x.phone }));
       return go(ctx, "ad_new_pick", d);
     }
     case "ad_new_pick": {
       const chosen = (d.options ?? []).find((o: Json) => o.student_id === pickedId);
       if (!chosen) return [prompt(step, d)];
-      return startTuition(ctx, [chosen], { adminId: d.eid, hide: d.hide });
+      return startTuition(ctx, [chosen], { adminId: d.eid, hide: d.hide, perms: d.perms });
     }
 
     /* ---------- 2. assign tutor ---------- */
@@ -655,59 +659,79 @@ export async function adminInput(ctx: Ctx, s: { step: string; data: Json }, inpu
       if (!res?.success) return finish(ctx, `The payment could not be recorded.\n${String(res?.message ?? "")}`);
       return finish(ctx, `*Payment recorded.*\n${KIND_TEXT[d.kind]}: *${inr(d.amount)}*\n*${d.subject}* (${d.demoId})\n${fmtDate(d.date)}`);
     }
-    case "ad_st_name": {
-      if (text.length < 2 || text.length > 80) return again("Please type the student's name.");
-      d.f = { studentName: titleCase(text) };
-      return go(ctx, "ad_st_parent", d);
+    case "ad_st_phone": {
+      const c = classify(text);
+      if (c.kind !== "phone") return again("That is not a valid WhatsApp number.\nType the 10-digit number.");
+      d.f = { whatsapp: c.value };
+      const ids = (await accountsByPhone(c.value)).students.map((x: Json) => String(x.student_id));
+      d.ex = ids.length
+        ? await rest(`students?student_id=${inList(ids)}&select=student_id,student_name,parents_name,phone,whatsapp,email,address,city,pin_code&order=student_id`) ?? []
+        : [];
+      return go(ctx, d.ex.length ? "ad_st_found" : "ad_st_parent", d);
+    }
+    case "ad_st_found": {
+      if (choice !== "st_add") return [prompt(step, d)];
+      return go(ctx, "ad_st_name", d);
     }
     case "ad_st_parent": {
       if (!skipped) {
         if (text.length < 2 || text.length > 80) return again("Please type the parent's name, or tap *Skip*.");
         d.f.parentsName = titleCase(text);
       }
-      return go(ctx, "ad_st_phone", d);
+      return go(ctx, "ad_st_name", d);
     }
-    case "ad_st_phone": {
-      const c = classify(text);
-      if (c.kind !== "phone") return again("That is not a valid mobile number.\nType the 10-digit number.");
-      d.f.phone = c.value;
-      d.sameNumber = (await accountsByPhone(c.value)).students.map((x) => `${x.student_name} (${x.student_id})`).slice(0, 5);
-      return go(ctx, "ad_st_more", d);
+    case "ad_st_name": {
+      if (text.length < 2 || text.length > 80) return again("Please type the student's name.");
+      d.f.studentName = titleCase(text);
+      return go(ctx, "ad_st_gender", d);
     }
     case "ad_st_more": {
-      if (choice === "st_more") return go(ctx, ST_FIELDS[0].step, d);
+      if (choice === "st_more") return go(ctx, "ad_st_email", d);
       if (choice === "st_save") return go(ctx, "ad_st_confirm", d);
       return [prompt(step, d)];
     }
-    case "ad_st_email": case "ad_st_gender": case "ad_st_class": case "ad_st_school":
-    case "ad_st_board": case "ad_st_city": case "ad_st_pin": case "ad_st_address": {
-      const i = ST_FIELDS.findIndex((x) => x.step === step);
-      const field = ST_FIELDS[i];
-      if (!skipped) {
-        const typedGender = /^male$/i.test(text) ? "Male" : /^female$/i.test(text) ? "Female" : "";
-        const value = field.key === "gender" ? (choice.startsWith("st_gender:") ? choice.slice(10) : typedGender) : text;
-        const bad = field.check(value);
-        if (bad) return again(bad);
-        d.f[field.key] = field.fix ? field.fix(value) : value;
-      }
-      return go(ctx, ST_FIELDS[i + 1]?.step ?? "ad_st_confirm", d);
+    case "ad_st_gender": case "ad_st_class": case "ad_st_board": case "ad_st_school":
+    case "ad_st_email": case "ad_st_city": case "ad_st_pin": case "ad_st_address": {
+      const field = ST_FIELDS.find((x) => x.step === step)!;
+      if (skipped && !field.required) return go(ctx, nextStudentStep(step, d), d);
+      const typedGender = /^male$/i.test(text) ? "Male" : /^female$/i.test(text) ? "Female" : "";
+      const value = field.key === "gender" ? (choice.startsWith("st_gender:") ? choice.slice(10) : typedGender) : text;
+      const bad = field.check(value);
+      if (bad) return again(bad);
+      d.f[field.key] = field.fix ? field.fix(value) : value;
+      return go(ctx, nextStudentStep(step, d), d);
     }
     case "ad_st_confirm": {
       if (choice !== "ad_yes") return [prompt(step, d)];
-      const res = await adminCall(d.eid, "adminAddStudent", { p: { basic: true, ...d.f, whatsapp: d.f.phone, termsAccepted: false } });
+      const home = (d.ex ?? [])[0];
+      const p = {
+        basic: true, ...d.f, termsAccepted: false,
+        ...(home ? {
+          parentsName: home.parents_name || undefined, email: home.email || undefined, address: home.address || undefined,
+          city: home.city || undefined, pinCode: home.pin_code || undefined,
+        } : {}),
+        phone: home?.phone || d.f.whatsapp, whatsapp: home?.whatsapp || d.f.whatsapp,
+      };
+      const res = await adminCall(d.eid, "adminAddStudent", { p });
       if (!res?.success) return finish(ctx, `The student could not be added.\n${String(res?.message ?? "").replace(/^.*?:\s*/, "")}`);
       d.studentId = String(res.studentId);
       d.studentName = d.f.studentName;
-      if (!d.perms.includes("tuitions_add")) return finish(ctx, `*Student added!*\n${d.studentName} - Student ID *${d.studentId}*.`);
+      d.saved = (await rest(`students?student_id=eq.${q(d.studentId)}&select=student_id,student_name,gender,class_name,board,school,parents_name,phone,whatsapp,email,address,city,pin_code`))?.[0]
+        ?? { student_id: d.studentId, student_name: d.studentName, phone: p.phone, whatsapp: p.whatsapp };
+      if (!d.perms.includes("tuitions_add")) { await clear(ctx); return [{ text: newStudentCard(d) }]; }
       await save(ctx, "ad_st_post", d);
       return [prompt("ad_st_post", d)];
     }
     case "ad_st_post": {
-      if (choice === "st_post") {
-        const st = (await rest(`students?student_id=eq.${q(d.studentId)}&select=student_id,student_name,phone,whatsapp`))?.[0] ?? { student_id: d.studentId, student_name: d.studentName, phone: d.f?.phone, whatsapp: d.f?.phone };
-        return startTuition(ctx, [st], { adminId: d.eid, hide: d.hide });
-      }
-      return finish(ctx, `All set.\n${d.studentName} - Student ID *${d.studentId}*.`);
+      if (choice === "st_post") return startTuition(ctx, [d.saved], { adminId: d.eid, hide: d.hide, perms: d.perms });
+      await clear(ctx);
+      return [{ text: "", menu: "a" }];
+    }
+    case "ad_after": {
+      const did = choice.startsWith("af_assign:") ? choice.slice(10) : "";
+      if (!did) { await clear(ctx); return [{ text: "", menu: "a" }]; }
+      const nd = { eid: d.eid, name: d.name ?? "", perms: d.perms, hide: d.hide, kind: "assign" };
+      return adminInput(ctx, { step: "ad_as_demo", data: nd }, { text: did });
     }
     case "ad_dl_demo": {
       const c = classify(text);
@@ -868,27 +892,66 @@ async function payKind(ctx: Ctx, d: Json, row: Json): Promise<Out[]> {
 
 /* ------------------------------------------------------ student + deal */
 
-// The optional details of "Add New Student", asked in this order; each can be skipped.
-const ST_FIELDS: { step: string; key: string; check: (v: string) => string; fix?: (v: string) => string }[] = [
-  { step: "ad_st_email", key: "email", check: (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) && v.length <= 120 ? "" : "That doesn't look like an email address.\nType it again, or tap *Skip*.", fix: (v) => v.toLowerCase() },
-  { step: "ad_st_gender", key: "gender", check: (v) => v === "Male" || v === "Female" ? "" : "Please tap *Male*, *Female* or *Skip*." },
+// The details of "Add New Student": the main ones first, then the optional extras (only for a number with no student yet).
+const ST_FIELDS: { step: string; key: string; required?: boolean; check: (v: string) => string; fix?: (v: string) => string }[] = [
+  { step: "ad_st_gender", key: "gender", required: true, check: (v) => v === "Male" || v === "Female" ? "" : "Please tap *Male* or *Female*." },
   { step: "ad_st_class", key: "className", check: (v) => v.length >= 1 && v.length <= 80 ? "" : "Please type the class, or tap *Skip*." },
+  { step: "ad_st_board", key: "board", required: true, check: (v) => v.length >= 2 && v.length <= 150 ? "" : "Please type the board / university." },
   { step: "ad_st_school", key: "school", check: (v) => v.length >= 2 && v.length <= 150 ? "" : "Please type the school / college, or tap *Skip*.", fix: titleCase },
-  { step: "ad_st_board", key: "board", check: (v) => v.length >= 2 && v.length <= 150 ? "" : "Please type the board / university, or tap *Skip*." },
+  { step: "ad_st_email", key: "email", check: (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) && v.length <= 120 ? "" : "That doesn't look like an email address.\nType it again, or tap *Skip*.", fix: (v) => v.toLowerCase() },
   { step: "ad_st_city", key: "city", check: (v) => v.length >= 2 && v.length <= 80 ? "" : "Please type the city, or tap *Skip*.", fix: titleCase },
   { step: "ad_st_pin", key: "pinCode", check: (v) => /^\d{6}$/.test(v) ? "" : "The PIN code must be 6 digits, or tap *Skip*." },
   { step: "ad_st_address", key: "address", check: (v) => v.length >= 5 && v.length <= 250 ? "" : "Please type the address (a few words), or tap *Skip*." },
 ];
 
+function nextStudentStep(step: string, d: Json): string {
+  const i = ST_FIELDS.findIndex((x) => x.step === step);
+  const next = ST_FIELDS[i + 1];
+  if (step === "ad_st_school") return (d.ex ?? []).length ? "ad_st_confirm" : "ad_st_more";
+  return next ? next.step : "ad_st_confirm";
+}
+
+const fullAddress = (s: Json) => [s.address, [s.city, s.pin_code].filter(Boolean).join(" - ")].filter(Boolean).join(", ");
+
+// Students already on this number: parent, each student with the ID, then the numbers and the address.
+function foundCard(d: Json): string {
+  const groups = new Map<string, Json[]>();
+  for (const s of d.ex ?? []) {
+    const k = String(s.parents_name ?? "").trim().toLowerCase();
+    groups.set(k, [...(groups.get(k) ?? []), s]);
+  }
+  const blocks = [...groups.values()].map((rows) => {
+    const first = rows[0];
+    const wa = numText(first.whatsapp, d.hide), ph = numText(first.phone, d.hide), addr = d.hide ? "" : fullAddress(first);
+    return (first.parents_name ? `Parent: *${first.parents_name}*\n\n` : "") +
+      rows.map((s) => `Student: *${s.student_name ?? "-"}*\nStudent ID: ${s.student_id}`).join("\n\n") +
+      (wa ? `\n\nWhatsApp: ${wa}` : "") + (ph ? `\nMobile No.: ${ph}` : "") + (addr ? `\nAddress: ${addr}` : "");
+  });
+  return `*Students with this WhatsApp / Mobile Number:*\n\n${blocks.join("\n\n---\n\n")}\n\nDo you want to add one more student here?`;
+}
+
 function studentSummary(d: Json): string {
   const f = d.f ?? {};
+  const home = (d.ex ?? [])[0];
   const line = (label: string, v: unknown) => v ? `${label}: ${v}\n` : "";
+  const wa = numText(home?.whatsapp || f.whatsapp, d.hide);
   return "*Please check the new student:*\n\n" +
-    `Student: *${f.studentName}*\n` + `Parent: ${f.parentsName ?? "(not given)"}\n` + `Mobile / WhatsApp: ${f.phone}\n` +
-    line("Email", f.email) + line("Gender", f.gender) + line("Class", f.className) + line("School", f.school) + line("Board", f.board) +
-    line("City", [f.city, f.pinCode].filter(Boolean).join(" - ")) + line("Address", f.address) +
-    ((d.sameNumber ?? []).length ? `\nThis number already has: ${d.sameNumber.join(", ")}.\nA new student will be added next to them.\n` : "") +
+    `Student: *${f.studentName}*\n` + line("Gender", f.gender) + line("Class", f.className) + line("Board", f.board) + line("School", f.school) +
+    `Parent: ${home?.parents_name || f.parentsName || "(not given)"}\n` + `WhatsApp: ${wa}\n` +
+    line("Email", home?.email || f.email) + line("Address", d.hide ? "" : fullAddress(home ?? { address: f.address, city: f.city, pin_code: f.pinCode })) +
     "\nNo email code is sent.";
+}
+
+// the saved student, with everything we hold (numbers hidden for a "Hide Mobile Number" account)
+function newStudentCard(d: Json): string {
+  const s = d.saved ?? {};
+  const line = (label: string, v: unknown) => v ? `\n${label}: ${v}` : "";
+  const wa = numText(s.whatsapp, d.hide), ph = numText(s.phone, d.hide);
+  return "*New Student Added!*\n\n*Student Details:*\n" +
+    `Name: *${s.student_name ?? d.studentName}*\nStudent ID: ${s.student_id ?? d.studentId}` +
+    line("Gender", s.gender) + line("Class", s.class_name) + line("Board", s.board) + line("School", s.school) +
+    line("Parent", s.parents_name) + line("WhatsApp", wa) + line("Mobile No.", ph) +
+    (d.hide ? "" : line("Email", s.email) + line("Address", fullAddress(s)));
 }
 
 // the deal in the shape the Admin Panel saves it
