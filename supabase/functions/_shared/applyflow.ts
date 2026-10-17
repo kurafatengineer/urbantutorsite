@@ -5,6 +5,7 @@
 import { inList, q, rest } from "./botdata.ts";
 import { tutorAppliedMail } from "./mails.ts";
 import { notify, studentQuiet } from "./telegram.ts";
+import { waTutorApplied } from "./wasend.ts";
 import { type Ctx, type Input, type Out, clean, clear, save } from "./session.ts";
 
 type Json = Record<string, any>;
@@ -33,6 +34,7 @@ export async function startApply(ctx: Ctx, tutors: Json[]): Promise<Out[]> {
 }
 
 async function tellParent(demoId: string, tutorId: string) {
+  await waTutorApplied(demoId, tutorId);
   try {
     const tuition = (await rest(`tuitions?demo_id=eq.${q(demoId)}&select=subject,student_id`))?.[0];
     const student = tuition?.student_id

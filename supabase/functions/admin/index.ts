@@ -25,6 +25,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { notify, sendTelegram, demoScheduledTelegram, demoResponseButtons, studentQuiet } from "../_shared/telegram.ts";
 import type { Built } from "../_shared/mails.ts";
+import { waDemoScheduled } from "../_shared/wasend.ts";
 import {
   demoScheduledMail, paymentReceivedMail, agencyChargeMail, payoutMail, subscriptionMail, tuitionPostedMail, agreementMail,
 } from "../_shared/mails.ts";
@@ -988,6 +989,7 @@ async function sendDemoScheduled(demoId: string, tutorId: string, date: string, 
   const tutor = await tutorById(tutorId);
   if (!tuition || !student || !tutor) return;
   const base = { demoId, subject: tuition.subject ?? "", date, time, mode: tuition.medium };
+  await waDemoScheduled(demoId, tutorId, date, time);
   const quiet = await studentQuiet(student.student_id);
   // emails only here: the Telegram message below carries more (class, area)
   if (!quiet) await notify(student.email, demoScheduledMail({ ...base, forTutor: false, name: student.student_name, otherName: tutor.full_name }), { email: mails, telegram: false });

@@ -8,6 +8,7 @@ import { startApply } from "../_shared/applyflow.ts";
 import { accountsByPhone, employeeByPhone, inList, last10, loadLife, pickerText, rest } from "../_shared/botdata.ts";
 import { adminMenuRows, startAdminFlow, whoAmI, type AdminKind } from "../_shared/adminflow.ts";
 import { demoDetail, findingDetail, people, runningDetail } from "../_shared/classinfo.ts";
+import { handleTemplateButton } from "../_shared/wasend.ts";
 
 type Json = Record<string, any>;
 
@@ -200,6 +201,8 @@ async function showRunning(to: string, role: string, demo: string, accounts: { s
 async function onMessage(m: Json) {
   const from = String(m.from ?? "");
   if (!from) return;
+  // a tap on a template's Quick Reply button (class Yes / No, "Check All Tutors")
+  if (m.type === "button" && (await handleTemplateButton(from, String(m.button?.payload ?? "")))) return;
   const picked = String(m.interactive?.list_reply?.id ?? m.interactive?.button_reply?.id ?? "");
 
   // "register as a student" chat flow

@@ -20,6 +20,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { notify, notifyIfMatched, studentQuiet } from "../_shared/telegram.ts";
+import { waTutorApplied } from "../_shared/wasend.ts";
 import { tuitionPostedMail, tutorAppliedMail, parentResponseMail, tutorResponseMail } from "../_shared/mails.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -131,6 +132,7 @@ async function handleApplyForTuition(userClient: ReturnType<typeof callAsUser>, 
   if (data?.success && !data?.alreadyApplied) {
     const tutor = await tutorByEmail(await callerEmail(userClient));
     const { tuition, student } = await demoAndStudent(demoId);
+    if (tutor) await waTutorApplied(demoId, tutor.tutor_id);
     if (tutor && student?.email && !(await studentQuiet(student.student_id))) {
       const mail = tutorAppliedMail({
         name: student.student_name, demoId, subject: tuition?.subject ?? "", tutorName: tutor.full_name,

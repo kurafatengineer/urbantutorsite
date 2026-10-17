@@ -13,7 +13,7 @@ const shared = join(here, "..", "functions", "_shared");
 const out = join(here, "build");
 mkdirSync(out, { recursive: true });
 
-for (const f of ["botdata", "session", "regflow", "tuitionflow", "applyflow", "adminflow", "adminbridge", "classinfo", "deal", "constants", "format"]) {
+for (const f of ["botdata", "session", "regflow", "tuitionflow", "applyflow", "adminflow", "adminbridge", "classinfo", "deal", "constants", "format", "wasend"]) {
   const js = ts.transpileModule(readFileSync(join(shared, f + ".ts"), "utf8"), { compilerOptions: { target: "ES2022", module: "ESNext" } }).outputText;
   writeFileSync(join(out, f + ".mjs"), js.replace(/from "\.\/(\w+)\.ts"/g, 'from "./$1.mjs"'));
 }
@@ -26,7 +26,7 @@ writeFileSync(join(out, "mails.mjs"), "export { fmtDate, fmtTime } from './forma
 writeFileSync(join(out, "telegram.mjs"), "export const sent=[];export async function notify(email,mail){sent.push({email,mail});}export async function studentQuiet(){return false;}");
 
 let failed = 0;
-for (const t of ["regflow.test.mjs", "tuitionflow.test.mjs", "applyflow.test.mjs", "adminflow.test.mjs", "classinfo.test.mjs", "botdata.test.mjs"]) {
+for (const t of ["regflow.test.mjs", "tuitionflow.test.mjs", "applyflow.test.mjs", "adminflow.test.mjs", "classinfo.test.mjs", "botdata.test.mjs", "wasend.test.mjs"]) {
   console.log("\n== " + t);
   const r = spawnSync("node", [join(here, t)], { stdio: "inherit" });
   if (r.status) failed++;

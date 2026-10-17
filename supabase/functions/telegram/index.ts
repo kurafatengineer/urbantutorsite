@@ -38,6 +38,7 @@
 
 import { notify, notifyIfMatched, demoResponseButtons, studentQuiet, tutorQuiet } from "../_shared/telegram.ts";
 import { handleInput, startAddChild, startRegistration, type Out } from "../_shared/regflow.ts";
+import { waClassCheck, waClassReminder } from "../_shared/wasend.ts";
 import { startTuition } from "../_shared/tuitionflow.ts";
 import { startApply } from "../_shared/applyflow.ts";
 import { inList, loadLife, pickerText, q, rest as db } from "../_shared/botdata.ts";
@@ -502,6 +503,7 @@ async function sendQueued(r: Json) {
   const base = { demoId: String(r.demo_id), subject: String(tuition.subject ?? ""), time: String(r.class_time ?? ""), minutes: r.minutes, date: String(r.class_date) };
 
   if (r.kind === "reminder") {
+    await waClassReminder(r, r.audience === "tutor" ? "tutor" : "student");
     if (r.audience === "tutor") {
       await notify(tutor.email, classReminderMail({ ...base, forTutor: true, name: tutor.full_name, otherName: student.student_name, otherPhone: student.phone || student.whatsapp }));
     } else if (!(await studentQuiet(student.student_id))) {
@@ -511,6 +513,7 @@ async function sendQueued(r: Json) {
   }
 
   // confirm: the tutor only
+  await waClassCheck(r);
   if (await tutorQuiet(tutor.email)) return;
   await notify(tutor.email, classConfirmMail({ ...base, name: tutor.full_name, otherName: student.student_name, otherPhone: student.phone || student.whatsapp }), { telegram: false });
   if (tutor.telegram_chat_id) {

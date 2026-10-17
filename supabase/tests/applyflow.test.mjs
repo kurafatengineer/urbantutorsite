@@ -22,6 +22,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (path === "tutors") return ok(db.tutors.filter((t) => (u.searchParams.get("tutor_id") || "").includes(t.tutor_id)));
   if (path === "tuitions") return ok(db.tuitions.filter((t) => t.demo_id === eq("demo_id")));
   if (path === "students") return ok(db.students.filter((s) => s.student_id === eq("student_id")));
+  if (path === "app_settings" || path === "applications") return ok([]);
   if (path === "rpc/bot_apply_for_tuition") {
     const b = JSON.parse(init.body); db.calls.push(b);
     const t = db.tuitions.find((x) => x.demo_id === b.p_demo_id);
